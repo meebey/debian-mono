@@ -1,3 +1,14 @@
+mono (1.2.2.1-2) unstable; urgency=high
+
+  * Sebastian 'slomo' Dröge:
+    + Urgency high for RC bugfix
+    + debian/control:
+      - Build depend on dpkg-dev (>= 1.13.19) for ${source:Version}
+        substitution (Closes: #411915)
+      - Update to use my debian.org address
+
+ -- Sebastian Dröge <slomo@debian.org>  Sat, 24 Feb 2007 16:51:10 +0100
+
 mono (1.2.2.1-1) unstable; urgency=low
 
   * New upstream release
