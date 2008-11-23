@@ -20,11 +20,85 @@
 ## DP: connection. Fixes part of bug #360157. When pool is full, and no
 ## DP: connection becomes available before the connect timeout has elapsed,
 ## DP: then throw an InvalidOperationException instead of a SqlException.
+## DP: r118308:
+## DP: TdsConnectionPool.cs: Added TdsConnectionPoolManager.GetConnection
+## DP: overload that can be used to retrieve an existing connection pool.
+## DP: Modified ResetConnectionPool () to skip free slots in the pool and to
+## DP: close pooled connections that are not in use. Pooled connections that
+## DP: are in use are now marked as non-pooled so that they are no longer
+## DP: returned to the pool when they are closed. Fixes bug #443131.
+## DP: SqlConnection.cs: In Close, also remove reference to pool. In Open,
+## DP: set TdsConnection.Pooling to false for a non-pooled connection.
+## DP: Fixed ClearAllPools to no longer create a new connection for each
+## DP: pool. In ClearPool, perform a lookup of the pool to clear using
+## DP: the connectionstring as the pool field may refer to another pool
+## DP: (as the connectionstring may have changed).
+## DP: r112416 (partly):
+## DP: track API changes of releasing the connection in the pool.
 
 @DPATCH@
-diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs mono-1.9+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs
---- mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs	2008-01-29 23:04:15.000000000 +0100
-+++ mono-1.9+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs	2008-07-08 21:15:49.000000000 +0200
+diff -urNad mono-1.9.1+dfsg~/mcs/class/Mono.Data.SybaseClient/Mono.Data.SybaseClient/SybaseConnection.cs mono-1.9.1+dfsg/mcs/class/Mono.Data.SybaseClient/Mono.Data.SybaseClient/SybaseConnection.cs
+--- mono-1.9.1+dfsg~/mcs/class/Mono.Data.SybaseClient/Mono.Data.SybaseClient/SybaseConnection.cs	2008-11-19 17:03:21.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/Mono.Data.SybaseClient/Mono.Data.SybaseClient/SybaseConnection.cs	2008-11-19 17:04:20.000000000 +0100
+@@ -31,6 +31,7 @@
+ //
+ 
+ using Mono.Data.Tds.Protocol;
++using MTds = Mono.Data.Tds.Protocol.Tds;
+ using System;
+ using System.Collections;
+ using System.Collections.Specialized;
+@@ -77,7 +78,7 @@
+ 		SybaseDataReader dataReader = null;
+ 
+ 		// The TDS object
+-		ITds tds;
++		MTds tds;
+ 
+ 		#endregion // Fields
+ 
+@@ -229,14 +230,30 @@
+ 
+ 		public void Close () 
+ 		{
+-			if (Transaction != null && Transaction.IsOpen)
+-				Transaction.Rollback ();
+-			if (pooling)
+-				pool.ReleaseConnection (tds);
+-			else
+-				tds.Disconnect ();
+-			tds.TdsErrorMessage -= new TdsInternalErrorMessageEventHandler (ErrorHandler);
+-			tds.TdsInfoMessage -= new TdsInternalInfoMessageEventHandler (MessageHandler);
++			if (transaction != null && transaction.IsOpen)
++				transaction.Rollback ();
++
++			if (dataReader != null) {
++				if(tds != null) tds.SkipToEnd ();
++				dataReader = null;
++			}
++
++			if (tds != null && tds.IsConnected) {
++				if (pooling && tds.Pooling) {
++#if NET_2_0
++					if(pool != null) pool.ReleaseConnection (ref tds);
++#else
++					if(pool != null) pool.ReleaseConnection (tds);
++#endif
++				}else
++					if(tds != null) tds.Disconnect ();
++			}
++
++			if (tds != null) {
++				tds.TdsErrorMessage -= new TdsInternalErrorMessageEventHandler (ErrorHandler);
++				tds.TdsInfoMessage -= new TdsInternalInfoMessageEventHandler (MessageHandler);
++			}
++
+ 			ChangeState (ConnectionState.Closed);
+ 		}
+ 
+diff -urNad mono-1.9.1+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs mono-1.9.1+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs
+--- mono-1.9.1+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs	2008-11-19 17:03:21.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs	2008-11-19 17:03:26.000000000 +0100
 @@ -102,6 +102,8 @@
  		bool isResultRead = false;
  		bool LoadInProgress = false;
@@ -34,9 +108,9 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/Tds.cs
  		#endregion // Fields
  
  		#region Properties
-diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs mono-1.9+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs
---- mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs	2007-11-08 23:11:23.000000000 +0100
-+++ mono-1.9+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs	2008-07-08 21:15:49.000000000 +0200
+diff -urNad mono-1.9.1+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs mono-1.9.1+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs
+--- mono-1.9.1+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs	2008-11-19 17:03:21.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsConnectionPool.cs	2008-11-19 17:03:26.000000000 +0100
 @@ -3,6 +3,7 @@
  //
  // Author:
@@ -84,9 +158,21 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  				if (pool == null) {
  					pool = new TdsConnectionPool (this, info);
  					pools [connectionString] = pool;
-@@ -58,12 +71,13 @@
+@@ -57,16 +70,28 @@
+ 				return pool;
  			}
  		}
++
++		public TdsConnectionPool GetConnectionPool (string connectionString)
++		{
++			TdsConnectionPool pool = null;
++#if NET_2_0
++			pools.TryGetValue (connectionString, out pool);
++#else
++			pool = (TdsConnectionPool) pools [connectionString];
++#endif
++			return pool;
++		}
  		
 -		public Hashtable GetConnectionPool ()
 +#if NET_2_0
@@ -102,8 +188,12 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 +			return pools;
  		}
  		
- 		public virtual ITds CreateConnection (TdsConnectionInfo info)
-@@ -102,20 +116,34 @@
+-		public virtual ITds CreateConnection (TdsConnectionInfo info)
++		public virtual Tds CreateConnection (TdsConnectionInfo info)
+ 		{
+ 			switch (version)
+ 			{
+@@ -102,20 +127,34 @@
  		public int PoolMinSize;
  		public int PoolMaxSize;
  	}
@@ -112,7 +202,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  	public class TdsConnectionPool
  	{
 -		ArrayList list = new ArrayList ();
-+		ITds[] list;
++		Tds[] list;
  		TdsConnectionInfo info;
 -		bool initialized;
  		bool pooling = true;
@@ -127,7 +217,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 +			
  			this.info = info;
  			this.manager = manager;
-+			list = new ITds[info.PoolMaxSize];
++			list = new Tds[info.PoolMaxSize];
 +			
 +			// Placeholder for future connections are at the beginning of the array.
 +			for (; n < info.PoolMaxSize - info.PoolMinSize; n++)
@@ -143,10 +233,14 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  		}
  
  		public bool Pooling {
-@@ -128,110 +156,118 @@
- 		public ITds GetConnection ()
+@@ -125,124 +164,151 @@
+ 
+ 		#region Methods
+ 
+-		public ITds GetConnection ()
++		public Tds GetConnection ()
  		{
- 			ITds connection = null;
+-			ITds connection = null;
 -			lock (list)
 -			{
 -				if (!initialized) 
@@ -161,6 +255,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 -						// There are available connections
 -						connection = (ITds) list [list.Count - 1];
 -						list.RemoveAt (list.Count - 1);
++			Tds connection = null;
 +			int index;
 +
 +		retry:
@@ -177,9 +272,12 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 +					connection = CreateConnection ();
 +					(connection as Tds).poolStatus = 1;
 +#if NET_2_0
-+					if (Interlocked.CompareExchange<ITds> (ref list [index], connection, null) != null) {
++					if (Interlocked.CompareExchange<Tds> (ref list [index], connection, null) != null) {
 +#else
-+					if (Interlocked.CompareExchange (ref (list as object[]) [index], connection, null) != null) {
++					object val = list [index];
++					object res = Interlocked.CompareExchange (ref val, connection, null);
++					list [index] = (Tds) val;
++					if (res != null) {
 +#endif
 +						// Someone beat us to the punch
 +						connection = null;
@@ -187,7 +285,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 +						continue;
 +					}
 +				} else {
-+					if (Interlocked.CompareExchange (ref (connection as Tds).poolStatus, 1, 0) != 0) {
++					if (Interlocked.CompareExchange (ref connection.poolStatus, 1, 0) != 0) {
 +						// Someone else owns this connection
 +						connection = null;
 +					} else {
@@ -245,20 +343,20 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  		}
  
 -		public void ReleaseConnection (ITds tds)
-+		public void ReleaseConnection (ITds connection)
++		public void ReleaseConnection (Tds connection)
  		{
 -			lock (list)
 -			{
 -				list.Add (tds);
 -				Monitor.Pulse (list);
 -			}
-+			((Tds) connection).poolStatus = 0;
++			connection.poolStatus = 0;
 +			connAvailable.Set ();
  		}
  
  #if NET_2_0
 -		public void ReleaseConnection (ref ITds tds)
-+		public void ReleaseConnection (ref ITds connection)
++		public void ReleaseConnection (ref Tds connection)
  		{
 -			lock (list)
 -			{
@@ -276,7 +374,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 +				ThreadPool.QueueUserWorkItem (new WaitCallback (DestroyConnection), connection);
 +				list [index] = connection = null;
 +			} else {
-+				((Tds) connection).poolStatus = 0;
++				connection.poolStatus = 0;
  			}
 +			connAvailable.Set ();
  		}
@@ -284,7 +382,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  		public void ResetConnectionPool ()
  		{
 -			lock (list)
-+			ITds connection = null;
++			Tds connection = null;
 +			int index = list.Length - 1;
 +
 +			while (index >= 0)
@@ -294,25 +392,33 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
 -					// There are available connections
 -					connection = (ITds) list [list.Count - 1];
 -					list.RemoveAt (list.Count - 1);
-+				connection = list [index];
-+
-+				if (Interlocked.CompareExchange (ref ((Tds) connection).poolStatus, 1, 0) == 0) {
- 					if (!connection.Reset ()) {
+-					if (!connection.Reset ()) {
 -						try {
 -							connection.Disconnect ();
 -						} catch {}
 -						connection = null;
-+						ThreadPool.QueueUserWorkItem (new WaitCallback (DestroyConnection), connection);
-+						list [index] = connection = null;
-+						connAvailable.Set ();
- 					}
+-					}
++				connection = list [index];
++
++				// skip free slots
++				if (connection == null) {
++					index--;
++					continue;
  				}
++
++				if (Interlocked.CompareExchange (ref connection.poolStatus, 1, 0) == 0)
++					ThreadPool.QueueUserWorkItem (new WaitCallback (DestroyConnection), connection);
++
++				connection.Pooling = false;
++				list [index] = connection = null;
++				connAvailable.Set ();
 +
 +				index--;
  			}
  		}
  
- 		public void ResetConnectionPool (ITds connection)
+-		public void ResetConnectionPool (ITds connection)
++		public void ResetConnectionPool (Tds connection)
  		{
 -			lock (list)
 -			{
@@ -338,9 +444,10 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  				}
  			}
  		}
-@@ -239,10 +275,21 @@
+ #endif
  		
- 		ITds CreateConnection ()
+-		ITds CreateConnection ()
++		Tds CreateConnection ()
  		{
 -			activeConnections++;
  			return manager.CreateConnection (info);
@@ -348,7 +455,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  		
 +		void DestroyConnection (object state)
 +		{
-+			ITds connection = state as ITds;
++			Tds connection = state as Tds;
 +			if (connection != null) {
 +				try {
 +					connection.Disconnect ();
@@ -361,9 +468,29 @@ diff -urNad mono-1.9+dfsg~/mcs/class/Mono.Data.Tds/Mono.Data.Tds.Protocol/TdsCon
  		#endregion // Methods
  	}
  }
-diff -urNad mono-1.9+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs mono-1.9+dfsg/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs
---- mono-1.9+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs	2007-11-08 23:13:07.000000000 +0100
-+++ mono-1.9+dfsg/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs	2008-07-08 21:16:16.000000000 +0200
+diff -urNad mono-1.9.1+dfsg~/mcs/class/Mono.Data.TdsClient/Mono.Data.TdsClient/TdsConnection.cs mono-1.9.1+dfsg/mcs/class/Mono.Data.TdsClient/Mono.Data.TdsClient/TdsConnection.cs
+--- mono-1.9.1+dfsg~/mcs/class/Mono.Data.TdsClient/Mono.Data.TdsClient/TdsConnection.cs	2007-11-08 23:13:24.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/Mono.Data.TdsClient/Mono.Data.TdsClient/TdsConnection.cs	2008-11-19 17:06:44.000000000 +0100
+@@ -31,6 +31,7 @@
+ //
+ 
+ using Mono.Data.Tds.Protocol;
++using MTds = Mono.Data.Tds.Protocol.Tds;
+ using System;
+ using System.Collections;
+ using System.Collections.Specialized;
+@@ -77,7 +78,7 @@
+ 		TdsDataReader dataReader = null;
+ 
+ 		// The TDS object
+-		ITds tds;
++		MTds tds;
+ 
+ 		#endregion // Fields
+ 
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs mono-1.9.1+dfsg/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs	2008-11-19 17:03:21.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/System.Data/System.Data.SqlClient/SqlConnection.cs	2008-11-19 17:03:26.000000000 +0100
 @@ -51,6 +51,9 @@
  using System.Net.Sockets;
  using System.Text;
@@ -374,7 +501,32 @@ diff -urNad mono-1.9+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnec
  
  namespace System.Data.SqlClient {
  	[DefaultEvent ("InfoMessage")]
-@@ -570,8 +573,6 @@
+@@ -106,7 +109,7 @@
+ 		XmlReader xmlReader;
+ 
+ 		// The TDS object
+-		ITds tds;
++		Tds tds;
+ 
+ 		#endregion // Fields
+ 
+@@ -441,6 +444,7 @@
+ #else
+ 					if(pool != null) pool.ReleaseConnection (tds);
+ #endif
++					pool = null;
+ 				}else
+ 					if(tds != null) tds.Disconnect ();
+ 			}
+@@ -544,6 +548,7 @@
+ 					if(!ParseDataSource (dataSource, out port, out serverName))
+ 						throw new SqlException(20, 0, "SQL Server does not exist or access denied.",  17, "ConnectionOpen (Connect()).", dataSource, parms.ApplicationName, 0);
+ 					tds = new Tds70 (serverName, port, PacketSize, ConnectionTimeout);
++					tds.Pooling = false;
+ 				}
+ 				else {
+ 					if(!ParseDataSource (dataSource, out port, out serverName))
+@@ -570,8 +575,6 @@
  						pool.ReleaseConnection (tds);
  					throw;
  				}
@@ -383,7 +535,7 @@ diff -urNad mono-1.9+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnec
  			}
  
  			disposed = false; // reset this, so using () would call Close ().
-@@ -1684,7 +1685,11 @@
+@@ -1684,12 +1687,14 @@
  
  		public static void ClearAllPools ()
  		{
@@ -395,3 +547,21 @@ diff -urNad mono-1.9+dfsg~/mcs/class/System.Data/System.Data.SqlClient/SqlConnec
  			foreach (TdsConnectionPool pool in pools.Values) {
  				if (pool != null) {
  					pool.ResetConnectionPool ();
+-					ITds tds = pool.GetConnection ();
+-					tds.Pooling = false;
+ 				}
+ 			}
+ 		}
+@@ -1697,9 +1702,9 @@
+ 		public static void ClearPool (SqlConnection connection)
+ 		{
+ 			if (connection.pooling) {
+-				connection.pooling = false;
+-				if (connection.pool != null)
+-					connection.pool.ResetConnectionPool (connection.Tds);
++				TdsConnectionPool pool = sqlConnectionPools.GetConnectionPool (connection.ConnectionString);
++				if (pool != null)
++					pool.ResetConnectionPool ();
+ 			}
+ 		}
+ 

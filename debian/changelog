@@ -1,3 +1,10 @@
+mono (1.9.1+dfsg-5) unstable; urgency=low
+
+  * debian/patches/fix_TdsConnectionPool_svn.dpatch:
+    + Fixes SqlClient regression on CLI 1.1. (Closes: #504836)
+
+ -- Mirco Bauer <meebey@debian.org>  Sun, 23 Nov 2008 16:48:11 +0100
+
 mono (1.9.1+dfsg-4) unstable; urgency=high
 
   [ Mirco Bauer ]
