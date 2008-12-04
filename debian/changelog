@@ -1,9 +1,20 @@
-mono (1.9.1+dfsg-5) unstable; urgency=low
+mono (1.9.1+dfsg-5) unstable; urgency=high
 
   * debian/patches/fix_TdsConnectionPool_svn.dpatch:
-    + Fixes SqlClient regression on CLI 1.1. (Closes: #504836)
+    + Fixed regression of SqlClient running on CLI 1.1, caused exception in
+      TdsConnectionPool.GetConnection(), which made the MSSQL client unusable.
+      (Closes: #504836, thus urgency set to high)
+    + Close free and unused connections in SqlConnection.ClearPool()
+      (patch taken from upstream SVN revision r118308)
+  * debian/patches/fix_libgc_freeze_r109502.dpatch:
+    + Fixed possible freeze in garbage collector.
+      (patch taken from upstream SVN revision r109502)
+  * debian/patches/fix_remoting_tcp_delay_issue_r115529_r115562.dpatch:
+    + Fixed issue with TCP packets of specific sizes being delayed by the
+      Linux kernel using NO_DELAY.
+      (patch taken from upstream SVN revisions r115529 and r115562)
 
- -- Mirco Bauer <meebey@debian.org>  Sun, 23 Nov 2008 16:48:11 +0100
+ -- Mirco Bauer <meebey@debian.org>  Thu, 04 Dec 2008 22:26:00 +0100
 
 mono (1.9.1+dfsg-4) unstable; urgency=high
 

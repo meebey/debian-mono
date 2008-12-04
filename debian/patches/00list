@@ -20,4 +20,6 @@ fix_CRLF_injection_CVE-2008-3906
 fix_IsolatedStorage_regression_r99231_r101171_r101172
 fix_mono-config_man_page_r111681
 fix_Assembly.LoadFrom_deadlock
+fix_remoting_tcp_delay_issue_r115529_r115562
+fix_libgc_freeze_r109502
 99_autoreconf

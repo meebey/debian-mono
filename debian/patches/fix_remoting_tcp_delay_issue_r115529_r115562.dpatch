@@ -1,0 +1,24 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## fix_remoting_tcp_delay_issue_r115529_r115562.dpatch by Mirco Bauer <meebey@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Runtime.Remoting/System.Runtime.Remoting.Channels.Tcp/TcpConnectionPool.cs mono-1.9.1+dfsg/mcs/class/System.Runtime.Remoting/System.Runtime.Remoting.Channels.Tcp/TcpConnectionPool.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Runtime.Remoting/System.Runtime.Remoting.Channels.Tcp/TcpConnectionPool.cs	2007-11-08 23:34:28.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/System.Runtime.Remoting/System.Runtime.Remoting.Channels.Tcp/TcpConnectionPool.cs	2008-12-04 22:16:03.000000000 +0100
+@@ -124,6 +124,13 @@
+ 	{
+ 		public ReusableTcpClient (string host, int port): base (host, port)
+ 		{
++			// Avoid excessive waiting for data by the tcp stack in linux
++#if NET_2_0			
++ 			Client.NoDelay = true;
++#else
++			Client.SetSocketOption (SocketOptionLevel.Tcp,
++						SocketOptionName.NoDelay, 1);
++#endif			
+ 		}
+ 		
+ 		public bool IsAlive

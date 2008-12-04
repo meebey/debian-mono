@@ -1,0 +1,25 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## fix_libgc_freeze_r109502.dpatch by Mirco Bauer <meebey@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: r109502:
+## DP: 2008-08-03  Zoltan Varga  <vargaz at gmail.com>
+## DP: * pthread_support.c (GC_thread_exit_proc): Null out the tls key to prevent the
+## DP:   dtor function from being callled, since that would read freed memory.
+
+@DPATCH@
+diff -urNad mono-1.9.1+dfsg~/libgc/pthread_support.c mono-1.9.1+dfsg/libgc/pthread_support.c
+--- mono-1.9.1+dfsg~/libgc/pthread_support.c	2007-11-08 23:07:02.000000000 +0100
++++ mono-1.9.1+dfsg/libgc/pthread_support.c	2008-12-04 22:21:47.000000000 +0100
+@@ -1192,6 +1192,11 @@
+     me = GC_lookup_thread(pthread_self());
+     GC_destroy_thread_local(me);
+     if (me -> flags & DETACHED) {
++# ifdef THREAD_LOCAL_ALLOC
++		/* NULL out the tls key to prevent the dtor function from being called */
++		if (0 != GC_setspecific(GC_thread_key, NULL))
++			ABORT("Failed to set thread specific allocation pointers");
++#endif
+     	GC_delete_thread(pthread_self());
+     } else {
+ 	me -> flags |= FINISHED;
