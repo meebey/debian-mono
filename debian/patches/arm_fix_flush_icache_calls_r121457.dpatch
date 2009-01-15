@@ -1,0 +1,28 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## arm_fix_flush_icache_calls_r121457.dpatch by Mirco Bauer <meebey@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad mono-1.9.1+dfsg~/mono/mini/mini-arm.c mono-1.9.1+dfsg/mono/mini/mini-arm.c
+--- mono-1.9.1+dfsg~/mono/mini/mini-arm.c	2008-01-29 23:02:45.000000000 +0100
++++ mono-1.9.1+dfsg/mono/mini/mini-arm.c	2009-01-15 20:59:46.000000000 +0100
+@@ -354,7 +354,7 @@
+ 
+ 		g_assert ((code - start) <= 12);
+ 
+-		mono_arch_flush_icache (code, 12);
++		mono_arch_flush_icache (start, 12);
+ 		cached = start;
+ 		mono_mini_arch_unlock ();
+ 		return cached;
+@@ -387,7 +387,7 @@
+ 
+ 		g_assert ((code - start) <= size);
+ 
+-		mono_arch_flush_icache (code, size);
++		mono_arch_flush_icache (start, size);
+ 		cache [sig->param_count] = start;
+ 		mono_mini_arch_unlock ();
+ 		return start;

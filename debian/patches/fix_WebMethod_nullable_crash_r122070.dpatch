@@ -1,0 +1,43 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## fix_WebMethod_nullable_crash_r122070.dpatch by Mirco Bauer <meebey@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Fixes crash with WebMethods that use nullable types (like Nullable<Int32>)
+## DP: See: http://bugzilla.novell.com/show_bug.cgi?id=461941
+
+@DPATCH@
+diff -urNad mono-1.9.1+dfsg~/mono/metadata/marshal.c mono-1.9.1+dfsg/mono/metadata/marshal.c
+--- mono-1.9.1+dfsg~/mono/metadata/marshal.c	2008-03-11 00:35:33.000000000 +0100
++++ mono-1.9.1+dfsg/mono/metadata/marshal.c	2009-01-11 19:10:53.000000000 +0100
+@@ -4710,6 +4710,16 @@
+ 
+ 		if (t->byref) {
+ 			mono_mb_emit_byte (mb, CEE_LDIND_I);
++			/* A Nullable<T> type don't have a boxed form, it's either null or a boxed T.
++			 * So to make this work we unbox it to a local variablee and push a reference to that.
++			 */
++			if (t->type == MONO_TYPE_GENERICINST && mono_class_is_nullable (mono_class_from_mono_type (t))) {
++				int tmp_nullable_local = mono_mb_add_local (mb, &mono_class_from_mono_type (t)->byval_arg);
++
++				mono_mb_emit_op (mb, CEE_UNBOX_ANY, mono_class_from_mono_type (t));
++				mono_mb_emit_stloc (mb, tmp_nullable_local);
++				mono_mb_emit_ldloc_addr (mb, tmp_nullable_local);
++			}
+ 			continue;
+ 		}
+ 
+diff -urNad mono-1.9.1+dfsg~/mono/metadata/object.c mono-1.9.1+dfsg/mono/metadata/object.c
+--- mono-1.9.1+dfsg~/mono/metadata/object.c	2008-01-29 23:02:34.000000000 +0100
++++ mono-1.9.1+dfsg/mono/metadata/object.c	2009-01-11 19:10:53.000000000 +0100
+@@ -3188,10 +3188,7 @@
+ 			case MONO_TYPE_R8:
+ 			case MONO_TYPE_VALUETYPE:
+ 				if (t->type == MONO_TYPE_VALUETYPE && mono_class_is_nullable (mono_class_from_mono_type (sig->params [i]))) {
+-					if (t->byref)
+-						/* FIXME: */
+-						g_assert_not_reached ();
+-					/* The runtime invoke wrapper needs the original boxed vtype */
++					/* The runtime invoke wrapper needs the original boxed vtype, it does handle byref values as well. */
+ 					pa [i] = mono_array_get (params, MonoObject*, i);
+ 				} else {
+ 					/* MS seems to create the objects if a null is passed in */

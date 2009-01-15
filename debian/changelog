@@ -1,3 +1,35 @@
+mono (1.9.1+dfsg-6) unstable; urgency=high
+
+  [ Mirco Bauer ]
+  * debian/rules:
+    + Bumped API of libmono-data-tds1.0-cil and libmono-data-tds2.0-cil to
+      1.9.1+dfsg-3 (which was forgotten in the -3 release). This caused a type
+      loading error for partial uprades between 1.9.1 and 2.0: "The class
+      Mono.Data.Tds.Protocol.ITds could not be loaded, used in Mono.Data.Tds,
+      Version=2.0.0.0".
+  * debian/patches/fix_WebMethod_nullable_crash_r122070.dpatch:
+    + Fixes a crash with WebMethods when nullable types are used.
+      (patch taken from upstream SVN revision r122070)
+  * debian/patches/fix_System.Web.HttpResponse_memory_leak_r115861.dpatch:
+    + Fixes memory leak in System.Web.HttpResponse.
+      (patch taken from upstream SVN revision r115863)
+  * debian/patches/arm_fix_flush_icache_calls_r121457.dpatch:
+    + Fixed calls to mono_arch_flush_icache.
+      (patch taken from upstream SVN revision r121457)
+  * debian/patches/arm_eabi_fix_r122416_r122702.dpatch:
+    + Use GCC macro for flushing the cache where available instead of inline
+      ASM. (Closes: #511694, thanks to Stephen Depooter <stephend@xandros.com>
+      for the investigation and Riku Voipio <novell@kos.to> for the patch)
+      (patch taken from upstream SVN revisions r122416 and r122702)
+
+  [ David Paleino ]
+  * debian/patches/fix_TcpClient_IPv6_r122598.dpatch:
+    + Fix bug in TcpClient() implementation preventing IPv6 connections
+      from working.
+      (patch taken from upstream SVN revision r122598)
+
+ -- Mirco Bauer <meebey@debian.org>  Thu, 15 Jan 2009 22:18:16 +0100
+
 mono (1.9.1+dfsg-5) unstable; urgency=high
 
   * debian/patches/fix_TdsConnectionPool_svn.dpatch:

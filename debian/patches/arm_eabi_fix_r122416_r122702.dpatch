@@ -1,0 +1,36 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## arm_eabi_fix_r122416_r122702.dpatch by Mirco Bauer <meebey@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad mono-1.9.1+dfsg~/mono/mini/mini-arm.c mono-1.9.1+dfsg/mono/mini/mini-arm.c
+--- mono-1.9.1+dfsg~/mono/mini/mini-arm.c	2009-01-15 22:06:52.000000000 +0100
++++ mono-1.9.1+dfsg/mono/mini/mini-arm.c	2009-01-15 22:10:56.000000000 +0100
+@@ -556,9 +556,17 @@
+ 	return 2;
+ }
+ 
++
++#ifndef __GNUC_PREREQ
++#define __GNUC_PREREQ(maj, min) (0)
++#endif
++
+ void
+ mono_arch_flush_icache (guint8 *code, gint size)
+ {
++#if __GNUC_PREREQ(4, 1)
++	__clear_cache (code, code + size);
++#else
+ 	__asm __volatile ("mov r0, %0\n"
+ 			"mov r1, %1\n"
+ 			"mov r2, %2\n"
+@@ -566,6 +574,7 @@
+ 			: /* no outputs */
+ 			: "r" (code), "r" (code + size), "r" (0)
+ 			: "r0", "r1", "r3" );
++#endif
+ 
+ }
+ 

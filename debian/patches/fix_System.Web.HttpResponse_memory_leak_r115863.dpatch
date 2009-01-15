@@ -1,0 +1,191 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## fix_System.Web.HttpResponse_memory_leak_r115863.dpatch by Mirco Bauer <meebey@debian.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Fixes memory leak in System.Web.HttpResponse
+## DP: See: https://bugzilla.novell.com/show_bug.cgi?id=435549
+
+@DPATCH@
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web/HttpCachePolicy.cs mono-1.9.1+dfsg/mcs/class/System.Web/System.Web/HttpCachePolicy.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web/HttpCachePolicy.cs	2008-01-29 23:04:11.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/System.Web/System.Web/HttpCachePolicy.cs	2009-01-15 20:57:33.000000000 +0100
+@@ -36,19 +36,6 @@
+ using System.Web.Util;
+ 
+ namespace System.Web {
+-
+-	class CacheabilityUpdatedEventArgs : EventArgs {
+-
+-		public readonly HttpCacheability Cacheability;
+-
+-		public CacheabilityUpdatedEventArgs (HttpCacheability cacheability)
+-		{
+-			Cacheability = cacheability;
+-		}
+-	}
+-	
+-	internal delegate void CacheabilityUpdatedCallback (object sender, CacheabilityUpdatedEventArgs args);
+-	
+ 	// CAS - no InheritanceDemand here as the class is sealed
+ 	[AspNetHostingPermission (SecurityAction.LinkDemand, Level = AspNetHostingPermissionLevel.Minimal)]
+ 	public sealed class HttpCachePolicy {
+@@ -100,8 +87,6 @@
+ 		
+ #endregion
+ 
+-                internal event CacheabilityUpdatedCallback CacheabilityUpdated;
+-                
+ #region Properties
+ 
+ #if NET_2_0
+@@ -194,9 +179,6 @@
+ 				return;
+ 			
+ 			Cacheability = cacheability;
+-
+-			if (CacheabilityUpdated != null)
+-				CacheabilityUpdated (this, new CacheabilityUpdatedEventArgs (cacheability));
+ 		}
+ 
+ 		public void SetCacheability (HttpCacheability cacheability, string field)
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web/HttpResponse.cs mono-1.9.1+dfsg/mcs/class/System.Web/System.Web/HttpResponse.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web/HttpResponse.cs	2008-04-04 19:05:35.000000000 +0200
++++ mono-1.9.1+dfsg/mcs/class/System.Web/System.Web/HttpResponse.cs	2009-01-15 20:57:33.000000000 +0100
+@@ -975,34 +975,31 @@
+ 		}
+ 
+ 		internal bool IsCached {
+-			get {
+-				return cached_response != null;
++			get { return cached_response != null; }
++			set {
++				if (value)
++					cached_response = new CachedRawResponse (cache_policy);
++				else
++					cached_response = null;
+ 			}
+ 		}
+ 
+ 		public HttpCachePolicy Cache {
+ 			get {
+-				if (cache_policy == null) {
++				if (cache_policy == null)
+ 					cache_policy = new HttpCachePolicy ();
+-					cache_policy.CacheabilityUpdated += new CacheabilityUpdatedCallback (OnCacheabilityUpdated);
+-				}
+ 				
+ 				return cache_policy;
+ 			}
+-		}
+-		
+-		private void OnCacheabilityUpdated (object sender, CacheabilityUpdatedEventArgs e)
+-		{
+-			if (e.Cacheability >= HttpCacheability.Server && !IsCached)
+-				cached_response = new CachedRawResponse (cache_policy);
+-			else if (e.Cacheability <= HttpCacheability.Private)
+-				cached_response = null;
+-		}
++		}		
+ 
+ 		internal CachedRawResponse GetCachedResponse ()
+ 		{
+-			cached_response.StatusCode = StatusCode;
+-			cached_response.StatusDescription = StatusDescription;
++			if (cached_response != null) {
++				cached_response.StatusCode = StatusCode;
++				cached_response.StatusDescription = StatusDescription;
++			}
++			
+ 			return cached_response;
+ 		}
+ 
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web.Caching/CachedRawResponse.cs mono-1.9.1+dfsg/mcs/class/System.Web/System.Web.Caching/CachedRawResponse.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web.Caching/CachedRawResponse.cs	2008-04-04 19:05:35.000000000 +0200
++++ mono-1.9.1+dfsg/mcs/class/System.Web/System.Web.Caching/CachedRawResponse.cs	2009-01-15 20:57:33.000000000 +0100
+@@ -36,7 +36,7 @@
+ namespace System.Web.Caching {
+ 
+ 	internal class CachedRawResponse {
+-
++		static readonly byte[] emptyBuffer = new byte[0];
+ 		private HttpCachePolicy policy;
+ 		private CachedVaryBy varyby;
+ 		private int status_code;
+@@ -48,7 +48,7 @@
+ 		internal CachedRawResponse (HttpCachePolicy policy)
+ 		{
+ 			this.policy = policy;
+-			this.buffer = new byte [32*1024];
++			this.buffer = emptyBuffer;
+ 		}
+ 
+ 		internal HttpCachePolicy Policy {
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web.Caching/OutputCacheModule.cs mono-1.9.1+dfsg/mcs/class/System.Web/System.Web.Caching/OutputCacheModule.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web.Caching/OutputCacheModule.cs	2008-04-04 19:05:35.000000000 +0200
++++ mono-1.9.1+dfsg/mcs/class/System.Web/System.Web.Caching/OutputCacheModule.cs	2009-01-15 20:57:33.000000000 +0100
+@@ -160,19 +160,21 @@
+ 			
+ 			if (prev == null) {
+ 				CachedRawResponse c = context.Response.GetCachedResponse ();
+-				string [] files = new string [] { };
+-				string [] keys = new string [] { vary_key };
+-				bool sliding = context.Response.Cache.Sliding;
++				if (c != null) {
++					string [] files = new string [] { };
++					string [] keys = new string [] { vary_key };
++					bool sliding = context.Response.Cache.Sliding;
+ 
+-				context.InternalCache.Insert (key, c, new CacheDependency (files, keys),
+-							      (sliding ? Cache.NoAbsoluteExpiration :
+-							       context.Response.Cache.Expires),
+-							      (sliding ? TimeSpan.FromSeconds (
+-								      context.Response.Cache.Duration) :
+-							       Cache.NoSlidingExpiration),
+-							      CacheItemPriority.Normal, response_removed);
+-				c.VaryBy = varyby;
+-				varyby.ItemList.Add (key);
++					context.InternalCache.Insert (key, c, new CacheDependency (files, keys),
++								      (sliding ? Cache.NoAbsoluteExpiration :
++								       context.Response.Cache.Expires),
++								      (sliding ? TimeSpan.FromSeconds (
++									      context.Response.Cache.Duration) :
++								       Cache.NoSlidingExpiration),
++								      CacheItemPriority.Normal, response_removed);
++					c.VaryBy = varyby;
++					varyby.ItemList.Add (key);
++				}
+ 			} 
+ 		}
+ 
+diff -urNad mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web.UI/Page.cs mono-1.9.1+dfsg/mcs/class/System.Web/System.Web.UI/Page.cs
+--- mono-1.9.1+dfsg~/mcs/class/System.Web/System.Web.UI/Page.cs	2008-01-29 23:04:14.000000000 +0100
++++ mono-1.9.1+dfsg/mcs/class/System.Web/System.Web.UI/Page.cs	2009-01-15 20:57:33.000000000 +0100
+@@ -958,7 +958,8 @@
+ 			     OutputCacheLocation location,
+ 			     string varyByParam)
+ 	{
+-		HttpCachePolicy cache = Response.Cache;
++		HttpResponse response = Response;
++		HttpCachePolicy cache = response.Cache;
+ 		bool set_vary = false;
+ 		HttpContext ctx = Context;
+ 		DateTime timestamp = ctx != null ? ctx.Timestamp : DateTime.Now;
+@@ -1007,7 +1008,8 @@
+ 					cache.VaryByHeaders [h.Trim ()] = true;
+ 			}
+ 		}
+-			
++
++		response.IsCached = true;
+ 		cache.Duration = duration;
+ 		cache.SetExpires (timestamp.AddSeconds (duration));
+ 	}
+@@ -1404,7 +1406,7 @@
+ 	{
+ 	}
+ #endif
+-
++	
+ 	void InternalProcessRequest ()
+ 	{
+ 		_requestValueCollection = this.DeterminePostBackMode();
