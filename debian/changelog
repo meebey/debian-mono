@@ -1,3 +1,20 @@
+mono (2.4.2.3+dfsg-2~bpo50+1) lenny-backports; urgency=low
+
+  * Rebuild for lenny-backports.
+  * debian/shlibs.local:
+    + Updated using debian/update-shlibs.local.sh for Debian/Lenny
+      libraries.
+  * debian/control:
+    + Added libmono-posix{1,2}.0-cil, libmono-getoptions{1,2}.0-cil
+      and libmono-cecil-private-cil dependencies to libmono{1,2}.0-cil for binary
+      backwards compatibility with packages build against Mono 1.9.1.
+    + Added libmono-cairo2.0-cil dependency to libmono-cairo1.0-cil so the
+      pkg-config file stays present.
+    + Added mono-devel dependency to mono-gmcs for build-dep compatiblity with
+      source packages of lenny.
+
+ -- Mirco Bauer <meebey@debian.org>  Fri, 25 Sep 2009 21:23:29 +0200
+
 mono (2.4.2.3+dfsg-2) unstable; urgency=medium
 
   * debian/control:

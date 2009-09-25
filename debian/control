@@ -247,7 +247,7 @@ Description: Mono profiler libraries
 Package: libmono1.0-cil
 Architecture: all
 Replaces: mono-classlib-1.0 (<< 1.1.13.6), mono-classlib-1.0-dbg (<< 1.1.13.6)
-Depends: ${cli:Depends}
+Depends: ${cli:Depends}, libmono-posix1.0-cil, libmono-getoptions1.0-cil, libmono-cecil-private-cil
 Description: Mono libraries (for CLI 1.0)
  Mono is a platform for running and developing applications based on the
  ECMA/ISO Standards. Mono is an open source effort led by Novell.
@@ -263,7 +263,7 @@ Description: Mono libraries (for CLI 1.0)
 Package: libmono2.0-cil
 Architecture: all
 Replaces: mono-classlib-2.0 (<< 1.1.13.6), mono-classlib-2.0-dbg (<< 1.1.13.6)
-Depends: ${cli:Depends}
+Depends: ${cli:Depends}, libmono-posix2.0-cil, libmono-getoptions2.0-cil
 Description: Mono libraries (for CLI 2.0)
  Mono is a platform for running and developing applications based on the
  ECMA/ISO Standards. Mono is an open source effort led by Novell.
@@ -900,7 +900,7 @@ Description: Mono System.Windows.Forms library (for CLI 2.0)
 Package: libmono-cairo1.0-cil
 Architecture: all
 Replaces: mono-classlib-1.0 (<< 1.1.13.4-1), mono-classlib-1.0-dbg (<< 1.1.13.4-1)
-Depends: ${cli:Depends}
+Depends: ${cli:Depends}, libmono-cairo2.0-cil
 Description: Mono Cairo library (for CLI 1.0)
  Mono is a platform for running and developing applications based on the
  ECMA/ISO Standards. Mono is an open source effort led by Novell.
@@ -1385,7 +1385,8 @@ Package: mono-gmcs
 Architecture: all
 Depends: ${cli:Depends},
          libmono-corlib2.0-cil (>= ${mono:upversion}),
-         libmono-corlib2.0-cil (<< ${mono:next-upversion})
+         libmono-corlib2.0-cil (<< ${mono:next-upversion}),
+         mono-devel (= ${source:Version})
 Recommends: pkg-config
 Replaces: mono-mcs (>= 1.1.10), mono-mcs (<= 1.1.13), mono-devel (<< 2.4.2.3)
 Description: Mono C# 2.0 and C# 3.0 compiler for CLI 2.0
