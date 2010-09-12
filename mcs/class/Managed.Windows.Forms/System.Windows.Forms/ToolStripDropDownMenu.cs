@@ -120,8 +120,7 @@ namespace System.Windows.Forms
 
 				tsi.SetPlacement (ToolStripItemPlacement.Main);
 
-				if (tsi.GetPreferredSize (Size.Empty).Width > widest)
-					widest = tsi.GetPreferredSize (Size.Empty).Width;
+				widest = Math.Max (widest, tsi.GetPreferredSize (Size.Empty).Width);
 			}
 
 			int x = this.Padding.Left;
@@ -140,14 +139,18 @@ namespace System.Windows.Forms
 				y += tsi.Margin.Top;
 
 				int height = 0;
+	
+				Size preferred_size = tsi.GetPreferredSize (Size.Empty);
 
-				if (tsi is ToolStripSeparator)
+				if (preferred_size.Height > 22)
+					height = preferred_size.Height;
+				else if (tsi is ToolStripSeparator)
 					height = 7;
 				else
 					height = 22;
 
 				tsi.SetBounds (new Rectangle (x, y, widest, height));
-				y += tsi.Height + tsi.Margin.Bottom;
+				y += height + tsi.Margin.Bottom;
 			}
 
 			this.Size = new Size (widest + this.Padding.Horizontal, y + this.Padding.Bottom);// + 2);

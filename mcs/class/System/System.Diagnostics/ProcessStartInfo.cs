@@ -131,7 +131,7 @@ namespace System.Diagnostics
 		}
 		
 		internal bool HaveEnvVars {
-			get { return (envVars != null && envVars.Count > 0); }
+			get { return (envVars != null); }
 		}
 		
 		[DefaultValue (false)]
@@ -267,6 +267,10 @@ namespace System.Diagnostics
 				if (ext == null)
 					return empty;
 
+#if MONOTOUCH
+				return empty;
+#else
+
 				switch (Environment.OSVersion.Platform) {
 				case (PlatformID)4:
 				case (PlatformID)6:
@@ -289,6 +293,7 @@ namespace System.Diagnostics
 							rk.Close ();
 					}
 				}
+#endif
 			}
 		}
 		

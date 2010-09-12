@@ -1,10 +1,31 @@
+2009-08-31 Gonzalo Paniagua Javier <gonzalo@novell.com>
+
+	* CustomizableFileSettingsProvider.cs: reset the property value
+	instead of using the DefaultValue.
+	* SettingsPropertyValue.cs: new Reset() method.
+	* ApplicationSettingsBase.cs: Reset happens in Reload().
+	Patch by Andrew Kurochka that fixes bug #532180.
+
+2009-06-18 Gonzalo Paniagua Javier <gonzalo@novell.com>
+
+	* IriParsingElement.cs:
+	* UriSection.cs:
+	* IdnElement.cs: new files that parse <uri> and subelements.
+
+2009-06-05 Marek Safar <marek.safar@gmail.com>
+
+	* DictionarySectionHandler.cs, NameValueSectionHandler.cs,
+	NameValueFileSectionHandler.cs, SingleTagSectionHandler.cs,
+	IConfigurationSectionHandler.cs, IgnoreSectionHandler.cs: Always
+	build IConfigurationSectionHandler.
+
 2009-05-10 Gonzalo Paniagua Javier <gonzalo@novell.com>
 
 	* CustomizableFileSettingsProvider.cs: make sure 'values' is
 	initialized in Reset(). Fixes bug #436592.
 
 2009-04-03  Marek Habersack  <mhabersack@novell.com>
-  
+
 	* CustomizableFileSettingsProvider.cs: added a way for System.Web
 	to specify path to the current Web.config. Fixes bug #491531
 

@@ -24,6 +24,8 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+#if !NET_2_1 || MONOTOUCH
+
 using System;
 using System.Collections.Generic;
 using System.Xml;
@@ -61,6 +63,8 @@ namespace System.Xml.XPath
 		public static XElement XPathSelectElement (this XNode node, string xpath, IXmlNamespaceResolver nsResolver)
 		{
 			XPathNavigator nav = CreateNavigator (node).SelectSingleNode (xpath, nsResolver);
+			if (nav == null)
+				return null;
 			return nav.UnderlyingObject as XElement;
 		}
 
@@ -80,3 +84,4 @@ namespace System.Xml.XPath
 	}
 }
 
+#endif

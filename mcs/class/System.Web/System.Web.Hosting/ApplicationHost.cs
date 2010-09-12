@@ -27,10 +27,12 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
+using System.Configuration;
 using System.IO;
 using System.Security.Permissions;
 using System.Security.Policy;
 using System.Text;
+using System.Web.Configuration;
 
 namespace System.Web.Hosting {
 
@@ -38,7 +40,7 @@ namespace System.Web.Hosting {
 	[AspNetHostingPermission (SecurityAction.LinkDemand, Level = AspNetHostingPermissionLevel.Minimal)]
 	public sealed class ApplicationHost {
 		internal static readonly string MonoHostedDataKey = ".:!MonoAspNetHostedApp!:.";
-		internal static string [] WebConfigFileNames = { "Web.config", "Web.Config", "web.config" };
+		internal static string [] WebConfigFileNames = { "web.config", "Web.config", "Web.Config" };
 
 		ApplicationHost ()
 		{
@@ -192,9 +194,10 @@ namespace System.Web.Hosting {
 
 			setup.PrivateBinPath = BuildPrivateBinPath (physicalDir, bindirPath);
 			setup.PrivateBinPathProbe = "*";
+#if !NET_2_0
 			setup.ShadowCopyFiles = "true";
 			setup.ShadowCopyDirectories = setup.PrivateBinPath;
-
+#endif
 			string dynamic_dir = null;
 			string user = Environment.UserName;
 			int tempDirTag = 0;
@@ -225,6 +228,11 @@ namespace System.Web.Hosting {
 			//
 			string domain_id = (virtualDir.GetHashCode () + 1 ^ physicalDir.GetHashCode () + 2 ^ tempDirTag).ToString ("x");
 
+			// This is used by mod_mono's fail-over support
+			string domain_id_suffix = Environment.GetEnvironmentVariable ("__MONO_DOMAIN_ID_SUFFIX");
+			if (domain_id_suffix != null && domain_id_suffix.Length > 0)
+				domain_id += domain_id_suffix;
+			
 			setup.ApplicationName = domain_id;
 			setup.DynamicBase = dynamic_dir;
 			setup.CachePath = dynamic_dir;
@@ -249,6 +257,7 @@ namespace System.Web.Hosting {
 				physicalDir += Path.DirectorySeparatorChar;
 			appdomain.SetData (".appPath", physicalDir);
 			appdomain.SetData (".appVPath", virtualDir);
+			appdomain.SetData (".appId", domain_id);
 			appdomain.SetData (".domainId", domain_id);
 			appdomain.SetData (".hostingVirtualPath", virtualDir);
 			appdomain.SetData (".hostingInstallDir", Path.GetDirectoryName (typeof (Object).Assembly.CodeBase));
@@ -257,7 +266,29 @@ namespace System.Web.Hosting {
 #endif
 			appdomain.SetData (MonoHostedDataKey, "yes");
 			
+#if NET_2_0
+			appdomain.DoCallBack (SetHostingEnvironment);
+#endif
 			return appdomain.CreateInstanceAndUnwrap (hostType.Module.Assembly.FullName, hostType.FullName);
 		}
+
+#if NET_2_0
+		static void SetHostingEnvironment ()
+		{
+			bool shadow_copy_enabled = true;
+			HostingEnvironmentSection he = WebConfigurationManager.GetWebApplicationSection ("system.web/hostingEnvironment") as HostingEnvironmentSection;
+			if (he != null)
+				shadow_copy_enabled = he.ShadowCopyBinAssemblies;
+
+			if (shadow_copy_enabled) {
+				AppDomain current = AppDomain.CurrentDomain;
+				current.SetShadowCopyFiles ();
+				current.SetShadowCopyPath (current.SetupInformation.PrivateBinPath);
+			}
+
+			HostingEnvironment.IsHosted = true;
+			HostingEnvironment.SiteName = HostingEnvironment.ApplicationID;
+		}
+#endif
 	}
 }

@@ -11,6 +11,30 @@
 #include <string.h>
 #include <mono/metadata/opcodes.h>
 
+#define MINI_OP(a,b,dest,src1,src2) b,
+#define MINI_OP3(a,b,dest,src1,src2,src3) b,
+/* keep in sync with the enum in mini.h */
+static const char* const
+opnames[] = {
+#include "mini-ops.h"
+};
+#undef MINI_OP
+#undef MINI_OP3
+
+/*
+ * Duplicate this from helpers.c, so the opcode name array can be omitted when 
+ * DISABLE_JIT is set.
+ */
+const char*
+inst_name (int op) {
+	if (op >= OP_LOAD && op <= OP_LAST)
+		return opnames [op - OP_LOAD];
+	if (op < OP_LOAD)
+		return mono_opcode_name (op);
+	g_error ("unknown opcode name for %d", op);
+	return NULL;
+}
+
 typedef struct {
 	int num;
 	const char *name;
@@ -79,6 +103,9 @@ load_file (const char *name) {
 			} else if (strncmp (p, "src2:", 5) == 0) {
 				desc->spec [MONO_INST_SRC2] = p [5];
 				p += 6;
+			} else if (strncmp (p, "src3:", 5) == 0) {
+				desc->spec [MONO_INST_SRC3] = p [5];
+				p += 6;
 			} else if (strncmp (p, "clob:", 5) == 0) {
 				desc->spec [MONO_INST_CLOB] = p [5];
 				p += 6;
@@ -122,7 +149,7 @@ init_table (void) {
 	for (i = OP_LOAD; i < OP_LAST; ++i) {
 		desc = opcodes + i;
 		desc->num = i;
-		desc->name = mono_inst_name (i);
+		desc->name = inst_name (i);
 		g_hash_table_insert (table, (char *)desc->name, desc);
 	}
 }
@@ -211,21 +238,20 @@ int
 main (int argc, char* argv [])
 {
 	init_table ();
-	switch (argc) {
-	case 2:
+	if (argc == 2) {
 		/* useful to get a new file when some opcodes are added: looses the comments, though */
 		load_file (argv [1]);
 		dump ();
-		break;
-	case 4:
-		load_file (argv [1]);
-		build_table (argv [2], argv [3]);
-		break;
-	default:
+	} else if (argc < 4) {
 		g_print ("Usage: genmdesc arguments\n");
-		g_print ("\tgenmdesc desc             Output to stdout the description file.\n");
-		g_print ("\tgenmdesc desc output name Write to output the description in a table named 'name'.\n");
+		g_print ("\tgenmdesc desc                        Output to stdout the description file.\n");
+		g_print ("\tgenmdesc output name desc [desc1...] Write to output the description in a table named 'name'.\n");
 		return 1;
+	} else {
+		int i;
+		for (i = 3; i < argc; ++i)
+			load_file (argv [i]);
+		build_table (argv [1], argv [2]);
 	}
 	return 0;
 }

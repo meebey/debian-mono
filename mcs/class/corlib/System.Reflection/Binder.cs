@@ -165,7 +165,7 @@ namespace System.Reflection
 							types [i] = args [i].GetType ();
 					}
 				}
-				MethodBase selected = SelectMethod (bindingAttr, match, types, modifiers);
+				MethodBase selected = SelectMethod (bindingAttr, match, types, modifiers, true);
 				state = null;
 				if (names != null)
 					ReorderParameters (names, ref args, selected);
@@ -222,6 +222,8 @@ namespace System.Reflection
 						if (type == typeof (float))
 							return (float)(char)value;
 					}
+					if (vtype == typeof (IntPtr) && type.IsPointer)
+						return value;
 					return Convert.ChangeType (value, type);
 				}
 				return null;
@@ -349,20 +351,34 @@ namespace System.Reflection
 					/* TODO: handle valuetype -> byref */
 					if (to == typeof (object) && from.IsValueType)
 						return true;
+					if (to.IsPointer && from == typeof (IntPtr))
+						return true;
 
 					return to.IsAssignableFrom (from);
 				}
 			}
 
-			private static bool check_arguments (Type[] types, ParameterInfo[] args) {
+			private static bool check_arguments (Type[] types, ParameterInfo[] args, bool allowByRefMatch) {
 				for (int i = 0; i < types.Length; ++i) {
-					if (!check_type (types [i], args [i].ParameterType))
+					bool match = check_type (types [i], args [i].ParameterType);
+					if (!match && allowByRefMatch) {
+						Type param_type = args [i].ParameterType;
+						if (param_type.IsByRef)
+							match = check_type (types [i], param_type.GetElementType ());
+					}
+					if (!match)
 						return false;
 				}
 				return true;
 			}
 
-			public override MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase[] match, Type[] types, ParameterModifier[] modifiers)
+			public override MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase [] match, Type [] types, ParameterModifier [] modifiers)
+			{
+				return SelectMethod (bindingAttr, match, types, modifiers,
+					false);
+			}
+
+			MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase[] match, Type[] types, ParameterModifier[] modifiers, bool allowByRefMatch)
 			{
 				MethodBase m;
 				int i, j;
@@ -417,7 +433,7 @@ namespace System.Reflection
 					ParameterInfo[] args = m.GetParameters ();
 					if (args.Length != types.Length)
 						continue;
-					if (!check_arguments (types, args))
+					if (!check_arguments (types, args, allowByRefMatch))
 						continue;
 
 					if (result != null)

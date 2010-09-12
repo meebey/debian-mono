@@ -103,6 +103,9 @@ namespace System.Windows.Forms
 					menu = (ContextMenu) value;
 				else
 					throw new ArgumentException ("DropDownMenu must be of type ContextMenu.");
+#if NET_2_0
+				OnUIADropDownMenuChanged (EventArgs.Empty);
+#endif
 			}
 		}
 
@@ -116,6 +119,10 @@ namespace System.Windows.Forms
 
 				enabled = value;
 				Invalidate ();
+				
+#if NET_2_0
+				OnUIAEnabledChanged (EventArgs.Empty);
+#endif
 			}
 		}
 
@@ -239,6 +246,10 @@ namespace System.Windows.Forms
 				
 				if (parent != null)
 					parent.Redraw (true);
+				
+#if NET_2_0
+				OnUIAStyleChanged (EventArgs.Empty);
+#endif
 			}
 		}
 
@@ -318,23 +329,86 @@ namespace System.Windows.Forms
 		}
 		
 #if NET_2_0
+		bool uiaHasFocus = false;
+		internal bool UIAHasFocus {
+			get { return uiaHasFocus; }
+			set {
+				uiaHasFocus = value;
+				EventHandler eh = 
+					(EventHandler) (value ? Events [UIAGotFocusEvent] : Events [UIALostFocusEvent]);
+				if (eh != null)
+					eh (this, EventArgs.Empty);
+			}
+		}
+
+		static object UIAGotFocusEvent = new object ();
+		static object UIALostFocusEvent = new object ();
 		static object UIATextChangedEvent = new object ();
+		static object UIAEnabledChangedEvent = new object ();
+		static object UIADropDownMenuChangedEvent = new object ();
+		static object UIAStyleChangedEvent = new object ();
+		
+		internal event EventHandler UIAGotFocus {
+			add { Events.AddHandler (UIAGotFocusEvent, value); }
+			remove { Events.RemoveHandler (UIAGotFocusEvent, value); }
+		}
+		
+		internal event EventHandler UIALostFocus {
+			add { Events.AddHandler (UIALostFocusEvent, value); }
+			remove { Events.RemoveHandler (UIALostFocusEvent, value); }
+		}
 		
 		internal event EventHandler UIATextChanged {
 			add { Events.AddHandler (UIATextChangedEvent, value); }
 			remove { Events.RemoveHandler (UIATextChangedEvent, value); }
 		}
 		
-		protected virtual void OnUIATextChanged (EventArgs e)
+		internal event EventHandler UIAEnabledChanged {
+			add { Events.AddHandler (UIAEnabledChangedEvent, value); }
+			remove { Events.RemoveHandler (UIAEnabledChangedEvent, value); }
+		}
+		
+		internal event EventHandler UIADropDownMenuChanged {
+			add { Events.AddHandler (UIADropDownMenuChangedEvent, value); }
+			remove { Events.RemoveHandler (UIADropDownMenuChangedEvent, value); }
+		}
+		
+		internal event EventHandler UIAStyleChanged {
+			add { Events.AddHandler (UIAStyleChangedEvent, value); }
+			remove { Events.RemoveHandler (UIAStyleChangedEvent, value); }
+		}
+		
+		private void OnUIATextChanged(EventArgs e)
 		{
 			EventHandler eh = (EventHandler)(Events [UIATextChangedEvent]);
 			if (eh != null)
 				eh (this, e);
 		}
-#endif
-
-		#endregion Internal Methods
 		
+		private void OnUIAEnabledChanged (EventArgs e)
+		{
+			EventHandler eh = (EventHandler)(Events [UIAEnabledChangedEvent]);
+			if (eh != null)
+				eh (this, e);
+		}
+		
+		private void OnUIADropDownMenuChanged (EventArgs e)
+		{
+			EventHandler eh = (EventHandler)(Events [UIADropDownMenuChangedEvent]);
+			if (eh != null)
+				eh (this, e);
+		}
+		
+		private void OnUIAStyleChanged (EventArgs e)
+		{
+			EventHandler eh = (EventHandler)(Events [UIAStyleChangedEvent]);
+			if (eh != null)
+				eh (this, e);
+		}
+#endif
+		
+		#endregion Internal Methods
+
 		#region methods
 
 		protected override void Dispose (bool disposing)

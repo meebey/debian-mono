@@ -31,14 +31,24 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
+using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
+
 namespace Microsoft.Build.BuildEngine {
 	internal class DirectoryScanner {
 		
 		DirectoryInfo	baseDirectory;
-		string		includes;
-		string		excludes;
-		string[]	matchedFilenames;
+		ITaskItem[]	includes, excludes;
+		ITaskItem[]	matchedItems;
+
+		static bool _runningOnWindows;
 		
+		static DirectoryScanner ()
+		{
+			PlatformID pid = Environment.OSVersion.Platform;
+			_runningOnWindows =((int) pid != 128 && (int) pid != 4 && (int) pid != 6);
+		}
+
 		public DirectoryScanner ()
 		{
 		}
@@ -46,56 +56,73 @@ namespace Microsoft.Build.BuildEngine {
 		public void Scan ()
 		{
 			Dictionary <string, bool> excludedItems;
-			List <string> includedItems;
-			string[] splitInclude, splitExclude;
+			List <ITaskItem> includedItems;
+			string[] splitExclude;
 			
 			if (includes == null)
 				throw new ArgumentNullException ("Includes");
-			if (excludes == null)
-				throw new ArgumentNullException ("Excludes");
 			if (baseDirectory == null)
 				throw new ArgumentNullException ("BaseDirectory");
 			
 			excludedItems = new Dictionary <string, bool> ();
-			includedItems = new List <string> ();
+			includedItems = new List <ITaskItem> ();
 			
-			splitInclude = includes.Split (';');
-			splitExclude = excludes.Split (';');
-			
-			if (excludes != String.Empty) {
-				foreach (string si in splitExclude) {
-					ProcessExclude (si, excludedItems);
-				}
-			}
-			if (includes != String.Empty) {
-				foreach (string si in splitInclude) {
-					ProcessInclude (si, excludedItems, includedItems);
-				}
-			}
+			if (excludes != null)
+				foreach (ITaskItem excl in excludes)
+					ProcessExclude (excl.ItemSpec, excludedItems);
 
-			matchedFilenames = includedItems.ToArray ();
+			foreach (ITaskItem include_item in includes)
+				ProcessInclude (include_item, excludedItems, includedItems);
+
+			matchedItems = includedItems.ToArray ();
 		}
 		
-		private void ProcessInclude (string name, Dictionary <string, bool> excludedItems, List <string> includedItems)
+		private void ProcessInclude (ITaskItem include_item, Dictionary <string, bool> excludedItems,
+				List <ITaskItem> includedItems)
 		{
 			string[] separatedPath;
 			FileInfo[] fileInfo;
 
+			string name = include_item.ItemSpec;
 			if (name.IndexOf ('?') == -1 && name.IndexOf ('*') == -1) {
 				if (!excludedItems.ContainsKey (Path.GetFullPath(name)))
-					includedItems.Add (name);
+					includedItems.Add (include_item);
 			} else {
 				if (name.Split (Path.DirectorySeparatorChar).Length > name.Split (Path.AltDirectorySeparatorChar).Length) {
-					separatedPath = name.Split (Path.DirectorySeparatorChar);
+					separatedPath = name.Split (new char [] {Path.DirectorySeparatorChar},
+							StringSplitOptions.RemoveEmptyEntries);
 				} else {
-					separatedPath = name.Split (Path.AltDirectorySeparatorChar);
+					separatedPath = name.Split (new char [] {Path.AltDirectorySeparatorChar},
+							StringSplitOptions.RemoveEmptyEntries);
 				}
 				if (separatedPath.Length == 1 && separatedPath [0] == String.Empty)
 					return;
-				fileInfo = ParseIncludeExclude (separatedPath, 0, baseDirectory);
-				foreach (FileInfo fi in fileInfo)
-					if (!excludedItems.ContainsKey (fi.FullName))
-						includedItems.Add (fi.FullName);
+
+				int offset = 0;
+				if (Path.IsPathRooted (name)) {
+					baseDirectory = new DirectoryInfo (Path.GetPathRoot (name));
+					if (IsRunningOnWindows)
+						// skip the "drive:"
+						offset = 1;
+				}
+
+				string full_path = Path.GetFullPath (Path.Combine (Environment.CurrentDirectory, include_item.ItemSpec));
+				fileInfo = ParseIncludeExclude (separatedPath, offset, baseDirectory);
+
+				int wildcard_offset = full_path.IndexOf ("**");
+				foreach (FileInfo fi in fileInfo) {
+					if (!excludedItems.ContainsKey (fi.FullName)) {
+						TaskItem item = new TaskItem (include_item);
+						item.ItemSpec = fi.FullName;
+						if (wildcard_offset >= 0) {
+							string rec_dir = Path.GetDirectoryName (fi.FullName.Substring (wildcard_offset));
+							if (rec_dir.Length > 0)
+								rec_dir += Path.DirectorySeparatorChar;
+							item.SetMetadata ("RecursiveDir", rec_dir);
+						}
+						includedItems.Add (item);
+					}
+				}
 			}
 		}
 		
@@ -109,13 +136,23 @@ namespace Microsoft.Build.BuildEngine {
 					excludedItems.Add (Path.GetFullPath (name), true);
 			} else {
 				if (name.Split (Path.DirectorySeparatorChar).Length > name.Split (Path.AltDirectorySeparatorChar).Length) {
-					separatedPath = name.Split (Path.DirectorySeparatorChar);
+					separatedPath = name.Split (new char [] {Path.DirectorySeparatorChar},
+									StringSplitOptions.RemoveEmptyEntries);
 				} else {
-					separatedPath = name.Split (Path.AltDirectorySeparatorChar);
+					separatedPath = name.Split (new char [] {Path.AltDirectorySeparatorChar},
+									StringSplitOptions.RemoveEmptyEntries);
 				}
 				if (separatedPath.Length == 1 && separatedPath [0] == String.Empty)
 					return;
-				fileInfo = ParseIncludeExclude (separatedPath, 0, baseDirectory);
+
+				int offset = 0;
+				if (Path.IsPathRooted (name)) {
+					baseDirectory = new DirectoryInfo (Path.GetPathRoot (name));
+					if (IsRunningOnWindows)
+						// skip the "drive:"
+						offset = 1;
+				}
+				fileInfo = ParseIncludeExclude (separatedPath, offset, baseDirectory);
 				foreach (FileInfo fi in fileInfo)
 					if (!excludedItems.ContainsKey (fi.FullName))
 						excludedItems.Add (fi.FullName, true);
@@ -150,7 +187,7 @@ namespace Microsoft.Build.BuildEngine {
 					while (currentDirectories.Count > 0)
 					{
 						DirectoryInfo current = currentDirectories.Pop();
-						allDirectories.Add (current);
+						allDirectories.Insert (0, current);
 						foreach (DirectoryInfo dir in current.GetDirectories())
 						{
 							currentDirectories.Push(dir);
@@ -159,8 +196,9 @@ namespace Microsoft.Build.BuildEngine {
 					
 					// No further directories shall be read
 					di = allDirectories.ToArray();					
-				} else
+				} else {
 					di = directory.GetDirectories (input [ptr]);
+				}
 				foreach (DirectoryInfo info in di) {
 					fi = ParseIncludeExclude (input, ptr + 1, info);
 					foreach (FileInfo file in fi)
@@ -179,20 +217,23 @@ namespace Microsoft.Build.BuildEngine {
 			set { baseDirectory = value; }
 		}
 		
-		public string Includes {
+		public ITaskItem[] Includes {
 			get { return includes; }
 			set { includes = value; }
 		}
 		
-		public string Excludes {
+		public ITaskItem[] Excludes {
 			get { return excludes; }
 			set { excludes = value; }
 		}
 		
-		public string[] MatchedFilenames {
-			get { return matchedFilenames; }
+		public ITaskItem[] MatchedItems {
+			get { return matchedItems; }
 		}
 		
+		static bool IsRunningOnWindows {
+			get { return _runningOnWindows; }
+		}
 	}
 }
 

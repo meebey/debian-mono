@@ -274,7 +274,7 @@ namespace System.Windows.Forms {
 		internal abstract event EventHandler Idle;
 
 		#region XplatUI Driver Methods
-		internal abstract void AudibleAlert();
+		internal abstract void AudibleAlert(AlertType alert);
 
 		internal abstract void EnableThemes();
 
@@ -476,7 +476,19 @@ namespace System.Windows.Forms {
 		{
 			AsyncMethodData data = (AsyncMethodData) state;
 			AsyncMethodResult result = data.Result;
-			object ret = data.Method.DynamicInvoke (data.Args);
+			
+			object ret;
+			try {
+				ret = data.Method.DynamicInvoke (data.Args);
+			} catch (Exception ex) {
+				if (result != null) {
+					result.CompleteWithException (ex);
+					return;
+				}
+				
+				throw;
+			}
+		
 			if (result != null) {
 				result.Complete (ret);
 			}
@@ -511,12 +523,16 @@ namespace System.Windows.Forms {
 			}
 #endif
 
+			AsyncMethodResult result = data.Result;
+			object ret;
+
 			try {
-				AsyncMethodResult result = data.Result;
-				object ret = data.Method.DynamicInvoke (data.Args);
+				ret = data.Method.DynamicInvoke (data.Args);
 				result.Complete (ret);
-			}
-			finally {
+			} catch (Exception ex) {
+				result.CompleteWithException (ex);
+				return;
+			} finally {
 #if !MWF_ON_MSRUNTIME
 				if (data.Stack != null) {
 					// whatever occurs we must revert to the original compressed

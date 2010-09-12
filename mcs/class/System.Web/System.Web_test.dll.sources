@@ -1,3 +1,4 @@
+../../System.Web.DynamicData/Test/Common/AssertExtensions.cs
 mainsoft/MainsoftWebTest/HtmlAgilityPack/AssemblyInfo.cs
 mainsoft/MainsoftWebTest/HtmlAgilityPack/crc32.cs
 mainsoft/MainsoftWebTest/HtmlAgilityPack/Header.cs
@@ -20,10 +21,12 @@ mainsoft/NunitWeb/NunitWeb/BaseWorkerRequest.cs
 mainsoft/NunitWeb/NunitWeb/CustomSection.cs
 mainsoft/NunitWeb/NunitWeb/FakeMembershipProvider.cs
 mainsoft/NunitWeb/NunitWeb/FormRequest.cs
+mainsoft/NunitWeb/NunitWeb/Global.asax.cs
 mainsoft/NunitWeb/NunitWeb/IForeignData.cs
 mainsoft/NunitWeb/NunitWeb/HandlerInvoker.cs
 mainsoft/NunitWeb/NunitWeb/MyHandler.cs
 mainsoft/NunitWeb/NunitWeb/MyHost.cs
+mainsoft/NunitWeb/NunitWeb/MyPage_1.1.cs
 mainsoft/NunitWeb/NunitWeb/MyPageHandlerFactory.cs
 mainsoft/NunitWeb/NunitWeb/MyTemplateControls.cs
 mainsoft/NunitWeb/NunitWeb/PageDelegates.cs
@@ -32,7 +35,15 @@ mainsoft/NunitWeb/NunitWeb/PostableRequest.cs
 mainsoft/NunitWeb/NunitWeb/PostableWorkerRequest.cs
 mainsoft/NunitWeb/NunitWeb/Response.cs
 mainsoft/NunitWeb/NunitWeb/StandardUrl.cs
+mainsoft/NunitWeb/NunitWeb/TestRoleProvider.cs
 mainsoft/NunitWeb/NunitWeb/WebTest.cs
+mainsoft/NunitWeb/NunitWeb/WebTestResourcesSetupAttribute.cs
+mainsoft/NunitWeb/NunitWeb/Tests/TagsNestedInClientTag.cs
+mainsoft/NunitWeb/NunitWeb/Tests/TestSiteMapProvider.cs
+mainsoft/NunitWeb/NunitWeb/Tests/Author.cs
+mainsoft/NunitWeb/NunitWeb/Tests/AuthorConverter.cs
+mainsoft/NunitWeb/NunitWeb/Tests/Book.cs
+mainsoft/NunitWeb/NunitWeb/Tests/BookType.cs
 System.Web/AppBrowsersTest.cs
 System.Web/HttpBrowserCapabilitiesTest.cs
 System.Web/HttpCacheVaryByContentEncodingsTest.cs
@@ -54,6 +65,7 @@ System.Web/TraceContextRecordTest.cs
 System.Web.Compilation/ClientBuildManagerParameterTest.cs
 System.Web.Compilation/TemplateControlCompilerTest.cs
 System.Web.Compilation/AppSettingsExpressionBuilderTest.cs
+System.Web.Compilation/AppResourcesCompilerTest.cs
 System.Web.Configuration/AnonymousIdentificationSectionTest.cs
 System.Web.Configuration/AssemblyCollectionTest.cs
 System.Web.Configuration/AssemblyInfoTest.cs
@@ -100,6 +112,7 @@ System.Web.UI/ControlCollectionTest.cs
 System.Web.UI/CssStyleCollectionTest.cs
 System.Web.UI/DataBindingCollectionTest.cs
 System.Web.UI/DataBindingHandlerAttributeTest.cs
+System.Web.UI/DataSourceCacheDurationConverterTest.cs
 System.Web.UI/LiteralControlTest.cs
 System.Web.UI.Adapters/ControlAdapterTest.cs
 System.Web.UI.Adapters/PageAdapterTest.cs
@@ -128,6 +141,7 @@ System.Web.UI.HtmlControls/HtmlTextAreaTest.cs
 System.Web.UI/DataSourceSelectArgumentsTest.cs
 System.Web.UI/HtmlTextWriterTest.cs
 System.Web.UI/MinimizableAttributeTypeConverterTest.cs
+System.Web.UI/ObjectStateFormatterTest.cs
 System.Web.UI/OutputCacheParametersTest.cs
 System.Web.UI/PageParserTest.cs
 System.Web.UI/PageParserFilterTest.cs
@@ -515,3 +529,4 @@ System.Web.UI.WebControls/XmlDataSourceCas.cs
 System.Web.Util/TransactionsCas.cs
 System.Web.Util/UrlUtilsTest.cs
 System.Web.Util/WorkItemCas.cs
+System.Web/XmlSiteMapProviderTest.cs

@@ -32,6 +32,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 using System.Security.Principal;
@@ -39,6 +40,9 @@ using System.Web.Caching;
 
 namespace System.Web
 {
+#if NET_4_0
+        [TypeForwardedFrom ("System.Web.Abstractions, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=31bf3856ad364e35")]
+#endif
 	[AspNetHostingPermission (SecurityAction.InheritanceDemand, Level = AspNetHostingPermissionLevel.Minimal)]
 	[AspNetHostingPermission (SecurityAction.LinkDemand, Level = AspNetHostingPermissionLevel.Minimal)]
 	public class HttpFileCollectionWrapper : HttpFileCollectionBase
@@ -87,12 +91,20 @@ namespace System.Web
 
 		public override HttpPostedFileBase Get (int index)
 		{
-			return new HttpPostedFileWrapper (w.Get (index));
+			HttpPostedFile file = w.Get (index);
+			if (file == null)
+				return null;
+
+			return new HttpPostedFileWrapper (file);
 		}
 
 		public override HttpPostedFileBase Get (string name)
 		{
-			return new HttpPostedFileWrapper (w.Get (name));
+			HttpPostedFile file = w.Get (name);
+			if (file == null)
+				return null;
+
+			return new HttpPostedFileWrapper (file);
 		}
 
 		public override IEnumerator GetEnumerator ()

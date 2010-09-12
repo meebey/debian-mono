@@ -28,12 +28,16 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 using System;
+using System.Runtime.CompilerServices;
 using System.Security.Permissions;
 using System.Text.RegularExpressions;
 using System.Web;
 
 namespace System.Web.Routing
 {
+#if NET_4_0
+	[TypeForwardedFrom ("System.Web.Routing, Version=3.5.0.0, Culture=Neutral, PublicKeyToken=31bf3856ad364e35")]
+#endif
 	[AspNetHostingPermission (SecurityAction.InheritanceDemand, Level = AspNetHostingPermissionLevel.Minimal)]
 	[AspNetHostingPermission (SecurityAction.LinkDemand, Level = AspNetHostingPermissionLevel.Minimal)]
 	public class Route : RouteBase
@@ -50,7 +54,7 @@ namespace System.Web.Routing
 
 		public string Url {
 			get { return url != null ? url.Url : String.Empty; }
-			set { url = value != null ? new PatternParser (value) : null; }
+			set { url = value != null ? new PatternParser (value) : new PatternParser (String.Empty); }
 		}
 
 		public Route (string url, IRouteHandler routeHandler)
@@ -82,7 +86,7 @@ namespace System.Web.Routing
 			var path = httpContext.Request.AppRelativeCurrentExecutionFilePath;
 			var pathInfo = httpContext.Request.PathInfo;
 
-			if (pathInfo != String.Empty)
+			if (!String.IsNullOrEmpty (pathInfo))
 				throw new NotImplementedException ();
 
 			// probably code like this causes ArgumentOutOfRangeException under .NET.
@@ -105,6 +109,13 @@ namespace System.Web.Routing
 			
 			foreach (var p in values)
 				rdValues.Add (p.Key, p.Value);
+
+			RouteValueDictionary dataTokens = DataTokens;
+			if (dataTokens != null) {
+				RouteValueDictionary rdDataTokens = rd.DataTokens;
+				foreach (var token in dataTokens)
+					rdDataTokens.Add (token.Key, token.Value);
+			}
 			
 			return rd;
 		}

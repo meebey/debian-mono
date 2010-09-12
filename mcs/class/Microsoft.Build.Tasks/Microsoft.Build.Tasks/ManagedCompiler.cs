@@ -59,7 +59,12 @@ namespace Microsoft.Build.Tasks {
 			if (Bag ["CodePage"] != null)
 				commandLine.AppendSwitchIfNotNull ("/codepage:", CodePage.ToString ());
 
-			commandLine.AppendSwitchIfNotNull ("/debug:", DebugType);
+			if (!String.IsNullOrEmpty (DebugType) &&
+				String.Compare (DebugType, "pdbonly", true) == 0)
+				// *mcs doesn't support "pdbonly", map it to "full"
+				commandLine.AppendSwitch ("/debug:full");
+			else
+				commandLine.AppendSwitchIfNotNull ("/debug:", DebugType);
 
 			if (Bag ["DelaySign"] != null)
 				if (DelaySign)
@@ -134,7 +139,10 @@ namespace Microsoft.Build.Tasks {
 		[MonoTODO]
 		protected override bool HandleTaskExecutionErrors ()
 		{
-			return true;
+			if (!Log.HasLoggedErrors && ExitCode != 0)
+				Log.LogError ("Compiler crashed with code: {0}.", ExitCode);
+
+			return ExitCode == 0 && !Log.HasLoggedErrors;
 		}
 		
 		[MonoTODO]

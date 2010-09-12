@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.Build.Framework;
 
 namespace Microsoft.Build.Tasks {
@@ -44,12 +45,20 @@ namespace Microsoft.Build.Tasks {
 
 		public override bool Execute ()
 		{
-			List<ITaskItem> output = new List<ITaskItem> ();
-			foreach (ITaskItem item in include) {
-				if (IsExcluded (item))
-					continue;
+			if (include == null || include.Length == 0)
+				return true;
 
-				output.Add (item);
+			// Handle wild cards
+			var directoryScanner = new Microsoft.Build.BuildEngine.DirectoryScanner ();
+			directoryScanner.Includes = include;
+			directoryScanner.Excludes = exclude;
+			directoryScanner.BaseDirectory = new DirectoryInfo (Directory.GetCurrentDirectory ());
+
+			directoryScanner.Scan ();
+
+			List<ITaskItem> output = new List<ITaskItem> ();
+			foreach (ITaskItem matchedItem in directoryScanner.MatchedItems) {
+				output.Add (matchedItem);
 				if (AdditionalMetadata == null)
 					continue;
 
@@ -57,13 +66,12 @@ namespace Microsoft.Build.Tasks {
 					//a=1
 					string [] parts = metadata.Split (new char [] {'='}, 2, StringSplitOptions.RemoveEmptyEntries);
 					if (parts.Length == 2)
-						item.SetMetadata (parts [0].Trim (), parts [1].Trim ());
+						matchedItem.SetMetadata (parts [0].Trim (), parts [1].Trim ());
 				}
 			}
 
 			include = output.ToArray ();
 
-			//FIXME: when does this return false?
 			return true;
 		}
 
@@ -81,17 +89,6 @@ namespace Microsoft.Build.Tasks {
 		public ITaskItem[] Include {
 			get { return include; }
 			set { include = value; }
-		}
-
-		bool IsExcluded (ITaskItem eitem)
-		{
-			if (exclude == null) return false;
-
-			foreach (ITaskItem item in exclude)
-				if (String.Compare (eitem.ItemSpec, item.ItemSpec) == 0)
-					return true;
-
-			return false;
 		}
 	}
 }

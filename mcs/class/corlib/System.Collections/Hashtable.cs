@@ -35,12 +35,15 @@ using System.Runtime.Serialization;
 #if NET_2_0
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 #endif
 
 namespace System.Collections {
 
 #if NET_2_0
 	[ComVisible(true)]
+	[DebuggerDisplay ("Count={Count}")]
+	[DebuggerTypeProxy (typeof (CollectionDebuggerView))]
 #endif
 	[Serializable]
 #if INSIDE_CORLIB
@@ -563,7 +566,8 @@ namespace System.Collections {
 #else
 				info.AddValue ("Comparer", comparerRef);
 #endif
-			info.AddValue ("HashCodeProvider", hcpRef);
+			if (hcpRef != null)
+				info.AddValue ("HashCodeProvider", hcpRef);
 			info.AddValue ("HashSize", this.table.Length);
 // Create Keys
                         Object [] keys = new Object[inUse];
@@ -602,8 +606,9 @@ namespace System.Collections {
 #else
 			comparerRef = (IComparer) serializationInfo.GetValue ("Comparer", typeof (object));
 #endif
-			
-			hcpRef = (IHashCodeProvider) serializationInfo.GetValue ("HashCodeProvider", typeof (object));
+			try {
+				hcpRef = (IHashCodeProvider) serializationInfo.GetValue ("HashCodeProvider", typeof (object));
+			} catch {} // Missing value => null
 			int size = (int) serializationInfo.GetValue ("HashSize", typeof(int));
 			
 			Object [] keys = (Object []) serializationInfo.GetValue("Keys", typeof(Object [] ));
@@ -1005,6 +1010,10 @@ namespace System.Collections {
 		}
 
 		[Serializable]
+#if NET_2_0
+		[DebuggerDisplay ("Count={Count}")]
+		[DebuggerTypeProxy (typeof (CollectionDebuggerView))]
+#endif
 		private class HashKeys : ICollection, IEnumerable {
 
 			private Hashtable host;
@@ -1057,6 +1066,10 @@ namespace System.Collections {
 		}
 
 		[Serializable]
+#if NET_2_0
+		[DebuggerDisplay ("Count={Count}")]
+		[DebuggerTypeProxy (typeof (CollectionDebuggerView))]
+#endif
 		private class HashValues : ICollection, IEnumerable {
 
 			private Hashtable host;

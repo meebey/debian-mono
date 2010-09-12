@@ -86,7 +86,7 @@ namespace System.Net
 		WebAsyncResult asyncWrite;
 		WebAsyncResult asyncRead;
 		EventHandler abortHandler;
-		bool aborted;
+		int aborted;
 		bool gotRequestStream;
 		int redirects;
 		bool expectContinue;
@@ -98,6 +98,7 @@ namespace System.Net
 		object locker = new object ();
 		bool is_ntlm_auth;
 		bool finished_reading;
+		internal WebConnection WebConnection;
 #if NET_2_0
 		DecompressionMethods auto_decomp;
 #endif
@@ -109,8 +110,9 @@ namespace System.Net
 		// Constructors
 		static HttpWebRequest ()
 		{
-			NetConfig config = ConfigurationSettings.GetConfig ("system.net/settings") as NetConfig;
 			defaultMaxResponseHeadersLength = 64 * 1024;
+#if !MONOTOUCH
+			NetConfig config = ConfigurationSettings.GetConfig ("system.net/settings") as NetConfig;
 			if (config != null) {
 				int x = config.MaxResponseHeadersLength;
 				if (x != -1)
@@ -118,6 +120,7 @@ namespace System.Net
 
 				defaultMaxResponseHeadersLength = x;
 			}
+#endif
 		}
 #endif
 
@@ -211,7 +214,7 @@ namespace System.Net
 			get {
 				return (allowBuffering && (method != "HEAD" && method != "GET" &&
 							method != "MKCOL" && method != "CONNECT" &&
-							method != "DELETE" && method != "TRACE"));
+							method != "TRACE"));
 			}
 		}
 		
@@ -640,31 +643,23 @@ namespace System.Net
 		}
 #endif
 		
-		void CommonChecks (bool putpost)
+		public override IAsyncResult BeginGetRequestStream (AsyncCallback callback, object state) 
 		{
-			if (method == null)
-				throw new ProtocolViolationException ("Method is null.");
+			if (Aborted)
+				throw new WebException ("The request was canceled.", WebExceptionStatus.RequestCanceled);
 
-			if (putpost && contentLength == -1 && !sendChunked && !allowBuffering)
+			bool send = !(method == "GET" || method == "CONNECT" || method == "HEAD" ||
+					method == "TRACE");
+			if (method == null || !send)
+				throw new ProtocolViolationException ("Cannot send data when method is: " + method);
+
+			if (contentLength == -1 && !sendChunked && !allowBuffering && KeepAlive)
 				throw new ProtocolViolationException ("Content-Length not set");
 
 			string transferEncoding = TransferEncoding;
 			if (!sendChunked && transferEncoding != null && transferEncoding.Trim () != "")
 				throw new ProtocolViolationException ("SendChunked should be true.");
-		}
 
-		public override IAsyncResult BeginGetRequestStream (AsyncCallback callback, object state) 
-		{
-			if (aborted)
-				throw new WebException ("The request was previosly aborted.");
-
-			bool send = !(method == "GET" || method == "CONNECT" || method == "HEAD" ||
-					method == "TRACE" || method == "DELETE");
-			if (method == null || !send)
-				throw new ProtocolViolationException ("Cannot send data when method is: " + method);
-
-			CommonChecks (send);
-			
 			lock (locker)
 			{
 				if (asyncWrite != null) {
@@ -742,13 +737,26 @@ namespace System.Net
 
 		public override IAsyncResult BeginGetResponse (AsyncCallback callback, object state)
 		{
-			bool send = (method == "PUT" || method == "POST");
-			if (send) {
-				if (ContentLength == -1 && !SendChunked && !AllowWriteStreamBuffering)
-					throw new ProtocolViolationException ("Content-Length not set");
-			}
+			if (Aborted)
+				throw new WebException ("The request was canceled.", WebExceptionStatus.RequestCanceled);
 
-			CommonChecks (send);
+			if (method == null)
+				throw new ProtocolViolationException ("Method is null.");
+
+#if !NET_2_0
+			bool send = !(method == "GET" || method == "CONNECT" || method == "HEAD" ||
+						method == "TRACE" || method == "DELETE");
+			if (send && contentLength < 0 && !sendChunked && !allowBuffering && KeepAlive)
+				throw new ProtocolViolationException ("Buffering is disabled, ContentLength is negative and SendChunked is disabled.");
+
+			if (!send && (contentLength > -1 || sendChunked))
+				throw new ProtocolViolationException ("ContentLength can't be set for non-write operations.");
+#endif
+
+			string transferEncoding = TransferEncoding;
+			if (!sendChunked && transferEncoding != null && transferEncoding.Trim () != "")
+				throw new ProtocolViolationException ("SendChunked should be true.");
+
 			Monitor.Enter (locker);
 			getResponseCalled = true;
 			if (asyncRead != null && !haveResponse) {
@@ -822,16 +830,26 @@ namespace System.Net
 			set { finished_reading = value; }
 		}
 
+		internal bool Aborted {
+			get { return Interlocked.CompareExchange (ref aborted, 0, 0) == 1; }
+		}
+
 		public override void Abort ()
 		{
-			if (aborted)
+			if (Interlocked.CompareExchange (ref aborted, 1, 0) == 1)
 				return;
 
-			aborted = true;
 			if (haveResponse && finished_reading)
 				return;
 
 			haveResponse = true;
+			if (abortHandler != null) {
+				try {
+					abortHandler (this, EventArgs.Empty);
+				} catch (Exception) {}
+				abortHandler = null;
+			}
+
 			if (asyncWrite != null) {
 				WebAsyncResult r = asyncWrite;
 				if (!r.IsCompleted) {
@@ -855,13 +873,6 @@ namespace System.Net
 				}
 				asyncRead = null;
 			}			
-
-			if (abortHandler != null) {
-				try {
-					abortHandler (this, EventArgs.Empty);
-				} catch (Exception) {}
-				abortHandler = null;
-			}
 
 			if (writeStream != null) {
 				try {
@@ -943,10 +954,11 @@ namespace System.Net
 					return false;
 				*/
 
-				contentLength = 0;
+				contentLength = -1;
 				bodyBufferLength = 0;
 				bodyBuffer = null;
-				method = "GET";
+				if (code != HttpStatusCode.TemporaryRedirect)
+					method = "GET";
 				uriString = webResponse.Headers ["Location"];
 				break;
 			case HttpStatusCode.SeeOther: //303
@@ -988,15 +1000,15 @@ namespace System.Net
 		string GetHeaders ()
 		{
 			bool continue100 = false;
-			if (contentLength != -1) {
+			if (sendChunked) {
+				continue100 = true;
+				webHeaders.RemoveAndAdd ("Transfer-Encoding", "chunked");
+				webHeaders.RemoveInternal ("Content-Length");
+			} else if (contentLength != -1) {
 				if (contentLength > 0)
 					continue100 = true;
 				webHeaders.SetInternal ("Content-Length", contentLength.ToString ());
 				webHeaders.RemoveInternal ("Transfer-Encoding");
-			} else if (sendChunked) {
-				continue100 = true;
-				webHeaders.RemoveAndAdd ("Transfer-Encoding", "chunked");
-				webHeaders.RemoveInternal ("Content-Length");
 			}
 
 			if (actualVersion == HttpVersion.Version11 && continue100 &&
@@ -1034,7 +1046,7 @@ namespace System.Net
 			if ((auto_decomp & DecompressionMethods.Deflate) != 0)
 				accept_encoding = accept_encoding != null ? "gzip, deflate" : "deflate";
 			if (accept_encoding != null)
-				webHeaders.SetInternal ("Accept-Encoding", accept_encoding);
+				webHeaders.RemoveAndAdd ("Accept-Encoding", accept_encoding);
 #endif
 			if (!usedPreAuth && preAuthenticate)
 				DoPreAuthenticate ();
@@ -1044,22 +1056,22 @@ namespace System.Net
 
 		void DoPreAuthenticate ()
 		{
-			webHeaders.RemoveInternal ("Proxy-Authorization");
-			webHeaders.RemoveInternal ("Authorization");
 			bool isProxy = (proxy != null && !proxy.IsBypassed (actualUri));
 			ICredentials creds = (!isProxy || credentials != null) ? credentials : proxy.Credentials;
 			Authorization auth = AuthenticationManager.PreAuthenticate (this, creds);
 			if (auth == null)
 				return;
 
+			webHeaders.RemoveInternal ("Proxy-Authorization");
+			webHeaders.RemoveInternal ("Authorization");
 			string authHeader = (isProxy && credentials == null) ? "Proxy-Authorization" : "Authorization";
 			webHeaders [authHeader] = auth.Message;
 			usedPreAuth = true;
 		}
 		
-		internal void SetWriteStreamError (WebExceptionStatus status)
+		internal void SetWriteStreamError (WebExceptionStatus status, Exception exc)
 		{
-			if (aborted)
+			if (Aborted)
 				return;
 
 			WebAsyncResult r = asyncWrite;
@@ -1067,12 +1079,21 @@ namespace System.Net
 				r = asyncRead;
 
 			if (r != null) {
-				r.SetCompleted (false, new WebException ("Error: " + status, status));
+				string msg;
+				WebException wex;
+				if (exc == null) {
+					msg = "Error: " + status;
+					wex = new WebException (msg, status);
+				} else {
+					msg = String.Format ("Error: {0} ({1})", status, exc.Message);
+					wex = new WebException (msg, exc, status);
+				}
+				r.SetCompleted (false, wex);
 				r.DoCallback ();
 			}
 		}
 
-		internal void SendRequestHeaders ()
+		internal void SendRequestHeaders (bool propagate_error)
 		{
 			StringBuilder req = new StringBuilder ();
 			string query;
@@ -1101,17 +1122,21 @@ namespace System.Net
 			string reqstr = req.ToString ();
 			byte [] bytes = Encoding.UTF8.GetBytes (reqstr);
 			try {
-				writeStream.SetHeaders (bytes, 0, bytes.Length);
+				writeStream.SetHeaders (bytes);
 			} catch (WebException wexc) {
-				SetWriteStreamError (wexc.Status);
-			} catch (Exception) {
-				SetWriteStreamError (WebExceptionStatus.SendFailure);
+				SetWriteStreamError (wexc.Status, wexc);
+				if (propagate_error)
+					throw;
+			} catch (Exception exc) {
+				SetWriteStreamError (WebExceptionStatus.SendFailure, exc);
+				if (propagate_error)
+					throw;
 			}
 		}
 
 		internal void SetWriteStream (WebConnectionStream stream)
 		{
-			if (aborted)
+			if (Aborted)
 				return;
 			
 			writeStream = stream;
@@ -1121,7 +1146,7 @@ namespace System.Net
 				writeStream.SendChunked = false;
 			}
 
-			SendRequestHeaders ();
+			SendRequestHeaders (false);
 
 			haveRequest = true;
 			
@@ -1131,7 +1156,8 @@ namespace System.Net
 				writeStream.Write (bodyBuffer, 0, bodyBufferLength);
 				bodyBuffer = null;
 				writeStream.Close ();
-			} else if (method == "PUT" || method == "POST" || method == "OPTIONS") {
+			} else if (method != "HEAD" && method != "GET" && method != "MKCOL" && method != "CONNECT" &&
+					method != "TRACE") {
 				if (getResponseCalled && !writeStream.RequestWritten)
 					writeStream.WriteRequest ();
 			}
@@ -1145,7 +1171,7 @@ namespace System.Net
 
 		internal void SetResponseError (WebExceptionStatus status, Exception e, string where)
 		{
-			if (aborted)
+			if (Aborted)
 				return;
 			lock (locker) {
 			string msg = String.Format ("Error getting response stream ({0}): {1}", where, status);
@@ -1215,7 +1241,7 @@ namespace System.Net
 		internal void SetResponseData (WebConnectionData data)
 		{
 			lock (locker) {
-			if (aborted) {
+			if (Aborted) {
 				if (data.stream != null)
 					data.stream.Close ();
 				return;
@@ -1284,6 +1310,7 @@ namespace System.Net
 							}
 							webResponse.Close ();
 						}
+						finished_reading = false;
 						haveResponse = false;
 						webResponse = null;
 						r.Reset ();
@@ -1322,15 +1349,19 @@ namespace System.Net
 			if (isProxy && (proxy == null || proxy.Credentials == null))
 				return false;
 
-			string authHeader = response.Headers [(isProxy) ? "Proxy-Authenticate" : "WWW-Authenticate"];
-			if (authHeader == null)
+			string [] authHeaders = response.Headers.GetValues ( (isProxy) ? "Proxy-Authenticate" : "WWW-Authenticate");
+			if (authHeaders == null || authHeaders.Length == 0)
 				return false;
 
 			ICredentials creds = (!isProxy) ? credentials : proxy.Credentials;
-			Authorization auth = AuthenticationManager.Authenticate (authHeader, this, creds);
+			Authorization auth = null;
+			foreach (string authHeader in authHeaders) {
+				auth = AuthenticationManager.Authenticate (authHeader, this, creds);
+				if (auth != null)
+					break;
+			}
 			if (auth == null)
 				return false;
-
 			webHeaders [(isProxy) ? "Proxy-Authorization" : "Authorization"] = auth.Message;
 			authCompleted = auth.Complete;
 			is_ntlm_auth = (auth.Module.AuthenticationType == "NTLM");

@@ -180,8 +180,12 @@ namespace System.Windows.Forms
 
 		internal string Text {
 			get { return text.ToString(); }
-			set { 
-				text = new StringBuilder(value, value.Length > DEFAULT_TEXT_LEN ? value.Length : DEFAULT_TEXT_LEN);
+			set {
+				int prev_length = text.Length;
+				text = new StringBuilder(value, value.Length > DEFAULT_TEXT_LEN ? value.Length + 1 : DEFAULT_TEXT_LEN);
+
+				if (text.Length > prev_length)
+					Grow (text.Length - prev_length);
 			}
 		}
 		
@@ -269,12 +273,15 @@ namespace System.Windows.Forms
 				
 				// Update the start of each tag
 				while ((tag != null) && (left > 0)) {
+					// Cache tag.Length as is will be indireclty modified
+					// by changes to tag.Start
+					int tag_length = tag.Length;
 					tag.Start -= count - left;
 
-					if (tag.Length > left) {
+					if (tag_length > left) {
 						left = 0;
 					} else {
-						left -= tag.Length;
+						left -= tag_length;
 						tag = tag.Next;
 					}
 

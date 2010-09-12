@@ -32,9 +32,11 @@
 #define NET2_API
 #endif
 
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Permissions;
 using System.Text;
 
@@ -48,6 +50,7 @@ namespace System
 #endif
 	class Console
 	{
+#if !NET_2_1
 		private class WindowsConsole
 		{
 			[DllImport ("kernel32.dll", CharSet=CharSet.Auto, ExactSpelling=true)]
@@ -67,7 +70,7 @@ namespace System
 				return GetConsoleOutputCP ();
 			}
 		}
-
+#endif
 		internal static TextWriter stdout;
 		private static TextWriter stderr;
 		private static TextReader stdin;
@@ -83,6 +86,10 @@ namespace System
 				//
 				// On Windows, follow the Windows tradition
 				//
+#if NET_2_1
+				// should never happen since Moonlight does not run on windows
+				inputEncoding = outputEncoding = Encoding.Default;
+#else			
 				try {
 					inputEncoding = Encoding.GetEncoding (WindowsConsole.GetInputCodePage ());
 					outputEncoding = Encoding.GetEncoding (WindowsConsole.GetOutputCodePage ());
@@ -90,8 +97,9 @@ namespace System
 				} catch {
 					// FIXME: I18N assemblies are not available when compiling mcs
 					// Use Latin 1 as it is fast and UTF-8 is never used as console code page
-					inputEncoding = outputEncoding = Encoding.GetEncoding (28591);
+					inputEncoding = outputEncoding = Encoding.Default;
 				}
+#endif
 			} else {
 				//
 				// On Unix systems (128), do not output the
@@ -100,8 +108,7 @@ namespace System
 				int code_page = 0;
 				Encoding.InternalCodePage (ref code_page);
 
-				if (code_page != -1 && ((code_page & 0x0fffffff) == 3 // UTF8Encoding.UTF8_CODE_PAGE
-					|| ((code_page & 0x10000000) != 0)))
+				if (code_page == UTF8Encoding.UTF8_CODE_PAGE || ((code_page & 0x10000000) != 0))
 					inputEncoding = outputEncoding = Encoding.UTF8Unmarked;
 				else
 					inputEncoding = outputEncoding = Encoding.Default;
@@ -162,6 +169,19 @@ namespace System
 			return OpenStandardError (0);
 		}
 
+		private static Stream Open (IntPtr handle, FileAccess access, int bufferSize)
+		{
+#if NET_2_1 && !MONOTOUCH
+			if (SecurityManager.SecurityEnabled && !Debugger.IsAttached && Environment.GetEnvironmentVariable ("MOONLIGHT_ENABLE_CONSOLE") == null)
+				return new NullStream ();
+#endif
+			try {
+				return new FileStream (handle, access, false, bufferSize, false, bufferSize == 0);
+			} catch (IOException) {
+				return new NullStream ();
+			}
+		}
+
 		// calling any FileStream constructor with a handle normally
 		// requires permissions UnmanagedCode permissions. In this 
 		// case we assert this permission so the console can be used
@@ -169,11 +189,7 @@ namespace System
 		[SecurityPermission (SecurityAction.Assert, UnmanagedCode = true)]
 		public static Stream OpenStandardError (int bufferSize)
 		{
-			try {
-				return new FileStream (MonoIO.ConsoleError, FileAccess.Write, false, bufferSize, false, bufferSize == 0);
-			} catch (IOException) {
-				return new NullStream ();
-			}
+			return Open (MonoIO.ConsoleError, FileAccess.Write, bufferSize);
 		}
 
 		public static Stream OpenStandardInput ()
@@ -188,11 +204,7 @@ namespace System
 		[SecurityPermission (SecurityAction.Assert, UnmanagedCode = true)]
 		public static Stream OpenStandardInput (int bufferSize)
 		{
-			try {
-				return new FileStream (MonoIO.ConsoleInput, FileAccess.Read, false, bufferSize, false, bufferSize == 0);
-			} catch (IOException) {
-				return new NullStream ();
-			}
+			return Open (MonoIO.ConsoleInput, FileAccess.Read, bufferSize);
 		}
 
 		public static Stream OpenStandardOutput ()
@@ -207,11 +219,7 @@ namespace System
 		[SecurityPermission (SecurityAction.Assert, UnmanagedCode = true)]
 		public static Stream OpenStandardOutput (int bufferSize)
 		{
-			try {
-				return new FileStream (MonoIO.ConsoleOutput, FileAccess.Write, false, bufferSize, false, bufferSize == 0);
-			} catch (IOException) {
-				return new NullStream ();
-			}
+			return Open (MonoIO.ConsoleOutput, FileAccess.Write, bufferSize);
 		}
 
 		[SecurityPermission (SecurityAction.Demand, UnmanagedCode = true)]
@@ -515,14 +523,17 @@ namespace System
 
 		public static int BufferHeight {
 			get { return ConsoleDriver.BufferHeight; }
+			[MonoLimitation ("Implemented only on Windows")]
 			set { ConsoleDriver.BufferHeight = value; }
 		}
 
 		public static int BufferWidth {
 			get { return ConsoleDriver.BufferWidth; }
+			[MonoLimitation ("Implemented only on Windows")]
 			set { ConsoleDriver.BufferWidth = value; }
 		}
 
+		[MonoLimitation ("Implemented only on Windows")]
 		public static bool CapsLock {
 			get { return ConsoleDriver.CapsLock; }
 		}
@@ -564,6 +575,7 @@ namespace System
 			get { return ConsoleDriver.LargestWindowWidth; }
 		}
 
+		[MonoLimitation ("Only works on windows")]
 		public static bool NumberLock {
 			get { return ConsoleDriver.NumberLock; }
 		}
@@ -578,21 +590,25 @@ namespace System
 			set { ConsoleDriver.TreatControlCAsInput = value; }
 		}
 
+		[MonoLimitation ("Only works on windows")]
 		public static int WindowHeight {
 			get { return ConsoleDriver.WindowHeight; }
 			set { ConsoleDriver.WindowHeight = value; }
 		}
 
+		[MonoLimitation ("Only works on windows")]
 		public static int WindowLeft {
 			get { return ConsoleDriver.WindowLeft; }
 			set { ConsoleDriver.WindowLeft = value; }
 		}
 
+		[MonoLimitation ("Only works on windows")]
 		public static int WindowTop {
 			get { return ConsoleDriver.WindowTop; }
 			set { ConsoleDriver.WindowTop = value; }
 		}
 
+		[MonoLimitation ("Only works on windows")]
 		public static int WindowWidth {
 			get { return ConsoleDriver.WindowWidth; }
 			set { ConsoleDriver.WindowWidth = value; }
@@ -619,19 +635,20 @@ namespace System
 			ConsoleDriver.Clear ();
 		}
 
-		[MonoTODO ("Not implemented")]
+		[MonoLimitation ("Implemented only on Windows")]
 		public static void MoveBufferArea (int sourceLeft, int sourceTop, int sourceWidth, int sourceHeight,
 						int targetLeft, int targetTop)
 		{
-			throw new NotImplementedException ();
+			ConsoleDriver.MoveBufferArea (sourceLeft, sourceTop, sourceWidth, sourceHeight, targetLeft, targetTop);
 		}
 
-		[MonoTODO("Not implemented")]
+		[MonoLimitation ("Implemented only on Windows")]
 		public static void MoveBufferArea (int sourceLeft, int sourceTop, int sourceWidth, int sourceHeight,
 						int targetLeft, int targetTop, Char sourceChar,
 						ConsoleColor sourceForeColor, ConsoleColor sourceBackColor)
 		{
-			throw new NotImplementedException ();
+			ConsoleDriver.MoveBufferArea (sourceLeft, sourceTop, sourceWidth, sourceHeight, targetLeft, targetTop,
+							sourceChar, sourceForeColor, sourceBackColor);
 		}
 
 		public static ConsoleKeyInfo ReadKey ()
@@ -649,6 +666,7 @@ namespace System
 			ConsoleDriver.ResetColor ();
 		}
 
+		[MonoLimitation ("Only works on windows")]
 		public static void SetBufferSize (int width, int height)
 		{
 			ConsoleDriver.SetBufferSize (width, height);

@@ -4,6 +4,7 @@
 // Authors:
 // 	Lluis Sanchez Gual (lluis@novell.com)
 // 	Chris Toshok (toshok@ximian.com)
+//      Marek Habersack <mhabersack@novell.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,7 +25,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
-// Copyright (C) 2005 Novell, Inc (http://www.novell.com)
+// Copyright (C) 2005-2009 Novell, Inc (http://www.novell.com)
 //
 
 #if NET_2_0
@@ -32,6 +33,7 @@
 using System;
 using System.IO;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Reflection;
 #if MONOWEB_DEP
@@ -42,18 +44,30 @@ using System.Configuration;
 using System.Configuration.Internal;
 using _Configuration = System.Configuration.Configuration;
 using System.Web.Util;
+using System.Threading;
 
 namespace System.Web.Configuration {
 
 	public static class WebConfigurationManager
 	{
+		const int SAVE_LOCATIONS_CHECK_INTERVAL = 6000; // milliseconds
+
+		static readonly char[] pathTrimChars = { '/' };
+		static readonly object suppressAppReloadLock = new object ();
+		static readonly object saveLocationsCacheLock = new object ();
+#if SYSTEMCORE_DEP
+		static readonly ReaderWriterLockSlim sectionCacheLock;
+#endif
+		
 #if !TARGET_J2EE
 		static IInternalConfigConfigurationFactory configFactory;
 		static Hashtable configurations = Hashtable.Synchronized (new Hashtable ());
-		static Hashtable sectionCache = new Hashtable ();
+		static Dictionary <int, object> sectionCache = new Dictionary <int, object> ();
 		static Hashtable configPaths = Hashtable.Synchronized (new Hashtable ());
+		static bool suppressAppReload;
 #else
 		const string AppSettingsKey = "WebConfigurationManager.AppSettings";
+		
 		static internal IInternalConfigConfigurationFactory configFactory
 		{
 			get{
@@ -100,13 +114,13 @@ namespace System.Web.Configuration {
 			}
 		}
 
-		static Hashtable sectionCache
+		static Dictionary <int, object> sectionCache
 		{
 			get
 			{
-				Hashtable sectionCache = (Hashtable) AppDomain.CurrentDomain.GetData ("sectionCache");
+				Dictionary <int, object> sectionCache = AppDomain.CurrentDomain.GetData ("sectionCache") as Dictionary <int, object>;
 				if (sectionCache == null) {
-					sectionCache = new Hashtable (StringComparer.OrdinalIgnoreCase);
+					sectionCache = new Dictionary <int, object> ();
 					AppDomain.CurrentDomain.SetData ("sectionCache", sectionCache);
 				}
 				return sectionCache;
@@ -139,7 +153,9 @@ namespace System.Web.Configuration {
 			}
 		}
 #endif
-
+		static Dictionary <string, DateTime> saveLocationsCache;
+		static Timer saveLocationsTimer;
+		
 		static ArrayList extra_assemblies = null;
 		static internal ArrayList ExtraAssemblies {
 			get {
@@ -161,10 +177,10 @@ namespace System.Web.Configuration {
 		
 		static WebConfigurationManager ()
 		{
-			PropertyInfo prop = typeof(ConfigurationManager).GetProperty ("ConfigurationFactory", BindingFlags.Static | BindingFlags.NonPublic);
-			if (prop != null)
-				configFactory = prop.GetValue (null, null) as IInternalConfigConfigurationFactory;
-
+			configFactory = ConfigurationManager.ConfigurationFactory;
+			_Configuration.SaveStart += ConfigurationSaveHandler;
+			_Configuration.SaveEnd += ConfigurationSaveHandler;
+			
 			// Part of fix for bug #491531
 			Type type = Type.GetType ("System.Configuration.CustomizableFileSettingsProvider, System", false);
 			if (type != null) {
@@ -172,8 +188,75 @@ namespace System.Web.Configuration {
 				if (fi != null && fi.FieldType == Type.GetType ("System.Type"))
 					fi.SetValue (null, typeof (ApplicationSettingsConfigurationFileMap));
 			}
+
+#if SYSTEMCORE_DEP
+			sectionCacheLock = new ReaderWriterLockSlim ();
+#endif
 		}
 
+		static void ReenableWatcherOnConfigLocation (object state)
+		{
+			string path = state as string;
+			if (String.IsNullOrEmpty (path))
+				return;
+
+			DateTime lastWrite;
+			lock (saveLocationsCacheLock) {
+				if (!saveLocationsCache.TryGetValue (path, out lastWrite))
+					lastWrite = DateTime.MinValue;
+			}
+
+			DateTime now = DateTime.Now;
+			if (lastWrite == DateTime.MinValue || now.Subtract (lastWrite).TotalMilliseconds >= SAVE_LOCATIONS_CHECK_INTERVAL) {
+				saveLocationsTimer.Dispose ();
+				saveLocationsTimer = null;
+				HttpApplicationFactory.EnableWatcher (VirtualPathUtility.RemoveTrailingSlash (HttpRuntime.AppDomainAppPath), "?eb.?onfig");
+			} else
+				saveLocationsTimer.Change (SAVE_LOCATIONS_CHECK_INTERVAL, SAVE_LOCATIONS_CHECK_INTERVAL);
+		}
+		
+		static void ConfigurationSaveHandler (_Configuration sender, ConfigurationSaveEventArgs args)
+		{
+			bool locked = false;
+			try {
+#if SYSTEMCORE_DEP
+				sectionCacheLock.EnterWriteLock ();
+#endif
+				locked = true;
+				sectionCache.Clear ();
+			} finally {
+#if SYSTEMCORE_DEP
+				if (locked)
+					sectionCacheLock.ExitWriteLock ();
+#endif
+			}
+			
+			lock (suppressAppReloadLock) {
+				string rootConfigPath = WebConfigurationHost.GetWebConfigFileName (HttpRuntime.AppDomainAppPath);
+				if (String.Compare (args.StreamPath, rootConfigPath, StringComparison.OrdinalIgnoreCase) == 0) {
+					SuppressAppReload (args.Start);
+					if (args.Start) {
+						HttpApplicationFactory.DisableWatcher (VirtualPathUtility.RemoveTrailingSlash (HttpRuntime.AppDomainAppPath), "?eb.?onfig");
+
+						lock (saveLocationsCacheLock) {
+							if (saveLocationsCache == null)
+								saveLocationsCache = new Dictionary <string, DateTime> (StringComparer.Ordinal);
+							if (saveLocationsCache.ContainsKey (rootConfigPath))
+								saveLocationsCache [rootConfigPath] = DateTime.Now;
+							else
+								saveLocationsCache.Add (rootConfigPath, DateTime.Now);
+
+							if (saveLocationsTimer == null)
+								saveLocationsTimer = new Timer (ReenableWatcherOnConfigLocation,
+												rootConfigPath,
+												SAVE_LOCATIONS_CHECK_INTERVAL,
+												SAVE_LOCATIONS_CHECK_INTERVAL);
+						}
+					}
+				}
+			}
+		}
+		
 		public static _Configuration OpenMachineConfiguration ()
 		{
 			return ConfigurationManager.OpenMachineConfiguration ();
@@ -243,8 +326,16 @@ namespace System.Web.Configuration {
 		
 		public static _Configuration OpenWebConfiguration (string path, string site, string locationSubPath, string server, string userName, string password)
 		{
-			if (path == null || path.Length == 0)
+			return OpenWebConfiguration (path, site, locationSubPath, server, null, null, false);
+		}
+
+		static _Configuration OpenWebConfiguration (string path, string site, string locationSubPath, string server, string userName, string password, bool fweb)
+		{
+			if (String.IsNullOrEmpty (path))
 				path = "/";
+
+			if (!fweb && !String.IsNullOrEmpty (path))
+				path = FindWebConfig (path);
 
 			string confKey = path + site + locationSubPath + server + userName + password;
 			_Configuration conf = null;
@@ -322,22 +413,98 @@ namespace System.Web.Configuration {
 			return GetSection (sectionName, path, HttpContext.Current);
 		}
 
+		static bool LookUpLocation (string relativePath, ref _Configuration defaultConfiguration)
+		{
+			if (String.IsNullOrEmpty (relativePath))
+				return false;
+
+			_Configuration cnew = defaultConfiguration.FindLocationConfiguration (relativePath, defaultConfiguration);
+			if (cnew == defaultConfiguration)
+				return false;
+
+			defaultConfiguration = cnew;
+			return true;
+		}
+
 		internal static object GetSection (string sectionName, string path, HttpContext context)
 		{
-			object cachedSection = sectionCache [GetSectionCacheKey (sectionName, path)];
-			if (cachedSection != null)
-				return cachedSection;
-
+			if (String.IsNullOrEmpty (sectionName))
+				return null;
 			
-			HttpRequest req = context != null ? context.Request : null;
-			_Configuration c = OpenWebConfiguration (path, /* path */
-								 null, /* site */
-					 			 req != null ? VirtualPathUtility.GetDirectory (req.Path) : null, /* locationSubPath */
-								 null, /* server */
-								 null, /* userName */
-								 null  /* password */);
-			ConfigurationSection section = c.GetSection (sectionName);
+			_Configuration c = OpenWebConfiguration (path, null, null, null, null, null, false);
+			string configPath = c.ConfigPath;
+			int baseCacheKey = 0;
+			int cacheKey;
+			bool pathPresent = !String.IsNullOrEmpty (path);
+			string locationPath = null;
+			bool locked = false;
 
+			if (pathPresent)
+				locationPath = "location_" + path;
+			
+			baseCacheKey = sectionName.GetHashCode ();
+			if (configPath != null)
+				baseCacheKey ^= configPath.GetHashCode ();
+			
+			try {
+#if SYSTEMCORE_DEP
+				sectionCacheLock.EnterReadLock ();
+#endif
+				locked = true;
+				
+				object o;
+				if (pathPresent) {
+					cacheKey = baseCacheKey ^ locationPath.GetHashCode ();
+					if (sectionCache.TryGetValue (cacheKey, out o))
+						return o;
+				
+					cacheKey = baseCacheKey ^ path.GetHashCode ();
+					if (sectionCache.TryGetValue (cacheKey, out o))
+						return o;
+				}
+				
+				if (sectionCache.TryGetValue (baseCacheKey, out o))
+					return o;
+			} finally {
+#if SYSTEMCORE_DEP
+				if (locked)
+					sectionCacheLock.ExitReadLock ();
+#endif
+			}
+
+			string cachePath = null;
+			if (pathPresent) {
+				string relPath;
+				
+				if (VirtualPathUtility.IsRooted (path)) {
+					if (path [0] == '~')
+						relPath = path.Length > 1 ? path.Substring (2) : String.Empty;
+					else if (path [0] == '/')
+						relPath = path.Substring (1);
+					else
+						relPath = path;
+				} else
+					relPath = path;
+
+				_Configuration cnew;
+
+				HttpRequest req = context != null ? context.Request : null;
+				if (req != null) {
+					string vdir = VirtualPathUtility.GetDirectory (req.Path);
+					if (vdir != null) {
+						vdir = vdir.TrimEnd (pathTrimChars);
+						if (String.Compare (c.ConfigPath, vdir, StringComparison.Ordinal) != 0 && LookUpLocation (vdir.Trim (pathTrimChars), ref c))
+							cachePath = path;
+					}
+				}
+				
+				if (LookUpLocation (relPath, ref c))
+					cachePath = locationPath;
+				else
+					cachePath = path;
+			}
+
+			ConfigurationSection section = c.GetSection (sectionName);
 			if (section == null)
 				return null;
 
@@ -348,18 +515,20 @@ namespace System.Web.Configuration {
 				collection = new KeyValueMergedCollection (HttpContext.Current, (NameValueCollection) value);
 				value = collection;
 			}
-
-			AddSectionToCache (GetSectionCacheKey (sectionName, path), value);
-			return value;
 #else
 #if MONOWEB_DEP
 			object value = SettingsMappingManager.MapSection (get_runtime_object.Invoke (section, new object [0]));
 #else
 			object value = null;
 #endif
-			AddSectionToCache (GetSectionCacheKey (sectionName, path), value);
-			return value;
 #endif
+			if (cachePath != null)
+				cacheKey = baseCacheKey ^ cachePath.GetHashCode ();
+			else
+				cacheKey = baseCacheKey;
+			
+			AddSectionToCache (cacheKey, value);
+			return value;
 		}
 		
 		static string MapPath (HttpRequest req, string virtualPath)
@@ -434,7 +603,7 @@ namespace System.Web.Configuration {
 					break;
 				
 				curPath = GetParentDir (rootPath, curPath);
-				if (curPath == null) {
+				if (curPath == null || curPath == "~") {
 					curPath = rootPath;
 					break;
 				}
@@ -449,7 +618,19 @@ namespace System.Web.Configuration {
 			HttpRequest req = ctx != null ? ctx.Request : null;
 			return req != null ? req.Path : HttpRuntime.AppDomainAppVirtualPath;
 		}
+		
+		internal static bool SuppressAppReload (bool newValue)
+		{
+			bool ret;
+			
+			lock (suppressAppReloadLock) {
+				ret = suppressAppReload;
+				suppressAppReload = newValue;
+			}
 
+			return ret;
+		}
+		
 		internal static void RemoveConfigurationFromCache (HttpContext ctx)
 		{
 			configurations.Remove (GetCurrentPath (ctx));
@@ -481,22 +662,38 @@ namespace System.Web.Configuration {
 
 		static void AddSectionToCache (int key, object section)
 		{
-			if (sectionCache [key] != null)
-				return;
+			object cachedSection;
+			bool locked = false;
 
-			Hashtable tmpTable = (Hashtable) sectionCache.Clone ();
-			if (tmpTable.Contains (key))
-				return;
+			try {
+#if SYSTEMCORE_DEP
+				sectionCacheLock.EnterUpgradeableReadLock ();
+#endif
+				locked = true;
+					
+				if (sectionCache.TryGetValue (key, out cachedSection) && cachedSection != null)
+					return;
 
-			tmpTable.Add (key, section);
-			sectionCache = tmpTable;
+				bool innerLocked = false;
+				try {
+#if SYSTEMCORE_DEP
+					sectionCacheLock.EnterWriteLock ();
+#endif
+					innerLocked = true;
+					sectionCache.Add (key, section);
+				} finally {
+#if SYSTEMCORE_DEP
+					if (innerLocked)
+						sectionCacheLock.ExitWriteLock ();
+#endif
+				}
+			} finally {
+#if SYSTEMCORE_DEP
+				if (locked)
+					sectionCacheLock.ExitUpgradeableReadLock ();
+#endif
+			}
 		}
-
-		static int GetSectionCacheKey (string sectionName, string path)
-		{
-			return (sectionName != null ? sectionName.GetHashCode () : 0) ^ ((path != null ? path.GetHashCode () : 0) + 37);
-		}
-
 		
 #region stuff copied from WebConfigurationSettings
 #if TARGET_J2EE
@@ -631,7 +828,6 @@ namespace System.Web.Configuration {
 			// nothing. We need a context.
 		}
 	}
-
 #endregion
 }
 

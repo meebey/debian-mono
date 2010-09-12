@@ -40,6 +40,14 @@ using System.Net.Cache;
 using System.Security.Principal;
 #endif
 
+#if MONOTOUCH
+using ConfigurationException = System.ArgumentException;
+
+namespace System.Net.Configuration {
+	class Dummy {}
+}
+#endif
+
 namespace System.Net 
 {
 	[Serializable]
@@ -49,12 +57,22 @@ namespace System.Net
 #if NET_2_0
 		static bool isDefaultWebProxySet;
 		static IWebProxy defaultWebProxy;
+		static RequestCachePolicy defaultCachePolicy;
 #endif
 		
 		// Constructors
 		
 		static WebRequest ()
 		{
+#if MONOTOUCH
+			AddPrefix ("http", typeof (HttpRequestCreator));
+			AddPrefix ("https", typeof (HttpRequestCreator));
+			AddPrefix ("file", typeof (FileWebRequestCreator));
+			AddPrefix ("ftp", typeof (FtpRequestCreator));
+#else
+	#if NET_2_0
+			defaultCachePolicy = new HttpRequestCachePolicy (HttpRequestCacheLevel.NoCacheNoStore);
+	#endif
 #if NET_2_0 && CONFIGURATION_DEP
 			object cfg = ConfigurationManager.GetSection ("system.net/webRequestModules");
 			WebRequestModulesSection s = cfg as WebRequestModulesSection;
@@ -66,6 +84,7 @@ namespace System.Net
 			}
 #endif
 			ConfigurationSettings.GetConfig ("system.net/webRequestModules");
+#endif
 		}
 		
 		protected WebRequest () 
@@ -99,11 +118,10 @@ namespace System.Net
 			}
 		}
 
+		[MonoTODO ("Implement the caching system. Currently always returns a policy with the NoCacheNoStore level")]
 		public virtual RequestCachePolicy CachePolicy
 		{
-			get {
-				throw GetMustImplement ();
-			}
+			get { return DefaultCachePolicy; }
 			set {
 			}
 		}
@@ -132,9 +150,7 @@ namespace System.Net
 #if NET_2_0
 		public static RequestCachePolicy DefaultCachePolicy
 		{
-			get {
-				throw GetMustImplement ();
-			}
+			get { return defaultCachePolicy; }
 			set {
 				throw GetMustImplement ();
 			}
@@ -300,11 +316,28 @@ namespace System.Net
 		public static IWebProxy GetSystemWebProxy ()
 		{
 			string address = Environment.GetEnvironmentVariable ("http_proxy");
+			if (address == null)
+				address = Environment.GetEnvironmentVariable ("HTTP_PROXY");
+
 			if (address != null) {
 				try {
-					WebProxy p = new WebProxy (address);
-					return p;
-				} catch (UriFormatException) {}
+					if (!address.StartsWith ("http://"))
+						address = "http://" + address;
+					Uri uri = new Uri (address);
+					IPAddress ip;
+					if (IPAddress.TryParse (uri.Host, out ip)) {
+						if (IPAddress.Any.Equals (ip)) {
+							UriBuilder builder = new UriBuilder (uri);
+							builder.Host = "127.0.0.1";
+							uri = builder.Uri;
+						} else if (IPAddress.IPv6Any.Equals (ip)) {
+							UriBuilder builder = new UriBuilder (uri);
+							builder.Host = "[::1]";
+							uri = builder.Uri;
+						}
+					}
+					return new WebProxy (uri);
+				} catch (UriFormatException) { }
 			}
 			return new WebProxy ();
 		}

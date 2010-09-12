@@ -2410,6 +2410,26 @@ class Tests {
 		}
 	}
 
+	public static string GetText (string s) {
+		return s;
+	}
+
+	public static int throw_only_gettext () {
+		throw new Exception (GetText ("FOO"));
+	}
+
+	public static int test_0_inline_throw_only_gettext () {
+		object o = null;
+		try {
+			o = throw_only_gettext ();
+		}
+		catch (Exception ex) {
+			return 0;
+		}
+
+		return o != null ? 0 : 1;
+	}
+
 	// bug #78633
 	public static int test_0_throw_to_branch_opt_outer_clause () {
 		int i = 0;
@@ -2427,5 +2447,145 @@ class Tests {
 
 		return (i == 1) ? 0 : 1;
 	}		
+
+	// bug #485721
+	public static int test_0_try_inside_finally_cmov_opt () {
+		bool Reconect = false;
+
+		object o = new object ();
+
+		try {
+		}
+		catch (Exception ExCon) {
+			if (o != null)
+				Reconect = true;
+
+			try {
+			}
+			catch (Exception Last) {
+			}
+		}
+		finally {
+			if (Reconect == true) {
+				try {
+				}
+				catch (Exception ex) {
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	public static int test_0_inline_throw () {
+		try {
+			inline_throw1 (5);
+			return 1;
+		} catch {
+			return 0;
+		}
+	}
+
+	// for llvm, the end bblock is unreachable
+	public static int inline_throw1 (int i) {
+		if (i == 0)
+			throw new Exception ();
+		else
+			return inline_throw2 (i);
+	}
+
+	public static int inline_throw2 (int i) {
+		throw new Exception ();
+	}
+
+	// bug #539550
+	public static int test_0_lmf_filter () {
+		try {
+			// The invoke calls a runtime-invoke wrapper which has a filter clause
+			typeof (Tests).GetMethod ("lmf_filter").Invoke (null, new object [] { });
+		} catch (TargetInvocationException) {
+		}
+		return 0;
+	}
+
+    public static void lmf_filter () {
+        try {
+            Connect ();
+        }
+        catch {
+            throw new NotImplementedException ();
+        }
+    }
+
+    public static void Connect () {
+        Stop ();
+        throw new Exception();
+    }
+
+    public static void Stop () {
+        try {
+            lock (null) {}
+        }
+        catch {
+        }
+    }
+
+	private static void do_raise () {
+		throw new System.Exception ();
+	}
+
+	private static int int_func (int i) {
+		return i;
+	}
+
+	// #559876
+	public static int test_8_local_deadce_causes () {
+      int myb = 4;
+  
+      try {
+        myb = int_func (8);
+        do_raise();
+        myb = int_func (2);
+      } catch (System.Exception) {
+		  return myb;
+	  }
+	  return 0;
+	}
+
+	public static int test_0_except_opt_two_clauses () {
+		int size;
+		size = -1;
+		uint ui = (uint)size;
+		try {
+			checked {
+				uint v = ui * (uint)4;
+			}
+		} catch (OverflowException e) {
+			return 0;
+		} catch (Exception) {
+			return 1;
+		}
+
+		return 2;
+	}
+
+    class Child
+    {
+        public virtual long Method()
+        {
+            throw new Exception();
+        }
+    }
+
+	/* #612206 */
+	public static int test_100_long_vars_in_clauses_initlocals_opt () {
+		Child c = new Child();
+		long value = 100; 
+		try {
+			value = c.Method();
+		}
+		catch {}
+		return (int)value;
+	}
 }
 

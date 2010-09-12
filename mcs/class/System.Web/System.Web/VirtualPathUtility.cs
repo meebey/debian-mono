@@ -78,13 +78,13 @@ namespace System.Web {
 			if (IsRooted (relativePath))
 				return Normalize (relativePath);
 
-			if (basePath [basePath.Length - 1] != '/') {
-				if (basePath.Length > 1) {
+			int basePathLen = basePath.Length;
+			if (basePath [basePathLen - 1] != '/') {
+				if (basePathLen > 1) {
 					int lastSlash = basePath.LastIndexOf ('/');
 					if (lastSlash >= 0)
 						basePath = basePath.Substring (0, lastSlash + 1);
-				}
-				else { // "~" only
+				} else { // "~" only
 					basePath += "/";
 				}
 			}
@@ -102,15 +102,16 @@ namespace System.Web {
 			if (normalize)
 				virtualPath = Normalize (virtualPath);
 
-			if (IsAppRelative (virtualPath) && virtualPath.Length < 3) { // "~" or "~/"
+			int vpLen = virtualPath.Length;
+			if (IsAppRelative (virtualPath) && vpLen < 3) { // "~" or "~/"
 				virtualPath = ToAbsolute (virtualPath);
+				vpLen = virtualPath.Length;
 			}
 			
-			if (virtualPath.Length == 1 && virtualPath [0] == '/') { // "/"
+			if (vpLen == 1 && virtualPath [0] == '/') // "/"
 				return null;
-			}
 
-			int last = virtualPath.LastIndexOf ('/', virtualPath.Length - 2, virtualPath.Length - 2);
+			int last = virtualPath.LastIndexOf ('/', vpLen - 2, vpLen - 2);
 			if (last > 0)
 				return virtualPath.Substring (0, last + 1);
 			else
@@ -269,7 +270,7 @@ namespace System.Web {
 			return ToAbsolute (virtualPath, applicationPath, true);
 		}
 
-		public static string ToAbsolute (string virtualPath, string applicationPath, bool normalize)
+		internal static string ToAbsolute (string virtualPath, string applicationPath, bool normalize)
 		{
 			if (StrUtils.IsNullOrEmpty (applicationPath))
 				throw new ArgumentNullException ("applicationPath");
@@ -332,7 +333,7 @@ namespace System.Web {
 
 		static char [] path_sep = { '/' };
 
-		static string Normalize (string path)
+		internal static string Normalize (string path)
 		{
 			if (!IsRooted (path))
 				throw new ArgumentException (String.Format ("The relative virtual path '{0}' is not allowed here.", path));

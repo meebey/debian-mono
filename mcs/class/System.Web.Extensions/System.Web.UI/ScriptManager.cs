@@ -244,7 +244,7 @@ namespace System.Web.UI
 			}
 		}
 
-		bool IsDeploymentRetail {
+		internal bool IsDeploymentRetail {
 			get {
 #if TARGET_J2EE
 				return false;
@@ -814,53 +814,17 @@ namespace System.Web.UI
 			RegisterClientScriptInclude (control, type, resourceName, ScriptResourceHandler.GetResourceUrl (type.Assembly, resourceName, true));
 		}
 
-		void RegisterScriptReference (Control control, ScriptReference script, bool loadScriptsBeforeUI) {
-			bool isDebugMode = IsDeploymentRetail ? false : (script.ScriptModeInternal == ScriptMode.Inherit ? IsDebuggingEnabled : (script.ScriptModeInternal == ScriptMode.Debug));
-			string url;
-			if (!String.IsNullOrEmpty (script.Path)) {
-				url = GetScriptName (control.ResolveClientUrl (script.Path), isDebugMode, EnableScriptLocalization ? script.ResourceUICultures : null);
-			}
-			else if (!String.IsNullOrEmpty (script.Name)) {
-				Assembly assembly;
-				if (String.IsNullOrEmpty (script.Assembly))
-					assembly = typeof (ScriptManager).Assembly;
-				else
-					assembly = Assembly.Load (script.Assembly);
-				string name = GetScriptName (script.Name, isDebugMode, null);
-				if (script.IgnoreScriptPath || String.IsNullOrEmpty (ScriptPath))
-					url = ScriptResourceHandler.GetResourceUrl (assembly, name, script.NotifyScriptLoaded);
-				else {
-					AssemblyName an = assembly.GetName ();
-					url = ResolveClientUrl (String.Concat (VirtualPathUtility.AppendTrailingSlash (ScriptPath), an.Name, '/', an.Version, '/', name));
-				}
-			}
-			else {
-				throw new InvalidOperationException ("Name and Path cannot both be empty.");
-			}
-
+		void RegisterScriptReference (Control control, ScriptReference script, bool loadScriptsBeforeUI)
+		{
+			string scriptPath = script.Path;
+			string url = script.GetUrl (this, false);
+			if (control != this && !String.IsNullOrEmpty (scriptPath))
+				url = control.ResolveClientUrl (url);
+			
 			if (loadScriptsBeforeUI)
 				RegisterClientScriptInclude (control, typeof (ScriptManager), url, url);
 			else
 				RegisterStartupScript (control, typeof (ScriptManager), url, String.Format ("<script src=\"{0}\" type=\"text/javascript\"></script>", url), false);
-		}
-
-		static string GetScriptName (string releaseName, bool isDebugMode, string [] supportedUICultures) {
-			if (!isDebugMode && (supportedUICultures == null || supportedUICultures.Length == 0))
-				return releaseName;
-
-			if (releaseName.Length < 3 || !releaseName.EndsWith (".js", StringComparison.OrdinalIgnoreCase))
-				throw new InvalidOperationException (String.Format ("'{0}' is not a valid script path.  The path must end in '.js'.", releaseName));
-
-			StringBuilder sb = new StringBuilder (releaseName);
-			sb.Length -= 3;
-			if (isDebugMode)
-				sb.Append (".debug");
-			string culture = Thread.CurrentThread.CurrentUICulture.Name;
-			if (supportedUICultures != null && Array.IndexOf<string> (supportedUICultures, culture) >= 0)
-				sb.AppendFormat (".{0}", culture);
-			sb.Append (".js");
-
-			return sb.ToString ();
 		}
 
 		void RegisterServiceReference (Control control, ServiceReference serviceReference)
@@ -1023,7 +987,8 @@ namespace System.Web.UI
 			RegisterScriptDescriptors ((Control) scriptControl, scriptControl.GetScriptDescriptors ());
 		}
 
-		void RegisterScriptDescriptors (Control control, IEnumerable<ScriptDescriptor> scriptDescriptors) {
+		void RegisterScriptDescriptors (Control control, IEnumerable<ScriptDescriptor> scriptDescriptors)
+		{
 			if (scriptDescriptors == null)
 				return;
 
@@ -1035,6 +1000,7 @@ namespace System.Web.UI
 				}
 				else
 					sb.AppendLine ("Sys.Application.add_init(function() {");
+				sb.Append ("\t");
 				sb.AppendLine (scriptDescriptor.GetScript ());
 				sb.AppendLine ("});");
 			}
@@ -1097,9 +1063,18 @@ namespace System.Web.UI
 				writer.WriteLine ("//<![CDATA[");
 				writer.WriteLine ("Sys.WebForms.PageRequestManager._initialize('{0}', document.getElementById('{1}'));", UniqueID, Page.Form.ClientID);
 				if (IsMultiForm)
-					writer.WriteLine ("Sys.WebForms.PageRequestManager.getInstance($get(\"{0}\"))._updateControls([{1}], [{2}], [{3}], {4});", Page.Form.ClientID, FormatUpdatePanelIDs (_updatePanels, true), FormatListIDs (_asyncPostBackControls, true), FormatListIDs (_postBackControls, true), AsyncPostBackTimeout);
+					writer.WriteLine ("Sys.WebForms.PageRequestManager.getInstance($get(\"{0}\"))._updateControls([{1}], [{2}], [{3}], {4});",
+							  Page.Form.ClientID,
+							  FormatUpdatePanelIDs (_updatePanels, true),
+							  FormatListIDs (_asyncPostBackControls, true, false),
+							  FormatListIDs (_postBackControls, true, false),
+							  AsyncPostBackTimeout);
 				else
-					writer.WriteLine ("Sys.WebForms.PageRequestManager.getInstance()._updateControls([{0}], [{1}], [{2}], {3});", FormatUpdatePanelIDs (_updatePanels, true), FormatListIDs (_asyncPostBackControls, true), FormatListIDs (_postBackControls, true), AsyncPostBackTimeout);
+					writer.WriteLine ("Sys.WebForms.PageRequestManager.getInstance()._updateControls([{0}], [{1}], [{2}], {3});",
+							  FormatUpdatePanelIDs (_updatePanels, true),
+							  FormatListIDs (_asyncPostBackControls, true, false),
+							  FormatListIDs (_postBackControls, true, false),
+							  AsyncPostBackTimeout);
 				writer.WriteLine ("//]]");
 				writer.WriteLine ("</script>");
 			}
@@ -1111,21 +1086,29 @@ namespace System.Web.UI
 				return null;
 
 			StringBuilder sb = new StringBuilder ();
-			for (int i = 0; i < list.Count; i++) {
-				sb.AppendFormat ("{0}{1}{2}{0},", useSingleQuote ? "'" : String.Empty, list [i].ChildrenAsTriggers ? "t" : "f", list [i].UniqueID);
+			foreach (UpdatePanel panel in list) {
+				if (!panel.Visible)
+					continue;
+				
+				sb.AppendFormat ("{0}{1}{2}{0},", useSingleQuote ? "'" : String.Empty, panel.ChildrenAsTriggers ? "t" : "f", panel.UniqueID);
 			}
+			
 			if (sb.Length > 0)
 				sb.Length--;
 
 			return sb.ToString ();
 		}
 
-		static string FormatListIDs<T> (List<T> list, bool useSingleQuote) where T : Control {
+		static string FormatListIDs<T> (List<T> list, bool useSingleQuote, bool skipInvisible) where T : Control
+		{
 			if (list == null || list.Count == 0)
 				return null;
 
 			StringBuilder sb = new StringBuilder ();
 			for (int i = 0; i < list.Count; i++) {
+				if (skipInvisible && !list [i].Visible)
+					continue;
+				
 				sb.AppendFormat ("{0}{1}{0},", useSingleQuote ? "'" : String.Empty, list [i].UniqueID);
 			}
 			if (sb.Length > 0)
@@ -1291,7 +1274,7 @@ namespace System.Web.UI
 						needsUpdate = true;
 					else
 						needsUpdate = false;
-
+					
 					if (needsUpdate == false) {
 						Control parent = panel.Parent;
 						UpdatePanel parentPanel;
@@ -1306,7 +1289,7 @@ namespace System.Web.UI
 							parent = parent.Parent;
 						}
 					}
-
+					
 					panel.SetInPartialRendering (needsUpdate);
 					if (needsUpdate)
 						RegisterPanelForRefresh (panel);
@@ -1322,11 +1305,11 @@ namespace System.Web.UI
 				foreach (KeyValuePair <string, string> kvp in pageHiddenFields)
 					WriteCallbackOutput (output, hiddenField, kvp.Key, kvp.Value);
 			
-			WriteCallbackOutput (output, asyncPostBackControlIDs, null, FormatListIDs (_asyncPostBackControls, false));
-			WriteCallbackOutput (output, postBackControlIDs, null, FormatListIDs (_postBackControls, false));
+			WriteCallbackOutput (output, asyncPostBackControlIDs, null, FormatListIDs (_asyncPostBackControls, false, false));
+			WriteCallbackOutput (output, postBackControlIDs, null, FormatListIDs (_postBackControls, false, false));
 			WriteCallbackOutput (output, updatePanelIDs, null, FormatUpdatePanelIDs (_updatePanels, false));
-			WriteCallbackOutput (output, childUpdatePanelIDs, null, FormatListIDs (_childUpdatePanels, false));
-			WriteCallbackOutput (output, panelsToRefreshIDs, null, FormatListIDs (_panelsToRefresh, false));
+			WriteCallbackOutput (output, childUpdatePanelIDs, null, FormatListIDs (_childUpdatePanels, false, true));
+			WriteCallbackOutput (output, panelsToRefreshIDs, null, FormatListIDs (_panelsToRefresh, false, true));
 			WriteCallbackOutput (output, asyncPostBackTimeout, null, AsyncPostBackTimeout.ToString ());
 			if (!IsMultiForm)
 				WriteCallbackOutput (output, pageTitle, null, Page.Title);
@@ -1469,10 +1452,10 @@ namespace System.Web.UI
 			output = ((HtmlTextParser) output).ResponseOutput;
 			HtmlForm form = (HtmlForm) container;
 			HtmlTextWriter writer = new HtmlDropWriter (output);
+			
 			if (form.HasControls ()) {
-				for (int i = 0; i < form.Controls.Count; i++) {
-					form.Controls [i].RenderControl (writer);
-				}
+				foreach (Control control in form.Controls)
+					control.RenderControl (writer);
 			}
 		}
 

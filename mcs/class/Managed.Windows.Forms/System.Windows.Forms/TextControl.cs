@@ -1691,8 +1691,12 @@ namespace System.Windows.Forms {
 		internal void GetVisibleLineIndexes (Rectangle clip, out int start, out int end)
 		{
 			if (multiline) {
-				start = GetLineByPixel(clip.Top + viewport_y - offset_y, false).line_no;
-				end = GetLineByPixel(clip.Bottom + viewport_y - offset_y, false).line_no;
+				/* Expand the region slightly to be sure to
+				 * paint the full extent of the line of text.
+				 * See bug 464464.
+				 */
+				start = GetLineByPixel(clip.Top + viewport_y - offset_y - 1, false).line_no;
+				end = GetLineByPixel(clip.Bottom + viewport_y - offset_y + 1, false).line_no;
 			} else {
 				start = GetLineByPixel(clip.Left + viewport_x - offset_x, false).line_no;
 				end = GetLineByPixel(clip.Right + viewport_x - offset_x, false).line_no;
@@ -1989,6 +1993,11 @@ namespace System.Windows.Forms {
 			base_line = line.line_no;
 			old_line_count = lines;
 
+			// Discard chars after any possible -unlikely- end of file
+			int eof_index = s.IndexOf ('\0');
+			if (eof_index != -1)
+				s = s.Substring (0, eof_index);
+
 			break_index = GetLineEnding (s, 0, out ending, LineEnding.Hard | LineEnding.Rich);
 
 			// There are no line feeds in our text to be pasted
@@ -2191,10 +2200,17 @@ namespace System.Windows.Forms {
 			if ((pos == 0 && forward == false) || (pos == line.text.Length && forward == true))
 				return;
 			
-			if (forward)
+			undo.BeginUserAction ("Delete");
+
+			if (forward) {
+				undo.RecordDeleteString (line, pos, line, pos + 1);
 				DeleteChars (line, pos, 1);
-			else
+			} else {
+				undo.RecordDeleteString (line, pos - 1, line, pos);
 				DeleteChars (line, pos - 1, 1);
+			}
+
+			undo.EndUserAction ();
 		}
 
 		// Combine two lines

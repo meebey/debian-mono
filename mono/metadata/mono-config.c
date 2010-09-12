@@ -5,7 +5,8 @@
  *
  * Author: Paolo Molaro (lupus@ximian.com)
  *
- * (C) 2002 Ximian, Inc.
+ * Copyright 2002-2003 Ximian, Inc (http://www.ximian.com)
+ * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
  */
 #include "config.h"
 #include <glib.h>
@@ -36,11 +37,14 @@
 #define CONFIG_OS "aix"
 #elif defined(__hpux)
 #define CONFIG_OS "hpux"
+#elif defined(SN_TARGET_PS3)
+#define CONFIG_OS "CellOS"
 #else
 #warning Unknown operating system
 #define CONFIG_OS "unknownOS"
 #endif
 
+#ifndef CONFIG_CPU
 #if defined(__i386__)
 #define CONFIG_CPU "x86"
 #define CONFIG_WORDSIZE "32"
@@ -51,8 +55,12 @@
 #define CONFIG_CPU "sparc"
 #define CONFIG_WORDSIZE "32"
 #elif defined(__ppc64__) || defined(__powerpc64__)
-#define CONFIG_CPU "ppc64"
 #define CONFIG_WORDSIZE "64"
+#ifdef __mono_ppc_ilp32__
+#   define CONFIG_CPU "ppc64ilp32"
+#else
+#   define CONFIG_CPU "ppc64"
+#endif
 #elif defined(__ppc__) || defined(__powerpc__)
 #define CONFIG_CPU "ppc"
 #define CONFIG_WORDSIZE "32"
@@ -80,6 +88,7 @@
 #else
 #warning Unknown CPU
 #define CONFIG_CPU "unknownCPU"
+#endif
 #endif
 
 static void start_element (GMarkupParseContext *context, 
@@ -201,6 +210,13 @@ static void parse_error   (GMarkupParseContext *context,
                            GError              *error,
 			   gpointer             user_data)
 {
+	ParseState *state = user_data;
+	const gchar *msg;
+	const gchar *filename;
+
+	filename = state && state->user_data ? (gchar *) state->user_data : "<unknown>";
+	msg = error && error->message ? error->message : "";
+	g_warning ("Error parsing %s: %s", filename, msg);
 }
 
 static int
@@ -317,7 +333,7 @@ legacyUEP_start (gpointer user_data,
 			(attribute_names [0] != NULL) &&
 			(strcmp (attribute_names [0], "enabled") == 0)) {
 		if ((strcmp (attribute_values [0], "1") == 0) ||
-				(g_strcasecmp (attribute_values [0], "true") == 0)) {
+				(g_ascii_strcasecmp (attribute_values [0], "true") == 0)) {
 			mono_runtime_unhandled_exception_policy_set (MONO_UNHANDLED_POLICY_LEGACY);
 		}
 	}
@@ -365,15 +381,23 @@ mono_config_parse_xml_with_context (ParseState *state, const char *text, gsize l
 static int
 mono_config_parse_file_with_context (ParseState *state, const char *filename)
 {
-	char *text;
+	gchar *text;
 	gsize len;
+	gint offset;
 
 	mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_CONFIG,
 			"Config attempting to parse: '%s'.", filename);
 
 	if (!g_file_get_contents (filename, &text, &len, NULL))
 		return 0;
-	mono_config_parse_xml_with_context (state, text, len);
+
+
+	offset = 0;
+	if (len > 3 && text [0] == '\xef' && text [1] == (gchar) '\xbb' && text [2] == '\xbf')
+		offset = 3; /* Skip UTF-8 BOM */
+	if (state->user_data == NULL)
+		state->user_data = (gpointer) filename;
+	mono_config_parse_xml_with_context (state, text + offset, len - offset);
 	g_free (text);
 	return 1;
 }
@@ -388,7 +412,8 @@ void
 mono_config_parse_memory (const char *buffer)
 {
 	ParseState state = {NULL};
-	
+
+	state.user_data = (gpointer) "<buffer>";
 	mono_config_parse_xml_with_context (&state, buffer, strlen (buffer));
 }
 
@@ -396,6 +421,7 @@ static void
 mono_config_parse_file (const char *filename)
 {
 	ParseState state = {NULL};
+	state.user_data = (gpointer) filename;
 	mono_config_parse_file_with_context (&state, filename);
 }
 
@@ -465,8 +491,10 @@ mono_config_for_assembly (MonoImage *assembly)
 	state.assembly = assembly;
 
 	bundled_config = mono_config_string_for_assembly_file (assembly->module_name);
-	if (bundled_config)
+	if (bundled_config) {
+		state.user_data = (gpointer) "<bundled>";
 		mono_config_parse_xml_with_context (&state, bundled_config, strlen (bundled_config));
+	}
 
 	cfg_name = g_strdup_printf ("%s.config", mono_image_get_filename (assembly));
 	mono_config_parse_file_with_context (&state, cfg_name);

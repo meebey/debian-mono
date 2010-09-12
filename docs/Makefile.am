@@ -6,15 +6,17 @@ sources_DATA = \
 	monoapi.source \
 	$(ASSEMBLED_DOCS)
 
+if DISABLE_MCS_DOCS
+ASSEMBLED_DOCS = 
+else
 ASSEMBLED_DOCS = \
 	mono-file-formats.tree mono-file-formats.zip  \
 	mono-tools.tree mono-tools.zip                \
 	monoapi.tree monoapi.zip
+endif
 
 EXTRA_DIST = \
 	abc-removal.txt		\
-	AgilityPack.dll		\
-	aot-compiler.txt	\
 	api-style.css		\
 	assembly-bundle		\
 	check-exports		\
@@ -25,7 +27,6 @@ EXTRA_DIST = \
 	docs.make		\
 	documented		\
 	embedded-api		\
-	exception-handling.txt	\
 	exceptions		\
 	exdoc			\
 	file-share-modes	\
@@ -36,13 +37,11 @@ EXTRA_DIST = \
 	internal-calls		\
 	ir-desc			\
 	jit-imt			\
-	jit-regalloc		\
 	jit-thoughts		\
 	jit-trampolines		\
 	local-regalloc.txt	\
 	magic.diff		\
 	mini-doc.txt		\
-	mini-porting.txt	\
 	mono-api-metadata.html	\
 	mono-file-formats.config\
 	mono-file-formats.source\
@@ -63,7 +62,6 @@ EXTRA_DIST = \
 	ssapre.txt		\
 	stack-alignment		\
 	stack-overflow.txt	\
-	thread-safety.txt	\
 	threading		\
 	toc.xml			\
 	TODO			\
@@ -73,12 +71,14 @@ EXTRA_DIST = \
 dist-hook:
 	$(mkdir_p)  $(distdir)/sources
 	$(mkdir_p)  $(distdir)/svgs
+	$(mkdir_p)  $(distdir)/HtmlAgilityPack
 	cp sources/*  $(distdir)/sources
 	cp svgs/*     $(distdir)/svgs
+	cp HtmlAgilityPack/*     $(distdir)/HtmlAgilityPack
 
 clean-local:
 	-rm -Rf $(srcdir)/html
-	-rm -f $(srcdir)/deploy/* $(srcdir)/convert.exe*
+	-rm -f $(srcdir)/deploy/* $(srcdir)/convert.exe* $(srcdir)/AgilityPack.dll*
 	-cd $(srcdir) && rm -f $(ASSEMBLED_DOCS)
 
 monoapi.zip: monoapi.tree
@@ -106,5 +106,7 @@ $(srcdir)/deploy/.stamp: convert.exe Makefile.am
 extract: $(srcdir)/deploy/.stamp
 
 convert.exe: convert.cs AgilityPack.dll
-	cd $(srcdir) && $(MAKE) -f docs.make topdir=$(mcs_topdir_from_srcdir) convert.exe
+	cd $(srcdir) && $(MAKE) PROFILE=net_2_0 -f docs.make topdir=$(mcs_topdir_from_srcdir) convert.exe
 
+AgilityPack.dll:
+	cd $(srcdir) && $(MAKE) PROFILE=net_2_0 -f docs.make topdir=$(mcs_topdir_from_srcdir) AgilityPack.dll

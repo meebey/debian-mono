@@ -40,10 +40,10 @@ namespace MonoTests.System
 
 		internal void DTAssertEquals (DateTime actual, DateTime expected, Resolution resolution)
 		{
-			DTAssertEquals ("", actual, expected, resolution);
+			DTAssertEquals (actual, expected, resolution, "");
 		}
 
-		internal void DTAssertEquals (string message, DateTime expected, DateTime actual, Resolution resolution)
+		internal void DTAssertEquals (DateTime expected, DateTime actual, Resolution resolution, string message)
 		{
 			if ((resolution & Resolution.Year) != 0)
 				Assert.AreEqual (expected.Year, actual.Year, message);
@@ -563,6 +563,18 @@ namespace MonoTests.System
 		}
 
 		[Test]
+		public void TestParseExact5 ()
+		{
+			DateTime dt = DateTime.ParseExact ("Wed, 12 May 2004 20:51:09 -02:30",
+							@"ddd, d MMM yyyy H:m:s zzz",
+							CultureInfo.CreateSpecificCulture("en-us"),
+							DateTimeStyles.AllowInnerWhite);
+			dt = dt.ToUniversalTime ();
+			Assert.AreEqual (23, dt.Hour, "Hour");
+			Assert.AreEqual (21, dt.Minute, "Minute");
+		}
+
+		[Test]
 		public void TestParseExact ()
 		{
 			// Standard patterns
@@ -794,6 +806,13 @@ namespace MonoTests.System
 			t1 = DateTime.ParseExact ("20050707132527Z",
 				"yyyyMMddHHmmss\\Z", CultureInfo.InvariantCulture);
 			Assert.AreEqual (632563395270000000, t1.Ticks, "#L2");
+
+#if NET_2_0
+			// XAttributeTest.CastDateTimeOffsets():#6b
+			t1 = DateTime.ParseExact ("2039-10-31T12:34:56.7552+00:00", "yyyy-MM-ddTHH:mm:ss.FFFFFFFzzz",
+						  CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+			Assert.AreEqual (643393064967552000, t1.Ticks, "#M");
+#endif
 		}
 
 		[Test]
@@ -1339,7 +1358,7 @@ namespace MonoTests.System
 		{
 			double number=5000.41443;
 			DateTime d = DateTime.FromOADate(number);
-			DTAssertEquals ("#1", d, new DateTime(1913, 9, 8, 9, 56, 46, 0), Resolution.Second);
+			DTAssertEquals (d, new DateTime(1913, 9, 8, 9, 56, 46, 0), Resolution.Second, "#1");
 			Assert.AreEqual (d.ToOADate(), number, "#2");
 		}
 

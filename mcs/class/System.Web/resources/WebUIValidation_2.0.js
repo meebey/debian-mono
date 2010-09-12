@@ -4,7 +4,7 @@
  * Authors:
  *   Chris Toshok (toshok@ximian.com)
  *
- * (c) 2005 Novell, Inc. (http://www.novell.com)
+ * (c) 2005-2009 Novell, Inc. (http://www.novell.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -43,23 +43,25 @@ webForm.ValidatorOnLoad = function  ()
 		webForm.have_validation_summaries = true;
 	}
 
-	for (var v = 0; v < webForm.Page_Validators.length; v++) {
-		var vo = webForm.Page_Validators [v];
+	if (typeof (webForm.Page_Validators) != 'undefined' || webForm.Page_Validators != null) {
+		for (var v = 0; v < webForm.Page_Validators.length; v++) {
+			var vo = webForm.Page_Validators [v];
 
-		if (typeof(vo.isvalid) == "string" && vo.isvalid == "False")
-			vo._isvalid = false;
-		else
-			vo._isvalid = true;
+			if (typeof(vo.isvalid) == "string" && vo.isvalid == "False")
+				vo._isvalid = false;
+			else
+				vo._isvalid = true;
 
-		if (typeof(vo.enabled) == "string" && vo.enabled == "False")
-			vo._enabled = false;
-		else
-			vo._enabled = true;
+			if (typeof(vo.enabled) == "string" && vo.enabled == "False")
+				vo._enabled = false;
+			else
+				vo._enabled = true;
 			
-		if (typeof(vo.evaluationfunction) == "string")
-			vo.evaluationfunction = webForm [vo.evaluationfunction];
+			if (typeof(vo.evaluationfunction) == "string")
+				vo.evaluationfunction = webForm [vo.evaluationfunction];
+		}
 	}
-
+	
 	webForm.Page_ValidationActive = true;
 }
 
@@ -157,6 +159,8 @@ webForm.ValidatorCommonOnSubmit = function ()
 webForm.ValidatorGetValue = function (controlname)
 {
 	var el = webForm.GetElement (controlname);
+        if (el == null)
+	        return null;
 
 	/* if the element has a 'value' attribute, return it */
 	if (typeof (el.value) != 'undefined' && el.value != null) {
@@ -186,6 +190,9 @@ webForm.ValidatorGetValueRecursive = function (el)
 
 webForm.ValidatorTrim = function (s)
 {
+        if (s == null)
+	       return null;
+
 	s = s.replace (/^\s+/g, "");
 	s = s.replace (/\s+$/g, "");
 
@@ -206,29 +213,35 @@ webForm.Page_ClientValidate = function (group)
 	}
 	
 	var invalidControlHasBeenFocused = false;
-	for (var v = 0; v < webForm.Page_Validators.length; v++) {
-		var vo = webForm.Page_Validators [v];
-		var evalfunc = vo.evaluationfunction;
-		var result = false;
+	if (typeof (webForm.Page_Validators) != 'undefined' || webForm.Page_Validators != null) {
+		for (var v = 0; v < webForm.Page_Validators.length; v++) {
+			var vo = webForm.Page_Validators [v];
+			var evalfunc = vo.evaluationfunction;
+			var result = false;
+		        var el = webForm.GetElement (vo.controltovalidate);
 
-		if (!vo._enabled || !webForm.IsValidationGroupMatch(vo, group)) {
-			result = true;
-			webForm.ValidatorSucceeded (vo);
-		}
-		else {
-			result = evalfunc.call (this, vo);
-		}
-
-		if (!result) {
-			webForm.validation_result = false;
-			if (!invalidControlHasBeenFocused && typeof(vo.focusOnError) == "string" && vo.focusOnError == "t") {
-				invalidControlHasBeenFocused = webForm.ValidatorSetFocus(vo);
+		        if (el == null) {
+			        result = true;
+			        webForm.ValidatorSucceeded (vo);
+			} else if (!vo._enabled || !webForm.IsValidationGroupMatch(vo, group)) {
+				result = true;
+				webForm.ValidatorSucceeded (vo);
+			} else {
+				result = evalfunc.call (this, vo);
 			}
-		}
+
+			if (!result) {
+				webForm.validation_result = false;
+				if (!invalidControlHasBeenFocused && typeof(vo.focusOnError) == "string" && vo.focusOnError == "t") {
+					invalidControlHasBeenFocused = webForm.ValidatorSetFocus(vo);
+				}
+			}
 		
-		vo._isvalid = result;
+			vo._isvalid = result;
+		}
+		webForm.ValidationSummaryOnSubmit(group);
 	}
-    webForm.ValidationSummaryOnSubmit(group);
+	
 	return webForm.validation_result;
 }
 
@@ -494,7 +507,7 @@ webForm.RequiredFieldValidatorEvaluateIsValid = function (validator)
 	var ControlToValidate = validator.controltovalidate;
 
 	var ctrl_value = webForm.ValidatorTrim (webForm.ValidatorGetValue (ControlToValidate));
-
+        
 	if (ctrl_value == webForm.ValidatorTrim (InitialValue)) {
 		webForm.ValidatorFailed (validator);
 		return false;

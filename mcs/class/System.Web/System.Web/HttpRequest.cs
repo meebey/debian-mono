@@ -5,6 +5,7 @@
 // Author:
 //	Miguel de Icaza (miguel@novell.com)
 //	Gonzalo Paniagua Javier (gonzalo@novell.com)
+//      Marek Habersack <mhabersack@novell.com>
 //
 
 //
@@ -62,7 +63,7 @@ namespace System.Web {
 		// On-demand computed values
 		//
 		HttpBrowserCapabilities browser_capabilities;
-		string file_path, base_virtual_dir, root_virtual_dir;
+		string file_path, base_virtual_dir, root_virtual_dir, client_file_path;
 		string content_type;
 		int content_length = -1;
 		Encoding encoding;
@@ -116,6 +117,7 @@ namespace System.Web {
 				// unlikely to happen
 			}
 #endif
+			
 			host_addresses = GetLocalHostAddresses ();
 		}
 		
@@ -449,7 +451,30 @@ namespace System.Web {
 				return file_path;
 			}
 		}
+		
+		internal string ClientFilePath {
+			get {
+				if (client_file_path == null) {
+					if (worker_request == null)
+						return "/";
+#if NET_2_0
+					return UrlUtils.Canonic (ApplyUrlMapping (worker_request.GetFilePath ()));
+#else
+					return UrlUtils.Canonic (worker_request.GetFilePath ());
+#endif
+				}
+				
+				return client_file_path;
+			}
 
+			set {
+				if (value == null || value.Length == 0)
+					client_file_path = null;
+				else
+					client_file_path = value;
+			}
+		}
+		
 		internal string BaseVirtualDir {
 			get {
 				if (base_virtual_dir == null){
@@ -623,7 +648,7 @@ namespace System.Web {
 			if (starts_with)
 				return StrUtils.StartsWith (ContentType, ct, true);
 
-			return String.Compare (ContentType, ct, true, CultureInfo.InvariantCulture) == 0;
+			return String.Compare (ContentType, ct, true, Helpers.InvariantCulture) == 0;
 		}
 		
 		public NameValueCollection Form {
@@ -734,13 +759,14 @@ namespace System.Web {
 			// upload
 			//
 			int content_length = ContentLength;
-
+			int content_length_kb = content_length / 1024;
+			
 #if NET_2_0
 			HttpRuntimeSection config = (HttpRuntimeSection) WebConfigurationManager.GetWebApplicationSection ("system.web/httpRuntime");
 #else
 			HttpRuntimeConfig config = (HttpRuntimeConfig) HttpContext.GetAppConfig ("system.web/httpRuntime");
 #endif
-			if ((content_length / 1024) > config.MaxRequestLength)
+			if (content_length_kb > config.MaxRequestLength)
 				throw new HttpException (400, "Upload size exceeds httpRuntime limit.");
 
 			int total = 0;
@@ -760,7 +786,7 @@ namespace System.Web {
 			if (buffer != null)
 				total = buffer.Length;
 
-			if (content_length > 0 && (content_length / 1024) >= config.RequestLengthDiskThreshold) {
+			if (content_length > 0 && content_length_kb >= config.RequestLengthDiskThreshold) {
 				// Writes the request to disk
 				total = Math.Min (content_length, total);
 				request_file = GetTempStream ();
@@ -959,6 +985,8 @@ namespace System.Web {
 					if (worker_request == null)
 						return String.Empty;
 					path_info = worker_request.GetPathInfo ();
+					if (path_info == null)
+						path_info = String.Empty;
 				}
 
 				return path_info;

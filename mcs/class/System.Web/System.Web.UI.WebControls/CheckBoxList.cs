@@ -30,6 +30,7 @@ using System.Globalization;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Security.Permissions;
+using System.Web.Util;
 
 namespace System.Web.UI.WebControls {
 
@@ -167,7 +168,7 @@ namespace System.Web.UI.WebControls {
 			// find out when they are unchecked.
 			for (int i = 0; i < Items.Count; i++) {
 				if (Items [i].Selected) {
-					check_box.ID = i.ToString (CultureInfo.InvariantCulture);
+					check_box.ID = i.ToString (Helpers.InvariantCulture);
 					Page.RegisterRequiresPostBack (check_box);
 				}
 			}
@@ -216,14 +217,19 @@ namespace System.Web.UI.WebControls {
 		bool LoadPostData (string postDataKey, NameValueCollection postCollection)
 		{
 #if NET_2_0
+			if (!IsEnabled)
+				return false;
 			EnsureDataBound ();
+#else
+			if (!Enabled)
+				return false;
 #endif
 			int checkbox = -1;
 
 			try {
 				string id = postDataKey.Substring (ClientID.Length + 1);
 				if (Char.IsDigit (id [0]))
-					checkbox = Int32.Parse (id, CultureInfo.InvariantCulture);
+					checkbox = Int32.Parse (id, Helpers.InvariantCulture);
 			} catch {
 				return false;
 			}
@@ -234,12 +240,14 @@ namespace System.Web.UI.WebControls {
 			string val = postCollection [postDataKey];
 			bool ischecked = val == "on";
 			ListItem item = Items [checkbox];
-
 #if NET_2_0
 			if (item.Enabled)
 #endif
-				if (item.Selected != ischecked) {
-					item.Selected = ischecked;
+				if (ischecked && !item.Selected) {
+					item.Selected = true;
+					return true;
+				} else if (!ischecked && item.Selected) {
+					item.Selected = false;
 					return true;
 				}
 
@@ -351,19 +359,25 @@ namespace System.Web.UI.WebControls {
 		{
 			ListItem item = Items [repeatIndex];
 
-			check_box.ID = repeatIndex.ToString (CultureInfo.InvariantCulture);
+			check_box.ID = repeatIndex.ToString (Helpers.InvariantCulture);
 			check_box.Text = item.Text;
 			check_box.AutoPostBack = AutoPostBack;
 			check_box.Checked = item.Selected;
 			check_box.TextAlign = TextAlign;
-			check_box.Enabled = Enabled;
 #if NET_2_0
+			if (!IsEnabled)
+				check_box.Enabled = false;
+			else
+				check_box.Enabled = item.Enabled;
+
 			check_box.ValidationGroup = ValidationGroup;
 			check_box.CausesValidation = CausesValidation;
 			if (check_box.HasAttributes)
 				check_box.Attributes.Clear ();
 			if (item.HasAttributes)
 				check_box.Attributes.CopyFrom (item.Attributes);
+#else
+			check_box.Enabled = Enabled;
 #endif
 			check_box.RenderControl (writer);
 		}

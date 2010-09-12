@@ -1,3 +1,52 @@
+2010-04-28  Marek Habersack  <mhabersack@novell.com>
+
+	* CheckBoxListTest.cs: added test for bug #600415
+
+2010-04-13  Marek Habersack  <mhabersack@novell.com>
+
+	* CheckBoxFieldTest.cs: added test for bug #595568
+
+2010-04-01  Marek Habersack  <mhabersack@novell.com>
+
+	* FormViewTest.cs: added test for bug #578863
+
+2010-02-19  Marek Habersack  <mhabersack@novell.com>
+
+	* SqlDataSourceTest.cs: added test for bug #572781
+
+	* ButtonTest.cs: added test for bug #325489
+
+2010-02-18  Marek Habersack  <mhabersack@novell.com>
+
+	* CheckBoxListTest.cs: added tests for bugs #377703 and #578770
+
+	* TreeViewTest.cs: added test for bug #580692
+
+2010-01-18  Marek Habersack  <mhabersack@novell.com>
+
+	* ParameterTest.cs: added tests for ConvertDbTypeToTypeCode,
+	ConvertTypeCodeToDbType and constructors taking DbType as one of
+	the parameters.
+
+2010-01-15  Marek Habersack  <mhabersack@novell.com>
+
+	* ChangePasswordTest.cs: added test for looking for controls in
+	ChangePassword template containers.
+
+2009-11-16  Marek Habersack  <mhabersack@novell.com>
+
+	* TreeNodeTest.cs: added test for a situation when a
+	node already contains children when the PopulateOnDemand property
+	is set.
+
+2009-11-13  Marek Habersack  <mhabersack@novell.com>
+
+	* GridViewTest.cs: added test for bug #551666
+
+2009-10-13  Marek Habersack  <mhabersack@novell.com>
+
+	* WebColorConverterTest.cs: added test for bug #546173
+
 2009-03-17  Marek Habersack  <mhabersack@novell.com>
 
 	* UnitTest.cs: added a test for equality with Unit.Empty

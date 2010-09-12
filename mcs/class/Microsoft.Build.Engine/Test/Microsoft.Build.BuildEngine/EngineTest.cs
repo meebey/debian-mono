@@ -100,6 +100,8 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 
 		// Before a project can be instantiated, Engine.BinPath must be set to the location on disk where MSBuild is installed.
 		// This is used to evaluate $(MSBuildBinPath).
+		/* This isn't valid for 3.5
+
 		[Test]
 		[ExpectedException (typeof (InvalidOperationException))]
 		public void TestNewProject ()
@@ -107,7 +109,7 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 			engine = new Engine ();
 
 			engine.CreateNewProject ();
-		}
+		}*/
 
 		[Test]
 		public void TestBinPath ()
@@ -322,8 +324,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties1 ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+				+ GetUsingTask ("MSBuild")
+				+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1;2""/>
 		<Message Text=""second""/>
@@ -331,9 +334,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+				+ GetUsingTask ("MSBuild")
+				+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -361,8 +364,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		public void TestGlobalProperties1a ()
 		{
 			Directory.CreateDirectory ("Test/resources/foo");
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1;2""/>
 		<Message Text=""second""/>
@@ -370,9 +374,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -399,8 +403,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties1b ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1;2""/>
 		<Message Text=""second""/>
@@ -408,9 +413,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj""/>
@@ -437,8 +442,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties2 ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1""/>
 		<MSBuild Projects=""first.proj"" Targets = ""2""/>
@@ -447,9 +453,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -476,8 +482,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties3 ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1""/>
 		<CallTarget Targets=""Call2""/>
@@ -489,9 +496,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -519,8 +526,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties4 ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1""/>
 		<CallTarget Targets=""Call2""/>
@@ -532,9 +540,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -566,8 +574,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties4a ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1""/>
 		<CallTarget Targets=""Call2""/>
@@ -579,9 +588,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -613,8 +622,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties4b ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1""/>
 		<CallTarget Targets=""Call2""/>
@@ -626,9 +636,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -664,8 +674,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestGlobalProperties4c ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild"" AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name=""main"">
 		<MSBuild Projects=""first.proj"" Targets = ""1""/>
 		<CallTarget Targets=""Call2""/>
@@ -677,9 +688,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 	</Target>
 </Project>";
 
-			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-	<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-		AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
+			string firstProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
 	<Target Name = ""1"">
 		<MSBuild Projects=""second.proj"" Properties=""foo=bar""/>
 		<MSBuild Projects=""second.proj"" Targets = ""TargetB"" Properties=""foo=foofoo""/>
@@ -712,10 +723,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 		[Test]
 		public void TestMSBuildOutputs ()
 		{
-			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
-			<UsingTask TaskName=""Microsoft.Build.Tasks.MSBuild""
-					AssemblyName=""Microsoft.Build.Tasks, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"" />
-
+			string mainProject = @"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">"
+					+ GetUsingTask ("MSBuild")
+					+ @"
         <ItemGroup>
                 <ProjectRef Include=""first.proj"">
                         <Prop3>value</Prop3>
@@ -798,6 +808,13 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 					"barbar;barbar: F.Prop3: bar value",
 					"from_second: F.Prop3: new value",
 				});
+		}
+
+		[Test]
+		public void TestGetLoadedProject1()
+		{
+			Project project = Engine.GlobalEngine.GetLoadedProject("foo.proj");
+			Assert.IsNull(project);
 		}
 
 		// Helper Methods for TestGlobalProperties*
@@ -887,6 +904,9 @@ namespace MonoTests.Microsoft.Build.BuildEngine {
 			}
 		}
 
-
+		public static string GetUsingTask (string taskName)
+		{
+			return "<UsingTask TaskName='Microsoft.Build.Tasks." + taskName + "' AssemblyFile='" + Consts.GetTasksAsmPath () + "' />";
+		}
 	}
 }

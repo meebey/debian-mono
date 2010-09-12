@@ -162,7 +162,76 @@ namespace MonoTests.System.Windows.Forms
 			tsmi.ShortcutKeyDisplayString = null;
 			Assert.AreEqual (null, tsmi.ShortcutKeyDisplayString, "A5");
 		}
+		
+		[Test]
+		[NUnit.Framework.Category ("NotWorking")]
+		public void GetCurrentParent ()
+		{
+			ToolStripMenuItem tsmiFile = new ToolStripMenuItem ("File");
+			ToolStripMenuItem tsmiHelp = new ToolStripMenuItem ("Help");
+			ToolStripMenuItem tsmiQuit = new ToolStripMenuItem ("Quit");
+			ToolStripMenuItem tsmiAbout = new ToolStripMenuItem ("About");
+			tsmiFile.DropDownItems.Add (tsmiQuit);
+			tsmiHelp.DropDownItems.Add (tsmiAbout);
+			MenuStrip menu = new MenuStrip ();
+			menu.Items.Add (tsmiFile);
+			menu.Items.Add (tsmiHelp);
+			
+			ToolStrip parent = tsmiFile.GetCurrentParent ();
+			Assert.IsNotNull (parent, "A1");
+			Assert.AreEqual (parent.GetType ().Name, typeof (MenuStrip).Name, "A2");
+			Assert.AreEqual (parent, menu, "A3");
+			
+			//because it's not visible?:
+			Assert.IsNull (tsmiQuit.GetCurrentParent (), "A4");
+		}
+		
+		[Test]
+		public void Owner ()
+		{
+			ToolStripMenuItem tsmiFile = new ToolStripMenuItem ("File");
+			ToolStripMenuItem tsmiHelp = new ToolStripMenuItem ("Help");
+			ToolStripMenuItem tsmiQuit = new ToolStripMenuItem ("Quit");
+			ToolStripMenuItem tsmiNew = new ToolStripMenuItem ("New");
+			ToolStripMenuItem tsmiAbout = new ToolStripMenuItem ("About");
+			tsmiQuit.DropDownItems.Add (tsmiNew);
+			tsmiFile.DropDownItems.Add (tsmiQuit);
+			tsmiHelp.DropDownItems.Add (tsmiAbout);
+			MenuStrip menu = new MenuStrip ();
+			menu.Items.Add (tsmiFile);
+			menu.Items.Add (tsmiHelp);
+			
+			Assert.IsNotNull (tsmiFile.Owner);
+			Assert.AreEqual (tsmiFile.Owner.GetType().Name, typeof (MenuStrip).Name);
+			Assert.AreEqual (tsmiFile.Owner, menu);
 
+			Assert.IsNotNull (tsmiQuit.Owner);
+			Assert.AreEqual (tsmiQuit.Owner.GetType().Name, typeof (ToolStripDropDownMenu).Name);
+			Assert.AreEqual (tsmiQuit.Owner, tsmiFile.DropDown);
+		}
+		
+		[Test]
+		public void OwnerItem ()
+		{
+			ToolStripMenuItem tsmiFile = new ToolStripMenuItem ("File");
+			ToolStripMenuItem tsmiHelp = new ToolStripMenuItem ("Help");
+			ToolStripMenuItem tsmiQuit = new ToolStripMenuItem ("Quit");
+			ToolStripMenuItem tsmiNew = new ToolStripMenuItem ("New");
+			ToolStripMenuItem tsmiAbout = new ToolStripMenuItem ("About");
+			tsmiQuit.DropDownItems.Add (tsmiNew);
+			tsmiFile.DropDownItems.Add (tsmiQuit);
+			tsmiHelp.DropDownItems.Add (tsmiAbout);
+			MenuStrip menu = new MenuStrip ();
+			menu.Items.Add (tsmiFile);
+			menu.Items.Add (tsmiHelp);
+
+			Assert.IsNull (tsmiFile.OwnerItem);
+
+			Assert.IsNotNull (tsmiQuit.OwnerItem);
+			Assert.AreEqual (tsmiQuit.OwnerItem.GetType ().Name, typeof (ToolStripMenuItem).Name);
+			Assert.AreEqual (tsmiQuit.OwnerItem, tsmiFile);
+		}
+		
 		[Test]
 		public void ToolStripDropDownButton_SelectChild ()
 		{
@@ -217,6 +286,42 @@ namespace MonoTests.System.Windows.Forms
 			{
 				return this.ProcessCmdKey (ref m, keys);
 			}
+		}
+
+		[Test]
+		public void EventsTest ()
+		{
+			ToolStripMenuItem tsmi = new ToolStripMenuItem ("Sample");
+			tsmi.CheckStateChanged += new EventHandler (tsmi_CheckStateChanged);
+			tsmi.CheckedChanged += new EventHandler (tsmi_CheckedChanged);
+			event_log = String.Empty;
+
+			Assert.AreEqual (false, tsmi.Checked, "#A1");
+			Assert.AreEqual (CheckState.Unchecked, tsmi.CheckState, "#A2");
+
+			tsmi.Checked = true;
+			Assert.AreEqual (true, tsmi.Checked, "#B1");
+			Assert.AreEqual (CheckState.Checked, tsmi.CheckState, "#B2");
+			Assert.AreEqual ("CheckedChanged=True;CheckStateChanged=Checked;", event_log, "#B3");
+
+			event_log = String.Empty;
+
+			tsmi.CheckState = CheckState.Unchecked;
+			Assert.AreEqual (false, tsmi.Checked, "#C1");
+			Assert.AreEqual (CheckState.Unchecked, tsmi.CheckState, "#C2");
+			Assert.AreEqual ("CheckedChanged=False;CheckStateChanged=Unchecked;", event_log, "#C3");
+		}
+
+		string event_log;
+
+		void tsmi_CheckedChanged (object sender, EventArgs e)
+		{
+			event_log += "CheckedChanged=" + ((ToolStripMenuItem)sender).Checked + ";";
+		}
+
+		void tsmi_CheckStateChanged (object sender, EventArgs e)
+		{
+			event_log += "CheckStateChanged=" + ((ToolStripMenuItem)sender).CheckState + ";";
 		}
 	}
 }

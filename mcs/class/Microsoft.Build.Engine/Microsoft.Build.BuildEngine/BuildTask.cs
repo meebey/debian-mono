@@ -42,6 +42,7 @@ namespace Microsoft.Build.BuildEngine {
 		ITaskHost		hostObject;
 		Target			parentTarget;
 		XmlElement		taskElement;
+		TaskLoggingHelper	task_logger;
 	
 		internal BuildTask (XmlElement taskElement, Target parentTarget)
 		{
@@ -87,16 +88,27 @@ namespace Microsoft.Build.BuildEngine {
 			TaskEngine	taskEngine;
 
 			LogTaskStarted ();
+			ITask task = null;
+
+			try {
+				task = InitializeTask ();
+			} catch (Exception e) {
+				LogError ("Error initializing task {0}: {1}", taskElement.LocalName, e.Message);
+				LogMessage (MessageImportance.Low, "Error initializing task {0}: {1}",
+						taskElement.LocalName, e.ToString ());
+				return false;
+			}
 
 			try {
 				taskEngine = new TaskEngine (parentTarget.Project);		
-				taskEngine.Prepare (InitializeTask (), this.taskElement, GetParameters (), this.Type);
+				taskEngine.Prepare (task, this.taskElement, GetParameters (), this.Type);
 				result = taskEngine.Execute ();
 				if (result)
 					taskEngine.PublishOutput ();
-			// FIXME: it should be logged (exception)
 			} catch (Exception e) {
-				Console.Error.WriteLine (e);
+				task_logger.LogError ("Error executing task {0}: {1}", taskElement.LocalName, e.Message);
+				task_logger.LogMessage (MessageImportance.Low,
+						"Error executing task {0}: {1}", taskElement.LocalName, e.ToString ());
 				result = false;
 			}
 
@@ -147,24 +159,51 @@ namespace Microsoft.Build.BuildEngine {
 		
 		void LogTaskStarted ()
 		{
-			TaskStartedEventArgs tsea = new TaskStartedEventArgs ("Task started.", null, parentTarget.Project.FullFileName,
-				parentTarget.Project.FullFileName, taskElement.Name);
+			TaskStartedEventArgs tsea = new TaskStartedEventArgs ("Task started.", null,
+					parentTarget.Project.FullFileName,
+					parentTarget.TargetFile, taskElement.Name);
 			parentTarget.Project.ParentEngine.EventSource.FireTaskStarted (this, tsea);
 		}
 		
 		void LogTaskFinished (bool succeeded)
 		{
-			TaskFinishedEventArgs tfea = new TaskFinishedEventArgs ("Task finished.", null, parentTarget.Project.FullFileName,
-				parentTarget.Project.FullFileName, taskElement.Name, succeeded);
+			TaskFinishedEventArgs tfea = new TaskFinishedEventArgs ("Task finished.", null,
+					parentTarget.Project.FullFileName,
+					parentTarget.TargetFile, taskElement.Name, succeeded);
 			parentTarget.Project.ParentEngine.EventSource.FireTaskFinished (this, tfea);
 		}
+
+		void LogError (string message,
+				     params object[] messageArgs)
+		{
+			parentTarget.Project.ParentEngine.LogError (message, messageArgs);
+		}
 		
+		void LogMessage (MessageImportance importance,
+					string message,
+					params object[] messageArgs)
+		{
+			parentTarget.Project.ParentEngine.LogMessage (importance, message, messageArgs);
+		}
+
 		ITask InitializeTask ()
 		{
 			ITask task;
 			
-			task = (ITask)Activator.CreateInstance (this.Type);
-			task.BuildEngine = new BuildEngine (parentTarget.Project.ParentEngine, parentTarget.Project, 0, 0, ContinueOnError);
+			try {
+				task = (ITask)Activator.CreateInstance (this.Type);
+			} catch (InvalidCastException) {
+				LogMessage (MessageImportance.Low, "InvalidCastException, ITask: {0} Task type: {1}",
+						typeof (ITask).AssemblyQualifiedName, this.Type.AssemblyQualifiedName);
+				throw;
+			}
+			parentTarget.Project.ParentEngine.LogMessage (
+					MessageImportance.Low,
+					"Using task {0} from {1}", Name, this.Type.AssemblyQualifiedName);
+
+			task.BuildEngine = new BuildEngine (parentTarget.Project.ParentEngine, parentTarget.Project,
+						parentTarget.TargetFile, 0, 0, ContinueOnError);
+			task_logger = new TaskLoggingHelper (task);
 			
 			return task;
 		}
@@ -198,8 +237,9 @@ namespace Microsoft.Build.BuildEngine {
 					return false;
 				else {
 					Expression exp = new Expression ();
-					exp.Parse (str, true);
-					return (bool) exp.ConvertTo (parentTarget.Project, typeof (bool));
+					exp.Parse (str, ParseOptions.AllowItemsNoMetadataAndSplit);
+					return (bool) exp.ConvertTo (parentTarget.Project, typeof (bool),
+							ExpressionOptions.ExpandItemRefs);
 				}
 			}
 			set {

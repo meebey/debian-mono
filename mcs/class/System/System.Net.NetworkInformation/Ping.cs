@@ -229,14 +229,25 @@ namespace System.Net.NetworkInformation {
 					int headerLength = (bytes [0] & 0xF) << 2;
 					int bodyLength = rc - headerLength;
 
-					if (!((IPEndPoint) endpoint).Address.Equals (target.Address)) // Ping reply to different request. discard it.
+					// Ping reply to different request. discard it.
+					if (!((IPEndPoint) endpoint).Address.Equals (target.Address)) {
+						long t = timeout - rtt;
+						if (t <= 0)
+							return new PingReply (null, new byte [0], options, 0, IPStatus.TimedOut);
+						s.ReceiveTimeout = (int) t;
 						continue;
+					}
 
 					IcmpMessage recv = new IcmpMessage (bytes, headerLength, bodyLength);
 
 					/* discard ping reply to different request or echo requests if running on same host. */
-					if (recv.Identifier != identifier || recv.Type == 8)
+					if (recv.Identifier != identifier || recv.Type == 8) {
+						long t = timeout - rtt;
+						if (t <= 0)
+							return new PingReply (null, new byte [0], options, 0, IPStatus.TimedOut);
+						s.ReceiveTimeout = (int) t;
 						continue; 
+					}
 
 					return new PingReply (address, recv.Data, options, rtt, recv.IPStatus);
 				} while (true);
@@ -265,13 +276,12 @@ namespace System.Net.NetworkInformation {
 				ping.Start ();
 
 #pragma warning disable 219
-			// No need to read stdout or stderr as long as the output is less than 4k on linux <= 2.6.11 and 65k after that
-			//	string stdout = ping.StandardOutput.ReadToEnd ();
-			//	string stderr = ping.StandardError.ReadToEnd ();
+				string stdout = ping.StandardOutput.ReadToEnd ();
+				string stderr = ping.StandardError.ReadToEnd ();
 #pragma warning restore 219
 				
 				trip_time = (long) (DateTime.Now - sentTime).TotalMilliseconds;
-				if (!ping.WaitForExit (timeout) || ping.ExitCode == 2)
+				if (!ping.WaitForExit (timeout) || (ping.HasExited && ping.ExitCode == 2))
 					return new PingReply (address, buffer, options, trip_time, IPStatus.TimedOut); 
 
 				if (ping.ExitCode == 1)

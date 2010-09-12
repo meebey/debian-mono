@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Reflection.Emit;
 
 public class Tests {
 
@@ -62,6 +63,8 @@ public class Tests {
 		public SimpleDelegate del;
 		[MarshalAs(UnmanagedType.FunctionPtr)] 
 		public SimpleDelegate del2;
+		[MarshalAs(UnmanagedType.FunctionPtr)] 
+		public SimpleDelegate del3;
 	}
 
 	/* sparcv9 has complex conventions when passing structs with doubles in them 
@@ -277,6 +280,12 @@ public class Tests {
 
 	[DllImport ("libtest", EntryPoint="mono_test_marshal_stringbuilder_unicode", CharSet=CharSet.Unicode)]
 	public static extern void mono_test_marshal_stringbuilder_unicode (StringBuilder sb, int len);
+
+	[DllImport ("libtest", EntryPoint="mono_test_marshal_stringbuilder_out")]
+	public static extern void mono_test_marshal_stringbuilder_out (out StringBuilder sb);
+
+	[DllImport ("libtest", EntryPoint="mono_test_marshal_stringbuilder_out_unicode", CharSet=CharSet.Unicode)]
+	public static extern void mono_test_marshal_stringbuilder_out_unicode (out StringBuilder sb);
 
 	[DllImport ("libtest", EntryPoint="mono_test_last_error", SetLastError=true)]
 	public static extern void mono_test_last_error (int err);
@@ -554,6 +563,19 @@ public class Tests {
 		return mono_test_marshal_delegate (d);
 	}
 
+	/* Static delegates closed over their first argument */
+	public static int closed_delegate (Tests t, int a) {
+		return t.int_field + a;
+	}
+
+	public static int test_34_marshal_closed_static_delegate () {
+		Tests t = new Tests ();
+		t.int_field = 32;
+		SimpleDelegate d = (SimpleDelegate)Delegate.CreateDelegate (typeof (SimpleDelegate), t, typeof (Tests).GetMethod ("closed_delegate"));
+
+		return mono_test_marshal_delegate (d);
+	}
+
 	public static int test_0_marshal_return_delegate () {
 		SimpleDelegate d = new SimpleDelegate (delegate_test);
 
@@ -568,6 +590,7 @@ public class Tests {
 		s.a = 2;
 		s.del = new SimpleDelegate (delegate_test);
 		s.del2 = new SimpleDelegate (delegate_test);
+		s.del3 = null;
 
 		DelegateStruct res = mono_test_marshal_delegate_struct (s);
 
@@ -577,6 +600,8 @@ public class Tests {
 			return 2;
 		if (res.del2 (2) != 0)
 			return 3;
+		if (res.del3 != null)
+			return 4;
 
 		return 0;
 	}
@@ -766,6 +791,24 @@ public class Tests {
 		if (sb2.ToString () != "This is my messa")
 			return 2;
 		
+		return 0;
+	}
+
+	public static int test_0_marshal_stringbuilder_out () {
+		StringBuilder sb;
+		mono_test_marshal_stringbuilder_out (out sb);
+		
+		if (sb.ToString () != "This is my message.  Isn't it nice?")
+			return 1;  
+		return 0;
+	}
+
+	public static int test_0_marshal_stringbuilder_out_unicode () {
+		StringBuilder sb;
+		mono_test_marshal_stringbuilder_out_unicode (out sb);
+
+		if (sb.ToString () != "This is my message.  Isn't it nice?")
+			return 1;  
 		return 0;
 	}
 
@@ -1406,6 +1449,31 @@ public class Tests {
 	}
 
 	/*
+	 * Alignment of structs containing longs
+	 */
+
+	struct LongStruct2 {
+		public long l;
+	}
+
+	struct LongStruct {
+		public int i;
+		public LongStruct2 l;
+	}
+
+	[DllImport("libtest")]
+	extern static int mono_test_marshal_long_struct (ref LongStruct s);
+
+	public static int test_47_pass_long_struct () {
+		LongStruct s = new LongStruct ();
+		s.i = 5;
+		s.l = new LongStruct2 ();
+		s.l.l = 42;
+
+		return mono_test_marshal_long_struct (ref s);
+	}
+
+	/*
 	 * Invoking pinvoke methods through delegates
 	 */
 
@@ -1470,5 +1538,58 @@ public class Tests {
 			return 0;
 		}
 	}
+
+	/*
+	 * Marshalling of DateTime to OLE DATE (double)
+	 */
+	[DllImport ("libtest", EntryPoint="mono_test_marshal_date_time")]
+	public static extern double mono_test_marshal_date_time (DateTime d);
+
+	public static int test_0_marshal_date_time () {
+		DateTime d = new DateTime (2009, 12, 6);
+		double d2 = mono_test_marshal_date_time (new DateTime (2009, 12, 6));
+		return  (d2 == 40153.0) ? 0 : 1;
+	}
+
+	/*
+	 * Calling pinvoke functions dynamically using calli
+	 */
+	
+	[DllImport("libtest")]
+	private static extern IntPtr mono_test_marshal_lookup_symbol (string fileName);
+
+	delegate void CalliDel (IntPtr a, int[] f);
+
+	public static int test_0_calli_dynamic () {
+		IntPtr func = mono_test_marshal_lookup_symbol ("mono_test_marshal_inout_array");
+
+		DynamicMethod dm = new DynamicMethod ("calli", typeof (void), new Type [] { typeof (IntPtr), typeof (int[]) });
+
+		var il = dm.GetILGenerator ();
+		var signature = SignatureHelper.GetMethodSigHelper (CallingConvention.Cdecl, typeof (void));
+
+		il.Emit (OpCodes.Ldarg, 1);
+		signature.AddArgument (typeof (byte[]));
+
+		il.Emit (OpCodes.Ldarg_0);
+
+		il.Emit (OpCodes.Calli, signature);
+		il.Emit (OpCodes.Ret);
+
+		var f = (CalliDel)dm.CreateDelegate (typeof (CalliDel));
+
+		int[] arr = new int [1000];
+		for (int i = 0; i < 50; ++i)
+			arr [i] = (int)i;
+		f (func, arr);
+		if (arr.Length != 1000)
+			return 1;
+		for (int i = 0; i < 50; ++i)
+			if (arr [i] != 50 - i)
+				return 2;
+
+		return 0;
+	}
+
 }
 

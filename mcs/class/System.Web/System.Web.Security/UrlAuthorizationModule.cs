@@ -61,18 +61,18 @@ namespace System.Web.Security
 
 			HttpRequest req = context.Request;
 #if NET_2_0
-			global::System.Configuration.Configuration cfg = WebConfigurationManager.OpenWebConfiguration (req.Path, null, req.FilePath);			
-			AuthorizationSection config = (AuthorizationSection) cfg.GetSection ("system.web/authorization");
+			AuthorizationSection config = (AuthorizationSection) WebConfigurationManager.GetSection ("system.web/authorization", req.Path, context);
 #else
 			AuthorizationConfig config = (AuthorizationConfig) context.GetConfig ("system.web/authorization");
 			if (config == null)
 				return;
 #endif
-			if (!config.IsValidUser (context.User, context.Request.HttpMethod)) {
+			if (!config.IsValidUser (context.User, req.HttpMethod)) {
 				HttpException e = new HttpException (401, "Unauthorized");
+				HttpResponse response = context.Response;
 				
-				context.Response.StatusCode = 401;
-				context.Response.Write (e.GetHtmlErrorMessage ());
+				response.StatusCode = 401;
+				response.Write (e.GetHtmlErrorMessage ());
 				app.CompleteRequest ();
 			}
 		}

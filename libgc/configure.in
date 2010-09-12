@@ -84,7 +84,7 @@ case "$THREADS" in
     ;;
  posix | pthreads)
     THREADS=posix
-    THREADDLLIBS=-lpthread
+    AC_CHECK_LIB(pthread, pthread_self, THREADDLLIBS="-lpthread",,)
     case "$host" in
      x86-*-linux* | ia64-*-linux* | i386-*-linux* | i486-*-linux* | i586-*-linux* | i686-*-linux* | x86_64-*-linux* | alpha*-*-linux* | s390*-*-linux* | sparc*-*-linux* | powerpc-*-linux*)
 	AC_DEFINE(GC_LINUX_THREADS)
@@ -111,6 +111,17 @@ case "$THREADS" in
 	fi
 	AC_DEFINE(THREAD_LOCAL_ALLOC)
 	THREADDLLIBS="-lpthread -lrt"
+	;;
+     *-*-kfreebsd*-gnu)
+	AC_DEFINE(GC_FREEBSD_THREADS)
+	INCLUDES="$INCLUDES -pthread"
+	THREADDLLIBS=-pthread
+	AC_DEFINE(_REENTRANT)
+	if test "${enable_parallel_mark}" = yes; then
+		AC_DEFINE(PARALLEL_MARK)
+	fi
+	AC_DEFINE(THREAD_LOCAL_ALLOC)
+	AC_DEFINE(USE_COMPILER_TLS)
 	;;
       *-*-freebsd*)
 	AC_DEFINE(GC_FREEBSD_THREADS)

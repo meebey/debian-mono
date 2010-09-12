@@ -4,8 +4,8 @@
  * Author:
  *   Miguel de Icaza (miguel@ximian.com)
  *
- * (C) 2001 Ximian, Inc.  http://www.ximian.com
- *
+ * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
+ * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
  */
 #include <config.h>
 #include <stdio.h>
@@ -159,7 +159,7 @@ encode_public_tok (const guchar *token, gint32 len)
 gboolean
 mono_public_tokens_are_equal (const unsigned char *pubt1, const unsigned char *pubt2)
 {
-	return g_strcasecmp ((char*)pubt1, (char*)pubt2) == 0;
+	return memcmp (pubt1, pubt2, 16) == 0;
 }
 
 static void
@@ -186,6 +186,7 @@ check_path_env (void)
 	if (g_getenv ("MONO_DEBUG") == NULL)
 		return;
 
+	splitted = assemblies_path;
 	while (*splitted) {
 		if (**splitted && !g_file_test (*splitted, G_FILE_TEST_IS_DIR))
 			g_warning ("'%s' in MONO_PATH doesn't exist or has wrong permissions.", *splitted);
@@ -219,7 +220,7 @@ check_extra_gac_path_env (void) {
 
 	while (*splitted) {
 		if (**splitted && !g_file_test (*splitted, G_FILE_TEST_IS_DIR))
-			g_warning ("'%s' in MONO_GAC_PATH doesn't exist or has wrong permissions.", *splitted);
+			g_warning ("'%s' in MONO_GAC_PREFIX doesn't exist or has wrong permissions.", *splitted);
 
 		splitted++;
 	}
@@ -484,7 +485,7 @@ mono_set_dirs (const char *assembly_dir, const char *config_dir)
 static char *
 compute_base (char *path)
 {
-	char *p = rindex (path, '/');
+	char *p = strrchr (path, '/');
 	if (p == NULL)
 		return NULL;
 
@@ -493,7 +494,7 @@ compute_base (char *path)
 		return NULL;
 	    
 	*p = 0;
-	p = rindex (path, '/');
+	p = strrchr (path, '/');
 	if (p == NULL)
 		return NULL;
 	
@@ -565,6 +566,8 @@ mono_set_rootdir (void)
 	g_free (installdir);
 	g_free (bindir);
 	g_free (name);
+#elif defined(DISABLE_MONO_AUTODETECTION)
+	fallback ();
 #else
 	char buf [4096];
 	int  s;
@@ -849,7 +852,7 @@ mono_assembly_load_reference (MonoImage *image, int index)
 		reference = mono_assembly_load (&aname, image->assembly? image->assembly->basedir: NULL, &status);
 
 	if (reference == NULL){
-		char *extra_msg = g_strdup ("");
+		char *extra_msg;
 
 		if (status == MONO_IMAGE_ERROR_ERRNO && errno == ENOENT) {
 			extra_msg = g_strdup_printf ("The assembly was not found in the Global Assembly Cache, a path listed in the MONO_PATH environment variable, or in the location of the executing assembly (%s).\n", image->assembly != NULL ? image->assembly->basedir : "" );
@@ -859,6 +862,8 @@ mono_assembly_load_reference (MonoImage *image, int index)
 			extra_msg = g_strdup ("Cannot find an assembly referenced from this one.\n");
 		} else if (status == MONO_IMAGE_IMAGE_INVALID) {
 			extra_msg = g_strdup ("The file exists but is not a valid assembly.\n");
+		} else {
+			extra_msg = g_strdup ("");
 		}
 		
 		g_warning ("The following assembly referenced from %s could not be loaded:\n"
@@ -1207,7 +1212,7 @@ mono_assembly_open_from_bundle (const char *filename, MonoImageOpenStatus *statu
 	mono_assemblies_lock ();
 	for (i = 0; !image && bundles [i]; ++i) {
 		if (strcmp (bundles [i]->name, name) == 0) {
-			image = mono_image_open_from_data_full ((char*)bundles [i]->data, bundles [i]->size, FALSE, status, refonly);
+			image = mono_image_open_from_data_with_name ((char*)bundles [i]->data, bundles [i]->size, FALSE, status, refonly, name);
 			break;
 		}
 	}
@@ -1607,6 +1612,10 @@ parse_public_key (const gchar *key, gchar** pubkey)
 	bitlen = read32 (header + 12) >> 3;
 	if ((bitlen + 16 + 4) != pkeylen)
 		return FALSE;
+
+	/* parsing is OK and the public key itself is not requested back */
+	if (!pubkey)
+		return TRUE;
 		
 	/* Encode the size of the blob */
 	offset = 0;
@@ -1623,8 +1632,8 @@ parse_public_key (const gchar *key, gchar** pubkey)
 		arr [i] = g_ascii_xdigit_value (key [j++]) << 4;
 		arr [i] |= g_ascii_xdigit_value (key [j++]);
 	}
-	if (pubkey)
-		*pubkey = arr;
+
+	*pubkey = arr;
 
 	return TRUE;
 }
@@ -2587,10 +2596,12 @@ mono_register_bundled_assemblies (const MonoBundledAssembly **assemblies)
 	bundles = assemblies;
 }
 
+#define MONO_DECLSEC_FORMAT_10		0x3C
 #define MONO_DECLSEC_FORMAT_20		0x2E
 #define MONO_DECLSEC_FIELD		0x53
 #define MONO_DECLSEC_PROPERTY		0x54
 
+#define SKIP_VISIBILITY_XML_ATTRIBUTE ("\"SkipVerification\"")
 #define SKIP_VISIBILITY_ATTRIBUTE_NAME ("System.Security.Permissions.SecurityPermissionAttribute")
 #define SKIP_VISIBILITY_ATTRIBUTE_SIZE (sizeof (SKIP_VISIBILITY_ATTRIBUTE_NAME) - 1)
 #define SKIP_VISIBILITY_PROPERTY_NAME ("SkipVerification")
@@ -2633,6 +2644,16 @@ mono_assembly_try_decode_skip_verification (const char *p, const char *endn)
 {
 	int i, j, num, len, params_len;
 
+	if (*p == MONO_DECLSEC_FORMAT_10) {
+		gsize read, written;
+		char *res = g_convert (p, endn - p, "UTF-8", "UTF-16LE", &read, &written, NULL);
+		if (res) {
+			gboolean found = strstr (res, SKIP_VISIBILITY_XML_ATTRIBUTE) != NULL;
+			g_free (res);
+			return found;
+		}
+		return FALSE;
+	}
 	if (*p++ != MONO_DECLSEC_FORMAT_20)
 		return FALSE;
 

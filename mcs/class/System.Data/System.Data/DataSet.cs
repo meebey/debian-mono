@@ -70,6 +70,10 @@ namespace System.Data
 		private DataViewManager defaultView;
 		private CultureInfo locale;
 		internal XmlDataDocument _xmlDataDocument;
+
+#if NET_2_0
+		internal TableAdapterSchemaInfo tableAdapterSchemaInfo;
+#endif
 		bool initInProgress;
 
 		#region Constructors
@@ -91,6 +95,17 @@ namespace System.Data
 		protected DataSet (SerializationInfo info, StreamingContext context)
 			: this ()
 		{
+#if NET_2_0
+			if (IsBinarySerialized (info, context)) {
+				BinaryDeserialize (info);
+				return;
+			}
+#endif
+			string s = info.GetValue ("XmlSchema", typeof (String)) as String;
+			XmlTextReader reader = new XmlTextReader (new StringReader (s));
+			ReadXmlSchema (reader);
+			reader.Close ();
+
 			GetSerializationData (info, context);
 		}
 
@@ -194,6 +209,13 @@ namespace System.Data
 			get { return locale != null; }
 		}
 
+		
+#if NET_2_0
+		internal TableAdapterSchemaInfo TableAdapterSchemaData {
+			get { return tableAdapterSchemaInfo; }
+		}
+#endif
+		
 		internal void InternalEnforceConstraints (bool value,bool resetIndexes)
 		{
 			if (value == enforceConstraints)
@@ -820,7 +842,11 @@ namespace System.Data
 		public void ReadXmlSchema (XmlReader reader)
 		{
 #if true
-			new XmlSchemaDataImporter (this, reader, true).Process ();
+			XmlSchemaDataImporter xsdImporter = new XmlSchemaDataImporter (this, reader, true);
+			xsdImporter.Process ();
+#if NET_2_0
+			tableAdapterSchemaInfo = xsdImporter.CurrentAdapter;
+#endif
 #else
 			XmlSchemaMapper SchemaMapper = new XmlSchemaMapper (this);
 			SchemaMapper.Read (reader);
@@ -1117,6 +1143,7 @@ namespace System.Data
 		{
 #if NET_2_0
 			if (RemotingFormat == SerializationFormat.Xml) {
+				info.AddValue ("SchemaSerializationMode.DataSet", this.SchemaSerializationMode);
 #endif
 				StringWriter sw = new StringWriter ();
 				XmlTextWriter writer = new XmlTextWriter (sw);
@@ -1140,19 +1167,8 @@ namespace System.Data
 		#region Protected Methods
 		protected void GetSerializationData (SerializationInfo info, StreamingContext context)
 		{
-#if NET_2_0
-			if (IsBinarySerialized (info, context)) {
-				BinaryDeserialize (info);
-				return;
-			}
-#endif
-			string s = info.GetValue ("XmlSchema", typeof (String)) as String;
+			string s = info.GetValue ("XmlDiffGram", typeof (String)) as String;
 			XmlTextReader reader = new XmlTextReader (new StringReader (s));
-			ReadXmlSchema (reader);
-			reader.Close ();
-
-			s = info.GetValue ("XmlDiffGram", typeof (String)) as String;
-			reader = new XmlTextReader (new StringReader (s));
 			ReadXml (reader, XmlReadMode.DiffGram);
 			reader.Close ();
 		}
@@ -1386,8 +1402,12 @@ namespace System.Data
 
 			//TODO check if I can get away with write element string
 			WriteStartElement (writer, mode, colnspc, col.Prefix, XmlHelper.Encode (col.ColumnName));	
-			if (typeof (IXmlSerializable).IsAssignableFrom (col.DataType)) {
-				((IXmlSerializable)rowObject).WriteXml (writer);
+			if (typeof (IXmlSerializable).IsAssignableFrom (col.DataType) 
+			    || col.DataType == typeof (object)) {
+				IXmlSerializable serializableObj = rowObject as IXmlSerializable;
+				if (serializableObj == null)
+					throw new InvalidOperationException ();
+				((IXmlSerializable)rowObject).WriteXml (writer);				
 			} else {
 				writer.WriteString (WriteObjectXml (rowObject));
 			}
@@ -1532,10 +1552,26 @@ namespace System.Data
 		private bool dataSetInitialized = true;
 		public event EventHandler Initialized;
 
-		[MonoTODO]
 		protected DataSet (SerializationInfo info, StreamingContext context, bool constructSchema)
-			: this (info, context)
+			: this ()
 		{
+			if (DetermineSchemaSerializationMode (info, context) == SchemaSerializationMode.ExcludeSchema) {
+				InitializeDerivedDataSet ();
+			}
+			
+			if (IsBinarySerialized (info, context)) {
+				BinaryDeserialize (info);
+				return;
+			}
+			
+			if (constructSchema) {
+				string s = info.GetValue ("XmlSchema", typeof (String)) as String;
+				XmlTextReader reader = new XmlTextReader (new StringReader (s));
+				ReadXmlSchema (reader);
+				reader.Close ();
+				
+				GetSerializationData (info, context);
+			}
 		}
 
 		SerializationFormat remotingFormat = SerializationFormat.Xml;
@@ -1736,10 +1772,8 @@ namespace System.Data
 			OnDataSetInitialized (e);
 		}
 
-		[MonoTODO]
 		protected virtual void InitializeDerivedDataSet ()
 		{
-			throw new NotImplementedException ();
 		}
 
 		protected SchemaSerializationMode DetermineSchemaSerializationMode (XmlReader reader)
@@ -1749,6 +1783,13 @@ namespace System.Data
 
 		protected SchemaSerializationMode DetermineSchemaSerializationMode (SerializationInfo info, StreamingContext context)
 		{
+			SerializationInfoEnumerator e = info.GetEnumerator ();
+			while (e.MoveNext ()) {
+				if (e.Name == "SchemaSerializationMode.DataSet") {
+					return (SchemaSerializationMode) e.Value;
+				}
+			}
+			
 			return SchemaSerializationMode.IncludeSchema;
 		}
 

@@ -55,6 +55,8 @@ MonoArray *mono_array_new_1 (MonoMethod *cm, guint32 length) MONO_INTERNAL;
 
 MonoArray *mono_array_new_2 (MonoMethod *cm, guint32 length1, guint32 length2) MONO_INTERNAL;
 
+MonoArray *mono_array_new_3 (MonoMethod *cm, guint32 length1, guint32 length2, guint32 length3) MONO_INTERNAL;
+
 gpointer mono_class_static_field_address (MonoDomain *domain, MonoClassField *field) MONO_INTERNAL;
 
 gpointer mono_ldtoken_wrapper (MonoImage *image, int token, MonoGenericContext *context) MONO_INTERNAL;
@@ -141,6 +143,8 @@ gboolean mono_fclt (double a, double b) MONO_INTERNAL;
 
 gboolean mono_fclt_un (double a, double b) MONO_INTERNAL;
 
+gboolean mono_isfinite (double a) MONO_INTERNAL;
+
 double   mono_fload_r4 (float *ptr) MONO_INTERNAL;
 
 void     mono_fstore_r4 (double val, float *ptr) MONO_INTERNAL;
@@ -156,6 +160,8 @@ MonoException *mono_create_corlib_exception_1 (guint32 token, MonoString *arg) M
 MonoException *mono_create_corlib_exception_2 (guint32 token, MonoString *arg1, MonoString *arg2) MONO_INTERNAL;
 
 MonoObject* mono_object_castclass (MonoObject *obj, MonoClass *klass) MONO_INTERNAL;
+
+gpointer mono_get_native_calli_wrapper (MonoImage *image, MonoMethodSignature *sig, gpointer func) MONO_INTERNAL;
 
 #endif /* __MONO_JIT_ICALLS_H__ */
 

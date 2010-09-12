@@ -1,3 +1,73 @@
+2010-06-03  Ankit Jain  <jankit@novell.com>
+
+	* EngineTest.cs (TestGetLoadedProject1):
+	Patch by Dale Ragan <dale.ragan@sinesignal.com> .
+
+2010-04-06  Ankit Jain  <jankit@novell.com>
+
+	* Consts.cs (ToolsVersionString): New.
+	(GetTasksAsmPath): New.
+	* EngineTest.cs: Use the direct path to the tasks assembly
+	in the UsingTasks.
+	* ProjectTest.cs: Set ToolsVersion to the current profile.
+
+2010-02-19  Ankit Jain  <jankit@novell.com>
+
+	* ImportTest.cs (TestMissingImport*): Add new tests for missing
+	import projects.
+
+2010-02-11  Ankit Jain  <jankit@novell.com>
+
+	* ImportTest.cs (Add1): Fix test on windows.
+
+2010-01-21	Rodrigo B. de Oliveira <rodrigo@unity3d.com>
+
+	* BuildChooseTest.cs
+	* BuildPropertyTest.cs:
+		test cases for nested Choose elements and different property
+		evaluation scenarios.
+		
+2009-10-08  Ankit Jain  <jankit@novell.com>
+
+	* ProjectTest.cs (TestBatchedMetadataRefInOutput): New.
+
+2009-10-01  Ankit Jain  <jankit@novell.com>
+
+	* ImportTest.cs (TestAdd1): Add tests for multiple imports.
+
+2009-09-29  Ankit Jain  <jankit@novell.com>
+
+	* ProjectTest.cs (TestPropertiesFromImportedProjects): New.
+
+2009-09-26  Ankit Jain  <jankit@novell.com>
+
+	* TargetTest.cs (TestOverridingTargets): New.
+
+2009-09-26  Ankit Jain  <jankit@novell.com>
+
+	* ProjectTest.cs (TestInitialTargetsWithImports):
+	(TestDefaultTargets):
+	(TestDefaultTargetsWithImports):
+	(TestNoDefaultTargetsWithImports):
+	(TestNoDefaultTargets): New tests.
+
+2009-08-29  Ankit Jain  <jankit@novell.com>
+
+	* BuildItemTest.cs (TestSetMetadata5a): New.
+	* ProjectTest.cs: Add tests for different property types
+	with required attribute. Also, check the values - null or
+	empty array.
+	* TestTasks.cs: Add new tasks for above.
+
+2009-08-18  Ankit Jain  <jankit@novell.com>
+
+	* ProjectTest.cs (TestCaseSensitivityOfProjectElements): New.
+
+2009-07-30  Ankit Jain  <jankit@novell.com>
+
+	* EngineTest.cs (TestNewProject): Disable. Invalid for
+	v3.5 profile.
+
 2009-06-09  Ankit Jain  <jankit@novell.com>
 
 	* EngineTest.cs (TestMSBuildOutputs): New.

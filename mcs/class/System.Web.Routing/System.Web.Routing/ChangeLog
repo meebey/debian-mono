@@ -1,9 +1,51 @@
+2009-11-23  Marek Habersack  <mhabersack@novell.com>
+
+	* Route.cs: GetRouteData throws NotImplementedException only when
+	pathInfo for the current request is a non-empty string. Patch from
+	Tiaan <tagdev@gmail.com>, thanks!
+
+2009-11-09  Marek Habersack  <mhabersack@novell.com>
+
+	* RouteCollection.cs: GetVirtualPath doesn't append trailing slash
+	to application path blindly anymore. Fixes bug #553022
+
+2009-09-09  Marek Habersack  <mhabersack@novell.com>
+
+	* Route.cs: when Url is set to null, create a parser for empty
+	string. Fixes bug #537751
+
+	* PatternParser.cs: Parse allows for null/empty URLs. Fixes bug
+	#537751
+
+2009-09-08  Marek Habersack  <mhabersack@novell.com>
+
+	* UrlRoutingModule.cs: store original request path in
+	PostResolveRequestCache and restore it in
+	PostMapRequestHandler. Fixes bug #537089
+
+2009-08-19  Marek Habersack  <mhabersack@novell.com>
+
+	* Route.cs: GetRouteData adds contents of its DataTokens
+	dictionary to the returned RouteData.DataTokens dictionary. Fixes
+	bug #523330. Patch from Dax@daxxfiles.net, thanks!
+
 2009-06-25  Marek Habersack  <mhabersack@novell.com>
 
 	* PatternParser.cs: parameter name lookups must be
 	case-insensitive.
 	Null and empty (string) parameters are skipped when building query
 	part of the action path.
+
+2009-06-16  Marek Habersack  <mhabersack@novell.com>
+
+	* RouteValueDictionaryExtensions.cs: do not compile if
+	SYSTEMCORE_DEP is not defined
+
+	* PatternParser.cs: if SYSTEMCORE_DEP is not defined, do not
+	compile parts which require RouteValueDictionaryExtensions.
+
+	* Decorated all classes with the TypeForwardedFrom attribute for
+	the 4.0 profile.
 
 2009-06-04  Marek Habersack  <mhabersack@novell.com>
 

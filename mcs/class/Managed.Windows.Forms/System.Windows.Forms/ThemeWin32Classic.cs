@@ -65,9 +65,13 @@ namespace System.Windows.Forms
 		#region	Principal Theme Methods
 		public ThemeWin32Classic ()
 		{			
+			ResetDefaults ();
+		}
+
+		public override void ResetDefaults() {
 			defaultWindowBackColor = this.ColorWindow;
 			defaultWindowForeColor = this.ColorControlText;
-            window_border_font = new Font(FontFamily.GenericSansSerif, 8.25f, FontStyle.Bold);
+			window_border_font = new Font(FontFamily.GenericSansSerif, 8.25f, FontStyle.Bold);
 			
 			/* Menu string formats */
 			string_format_menu_text = new StringFormat ();
@@ -85,11 +89,6 @@ namespace System.Windows.Forms
 			string_format_menu_menubar_text.LineAlignment = StringAlignment.Center;
 			string_format_menu_menubar_text.Alignment = StringAlignment.Center;
 			string_format_menu_menubar_text.HotkeyPrefix = HotkeyPrefix.Show;
-		}
-
-		public override void ResetDefaults() {
-			Console.WriteLine("NOT IMPLEMENTED: ResetDefault()");
-			//throw new NotImplementedException("Need to implement ResetDefaults() for Win32 theme");
 		}
 
 		public override bool DoubleBufferingSupported {
@@ -2223,6 +2222,7 @@ namespace System.Windows.Forms
 
 			// PaintCells at row, column
 			int column_cnt = grid.FirstVisibleColumn + grid.VisibleColumnCount;
+			DataGridCell current_cell = grid.CurrentCell;
 
 			if (column_cnt > 0) {
 				Region prev_clip = g.Clip;
@@ -2243,14 +2243,24 @@ namespace System.Windows.Forms
 						current_clip.Intersect (prev_clip);
 						g.Clip = current_clip;
 
+						Brush colBackBrush = backBrush;
+						Brush colForeBrush = foreBrush;
+
+						// If we are in the precise cell we are editing, then use the normal colors
+						// even if we are selected.
+						if (grid.is_editing && column == current_cell.ColumnNumber && row == current_cell.RowNumber) {
+							colBackBrush = ResPool.GetSolidBrush (grid.BackColor);
+							colForeBrush = ResPool.GetSolidBrush (grid.ForeColor);
+						}
+
 						if (is_newrow) {
 							grid.CurrentTableStyle.GridColumnStyles[column].PaintNewRow (g, rect_cell, 
-														     backBrush,
-														     foreBrush);
+														     colBackBrush,
+														     colForeBrush);
 						} else {
 							grid.CurrentTableStyle.GridColumnStyles[column].Paint (g, rect_cell, grid.ListManager, row,
-													       backBrush,
-													       foreBrush,
+													       colBackBrush,
+													       colForeBrush,
 													       grid.RightToLeft == RightToLeft.Yes);
 						}
 
@@ -2683,7 +2693,11 @@ namespace System.Windows.Forms
 #endif
 			
 			// draw the gridlines
+#if NET_2_0
+			if (details && control.GridLines && !control.UsingGroups) {
+#else
 			if (details && control.GridLines) {
+#endif
 				Size control_size = control.ClientSize;
 				int top = (control.HeaderStyle == ColumnHeaderStyle.None) ?
 					0 : control.header_control.Height;
@@ -3164,7 +3178,7 @@ namespace System.Windows.Forms
 			Rectangle header_bounds = group.HeaderBounds;
 			text_bounds.Offset (8, 0);
 			text_bounds.Inflate (-8, 0);
-			Size text_size = control.text_size;
+			int text_height = control.Font.Height + 2; // add a tiny padding between the text and the group line
 
 			Font font = new Font (control.Font, control.Font.Style | FontStyle.Bold);
 			Brush brush = new LinearGradientBrush (new Point (header_bounds.Left, 0), new Point (header_bounds.Left + ListViewGroupLineWidth, 0), 
@@ -3186,8 +3200,8 @@ namespace System.Windows.Forms
 
 			sformat.LineAlignment = StringAlignment.Near;
 			dc.DrawString (group.Header, font, SystemBrushes.ControlText, text_bounds, sformat);
-			dc.DrawLine (pen, header_bounds.Left, header_bounds.Top + text_size.Height, header_bounds.Left + ListViewGroupLineWidth, 
-					header_bounds.Top + text_size.Height);
+			dc.DrawLine (pen, header_bounds.Left, header_bounds.Top + text_height, header_bounds.Left + ListViewGroupLineWidth, 
+					header_bounds.Top + text_height);
 
 			sformat.Dispose ();
 			font.Dispose ();
@@ -4118,13 +4132,17 @@ namespace System.Windows.Forms
 		public override void DrawPictureBox (Graphics dc, Rectangle clip, PictureBox pb) {
 			Rectangle client = pb.ClientRectangle;
 
+#if NET_2_0
+			client = new Rectangle (client.Left + pb.Padding.Left, client.Top + pb.Padding.Top, client.Width - pb.Padding.Horizontal, client.Height - pb.Padding.Vertical);
+#endif
+
 			// FIXME - instead of drawing the whole picturebox every time
 			// intersect the clip rectangle with the drawn picture and only draw what's needed,
 			// Also, we only need a background fill where no image goes
 			if (pb.Image != null) {
 				switch (pb.SizeMode) {
 				case PictureBoxSizeMode.StretchImage:
-					dc.DrawImage (pb.Image, 0, 0, client.Width, client.Height);
+					dc.DrawImage (pb.Image, client.Left, client.Top, client.Width, client.Height);
 					break;
 
 				case PictureBoxSizeMode.CenterImage:
@@ -4144,7 +4162,7 @@ namespace System.Windows.Forms
 #endif
 				default:
 					// Normal, AutoSize
-					dc.DrawImage(pb.Image, 0, 0, pb.Image.Width, pb.Image.Height);
+					dc.DrawImage (pb.Image, client.Left, client.Top, pb.Image.Width, pb.Image.Height);
 					break;
 				}
 
@@ -5390,14 +5408,23 @@ namespace System.Windows.Forms
 		{
 			ToolTipDrawBackground (dc, clip_rectangle, control);
 
-			Rectangle text_rect = Rectangle.Inflate (control.ClientRectangle, -2, -1);
+			TextFormatFlags flags = TextFormatFlags.HidePrefix;
 #if NET_2_0
 			Color foreground = control.ForeColor;
+			if (control.title.Length > 0) {
+				Font bold_font = new Font (control.Font, control.Font.Style | FontStyle.Bold);
+				TextRenderer.DrawTextInternal (dc, control.title, bold_font, control.title_rect,
+						foreground, flags, false);
+				bold_font.Dispose ();
+			}
+
+			if (control.icon != null)
+				dc.DrawIcon (control.icon, control.icon_rect);
 #else
 			Color foreground = this.ColorInfoText;
 #endif
-			TextFormatFlags flags = TextFormatFlags.HidePrefix;
-			TextRenderer.DrawTextInternal (dc, control.Text, control.Font, text_rect, foreground, flags, false);
+
+			TextRenderer.DrawTextInternal (dc, control.Text, control.Font, control.text_rect, foreground, flags, false);
 		}
 
 		protected virtual void ToolTipDrawBackground (Graphics dc, Rectangle clip_rectangle, ToolTip.ToolTipWindow control)
@@ -5414,10 +5441,59 @@ namespace System.Windows.Forms
 		public override Size ToolTipSize(ToolTip.ToolTipWindow tt, string text)
 		{
 			Size size = TextRenderer.MeasureTextInternal (text, tt.Font, false);
-
 			size.Width += 4;
 			size.Height += 3;
-			
+			Rectangle text_rect = new Rectangle (Point.Empty, size);
+			text_rect.Inflate (-2, -1);
+			tt.text_rect = text_rect;
+#if NET_2_0
+			tt.icon_rect = tt.title_rect = Rectangle.Empty;
+
+			Size title_size = Size.Empty;
+			if (tt.title.Length > 0) {
+				Font bold_font = new Font (tt.Font, tt.Font.Style | FontStyle.Bold);
+				title_size = TextRenderer.MeasureTextInternal (tt.title, bold_font, false);
+				bold_font.Dispose ();
+			}
+
+			Size icon_size = Size.Empty;
+			if (tt.icon != null)
+				icon_size = new Size (size.Height, size.Height);
+
+			if (icon_size != Size.Empty || title_size != Size.Empty) {
+				int padding = 8;
+				int top_area_width = 0;
+				int top_area_height = icon_size.Height > title_size.Height ? icon_size.Height : title_size.Height;
+				Size text_size = size;
+				Point location = new Point (padding, padding);
+
+				if (icon_size != Size.Empty) {
+					tt.icon_rect = new Rectangle (location, icon_size);
+					top_area_width = icon_size.Width + padding;
+				}
+
+				if (title_size != Size.Empty) {
+					Rectangle title_rect = new Rectangle (location, new Size (title_size.Width, top_area_height));
+					if (icon_size != Size.Empty)
+						title_rect.X += icon_size.Width + padding;
+
+					tt.title_rect = title_rect;
+					top_area_width += title_size.Width;
+				}
+
+				tt.text_rect = new Rectangle (new Point (location.X, location.Y + top_area_height + padding),
+						text_size);
+
+				size.Height += padding + top_area_height;
+				if (top_area_width > size.Width)
+					size.Width = top_area_width;
+
+				// margins
+				size.Width += padding * 2;
+				size.Height += padding * 2;
+			}
+#endif
+
 			return size;
 		}
 		
@@ -7093,7 +7169,7 @@ namespace System.Windows.Forms
 
 		}
 
-		[MonoTODO]
+		[MonoInternalNote ("Does not respect Mixed")]
 		public override void CPDrawMixedCheckBox (Graphics graphics, Rectangle rectangle, ButtonState state)
 		{
 			CPDrawCheckBox (graphics, rectangle, state);

@@ -30,9 +30,11 @@
 //
 using System;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Web;
 using System.Web.Compilation;
+using System.Web.Util;
 
 namespace System.Web.UI
 {
@@ -89,11 +91,11 @@ namespace System.Web.UI
 			return type;
 		}
 
-		internal override void AddDirective (string directive, Hashtable atts)
+		internal override void AddDirective (string directive, IDictionary atts)
 		{
-			if (String.Compare (directive, "application", true) != 0 &&
-			    String.Compare (directive, "Import", true) != 0 &&
-			    String.Compare (directive, "Assembly", true) != 0)
+			if (String.Compare (directive, "application", true, Helpers.InvariantCulture) != 0 &&
+			    String.Compare (directive, "Import", true, Helpers.InvariantCulture) != 0 &&
+			    String.Compare (directive, "Assembly", true, Helpers.InvariantCulture) != 0)
 				ThrowParseException ("Invalid directive: " + directive);
 
 			base.AddDirective (directive, atts);

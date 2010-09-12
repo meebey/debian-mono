@@ -1,3 +1,19 @@
+2010-02-19  Ankit Jain  <jankit@novell.com>
+
+	* ReservedNameUtils.cs (GetReservedMetadata): Add dictionary param
+	@metadata. Use this to check for existing value of "RecursiveDir"
+	metadata, use that if present.
+
+2009-10-08  Ankit Jain  <jankit@novell.com>
+
+	* ReservedNameUtils.cs: Fix 'RootDir', 'Directory'.
+	(WithTrailingSlash): New.
+	Update to use the new WithTrailingSlash method.
+
+2009-09-08  Ankit Jain  <jankit@novell.com>
+
+	* ReservedNameUtils.cs (RelativeDir): Add a trailing \ .
+
 2007-01-24  Marek Sieradzki  <marek.sieradzki@gmail.com>
 
 	* MonoLocationHelper.cs: Made class internal. It will be removed soon

@@ -30,12 +30,13 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.Text;
 using System.Web.Util;
 
 namespace System.Web.Compilation
 {
-	class TagAttributes
+	sealed class TagAttributes
 	{
 		Hashtable atts_hash;
 		Hashtable tmp_hash;
@@ -75,7 +76,7 @@ namespace System.Web.Compilation
 		public void Add (object key, object value)
 		{
 			if (key != null && value != null &&
-			    0 == String.Compare ((string) key,  "runat", true)) {
+			    0 == String.Compare ((string) key,  "runat", true, Helpers.InvariantCulture)) {
 			    	if (0 != String.Compare ((string) value,  "server", true))
 					throw new HttpException ("runat attribute must have a 'server' value");
 
@@ -114,7 +115,7 @@ namespace System.Web.Compilation
 		{
 			// Hope not to have many attributes when the tag is not a server tag...
 			for (int i = 0; i < keys.Count; i++){
-				if (0 == String.Compare ((string) keys [i], key, true))
+				if (0 == String.Compare ((string) keys [i], key, true, Helpers.InvariantCulture))
 					return i;
 			}
 			return -1;
@@ -157,7 +158,7 @@ namespace System.Web.Compilation
 			return (StrUtils.StartsWith (att, "<%#") && StrUtils.EndsWith (att, "%>"));
 		}
 		
-		public Hashtable GetDictionary (string key)
+		public IDictionary GetDictionary (string key)
 		{
 			if (got_hashed)
 				return atts_hash;
@@ -172,7 +173,7 @@ namespace System.Web.Compilation
 			
 			tmp_hash.Clear ();
 			for (int i = keys.Count - 1; i >= 0; i--)
-				if (key == null || String.Compare (key, (string) keys [i], true) == 0)
+				if (key == null || String.Compare (key, (string) keys [i], true, Helpers.InvariantCulture) == 0)
 					tmp_hash [keys [i]] = values [i];
 
 			return tmp_hash;

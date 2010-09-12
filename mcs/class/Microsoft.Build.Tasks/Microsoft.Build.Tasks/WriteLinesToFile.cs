@@ -48,15 +48,19 @@ namespace Microsoft.Build.Tasks {
 
 		public override bool Execute ()
 		{
-			if (file == null)
-				throw new ArgumentNullException  ("file", "File TaskItem must be set.");
-			if (file.ItemSpec == String.Empty)
-				throw new ArgumentException ("File must be specified in ItemSpec.");
 			try {
-				streamWriter = new StreamWriter (file.GetMetadata ("FullPath"), !overwrite);
-				foreach (ITaskItem line in lines) {
-					streamWriter.WriteLine (line);
+				string fullpath = file.GetMetadata ("FullPath");
+				if (lines == null && overwrite) {
+					System.IO.File.Delete (fullpath);
+					return true;
 				}
+
+				using (streamWriter = new StreamWriter (fullpath, !overwrite)) {
+					if (lines != null)
+						foreach (ITaskItem line in lines)
+							streamWriter.WriteLine (line);
+				}
+
 				return true;
 			}
 			catch (Exception ex) {

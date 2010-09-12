@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 class Tests {
 
@@ -31,9 +32,9 @@ class Tests {
 		}
 	}
 
-	static int Main ()
+	static int Main (string[] args)
 	{
-		return TestDriver.RunTests (typeof (Tests));
+		return TestDriver.RunTests (typeof (Tests), args);
 	}
 
 	public static int test_1_nullable_unbox ()
@@ -204,6 +205,7 @@ class Tests {
 		return 0;
 	}
 
+	[Category ("!FULLAOT")]
 	public static int test_0_generic_get_value_optimization_int () {
 		int[] x = new int[] {100, 200};
 
@@ -330,9 +332,11 @@ class Tests {
 		return 0;
 	}
 
+	// FIXME:
+	[Category ("!FULLAOT")]
     public static int test_0_generic_virtual_call_on_vtype_unbox () {
 		object o = new Object ();
-        IMyHandler h = new Handler(o);
+        IFoo h = new Handler(o);
 
         if (h.Bar<object> () != o)
 			return 1;
@@ -401,6 +405,155 @@ class Tests {
 		return 0;
 	}
 
+	struct S<T> {}
+
+	public static int test_0_inline_infinite_polymorphic_recursion () {
+           f<int>(0);
+
+		   return 0;
+	}
+
+	private static void f<T>(int i) {
+		if(i==42) f<S<T>>(i);
+	}
+
+	// This cannot be made to work with full-aot, since there it is impossible to
+	// statically determine that Foo<string>.Bar <int> is needed, the code only
+	// references IFoo.Bar<int>
+	[Category ("!FULLAOT")]
+	public static int test_0_generic_virtual_on_interfaces () {
+		Foo<string>.count1 = 0;
+		Foo<string>.count2 = 0;
+		Foo<string>.count3 = 0;
+
+		IFoo f = new Foo<string> ("");
+		for (int i = 0; i < 1000; ++i) {
+			f.Bar <int> ();
+			f.Bar <string> ();
+			f.NonGeneric ();
+		}
+
+		if (Foo<string>.count1 != 1000)
+			return 1;
+		if (Foo<string>.count2 != 1000)
+			return 2;
+		if (Foo<string>.count3 != 1000)
+			return 3;
+
+		VirtualInterfaceCallFromGenericMethod<long> (f);
+
+		return 0;
+	}
+
+	//repro for #505375
+	[Category ("!FULLAOT")]
+	public static int test_2_cprop_bug () {
+		int idx = 0;
+		int a = 1;
+		var cmp = System.Collections.Generic.Comparer<int>.Default ;
+		if (cmp.Compare (a, 0) > 0)
+			a = 0;
+		do { idx++; } while (cmp.Compare (idx - 1, a) == 0);
+		return idx;
+	}
+
+	enum MyEnumUlong : ulong {
+		Value_2 = 2
+	}
+
+	public static int test_0_regress_550964_constrained_enum_long () {
+        MyEnumUlong a = MyEnumUlong.Value_2;
+        MyEnumUlong b = MyEnumUlong.Value_2;
+
+        return Pan (a, b) ? 0 : 1;
+	}
+
+    static bool Pan<T> (T a, T b)
+    {
+        return a.Equals (b);
+    }
+
+	public class XElement {
+		public string Value {
+			get; set;
+		}
+	}
+
+	public static int test_0_fullaot_linq () {
+		var allWords = new XElement [] { new XElement { Value = "one" } };
+		var filteredWords = allWords.Where(kw => kw.Value.StartsWith("T"));
+		return filteredWords.Count ();
+	}
+
+	public static int test_0_fullaot_comparer_t () {
+		var l = new SortedList <TimeSpan, int> ();
+		return l.Count;
+	}
+
+	static void enumerate<T> (IEnumerable<T> arr) {
+		foreach (var o in arr)
+			;
+		int c = ((ICollection<T>)arr).Count;
+	}
+
+	/* Test that treating arrays as generic collections works with full-aot */
+	public static int test_0_fullaot_array_wrappers () {
+		Tests[] arr = new Tests [10];
+		enumerate<Tests> (arr);
+		return 0;
+	}
+
+	static int cctor_count = 0;
+
+    public abstract class Beta<TChanged> 
+    {		
+        static Beta()
+        {
+			cctor_count ++;
+        }
+    }   
+    
+    public class Gamma<T> : Beta<T> 
+    {   
+        static Gamma()
+        {
+        }
+    }
+
+	// #519336    
+	public static int test_2_generic_class_init_gshared_ctor () {
+		new Gamma<object>();
+		new Gamma<string>();
+
+		return cctor_count;
+	}
+
+	public static int test_0_marshalbyref_call_from_gshared_virt_elim () {
+		/* Calling a virtual method from gshared code which is changed to a nonvirt call */
+		Class1<object> o = new Class1<object> ();
+		o.Do (new Class2<object> ());
+		return 0;
+	}
+
+    public class Class1<T> {
+		public virtual void Do (Class2<T> t) {
+			t.Foo ();
+		}
+	}
+
+	public interface IFace1<T> {
+		void Foo ();
+	}
+
+	public class Class2<T> : MarshalByRefObject, IFace1<T> {
+		public void Foo () {
+		}
+	}
+
+	public static void VirtualInterfaceCallFromGenericMethod <T> (IFoo f) {
+		f.Bar <T> ();
+	}
+
 	public static Type the_type;
 
 	public void ldvirtftn<T> () {
@@ -414,7 +567,12 @@ class Tests {
 		the_type = typeof (T);
 	}
 
-	public class Foo<T1>
+	public interface IFoo {
+		void NonGeneric ();
+		object Bar<T>();
+	}
+
+	public class Foo<T1> : IFoo
 	{
 		public Foo(T1 t1)
 		{
@@ -459,6 +617,19 @@ class Tests {
 			GenericEvent (this);
 		}
 
+		public static int count1, count2, count3;
+
+		public void NonGeneric () {
+			count3 ++;
+		}
+
+		public object Bar <T> () {
+			if (typeof (T) == typeof (int))
+				count1 ++;
+			else if (typeof (T) == typeof (string))
+				count2 ++;
+			return null;
+		}
 	}
 
 	public class SomeClass {
@@ -467,15 +638,14 @@ class Tests {
 		}
 	}		
 
-	public interface IMyHandler {
-		object Bar<T>();
-	}
-
-	struct Handler : IMyHandler {
+	struct Handler : IFoo {
 		object o;
 
 		public Handler(object o) {
 			this.o = o;
+		}
+
+		public void NonGeneric () {
 		}
 
 		public object Bar<T>() {

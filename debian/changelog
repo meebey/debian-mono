@@ -1,4 +1,4 @@
-mono (2.4.2.3+dfsg-2~bpo50+1) lenny-backports; urgency=low
+mono (2.6.7-3~bpo50+1) lenny-backports; urgency=low
 
   * Rebuild for lenny-backports.
   * debian/shlibs.local:
@@ -14,6 +14,351 @@ mono (2.4.2.3+dfsg-2~bpo50+1) lenny-backports; urgency=low
       source packages of lenny.
 
  -- Mirco Bauer <meebey@debian.org>  Fri, 25 Sep 2009 21:23:29 +0200
+
+mono (2.6.7-3) unstable; urgency=low
+
+  * The "welcome to new java refugees" release
+
+  [ Iain Lane ]
+  * [a2781e1] Add an environment variable to control X509 validation
+    mode, and set default to no check
+  * [a16f93a] Add --no-ext-diff to git diff call of git-test-debian-
+    patches
+
+  [ Mirco Bauer ]
+  * [cb9c6c2] Fixed manpage name sections. (closes: #595149)
+
+ -- Mirco Bauer <meebey@debian.org>  Thu, 09 Sep 2010 01:09:45 +0200
+
+mono (2.6.7-2) experimental; urgency=low
+
+  [ Mirco Bauer ]
+  * [d1bf954] Added missing tasks and targets files for xbuild 3.5
+  * [814bfd7] Bumped clilibs of libmono-data-tds{1,2}.0-cil, libmono-
+    security2.0-cil, libmono-microsoft-build2.0-cil and libmono-
+    debugger-soft0.0-cil
+  * [3c1d0ef] Added development symlink for System.Web.Mvc to libmono-
+    system-web-mvc1.0-cil
+
+  [ Iain Lane ]
+  * [754b410] Revert upstream commit 59db1f55409d80fc93ed, which
+    commented out the Requires line in mono.pc.in.
+
+  [ Jo Shields ]
+  * [ea1f755] Add full definitions for all AMD64 registers on kFreeBSD.
+    This fixes a FTBFS on kFreeBSD-AMD64.
+
+ -- Mirco Bauer <meebey@debian.org>  Tue, 24 Aug 2010 02:26:43 +0200
+
+mono (2.6.7-1) experimental; urgency=low
+
+  [ Mirco Bauer ]
+  * The "squeeze-ing the best out of Mono" release
+  * [c91fe56] Added git-dch settings
+  * [665316e] Imported Upstream version 2.6.7
+    + Includes ASP.NET MVC 2.0
+  * [1823ffa] Don't let git-import-orig do merges
+  * [9b50f29] Implemented tool to test merge all debian patch branches
+    against the upstream branch.
+  * [d06b9ad] Only merge branches that really begin with
+    debian/patches/*
+  * [822f606] Added System.Web.Mvc2 to debian/copyright
+  * [45d4f69] Added libmono-system-web-mvc2.0-cil package
+  * [b9b720e] Fix mono/test test suite compilation.
+
+  [ Andy Stührk ]
+  * [f6745b9] XplatUIX11.WorkingArea can segfault if the WM does not
+    support _NET_WORKAREA (Closes: #557229)
+    (thanks to Brian Pellin and Andy Stührk for the investigation and patch)
+
+ -- Mirco Bauer <meebey@debian.org>  Sat, 07 Aug 2010 00:35:39 +0200
+
+mono (2.6.3-4) experimental; urgency=low
+
+  * Backported fix from upstream SVN revision r158081, which corrects
+    xbuild's handling of wildcards with directories. This fixes a bug
+    which prevents Pinta 0.4 from being built. Thanks to Ankit Jain
+    <jankit@novell.com>
+
+ -- Jo Shields <directhex@apebox.org>  Wed, 07 Jul 2010 10:56:17 +0100
+
+mono (2.6.3-3) experimental; urgency=low
+
+  * git:debian/patches/arm_cpuinfo_parsing:
+    + Fix bug in QEMU-friendly ARM CPU capability parsing, by setting
+      v7_supported explicitly to FALSE on non-QEMU hardware, unless
+      a v7 CPU is detected (previously it was MAYBE, so v7 instructions
+      were always generated)
+
+ -- Jo Shields <directhex@apebox.org>  Thu, 01 Jul 2010 00:38:28 +0100
+
+mono (2.6.3-2) experimental; urgency=low
+
+  * git:debian/patches/kfreebsd_support:
+    + Ensure all FreeBSD ifdefs also apply to kFreeBSD
+    + Use &ctx->uc_mcontext, not &ctx->uc_mcontext.gregs, on FreeBSD kernels
+    + Ensure kFreeBSD follows POSIX signal code paths
+    + (Closes: #585662)
+  * git:debian/patches/fix_GetTypeDescriptor_wrapped_type_call_forwarding_r157626:
+    + Backport from upstream SVN repository to fix upstream bug 603060, which
+      causes TypeDescriptorProvider to return false values on wrapped types
+  * git:debian/patches/insecure_EnableViewStateMac_XSS_CVE-2010-1459:
+    + Backport from upstream SVN repository to fix CVE-2010-1459, which
+      implies that the default value for EnableViewStateMac can potentially
+      allow XSS attacks against ASP.NET sites hosted on Mono
+      (Closes: #585440)
+  * debian/update-monodoc:
+    + Updated script from Iain Lane <laney@ubuntu.com> which no longer fails
+      when called using bash rather than dash (Closes: #580665)
+  * debian/control:
+    + Add a Replaces: on libmono-dev << 2.4.3 (Closes: #582614)
+  * debian/control,
+    debian/libmono{1,0}.0-cil.install,
+    debian/mono-{1,2}.0-service.install:
+    + Move mono-service executables' GAC entries to mono-service packages
+      where they belong (Closes: #586192)
+
+ -- Jo Shields <directhex@apebox.org>  Tue, 22 Jun 2010 08:53:51 +0100
+
+mono (2.6.3-1) experimental; urgency=low
+
+  * New upstream release (Closes: #572901)
+    + Soft debugger
+    + Co-routine framework Mono.Tasklets
+    + Auto-completion for the csharp shell
+    + LINQ to SQL
+    + Enhanced XBuild
+    + Mono.Simd for AMD64
+    + Verifier and Sandbox (used by Moonlight)
+    + Debugging support for GDB
+
+  * The "Good bye dpatch, hello git" release
+  * debian/control
+    debian/rules
+    debian/patches/*:
+    + Replaced dpatches with git branches.
+
+  * debian/mono-dbg.install:
+    + Added mono-gdb.py script for gdb integration
+  * debian/control
+    debian/libmono-debugger-soft0.0-cil.install:
+    + New package for the soft debugger library.
+  * debian/libmono-microsoft-build2.0-cil.install:
+    + Added new libraries.
+  * debian/control
+    debian/libmono-c5-1.0-cil.install
+    debian/libmono-c5-1.1-cil.install:
+    + Renamed the libmono-c5-1.0-cil package to libmono-c5-1.1-cil as the
+      assembly version changed.
+  * debiab/control
+    debian/libmono-tasklets2.0-cil.install:
+    + New package for the continuations library.
+  * debian/libmono-wcf3.0-cil.install:
+    + Added new System.Data.Services library.
+    + Updated System.ServiceModel.Web GAC path.
+  * debian/mono-devel.install
+    debian/mono-devel.manpages:
+    + Added pdb2mdb, sqlmetal, svcutil and RabbitMQ.Client.Apigen.exe.
+    + Updated mono-xmltool.exe path.
+  * debian/control
+    debian/libmono-windowsbase3.0-cil.install:
+    + New package containing the WindowsBase library which used to be part of
+      the mono-uia source package.
+  * debian/watch:
+    + Tracking latest branch now.
+  * debian/copyright:
+    + Completly rewritten copyright file in DEP5 format based on
+      moonlight 2.0's debian/copyright written by Jo Shields with minor
+      modifications.
+    + Updated debian/* copyright.
+  * debian/rules:
+    + Dropped build-arch/indep split as we needed to build 90% of the classlib
+      for the test suite anyhow.
+    + Bumped clilibs where needed.
+
+ -- Mirco Bauer <meebey@debian.org>  Sun, 06 Jun 2010 17:45:35 +0200
+
+mono (2.4.4~svn151842-2) unstable; urgency=low
+
+  [ Mirco Bauer ]
+  * debian/control:
+    + Changed section of libmono-dev back to cli-mono.
+    + Added misc:Depends to mono-dbg to please lintian.
+  * debian/mono-devel.install:
+    + Added makecert.
+  * mcs/class/System.Web/System.Web.UI.WebControls/TableRow.cs
+    mcs/class/System.Web/System.Web.UI.WebControls/TableRowCollection.cs:
+    + Reverted dpatch changes that were done accidentally.
+  * Cherry-picked debian/patches/fix_csharp_attach_param
+    mcs/tools/csharp/repl.cs:
+    + Fixed NRE when using the attach parameter of csharp.
+
+  [ Iain Lane ]
+  * debian/update-monodoc: Check whether monodoc-browser is configured before
+    generating the search index in the trigger. Previously the lack of this
+    caused uninstallability due to monodoc not being able to find GTK# in the
+    GAC. (Closes: #575803)
+
+  [ Jo Shields ]
+  * debian/patches/mono-arm-thumb2-ftbfs.dpatch:
+    + Use GCC atomic built-ins to prevent FTBFS on ARM with Thumb2 (Thanks to
+      Alexander Sack <asac@ubuntu.com>)
+  * debian/patches/mono-thumb2-jit-blx.dpatch:
+    + Assorted JIT fixes for ARM (Thanks to Alexander Sack <asac@ubuntu.com>)
+  * debian/patches/arm-cpuinfo-parsing.dpatch:
+    + Smarter CPU detection, to allow Mono to run properly under QEMU without
+      asserting and dying (Thanks to Loïc Minier <loic.minier@ubuntu.com>)
+
+ -- Mirco Bauer <meebey@debian.org>  Sun, 25 Apr 2010 14:56:28 +0200
+
+mono (2.4.4~svn151842-1) unstable; urgency=medium
+
+  [ Jo Shields ]
+  * debian/patches/dont_assert_on_empty_DGC_field_r146984.dpatch:
+    + Backport fix from upstream which causes IKVM to fail to build
+      (Closes: #562393)
+  * debian/patches/escape_Lucene.Net_search_string_r148946.dpatch:
+    + Backport fix from upsrream which causes Monodoc to crash when
+      searching for "()" and other characters (Closes: #516597)
+
+  [ Mirco Bauer ]
+  * The "Mono 2.4.4 FREE LUV for squeeze & lucid" release
+  * New upstream SVN snapshot of the mono-2-4 branch
+    + Fixed assertion failed in fieldref_encode_signature which caused
+      SIGABRT. (Closes: #565548)
+    + Mono is now DFSG complaint again by default as the binary-only shipped
+      files were replaced with source code. Also the non-free XML
+      specification files were replaced and thus we can ship the RabbitMQ
+      library again.
+  * debian/patches/disable_building_convert.exe.dpatch
+    debian/patches/disable_building_RabbitMQ.Client.dll.dpatch:
+    + Dropped, we can build the RabbitMQ client library and convert.exe again,
+      as the source is provided now (see above).
+  * debian/fix_large_ranges_in_random_generator_r146995.dpatch:
+    + Dropped, already applied upstream.
+  * debian/watch:
+    + We are only watching the 2.4 series for now (until squeeze is released)
+  * debian/control:
+    + Added libnunit-cil-dev to Depends of libmono-cil-dev as that one
+      contains the symlink to the nunit.pc file which is no longer present in
+      libnunit2.4-cil but libnunit-cil-dev.
+    + Dropped purpose less libmono-nunit2.4-cil package as libmono-cil-dev
+      does the job now.
+    + Added conflicts libmono-nunit2.4-cil to libmono-cil-dev for cleaning up.
+    + Shortened too long line in the long descroption of libmono-cil-dev.
+    + Changed section of libmono-dev to libdevel.
+    + Added ${misc:Depends} to Depends of all packages.
+    + Bumped Standards-Version to 3.8.4 (no changes needed).
+    + Re-added libmono-messaging-rabbitmq2.0-cil and libmono-rabbitmq2.0-cil
+      packages.
+  * debian/cli.binfmt:
+    + Replaced mono-common with mono-runtime. (Closes: #565490)
+  * debian/mono-runtime.postinst:
+    + Removed obsolete mono-common / mono-jit traces.
+  * debian/copyright:
+    + Refere to versioned GPL license file.
+    + Updated license information of RabbitMQ XML specification files.
+    + Added license information of docs/HtmlAgilityPack.
+
+ -- Mirco Bauer <meebey@debian.org>  Wed, 17 Feb 2010 23:17:44 +0100
+
+mono (2.4.3+dfsg-1) unstable; urgency=medium
+
+  [ Jo Shields ]
+  * debian/monodoc-base.postinst,
+    debian/monodoc-base.triggers,
+    debian/monodoc-base.install,
+    debian/update-monodoc:
+    + Add a trigger to handle installation of documentation into monodoc
+
+  [ Iain Lane ]
+  * debian/monodoc-base.postinst: Only update the monodoc index when we need
+    to - i.e. when we are being triggered (by a lib installing new docs) or
+    upon a new install of monodoc-base (to generate the initial index)
+
+  [ Mirco Bauer ]
+  * The "mince pies for all" release
+  * New upstream (bugfix) release:
+    + New license compiler (lc) tool.
+    + Improved memory usage and performance for ASP.NET.
+    + Updated xbuild.
+    + Many bugfixes.
+  * debian/control
+    debian/rules
+    debian/copyright:
+    debian/patches/disable_building_RabbitMQ.Client.dll.dpatch:
+    + Dropped the RabbitMQ library with spec sources again, as the
+      auto-generated API source files without DFSG-free sources for the
+      generator are not good enough. (Closes: #560151)
+  * debian/copyright:
+    + Updated for the new license compiler tool.
+  * debian/rules:
+    + Bumped clilibs of libmono-system2.0-cil, libmono-security{1,2}.0-cil,
+      libmono-data-tds{1,2}.0-cil and libmono-microsoft-build2.0-cil
+      to >= 2.4.3.
+  * debian/update-monodoc:
+    + Handle search index too.
+  * debian/libmono-profiler.install:
+    + Install .so symlinks too, bloody pseudo versioned shared libraries.
+  * debian/libmono-simd2.0-cil.install:
+    + Added missing compile time symlink.
+  * debian/control:
+    + Promote monodoc-viewer from Recommends to Depends for monodoc-manual.
+      (Closes: #551909)
+    + Fixed typo in monodoc-base and monodoc-manual package description.
+      (Closes: #557355, #557379)
+    + Bumped Standards-Version to 3.8.3 (no changes needed)
+  * debian/patches/fix_metadata_dup.dpatch
+  * debian/patches/fix_gridview_r146128_r146133.dpatch:
+    + Dropped, already applied upstream.
+  * debian/control:
+    debian/libmono-cil-dev.install
+    debian/*.install:
+    + Added new libmono-cil-dev package which ships now all pkg-config files
+      and depends on all Mono CLI library packages.
+  * debian/mono-devel.links:
+    + Dropped /usr/bin/csc as it was causing a file conflict with the chicken
+      compiler from the chicken-bin package. Most source packages were
+      transitioned to use /usr/bin/mono-csc or /usr/bin/cli-csc instead.
+      (Closes: #509367, #518106)
+  * debian/patches/fix_DynamicMethod_restrictedSkipVisibility_r138886.dpatch:
+    + Pass restrictedSkipVisibility parameter correctly to the called
+      constructor as needed by the DbLinq library. (Closes: #551964)
+      (thanks goes to Silviu Paragina for the investigation and the patch)
+  * debian/mono-xbuild.install
+    debian/man/xbuild.1:
+    + Replaced xbuild manpage place holder with new upstream manpage.
+  * debian/mono-xbuild.install:
+    + Addded new target files.
+  * debian/mono-devel.install
+    debian/mono-devel.manpages:
+    + Added lc tool.
+  * debian/libmono-system-web2.0-cil.install:
+    + Added new development symlinks.
+  * debian/fix_large_ranges_in_random_generator_r146995.dpatch:
+    + Fix random numbers in large ranges.
+
+ -- Mirco Bauer <meebey@debian.org>  Mon, 14 Dec 2009 00:01:59 +0100
+
+mono (2.4.2.3+dfsg-3) unstable; urgency=low
+
+  [ Jo Shields ]
+  * Add missing Conflicts/Replaces on monodoc-base from pre-Squeeze due
+    to monodoc.dll.mdb conflict
+  * debian/patches/fix_gridview_r146128_r146133.dpatch:
+    + Add fix from Mono SVN for TableRowCollection in ASP.NET
+
+  [ Mirco Bauer ]
+  * Added mono-gmcs to mono-csharp-shell dependencies as it links gmcs.exe
+    (Closes: #552211)
+  * debian/rules:
+    + Add dh_makeshlibs call for all remaining libraries. This adds missing
+      ldconfig calls to the maintainer scripts for libMonoSupportW.so,
+      libMonoPosixHelper.so and libmono-profiler-*.so.
+      (Closes: #553008, #553104)
+      (Obsoletes NMU by Matt Kraai <kraai@ftbfs.org>, Closes: #556662)
+
+ -- Mirco Bauer <meebey@debian.org>  Tue, 17 Nov 2009 23:26:36 +0100
 
 mono (2.4.2.3+dfsg-2) unstable; urgency=medium
 

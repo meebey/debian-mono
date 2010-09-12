@@ -14,7 +14,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#ifdef HAVE_SYS_UIO_H
+#  include <sys/uio.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+#  include <sys/ioctl.h>
+#endif
 #include <sys/poll.h>
 #ifdef HAVE_SYS_FILIO_H
 #include <sys/filio.h>     /* defines FIONBIO and FIONREAD */
@@ -39,6 +44,9 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#ifdef HAVE_SYS_SENDFILE_H
+#include <sys/sendfile.h>
+#endif
 
 #undef DEBUG
 
@@ -334,7 +342,7 @@ int _wapi_connect(guint32 fd, const struct sockaddr *serv_addr,
 				if (ok == FALSE) {
 					/* ECONNRESET means the socket was closed by another thread */
 					if (errnum != WSAECONNRESET)
-						g_warning ("%s: error looking up socket handle %p", __func__, handle);
+						g_warning ("%s: error looking up socket handle %p (error %d)", __func__, handle, errnum);
 				} else {
 					socket_handle->saved_error = errnum;
 				}
@@ -633,6 +641,53 @@ int _wapi_recvfrom(guint32 fd, void *buf, size_t len, int recv_flags,
 	return(ret);
 }
 
+static int
+_wapi_recvmsg(guint32 fd, struct msghdr *msg, int recv_flags)
+{
+	gpointer handle = GUINT_TO_POINTER (fd);
+	struct _WapiHandle_socket *socket_handle;
+	gboolean ok;
+	int ret;
+	
+	if (startup_count == 0) {
+		WSASetLastError (WSANOTINITIALISED);
+		return(SOCKET_ERROR);
+	}
+	
+	if (_wapi_handle_type (handle) != WAPI_HANDLE_SOCKET) {
+		WSASetLastError (WSAENOTSOCK);
+		return(SOCKET_ERROR);
+	}
+	
+	do {
+		ret = recvmsg (fd, msg, recv_flags);
+	} while (ret == -1 && errno == EINTR &&
+		 !_wapi_thread_cur_apc_pending ());
+
+	if (ret == 0) {
+		/* see _wapi_recvfrom */
+		ok = _wapi_lookup_handle (handle, WAPI_HANDLE_SOCKET,
+					  (gpointer *)&socket_handle);
+		if (ok == FALSE || socket_handle->still_readable != 1) {
+			ret = -1;
+			errno = EINTR;
+		}
+	}
+	
+	if (ret == -1) {
+		gint errnum = errno;
+#ifdef DEBUG
+		g_message ("%s: recvmsg error: %s", __func__, strerror(errno));
+#endif
+
+		errnum = errno_to_WSA (errnum, __func__);
+		WSASetLastError (errnum);
+		
+		return(SOCKET_ERROR);
+	}
+	return(ret);
+}
+
 int _wapi_send(guint32 fd, const void *msg, size_t len, int send_flags)
 {
 	gpointer handle = GUINT_TO_POINTER (fd);
@@ -702,6 +757,41 @@ int _wapi_sendto(guint32 fd, const void *msg, size_t len, int send_flags,
 	return(ret);
 }
 
+static int
+_wapi_sendmsg(guint32 fd,  const struct msghdr *msg, int send_flags)
+{
+	gpointer handle = GUINT_TO_POINTER (fd);
+	int ret;
+	
+	if (startup_count == 0) {
+		WSASetLastError (WSANOTINITIALISED);
+		return(SOCKET_ERROR);
+	}
+	
+	if (_wapi_handle_type (handle) != WAPI_HANDLE_SOCKET) {
+		WSASetLastError (WSAENOTSOCK);
+		return(SOCKET_ERROR);
+	}
+	
+	do {
+		ret = sendmsg (fd, msg, send_flags);
+	} while (ret == -1 && errno == EINTR &&
+		 !_wapi_thread_cur_apc_pending ());
+
+	if (ret == -1) {
+		gint errnum = errno;
+#ifdef DEBUG
+		g_message ("%s: sendmsg error: %s", __func__, strerror (errno));
+#endif
+
+		errnum = errno_to_WSA (errnum, __func__);
+		WSASetLastError (errnum);
+		
+		return(SOCKET_ERROR);
+	}
+	return(ret);
+}
+
 int _wapi_setsockopt(guint32 fd, int level, int optname,
 		     const void *optval, socklen_t optlen)
 {
@@ -756,11 +846,11 @@ int _wapi_setsockopt(guint32 fd, int level, int optname,
 		return(SOCKET_ERROR);
 	}
 
-#if defined(SO_REUSEPORT)
+#if defined (SO_REUSEPORT)
 	/* BSD's and MacOS X multicast sockets also need SO_REUSEPORT when SO_REUSEADDR is requested.  */
 	if (level == SOL_SOCKET && optname == SO_REUSEADDR) {
 		int type;
-		int type_len = sizeof (type);
+		socklen_t type_len = sizeof (type);
 
 		if (!getsockopt (fd, level, SO_TYPE, &type, &type_len)) {
 			if (type == SOCK_DGRAM)
@@ -1034,29 +1124,112 @@ static gboolean wapi_disconnectex (guint32 fd, WapiOverlapped *overlapped,
 	return(socket_disconnect (fd));
 }
 
-/* NB only supports NULL file handle, NULL buffers and
- * TF_DISCONNECT|TF_REUSE_SOCKET flags to disconnect the socket fd.
- * Shouldn't actually ever need to be called anyway though, because we
- * have DisconnectEx ().
- */
-static gboolean wapi_transmitfile (guint32 fd, gpointer file,
-				   guint32 num_write, guint32 num_per_send,
-				   WapiOverlapped *overlapped,
-				   WapiTransmitFileBuffers *buffers,
-				   WapiTransmitFileFlags flags)
+#define SF_BUFFER_SIZE	16384
+static gint
+wapi_sendfile (guint32 socket, gpointer fd, guint32 bytes_to_write, guint32 bytes_per_send, guint32 flags)
 {
-#ifdef DEBUG
-	g_message ("%s: called on socket %d!", __func__, fd);
-#endif
-	
-	g_assert (file == NULL);
-	g_assert (overlapped == NULL);
-	g_assert (buffers == NULL);
-	g_assert (num_write == 0);
-	g_assert (num_per_send == 0);
-	g_assert (flags == (TF_DISCONNECT | TF_REUSE_SOCKET));
+#if defined(HAVE_SENDFILE) && (defined(__linux__) || defined(DARWIN))
+	gint file = GPOINTER_TO_INT (fd);
+	gint n;
+	gint errnum;
+	gssize res;
+	struct stat statbuf;
 
-	return(socket_disconnect (fd));
+	n = fstat (file, &statbuf);
+	if (n == -1) {
+		errnum = errno;
+		errnum = errno_to_WSA (errnum, __func__);
+		WSASetLastError (errnum);
+		return SOCKET_ERROR;
+	}
+	do {
+#ifdef __linux__
+		res = sendfile (socket, file, NULL, statbuf.st_size);
+#elif defined(DARWIN)
+		/* TODO: header/tail could be sent in the 5th argument */
+		/* TODO: Might not send the entire file for non-blocking sockets */
+		res = sendfile (file, socket, 0, &statbuf.st_size, NULL, 0);
+#endif
+	} while (res != -1 && (errno == EINTR || errno == EAGAIN) && !_wapi_thread_cur_apc_pending ());
+	if (res == -1) {
+		errnum = errno;
+		errnum = errno_to_WSA (errnum, __func__);
+		WSASetLastError (errnum);
+		return SOCKET_ERROR;
+	}
+#else
+	/* Default implementation */
+	gint file = GPOINTER_TO_INT (fd);
+	gchar *buffer;
+	gint n;
+
+	buffer = g_malloc (SF_BUFFER_SIZE);
+	do {
+		do {
+			n = read (file, buffer, SF_BUFFER_SIZE);
+		} while (n == -1 && errno == EINTR && !_wapi_thread_cur_apc_pending ());
+		if (n == -1)
+			break;
+		if (n == 0) {
+			g_free (buffer);
+			return 0; /* We're done reading */
+		}
+		do {
+			n = send (socket, buffer, n, 0); /* short sends? enclose this in a loop? */
+		} while (n == -1 && errno == EINTR && !_wapi_thread_cur_apc_pending ());
+	} while (n != -1);
+
+	if (n == -1) {
+		gint errnum = errno;
+		errnum = errno_to_WSA (errnum, __func__);
+		WSASetLastError (errnum);
+		g_free (buffer);
+		return SOCKET_ERROR;
+	}
+	g_free (buffer);
+#endif
+	return 0;
+}
+
+gboolean
+TransmitFile (guint32 socket, gpointer file, guint32 bytes_to_write, guint32 bytes_per_send, WapiOverlapped *ol,
+		WapiTransmitFileBuffers *buffers, guint32 flags)
+{
+	gpointer sock = GUINT_TO_POINTER (socket);
+	gint ret;
+	
+	if (startup_count == 0) {
+		WSASetLastError (WSANOTINITIALISED);
+		return FALSE;
+	}
+	
+	if (_wapi_handle_type (sock) != WAPI_HANDLE_SOCKET) {
+		WSASetLastError (WSAENOTSOCK);
+		return FALSE;
+	}
+
+	/* Write the header */
+	if (buffers != NULL && buffers->Head != NULL && buffers->HeadLength > 0) {
+		ret = _wapi_send (socket, buffers->Head, buffers->HeadLength, 0);
+		if (ret == SOCKET_ERROR)
+			return FALSE;
+	}
+
+	ret = wapi_sendfile (socket, file, bytes_to_write, bytes_per_send, flags);
+	if (ret == SOCKET_ERROR)
+		return FALSE;
+
+	/* Write the tail */
+	if (buffers != NULL && buffers->Tail != NULL && buffers->TailLength > 0) {
+		ret = _wapi_send (socket, buffers->Tail, buffers->TailLength, 0);
+		if (ret == SOCKET_ERROR)
+			return FALSE;
+	}
+
+	if ((flags & TF_DISCONNECT) == TF_DISCONNECT)
+		closesocket (socket);
+
+	return TRUE;
 }
 
 static struct 
@@ -1065,7 +1238,7 @@ static struct
 	gpointer func;
 } extension_functions[] = {
 	{WSAID_DISCONNECTEX, wapi_disconnectex},
-	{WSAID_TRANSMITFILE, wapi_transmitfile},
+	{WSAID_TRANSMITFILE, TransmitFile},
 	{{0}, NULL},
 };
 
@@ -1169,6 +1342,7 @@ WSAIoctl (guint32 fd, gint32 command,
 	return(0);
 }
 
+#ifndef PLATFORM_PORT_PROVIDES_IOCTLSOCKET
 int ioctlsocket(guint32 fd, gint32 command, gpointer arg)
 {
 	gpointer handle = GUINT_TO_POINTER (fd);
@@ -1202,10 +1376,32 @@ int ioctlsocket(guint32 fd, gint32 command, gpointer arg)
 			}
 			break;
 #endif /* O_NONBLOCK */
-		case FIONREAD:
+			/* Unused in Mono */
 		case SIOCATMARK:
 			ret = ioctl (fd, command, arg);
 			break;
+			
+		case FIONREAD:
+		{
+#if defined (PLATFORM_MACOSX)
+			
+			// ioctl (fd, FIONREAD, XXX) returns the size of
+			// the UDP header as well on
+			// Darwin.
+			//
+			// Use getsockopt SO_NREAD instead to get the
+			// right values for TCP and UDP.
+			// 
+			// ai_canonname can be null in some cases on darwin, where the runtime assumes it will
+			// be the value of the ip buffer.
+
+			socklen_t optlen = sizeof (int);
+			ret = getsockopt (fd, SOL_SOCKET, SO_NREAD, arg, &optlen);
+#else
+			ret = ioctl (fd, command, arg);
+#endif
+			break;
+		}
 		default:
 			WSASetLastError (WSAEINVAL);
 			return(SOCKET_ERROR);
@@ -1319,39 +1515,49 @@ void _wapi_FD_SET(guint32 fd, fd_set *set)
 
 	FD_SET (fd, set);
 }
+#endif
+
+static void
+wsabuf_to_msghdr (WapiWSABuf *buffers, guint32 count, struct msghdr *hdr)
+{
+	guint32 i;
+
+	memset (hdr, 0, sizeof (struct msghdr));
+	hdr->msg_iovlen = count;
+	hdr->msg_iov = g_new0 (struct iovec, count);
+	for (i = 0; i < count; i++) {
+		hdr->msg_iov [i].iov_base = buffers [i].buf;
+		hdr->msg_iov [i].iov_len  = buffers [i].len;
+	}
+}
+
+static void
+msghdr_iov_free (struct msghdr *hdr)
+{
+	g_free (hdr->msg_iov);
+}
 
 int WSARecv (guint32 fd, WapiWSABuf *buffers, guint32 count, guint32 *received,
 	     guint32 *flags, WapiOverlapped *overlapped,
 	     WapiOverlappedCB *complete)
 {
-	int ret, i, buflen = 0, offset = 0, copylen;
-	gint8 *recvbuf;
+	int ret;
+	struct msghdr hdr;
 
 	g_assert (overlapped == NULL);
 	g_assert (complete == NULL);
-	
-	for(i = 0; i < count; i++) {
-		buflen += buffers[i].len;
-	}
 
-	recvbuf = g_new0 (gint8, buflen);
-	ret = _wapi_recvfrom (fd, recvbuf, buflen, *flags, NULL, 0);
+	wsabuf_to_msghdr (buffers, count, &hdr);
+	ret = _wapi_recvmsg (fd, &hdr, *flags);
+	msghdr_iov_free (&hdr);
+	
 	if(ret == SOCKET_ERROR) {
-		g_free (recvbuf);
 		return(ret);
 	}
 	
-	for(i = 0; i < count; i++) {
-		copylen = buffers[i].len > (buflen - offset)? (buflen - offset):buffers[i].len;
-		memcpy (buffers[i].buf, recvbuf + offset, copylen);
-
-		if (copylen != buffers[i].len) {
-			break;
-		}
-		offset += copylen;
-	}
-	
 	*received = ret;
+	*flags = hdr.msg_flags;
+
 	return(0);
 }
 
@@ -1359,29 +1565,19 @@ int WSASend (guint32 fd, WapiWSABuf *buffers, guint32 count, guint32 *sent,
 	     guint32 flags, WapiOverlapped *overlapped,
 	     WapiOverlappedCB *complete)
 {
-	int ret, i, buflen = 0, offset = 0, copylen;
-	gint8 *sendbuf;
+	int ret;
+	struct msghdr hdr;
 
 	g_assert (overlapped == NULL);
 	g_assert (complete == NULL);
-	
-	for(i = 0; i < count; i++) {
-		buflen += buffers[i].len;
-	}
-	
-	sendbuf = g_new0 (gint8, buflen);
-	for(i = 0; i < count; i++) {
-		copylen = buffers[i].len;
-		memcpy (sendbuf + offset, buffers[i].buf, copylen);
-		offset += copylen;
-	}
 
-	ret = _wapi_sendto (fd, sendbuf, buflen, flags, NULL, 0);
-	if(ret == SOCKET_ERROR) {
-		g_free (sendbuf);
-		return(ret);
-	}
+	wsabuf_to_msghdr (buffers, count, &hdr);
+	ret = _wapi_sendmsg (fd, &hdr, flags);
+	msghdr_iov_free (&hdr);
 	
+	if(ret == SOCKET_ERROR) 
+		return ret;
+
 	*sent = ret;
-	return(0);
+	return 0;
 }

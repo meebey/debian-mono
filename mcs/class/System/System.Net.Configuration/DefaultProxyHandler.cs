@@ -32,17 +32,18 @@ using System.Collections;
 using System.Configuration;
 #if (XML_DEP)
 using System.Xml;
+#else
+using XmlNode = System.Object;
 #endif
 
 namespace System.Net.Configuration
 {
 	class DefaultProxyHandler : IConfigurationSectionHandler
 	{
-#if (XML_DEP)
 		public virtual object Create (object parent, object configContext, XmlNode section)
 		{
 			IWebProxy result = parent as IWebProxy;
-			
+#if (XML_DEP)
 			if (section.Attributes != null && section.Attributes.Count != 0)
 				HandlersUtil.ThrowException ("Unrecognized attribute", section);
 
@@ -85,10 +86,27 @@ namespace System.Net.Configuration
 					//MS: presence of valid address URI takes precedence over usesystemdefault
 					if (sysdefault != null && String.Compare (sysdefault, "true", true) == 0) {
 						address = Environment.GetEnvironmentVariable ("http_proxy");
-						if (address != null)
+						if (address == null)
+							address = Environment.GetEnvironmentVariable ("HTTP_PROXY");
+
+						if (address != null) {
 							try {
-								((WebProxy) result).Address = new Uri (address);
-							} catch (UriFormatException) {}
+								Uri uri = new Uri (address);
+								IPAddress ip;
+								if (IPAddress.TryParse (uri.Host, out ip)) {
+									if (IPAddress.Any.Equals (ip)) {
+										UriBuilder builder = new UriBuilder (uri);
+										builder.Host = "127.0.0.1";
+										uri = builder.Uri;
+									} else if (IPAddress.IPv6Any.Equals (ip)) {
+										UriBuilder builder = new UriBuilder (uri);
+										builder.Host = "[::1]";
+										uri = builder.Uri;
+									}
+								}
+								((WebProxy) result).Address = uri;
+							} catch (UriFormatException) { }
+						}
 					}
 					
 					continue;
@@ -108,10 +126,11 @@ namespace System.Net.Configuration
 
 				HandlersUtil.ThrowException ("Unexpected element", child);
 			}
-
+#endif
 			return result;
 		}
 
+#if (XML_DEP)
 		static void FillByPassList (XmlNode node, WebProxy proxy)
 		{
 			ArrayList bypass = new ArrayList (proxy.BypassArrayList);

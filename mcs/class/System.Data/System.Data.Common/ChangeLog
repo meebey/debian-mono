@@ -1,3 +1,69 @@
+2010-03-10  Veerapuram Varadhan  <vvaradhan@novell.com>
+
+	** Fixes #564833/580736
+	* DbDataAdapter.cs (*Command): Fix for .NET compatibility which 
+	supports both type of adapters with/without discrete command 
+	instances.
+	
+2009-10-28  Veerapuram Varadhan  <vvaradhan@novell.com>
+
+	** Fixes #385028/#385029
+	* DbCommandBuilder.cs (CreateInsertCommand): Workaround for inserting 
+	DEFAULT values to non-null-columns.
+	(GetInsertCommand): New overload added to handle above workaround.
+	(set_DataAdapter): Register for the RowUpdatingEventHandler.
+	
+2009-10-14  Jonathan Pryor  <jpryor@novell.com>
+
+	* DbConnection.cs: Throw NotImplementedException fom
+	  DbConnection.DbProviderFactory, as DbProviderFactories isn't
+	  included in the MonoTouch profile.
+
+2009-07-30  Veerapuram Varadhan  <vvaradhan@novell.com>
+
+	* DbDataAdapter.cs (IDbDataAdapter.get_*Command): For non 2.0 profile, do not 
+	implement these properties and related changes.
+	
+2009-07-30  Veerapuram Varadhan  <vvaradhan@novell.com>
+	
+	* DbDataAdapter.cs (set_DeleteCommand): Code cleanup.
+	
+2009-07-29  Veerapuram Varadhan  <vvaradhan@novell.com>
+	
+	* DbDataAdapter.cs (*Command properties): Don't call IDbDataAdapter.*Command, 
+	as provider specific DbDataAdapters would have its own implementation.
+	
+2009-07-27  Veerapuram Varadhan  <vvaradhan@novell.com>
+
+	* DbCommandBuilder.cs (CreateUpdateCommand): Don't set Nullable 
+	property "Original_*" fields.
+	
+2009-07-24  Veerapuram Varadhan  <vvaradhan@novell.com>
+	
+	* DbCommandBuilder.cs (Create*Command): Fill up the missing pieces from 
+	SqlCommandBuilder version of Create*Commands that fixes the failing tests.
+	
+2009-07-24  Veerapuram Varadhan  <vvaradhan@novell.com>
+	
+	* DbCommandBuilder.cs (CreateDeleteCommand, CreateUpdateCommand): Add the 
+	nullcheck-param into the respective command's parameter list.  Fixes 
+	build breaks.  Individual provider's CommandBuilder classes from 2.0 
+	profile onwards use the base version of methods to maintain these commands.
+	(Get*Command): Cleanup code duplication
+	* DbDataAdapter (Update): Use SourceColumnNullMapping property to handle 
+	nullcheckparams.  Fixes #522624.  Patch by 
+	Gert Driesen  <drieseng@users.sourceforge.net>.
+	
+2009-07-15  Veerapuram Varadhan  <vvaradhan@novell.com>
+
+	** Part of fix for #325464
+	* DbParameter.cs (FrameworkDbType, DbTypeMapping, SystemType): New internal properties 
+	required to convert between DbType/FrameworkType/SystemType.
+	
+2009-05-10  Marek Habersack  <mhabersack@novell.com>
+
+	* DbConnection.cs: implemented the DbProviderFactory property
+
 2009-03-31  Veerapuram Varadhan  <vvaradhan@novell.com>
 
 	* Fixes rest of #480377

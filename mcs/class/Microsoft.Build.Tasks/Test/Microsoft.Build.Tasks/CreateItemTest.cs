@@ -187,6 +187,159 @@ namespace MonoTests.Microsoft.Build.Tasks {
 		    CheckBuildItem (include [2], "NewItem", additional_metadata, "5", "C");
 		}
 
+		[Test]
+		public void TestVariableExpansion ()
+		{
+		    Engine engine;
+		    Project project;
+
+			string documentString = @"
+                                <Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">
+				<PropertyGroup>
+					<P1>FooP1</P1>
+					<P2>FooP2</P2>
+					<C>@(IG)</C>
+					<P3>@(Nine->'%(Identity)')</P3>
+				</PropertyGroup>
+				<ItemGroup>
+					<Nine Include=""Nine""/>
+					<Eight Include=""Eight""/>
+					<Seven Include=""@(Eight)""/>
+					<Six Include=""@(Seven);$(P3)""/>
+					<Third Include=""Abc""/>
+					<Fourth Include=""$(P2)""/>
+					<Second Include=""@(Third);$(P1);@(Fourth);@(Six)""/>
+					<IG Include=""@(Second)""/>
+				</ItemGroup>
+
+					<Target Name='1'>
+						<CreateItem Include='$(C)' >
+							<Output
+								TaskParameter='Include'
+								ItemName='Items'
+							/>
+						</CreateItem>
+
+						<Message Text=""C: $(C)""/>
+						<Message Text=""items: @(items)""/>
+					</Target>
+				</Project>
+			";
+
+			engine = new Engine (Consts.BinPath);
+
+			TestMessageLogger testLogger = new TestMessageLogger ();
+			engine.RegisterLogger (testLogger);
+
+			project = engine.CreateNewProject ();
+			project.LoadXml (documentString);
+			if (!project.Build ("1")) {
+				testLogger.DumpMessages ();
+				Assert.Fail ("Build failed");
+			}
+
+			BuildItemGroup include = project.GetEvaluatedItemsByName ("Items");
+			Assert.AreEqual (5, include.Count, "A2");
+
+			Assert.AreEqual ("Abc", include [0].FinalItemSpec, "A#3");
+			Assert.AreEqual ("FooP1", include[1].FinalItemSpec, "A#4");
+			Assert.AreEqual ("FooP2", include[2].FinalItemSpec, "A#5");
+			Assert.AreEqual ("Eight", include[3].FinalItemSpec, "A#6");
+			Assert.AreEqual ("Nine", include[4].FinalItemSpec, "A#7");
+
+			testLogger.CheckLoggedMessageHead ("C: Abc;FooP1;FooP2;Eight;Nine", "A#9");
+			testLogger.CheckLoggedMessageHead ("items: Abc;FooP1;FooP2;Eight;Nine", "A#10");
+
+		}
+
+#if NET_3_5 || NET_4_0
+		[Test]
+		public void TestItemsWithWildcards () {
+			Engine engine = new Engine (Consts.BinPath);
+			Project proj = engine.CreateNewProject ();
+			TestMessageLogger logger = new TestMessageLogger ();
+			engine.RegisterLogger (logger);
+
+			// Setup
+
+			string basedir = PathCombine ("Test", "resources", "dir");
+			string aaa = PathCombine ("a", "aa", "aaa");
+			string bb = Path.Combine ("b", "bb");
+
+			string[] dirs = { aaa, bb, "c" };
+			string[] files = {
+								PathCombine (basedir, aaa, "foo.dll"),
+								PathCombine (basedir, bb, "bar.dll"),
+								PathCombine (basedir, bb, "sample.txt"),
+								Path.Combine (basedir, "xyz.dll")
+							  };
+
+			string documentString = @"
+				<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"" " + Consts.ToolsVersionString + @">
+					<PropertyGroup>
+						<WC>dir\**\*.dll</WC>
+						<ExWC>*\x*.dll</ExWC>
+					</PropertyGroup>
+
+					<Target Name='Main'>
+						<Copy SourceFiles='dir\xyz.dll' DestinationFiles='dir\abc.dll'/>
+						<CreateItem Include='dir\**\*.dll' Exclude='*\x*.dll'>
+							<Output TaskParameter='Include' ItemName='CI1' />
+						</CreateItem>
+						<Message Text=""CI1: %(CI1.FullPath)""/>
+
+						<CreateItem Include='$(WC)' Exclude='$(ExWC)'>
+							<Output TaskParameter='Include' ItemName='CI2' />
+						</CreateItem>
+						<Message Text=""CI2: %(CI2.FullPath)""/>
+					</Target>
+				</Project>";
+
+			try {
+				CreateDirectoriesAndFiles (basedir, dirs, files);
+				string projectdir = Path.Combine ("Test", "resources");
+				File.WriteAllText (Path.Combine (projectdir, "wild1.proj"), documentString);
+				proj.Load (Path.Combine (projectdir, "wild1.proj"));
+				if (!proj.Build ("Main"))
+					Assert.Fail ("Build failed");
+
+				string full_base_dir = Path.GetFullPath (basedir);
+				foreach (string prefix in new string[] { "CI1: ", "CI2: " }) {
+					logger.CheckLoggedAny (prefix + PathCombine (full_base_dir, aaa, "foo.dll"),
+										MessageImportance.Normal, "A1");
+					logger.CheckLoggedAny (prefix + PathCombine (full_base_dir, bb, "bar.dll"), MessageImportance.Normal, "A2");
+					logger.CheckLoggedAny (prefix + PathCombine (full_base_dir, "abc.dll"),
+										MessageImportance.Normal, "A3");
+
+				}
+			} catch (AssertionException) {
+				logger.DumpMessages ();
+				throw;
+			} finally {
+				Directory.Delete (basedir, true);
+			}
+		}
+#endif
+
+		void CreateDirectoriesAndFiles (string basedir, string[] dirs, string[] files) {
+			foreach (string dir in dirs)
+				Directory.CreateDirectory (Path.Combine (basedir, dir));
+
+			foreach (string file in files)
+				File.WriteAllText (file, String.Empty);
+		}
+
+		string PathCombine (string path1, params string[] parts) {
+			if (parts == null || parts.Length == 0)
+				return path1;
+
+			string final_path = path1;
+			foreach (string part in parts)
+				final_path = Path.Combine (final_path, part);
+
+			return final_path;
+		}
+
 		public static void CheckBuildItem (BuildItem item, string name, string [,] metadata, string finalItemSpec, string prefix)
 		{
 			Assert.AreEqual (name, item.Name, prefix + "#1");

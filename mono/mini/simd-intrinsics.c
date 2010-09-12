@@ -201,6 +201,7 @@ static const SimdIntrinsc vector2d_intrinsics[] = {
 	{ SN_PrefetchTemporal1stLevelCache, 0, SIMD_EMIT_PREFETCH, SIMD_VERSION_SSE1, SIMD_PREFETCH_MODE_1 },
 	{ SN_PrefetchTemporal2ndLevelCache, 0, SIMD_EMIT_PREFETCH, SIMD_VERSION_SSE1, SIMD_PREFETCH_MODE_2 },
 	{ SN_PrefetchNonTemporal, 0, SIMD_EMIT_PREFETCH, SIMD_VERSION_SSE1, SIMD_PREFETCH_MODE_NTA },
+	{ SN_Sqrt, OP_SQRTPD, SIMD_EMIT_UNARY },
 	{ SN_StoreAligned, OP_STOREX_ALIGNED_MEMBASE_REG, SIMD_EMIT_STORE },
 	{ SN_get_X, 0, SIMD_EMIT_GETTER_QWORD },
 	{ SN_get_Y, 1, SIMD_EMIT_GETTER_QWORD },
@@ -676,6 +677,9 @@ mono_simd_simplify_indirection (MonoCompile *cfg)
 
 	/*Scan the first basic block looking xzeros not used*/
 	for (ins = first_bb->code; ins; ins = ins->next) {
+		int num_sregs;
+		int sregs [MONO_MAX_SRC_REGS];
+
 		if (ins->opcode == OP_XZERO) {
 			if (!(vreg_flags [ins->dreg] & VREG_HAS_OTHER_OP_BB0)) {
 				DEBUG (printf ("[simd-simplify] R%d has vzero: ", ins->dreg); mono_print_ins(ins));
@@ -685,13 +689,13 @@ mono_simd_simplify_indirection (MonoCompile *cfg)
 		}
 		if (ins->opcode == OP_LDADDR && apply_vreg_first_block_interference (cfg, ins, ((MonoInst*)ins->inst_p0)->dreg, max_vreg, vreg_flags))
 			continue;
-		
 		if (apply_vreg_first_block_interference (cfg, ins, ins->dreg, max_vreg, vreg_flags))
 			continue;
-		if (apply_vreg_first_block_interference (cfg, ins, ins->sreg1, max_vreg, vreg_flags))
-			continue;
-		if (apply_vreg_first_block_interference (cfg, ins, ins->sreg2, max_vreg, vreg_flags))
-			continue;
+		num_sregs = mono_inst_get_src_registers (ins, sregs);
+		for (i = 0; i < num_sregs; ++i) {
+			if (apply_vreg_first_block_interference (cfg, ins, sregs [i], max_vreg, vreg_flags))
+				break;
+		}
 	}
 
 	if (IS_DEBUG_ON (cfg)) {
@@ -721,15 +725,19 @@ mono_simd_simplify_indirection (MonoCompile *cfg)
 
 	for (bb = first_bb->next_bb; bb; bb = bb->next_bb) {
 		for (ins = bb->code; ins; ins = ins->next) {
-			
+			int num_sregs;
+			int sregs [MONO_MAX_SRC_REGS];
+
 			if (ins->opcode == OP_LDADDR && apply_vreg_following_block_interference (cfg, ins, ((MonoInst*)ins->inst_p0)->dreg, bb, max_vreg, vreg_flags, target_bb))
 				continue;
 			if (apply_vreg_following_block_interference (cfg, ins, ins->dreg, bb, max_vreg, vreg_flags, target_bb))
 				continue;
-			if (apply_vreg_following_block_interference (cfg, ins, ins->sreg1, bb, max_vreg, vreg_flags, target_bb))
-				continue;
-			if (apply_vreg_following_block_interference (cfg, ins, ins->sreg2, bb, max_vreg, vreg_flags, target_bb))
-				continue;
+			num_sregs = mono_inst_get_src_registers (ins, sregs);
+			for (i = 0; i < num_sregs; ++i) {
+				if (apply_vreg_following_block_interference (cfg, ins, sregs [i], bb,
+						max_vreg, vreg_flags, target_bb))
+					continue;
+			}
 		}
 	}
 
@@ -745,10 +753,19 @@ mono_simd_simplify_indirection (MonoCompile *cfg)
 		if (!(vreg_flags [var->dreg] & VREG_SINGLE_BB_USE))
 			continue;
 		for (ins = target_bb [var->dreg]->code; ins; ins = ins->next) {
+			int num_sregs, j;
+			int sregs [MONO_MAX_SRC_REGS];
+			gboolean found = FALSE;
+
+			num_sregs = mono_inst_get_src_registers (ins, sregs);
+			for (j = 0; j < num_sregs; ++j) {
+				if (sregs [i] == var->dreg)
+					found = TRUE;
+			}
 			/*We can avoid inserting the XZERO if the first use doesn't depend on the zero'ed value.*/
-			if (ins->dreg == var->dreg && ins->sreg1 != var->dreg && ins->sreg2 != var->dreg) {
+			if (ins->dreg == var->dreg && !found) {
 				break;
-			} else if (ins->sreg1 == var->dreg || ins->sreg2 == var->dreg) {
+			} else if (found) {
 				MonoInst *tmp;
 				MONO_INST_NEW (cfg, tmp, OP_XZERO);
 				tmp->dreg = var->dreg;
@@ -789,8 +806,10 @@ get_simd_vreg (MonoCompile *cfg, MonoMethod *cmethod, MonoInst *src)
  * This function will load the value if needed. 
  */
 static int
-load_simd_vreg (MonoCompile *cfg, MonoMethod *cmethod, MonoInst *src)
+load_simd_vreg (MonoCompile *cfg, MonoMethod *cmethod, MonoInst *src, gboolean *indirect)
 {
+	if (indirect)
+		*indirect = FALSE;
 	if (src->opcode == OP_XMOVE) {
 		return src->sreg1;
 	} else if (src->opcode == OP_LDADDR) {
@@ -801,6 +820,8 @@ load_simd_vreg (MonoCompile *cfg, MonoMethod *cmethod, MonoInst *src)
 		return src->dreg;
 	} else if (src->type == STACK_PTR || src->type == STACK_MP) {
 		MonoInst *ins;
+		if (indirect)
+			*indirect = TRUE;
 
 		MONO_INST_NEW (cfg, ins, OP_LOADX_MEMBASE);
 		ins->klass = cmethod->klass;
@@ -953,13 +974,16 @@ simd_intrinsic_emit_setter (const SimdIntrinsc *intrinsic, MonoCompile *cfg, Mon
 	MonoInst *ins;
 	MonoMethodSignature *sig = mono_method_signature (cmethod);
 	int size, align;
+	gboolean indirect;
+	int dreg;
+
 	size = mono_type_size (sig->params [0], &align); 
 
 	if (size == 2 || size == 4 || size == 8) {
 		MONO_INST_NEW (cfg, ins, mono_type_to_slow_insert_op (sig->params [0]));
 		ins->klass = cmethod->klass;
 		/*This is a partial load so we encode the dependency on the previous value by setting dreg and sreg1 to the same value.*/
-		ins->dreg = ins->sreg1 = load_simd_vreg (cfg, cmethod, args [0]);
+		ins->dreg = ins->sreg1 = dreg = load_simd_vreg (cfg, cmethod, args [0], &indirect);
 		ins->sreg2 = args [1]->dreg;
 		ins->inst_c0 = intrinsic->opcode;
 		if (sig->params [0]->type == MONO_TYPE_R4)
@@ -972,7 +996,7 @@ simd_intrinsic_emit_setter (const SimdIntrinsc *intrinsic, MonoCompile *cfg, Mon
 
 		MONO_INST_NEW (cfg, ins, OP_EXTRACTX_U2);
 		ins->klass = cmethod->klass;
-		ins->sreg1 = sreg = load_simd_vreg (cfg, cmethod, args [0]);
+		ins->sreg1 = sreg = dreg = load_simd_vreg (cfg, cmethod, args [0], &indirect);
 		ins->type = STACK_I4;
 		ins->dreg = vreg = alloc_ireg (cfg);
 		ins->inst_c0 = intrinsic->opcode / 2;
@@ -985,7 +1009,14 @@ simd_intrinsic_emit_setter (const SimdIntrinsc *intrinsic, MonoCompile *cfg, Mon
 		ins->dreg = sreg;
 		ins->inst_c0 = intrinsic->opcode;
 		MONO_ADD_INS (cfg->cbb, ins);
+	}
 
+	if (indirect) {
+		MONO_INST_NEW (cfg, ins, OP_STOREX_MEMBASE);
+		ins->klass = cmethod->klass;
+		ins->dreg = args [0]->dreg;
+		ins->sreg1 = dreg;
+		MONO_ADD_INS (cfg->cbb, ins);
 	}
 	return ins;
 }
@@ -997,7 +1028,7 @@ simd_intrinsic_emit_getter (const SimdIntrinsc *intrinsic, MonoCompile *cfg, Mon
 	MonoMethodSignature *sig = mono_method_signature (cmethod);
 	int vreg, shift_bits = mono_type_elements_shift_bits (sig->ret);
 
-	vreg = load_simd_vreg (cfg, cmethod, args [0]);
+	vreg = load_simd_vreg (cfg, cmethod, args [0], NULL);
 
 	if (intrinsic->opcode >> shift_bits) {
 		MONO_INST_NEW (cfg, ins, OP_PSHUFLED);
@@ -1036,7 +1067,7 @@ simd_intrinsic_emit_long_getter (const SimdIntrinsc *intrinsic, MonoCompile *cfg
 	int vreg;
 	gboolean is_r8 = mono_method_signature (cmethod)->ret->type == MONO_TYPE_R8;
 
-	vreg = load_simd_vreg (cfg, cmethod, args [0]);
+	vreg = load_simd_vreg (cfg, cmethod, args [0], NULL);
 
 	MONO_INST_NEW (cfg, ins, is_r8 ? OP_EXTRACT_R8 : OP_EXTRACT_I8);
 	ins->klass = cmethod->klass;
@@ -1233,8 +1264,8 @@ simd_intrinsic_emit_shuffle (const SimdIntrinsc *intrinsic, MonoCompile *cfg, Mo
 	/*TODO Exposing shuffle is not a good thing as it's non obvious. We should come up with better abstractions*/
 
 	if (args [1]->opcode != OP_ICONST) {
-		g_warning ("Shuffle with non literals is not yet supported");
-		g_assert_not_reached ();
+		/*TODO Shuffle with non literals is not yet supported */
+		return NULL;
 	}
 	vreg = get_simd_vreg (cfg, cmethod, args [0]);
 	NULLIFY_INS (args [1]);

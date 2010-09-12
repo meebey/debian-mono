@@ -29,6 +29,7 @@
 //
 
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 
@@ -67,7 +68,7 @@ namespace System.Web.Util
 
                                 path = Path.Combine (tempdir,
 						     String.Format ("{0}{1}{2}", (prefix != null) ? prefix + "." : "",
-								    num.ToString ("x", CultureInfo.InvariantCulture),
+								    num.ToString ("x", Helpers.InvariantCulture),
 								    (extension != null) ? "." + extension : ""));
                                         
                                 try {
@@ -77,6 +78,25 @@ namespace System.Web.Util
                         } while (ret == null);
 
 			return ret;
+		}
+
+		[Conditional ("DEVEL")]
+		public static void WriteLineLog (string logFilePath, string format, params object[] parms)
+		{
+			WriteLog (logFilePath, format + Environment.NewLine, parms);
+		}
+		
+		[Conditional ("DEVEL")]
+		public static void WriteLog (string logFilePath, string format, params object[] parms)
+		{
+			string path = logFilePath != null && logFilePath.Length > 0 ? logFilePath :
+				Path.Combine (Path.GetTempPath (), "System.Web.log");
+			using (TextWriter tw = new StreamWriter (path, true)) {
+				if (parms != null && parms.Length > 0)
+					tw.Write (format, parms);
+				else
+					tw.Write (format);
+			}
 		}
 	}
 }

@@ -66,6 +66,48 @@ namespace System.Windows.Forms {
 #endif		
 		#endregion	// Fields
 
+		#region UIA Framework Events
+#if NET_2_0
+		static object UIAHorizontallyScrollableChangedEvent = new object ();
+
+		internal event EventHandler UIAHorizontallyScrollableChanged {
+			add { Events.AddHandler (UIAHorizontallyScrollableChangedEvent, value); }
+			remove { Events.RemoveHandler (UIAHorizontallyScrollableChangedEvent, value); }
+		}
+
+		internal void OnUIAHorizontallyScrollableChanged (EventArgs e)
+		{
+			EventHandler eh
+				= (EventHandler) Events [UIAHorizontallyScrollableChangedEvent];
+			if (eh != null)
+				eh (this, e);
+		}
+
+		static object UIAHorizontallyScrolledEvent = new object ();
+
+		internal event EventHandler UIAHorizontallyScrolled {
+			add { Events.AddHandler (UIAHorizontallyScrolledEvent, value); }
+			remove { Events.RemoveHandler (UIAHorizontallyScrolledEvent, value); }
+		}
+
+		internal void OnUIAHorizontallyScrolled (EventArgs e)
+		{
+			EventHandler eh
+				= (EventHandler) Events [UIAHorizontallyScrolledEvent];
+			if (eh != null)
+				eh (this, e);
+		}
+#endif
+		#endregion
+
+		#region UIA Framework Property
+#if NET_2_0
+		internal double UIAHorizontalViewSize {
+			get { return LeftScrollButtonArea.Left * 100 / TabPages [TabCount - 1].TabBounds.Right; }
+		}
+#endif
+		#endregion
+
 		#region Public Constructors
 		public TabControl ()
 		{
@@ -231,7 +273,7 @@ namespace System.Windows.Forms {
 		}
 
 #if NET_2_0
-		[MonoTODO ("Saves the value and raises event, but needs actual implementation call")]
+		[MonoTODO ("RTL not supported")]
 		[Localizable (true)]
 		[DefaultValue (false)]
 		public virtual bool RightToLeftLayout {
@@ -451,7 +493,14 @@ namespace System.Windows.Forms {
 		#region Internal Properties
 		internal bool ShowSlider {
 			get { return show_slider; }
-			set { show_slider = value; }
+			set {
+				show_slider = value;
+
+#if NET_2_0
+				// UIA Framework Event: HorizontallyScrollable Changed
+				OnUIAHorizontallyScrollableChanged (EventArgs.Empty);
+#endif
+			}
 		}
 
 		internal int SliderPos {
@@ -770,6 +819,10 @@ namespace System.Windows.Forms {
 
 		protected override void OnKeyDown (KeyEventArgs ke)
 		{
+			base.OnKeyDown (ke);
+			if (ke.Handled)
+				return;
+
 			if (ke.KeyCode == Keys.Tab && (ke.KeyData & Keys.Control) != 0) {
 				if ((ke.KeyData & Keys.Shift) == 0)
 					SelectedIndex = (SelectedIndex + 1) % TabCount;
@@ -784,8 +837,6 @@ namespace System.Windows.Forms {
 				ke.Handled = true;
 			} else if (NavigateTabs (ke.KeyCode))
 				ke.Handled = true;
-
-			base.OnKeyDown (ke);
 		}
 
 		protected override bool IsInputKey (Keys keyData)
@@ -921,6 +972,11 @@ namespace System.Windows.Forms {
 						slider_pos++;
 						SizeTabs ();
 
+#if NET_2_0
+						// UIA Framework Event: Horizontally Scrolled
+						OnUIAHorizontallyScrolled (EventArgs.Empty);
+#endif
+
 						switch (this.Alignment) {
 							case TabAlignment.Top:
 								Invalidate (new Rectangle (0, 0, Width, ItemSize.Height));
@@ -945,6 +1001,11 @@ namespace System.Windows.Forms {
 					if (CanScrollLeft) {
 						slider_pos--;
 						SizeTabs ();
+
+#if NET_2_0
+						// UIA Framework Event: Horizontally Scrolled
+						OnUIAHorizontallyScrolled (EventArgs.Empty);
+#endif
 
 						switch (this.Alignment) {
 							case TabAlignment.Top:
@@ -1203,7 +1264,7 @@ namespace System.Windows.Forms {
 			if (SizeMode == TabSizeMode.Fixed) {
 				width = item_size.Width;
 			} else {			
-				width = MeasureStringWidth (DeviceContext, page.Text, Font);
+				width = MeasureStringWidth (DeviceContext, page.Text, page.Font);
 				width += (Padding.X * 2) + 2;
 
 				if (ImageList != null && page.ImageIndex >= 0 && page.ImageIndex < ImageList.Images.Count) {
@@ -1626,9 +1687,14 @@ namespace System.Windows.Forms {
 				// We don't want to raise SelectedIndexChanged until after we
 				// have removed from the collection, so TabCount will be
 				// correct for the user.
-				if (change_index && Count > 0)
-					owner.SelectedIndex--;
-				else if (change_index) {
+				if (change_index && Count > 0) {
+					// Clear the selected index internally, to avoid trying to access the previous
+					// selected tab when setting the new one - this is what .net seems to do
+					int prev_selected_index = owner.SelectedIndex;
+					owner.selected_index = -1;
+
+					owner.SelectedIndex = --prev_selected_index;
+				} else if (change_index) {
 					owner.selected_index = -1;
 					owner.OnSelectedIndexChanged (EventArgs.Empty);
 				} else

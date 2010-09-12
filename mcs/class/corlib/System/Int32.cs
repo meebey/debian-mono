@@ -102,7 +102,7 @@ namespace System {
 			for (int i = position; i < len; i++){
 				char c = s [i];
 				
-				if (!Char.IsWhiteSpace (c)){
+				if (c != 0 && !Char.IsWhiteSpace (c)){
 					if (!tryParse)
 						exc = GetFormatException ();
 					return false;
@@ -229,6 +229,10 @@ namespace System {
 							"are permitted.");
 					return false;
 				}
+			} else if ((uint) style > (uint) NumberStyles.Any){
+				if (!tryParse)
+					exc = new ArgumentException ("Not a valid number style");
+				return false;
 			}
 
 			return true;
@@ -277,21 +281,52 @@ namespace System {
 			} 
 		}
 
-		internal static bool FindExponent (ref int pos, string s)
+		internal static bool FindExponent (ref int pos, string s, ref int exponent, bool tryParse, ref Exception exc)
 		{
+				exponent = 0;
+				long exp = 0; // temp long value
+
 				int i = s.IndexOfAny(new char [] {'e', 'E'}, pos);
-				if (i < 0)
-						return false;
-				if (++i == s.Length)
-						return false;
-				if (s [i] == '+' || s [i] == '-')
-						if (++i == s.Length)
-								return false;
-				if (!Char.IsDigit (s [i]))
-						return false;
-				for (; i < s.Length; ++i)
-						if (!Char.IsDigit (s [i])) 
-								break;
+				if (i < 0) {
+					exc = null;
+					return false;
+				}
+
+				if (++i == s.Length) {
+					exc = tryParse ? null : GetFormatException ();
+					return true;
+				}
+
+				// negative exponent not valid for Int32
+				if (s [i] == '-') {
+					exc = tryParse ? null : new OverflowException ("Value too large or too small.");
+					return true;
+				}
+
+				if (s [i] == '+' && ++i == s.Length) {
+					exc = tryParse ? null : GetFormatException ();
+					return true;
+				}
+
+				for (; i < s.Length; i++) {
+					if (!Char.IsDigit (s [i]))  {
+						exc = tryParse ? null : GetFormatException ();
+						return true;
+					}
+
+					// Reduce the risk of throwing an overflow exc
+					exp = checked (exp * 10 - (int) (s [i] - '0'));
+					if (exp < Int32.MinValue || exp > Int32.MaxValue) {
+						exc = tryParse ? null : new OverflowException ("Value too large or too small.");
+						return true;
+					}
+				}
+
+				// exp value saved as negative
+				exp = -exp;
+
+				exc = null;
+				exponent = (int)exp;
 				pos = i;
 				return true;
 		}
@@ -329,12 +364,6 @@ namespace System {
 
 			if (s == null) {
 				if (!tryParse)
-					exc = GetFormatException ();
-				return false;
-			}
-			
-			if (s == null) {
-				if (!tryParse)
 					exc = new ArgumentNullException ();
 				return false;
 			}
@@ -345,12 +374,12 @@ namespace System {
 				return false;
 			}
 
-			NumberFormatInfo nfi;
+			NumberFormatInfo nfi = null;
 			if (fp != null) {
 				Type typeNFI = typeof (System.Globalization.NumberFormatInfo);
 				nfi = (NumberFormatInfo) fp.GetFormat (typeNFI);
 			}
-			else
+			if (nfi == null)
 				nfi = Thread.CurrentThread.CurrentCulture.NumberFormat;
 
 			if (!CheckStyle (style, tryParse, ref exc))
@@ -439,6 +468,7 @@ namespace System {
 			bool decimalPointFound = false;
 			int digitValue;
 			char hexDigit;
+			int exponent = 0;
 				
 			// Number stuff
 			do {
@@ -513,8 +543,9 @@ namespace System {
 				return false;
 			}
 
-			if (AllowExponent) 
-					FindExponent(ref pos, s);
+			if (AllowExponent)
+				if (FindExponent (ref pos, s, ref exponent, tryParse, ref exc) && exc != null)
+					return false;
 
 			if (AllowTrailingSign && !foundSign) {
 				// Sign + Currency
@@ -562,13 +593,26 @@ namespace System {
 			
 			if (!negative && !AllowHexSpecifier){
 				if (tryParse){
-					long lval = -number;
+					long lval = -((long)number);
 
 					if (lval < MinValue || lval > MaxValue)
 						return false;
 					number = (int) lval;
 				} else
 					number = checked (-number);
+			}
+
+			// result *= 10^exponent
+			if (exponent > 0) {
+				// Reduce the risk of throwing an overflow exc
+				double res = checked (Math.Pow (10, exponent) * number);
+				if (res < Int32.MinValue || res > Int32.MaxValue) {
+					if (!tryParse)
+						exc = new OverflowException ("Value too large or too small.");
+					return false;
+				}
+
+				number = (int)res;
 			}
 			
 			result = number;
@@ -712,9 +756,11 @@ namespace System {
 			return System.Convert.ToSingle (m_value);
 		}
 
-		object IConvertible.ToType (Type type, IFormatProvider provider)
+		object IConvertible.ToType (Type targetType, IFormatProvider provider)
 		{
-			return System.Convert.ToType (m_value, type, provider, false);
+			if (targetType == null)
+				throw new ArgumentNullException ("targetType");
+			return System.Convert.ToType (m_value, targetType, provider, false);
 		}
 
 #if ONLY_1_1

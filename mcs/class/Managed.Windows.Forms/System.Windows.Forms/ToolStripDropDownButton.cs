@@ -104,7 +104,9 @@ namespace System.Windows.Forms
 		#region Protected Methods
 		protected override ToolStripDropDown CreateDefaultDropDown ()
 		{
-			return base.CreateDefaultDropDown ();
+			ToolStripDropDownMenu tsdd = new ToolStripDropDownMenu ();
+			tsdd.OwnerItem = this;
+			return tsdd;
 		}
 
 		protected override void OnMouseDown (MouseEventArgs e)
@@ -165,6 +167,18 @@ namespace System.Windows.Forms
 				this.PerformClick ();
 
 			return true;
+		}
+		#endregion
+
+		#region Internal Methods
+		internal override Size CalculatePreferredSize (Size constrainingSize)
+		{
+			Size preferred_size = base.CalculatePreferredSize (constrainingSize);
+
+			if (this.ShowDropDownArrow)
+				preferred_size.Width += 9;
+
+			return preferred_size;
 		}
 		#endregion
 	}

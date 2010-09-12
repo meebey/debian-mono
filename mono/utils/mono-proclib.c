@@ -14,6 +14,7 @@
 
 /* FIXME: bsds untested */
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
@@ -21,8 +22,13 @@
 #include <sys/user.h>
 #endif
 #ifdef HAVE_STRUCT_KINFO_PROC_KP_PROC
-#define kinfo_pid_member kp_proc.p_pid
-#define kinfo_name_member kp_proc.p_comm
+#  ifdef KERN_PROC2
+#    define kinfo_pid_member p_pid
+#    define kinfo_name_member p_comm
+#  else
+#    define kinfo_pid_member kp_proc.p_pid
+#    define kinfo_name_member kp_proc.p_comm
+#  endif
 #else
 #define kinfo_pid_member ki_pid
 #define kinfo_name_member ki_comm
@@ -41,10 +47,16 @@ gpointer*
 mono_process_list (int *size)
 {
 #if USE_SYSCTL
-	int mib [4];
 	int res, i;
+#ifdef KERN_PROC2
+	int mib [6];
+	size_t data_len = sizeof (struct kinfo_proc2) * 400;
+	struct kinfo_proc2 *processes = malloc (data_len);
+#else
+	int mib [4];
 	size_t data_len = sizeof (struct kinfo_proc) * 400;
 	struct kinfo_proc *processes = malloc (data_len);
+#endif /* KERN_PROC2 */
 	void **buf = NULL;
 
 	if (size)
@@ -52,17 +64,33 @@ mono_process_list (int *size)
 	if (!processes)
 		return NULL;
 
+#ifdef KERN_PROC2
+	mib [0] = CTL_KERN;
+	mib [1] = KERN_PROC2;
+	mib [2] = KERN_PROC_ALL;
+	mib [3] = 0;
+	mib [4] = sizeof(struct kinfo_proc2);
+	mib [5] = 400; /* XXX */
+
+	res = sysctl (mib, 6, processes, &data_len, NULL, 0);
+#else
 	mib [0] = CTL_KERN;
 	mib [1] = KERN_PROC;
 	mib [2] = KERN_PROC_ALL;
 	mib [3] = 0;
 	
 	res = sysctl (mib, 4, processes, &data_len, NULL, 0);
+#endif /* KERN_PROC2 */
+
 	if (res < 0) {
 		free (processes);
 		return NULL;
 	}
+#ifdef KERN_PROC2
+	res = data_len/sizeof (struct kinfo_proc2);
+#else
 	res = data_len/sizeof (struct kinfo_proc);
+#endif /* KERN_PROC2 */
 	buf = g_realloc (buf, res * sizeof (void*));
 	for (i = 0; i < res; ++i)
 		buf [i] = GINT_TO_POINTER (processes [i].kinfo_pid_member);
@@ -131,7 +159,7 @@ get_pid_status_item_buf (int pid, const char *item, char *rbuf, int blen, MonoPr
 		fclose (f);
 		len = strlen (s);
 		strncpy (rbuf, s, MIN (len, blen));
-		rbuf [blen - 1] = 0;
+		rbuf [MIN (len, blen) - 1] = 0;
 		if (error)
 			*error = MONO_PROCESS_ERROR_NONE;
 		return rbuf;
@@ -155,14 +183,33 @@ char*
 mono_process_get_name (gpointer pid, char *buf, int len)
 {
 #if USE_SYSCTL
-	int mib [4];
 	int res;
-	char *p;
+#ifdef KERN_PROC2
+	int mib [6];
+	size_t data_len = sizeof (struct kinfo_proc2);
+	struct kinfo_proc2 processi;
+#else
+	int mib [4];
 	size_t data_len = sizeof (struct kinfo_proc);
 	struct kinfo_proc processi;
+#endif /* KERN_PROC2 */
 
 	memset (buf, 0, len);
 
+#ifdef KERN_PROC2
+	mib [0] = CTL_KERN;
+	mib [1] = KERN_PROC2;
+	mib [2] = KERN_PROC_PID;
+	mib [3] = GPOINTER_TO_UINT (pid);
+	mib [4] = sizeof(struct kinfo_proc2);
+	mib [5] = 400; /* XXX */
+
+	res = sysctl (mib, 6, &processi, &data_len, NULL, 0);
+
+	if (res < 0 || data_len != sizeof (struct kinfo_proc2)) {
+		return buf;
+	}
+#else
 	mib [0] = CTL_KERN;
 	mib [1] = KERN_PROC;
 	mib [2] = KERN_PROC_PID;
@@ -172,6 +219,7 @@ mono_process_get_name (gpointer pid, char *buf, int len)
 	if (res < 0 || data_len != sizeof (struct kinfo_proc)) {
 		return buf;
 	}
+#endif /* KERN_PROC2 */
 	strncpy (buf, processi.kinfo_name_member, len - 1);
 	return buf;
 #else
@@ -279,8 +327,8 @@ static gint64
 get_process_stat_time (int pid, int pos, int sum, MonoProcessError *error)
 {
 	gint64 val = get_process_stat_item (pid, pos, sum, error);
-	/* return milliseconds */
-	return (val * 1000) / get_user_hz ();
+	/* return 100ns ticks */
+	return (val * 10000000) / get_user_hz ();
 }
 
 static gint64
@@ -316,11 +364,11 @@ mono_process_get_data_with_error (gpointer pid, MonoProcessData data, MonoProces
 	case MONO_PROCESS_NUM_THREADS:
 		return get_pid_status_item (rpid, "Threads", error);
 	case MONO_PROCESS_USER_TIME:
-		return get_process_stat_time (rpid, 12, FALSE, error);
+		return get_process_stat_time (rpid, 10, FALSE, error);
 	case MONO_PROCESS_SYSTEM_TIME:
-		return get_process_stat_time (rpid, 13, FALSE, error);
+		return get_process_stat_time (rpid, 11, FALSE, error);
 	case MONO_PROCESS_TOTAL_TIME:
-		return get_process_stat_time (rpid, 12, TRUE, error);
+		return get_process_stat_time (rpid, 10, TRUE, error);
 	case MONO_PROCESS_WORKING_SET:
 		return get_pid_status_item (rpid, "VmRSS", error) * 1024;
 	case MONO_PROCESS_WORKING_SET_PEAK:
@@ -343,6 +391,10 @@ mono_process_get_data_with_error (gpointer pid, MonoProcessData data, MonoProces
 		return get_process_stat_item (rpid, 18, FALSE, error) / get_user_hz ();
 	case MONO_PROCESS_PPID:
 		return get_process_stat_time (rpid, 0, FALSE, error);
+
+		/* Nothing yet */
+	case MONO_PROCESS_END:
+		return 0;
 	}
 	return 0;
 }
@@ -399,7 +451,8 @@ get_cpu_times (int cpu_id, gint64 *user, gint64 *systemt, gint64 *irq, gint64 *s
 	FILE *f = fopen ("/proc/stat", "r");
 	if (!f)
 		return;
-	hz *= mono_cpu_count ();
+	if (cpu_id < 0)
+		hz *= mono_cpu_count ();
 	while ((s = fgets (buf, sizeof (buf), f))) {
 		char *data = NULL;
 		if (cpu_id < 0 && strncmp (s, "cpu", 3) == 0 && g_ascii_isspace (s [3])) {
@@ -457,6 +510,10 @@ mono_cpu_get_data (int cpu_id, MonoCpuData data, MonoProcessError *error)
 	case MONO_CPU_IDLE_TIME:
 		get_cpu_times (cpu_id, NULL, NULL, NULL, NULL, &value);
 		break;
+
+	case MONO_CPU_END:
+		/* Nothing yet */
+		return 0;
 	}
 	return value;
 }

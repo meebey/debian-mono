@@ -31,6 +31,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.Build.BuildEngine;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 
@@ -44,6 +45,7 @@ namespace Microsoft.Build.Tasks {
 		bool		rebaseOutputs;
 		bool		runEachTargetSeparately;
 		bool		stopOnFirstFailure;
+		bool		buildInParallel;
 		ITaskItem []	targetOutputs;
 		string []	targets;
 	
@@ -53,6 +55,9 @@ namespace Microsoft.Build.Tasks {
 
 		public override bool Execute ()
 		{
+			if (projects.Length == 0)
+				return true;
+
 			string filename;
 			bool result = true;
 			stopOnFirstFailure = false;
@@ -60,16 +65,40 @@ namespace Microsoft.Build.Tasks {
 			string currentDirectory = Environment.CurrentDirectory;
 			Hashtable outputs;
 		
-			Dictionary<string, string> global_properties = SplitPropertiesToDictionary ();
+			var global_properties = SplitPropertiesToDictionary ();
 			Dictionary<string, ITaskItem> projectsByFileName = new Dictionary<string, ITaskItem> ();
+
+			Log.LogMessage (MessageImportance.Low, "Global Properties:");
+			if (global_properties != null)
+				foreach (KeyValuePair<string, string> pair in global_properties)
+					Log.LogMessage (MessageImportance.Low, "\t{0} = {1}", pair.Key, pair.Value);
 
 			foreach (ITaskItem project in projects) {
 				filename = project.GetMetadata ("FullPath");
+				if (!File.Exists (filename)) {
+					Log.LogError ("Could not find the project file '{0}'", filename);
+					if (stopOnFirstFailure)
+						break;
+
+					continue;
+				}
 
 				Directory.SetCurrentDirectory (Path.GetDirectoryName (filename));
 				outputs = new Hashtable ();
 
-				result = BuildEngine.BuildProjectFile (filename, targets, global_properties, outputs);
+				try {
+					// Order of precedence:
+					// %(Project.ToolsVersion) , ToolsVersion property
+					string tv = project.GetMetadata ("ToolsVersion");
+					if (String.IsNullOrEmpty (tv))
+						tv = ToolsVersion;
+					ThrowIfNotValidToolsVersion (tv);
+
+					result = BuildEngine2.BuildProjectFile (filename, targets, global_properties, outputs, tv);
+				} catch (InvalidProjectFileException e) {
+					Log.LogError ("Error building project {0}: {1}", filename, e.Message);
+					result = false;
+				}
 
 				if (result) {
 					// Metadata from the first item for the project file is copied
@@ -80,11 +109,14 @@ namespace Microsoft.Build.Tasks {
 					foreach (DictionaryEntry de in outputs) {
 						ITaskItem [] array = (ITaskItem []) de.Value;
 						foreach (ITaskItem item in array) {
+							// DONT share items!
+							ITaskItem new_item = new TaskItem (item);
+
 							// copy the metadata from original @project to here
 							// CopyMetadataTo does _not_ overwrite
-							first_item.CopyMetadataTo (item);
+							first_item.CopyMetadataTo (new_item);
 
-							outputItems.Add (item);
+							outputItems.Add (new_item);
 
 							//FIXME: Correctly rebase output paths to be relative to the
 							//	 calling project
@@ -93,7 +125,6 @@ namespace Microsoft.Build.Tasks {
 						}
 					}
 				} else {
-					Log.LogError ("Error while building {0}", filename);
 					if (stopOnFirstFailure)
 						break;
 				}
@@ -106,6 +137,12 @@ namespace Microsoft.Build.Tasks {
 
 			Directory.SetCurrentDirectory (currentDirectory);
 			return result;
+		}
+
+		void ThrowIfNotValidToolsVersion (string toolsVersion)
+		{
+			if (!String.IsNullOrEmpty (toolsVersion) && Engine.GlobalEngine.Toolsets [toolsVersion] == null)
+				throw new Exception (String.Format ("Unknown ToolsVersion : {0}", toolsVersion));
 		}
 
 		[Required]
@@ -146,12 +183,21 @@ namespace Microsoft.Build.Tasks {
 			set { targets = value; }
 		}
 
-		Dictionary<string, string> SplitPropertiesToDictionary ()
+		public bool BuildInParallel {
+			get { return buildInParallel; }
+			set { buildInParallel = value; }
+		}
+
+		public string ToolsVersion {
+			get; set;
+		}
+
+		SortedDictionary<string, string> SplitPropertiesToDictionary ()
 		{
 			if (properties == null)
 				return null;
 
-			Dictionary<string, string> global_properties = new Dictionary<string, string> ();
+			var global_properties = new SortedDictionary<string, string> ();
 			foreach (string kvpair in properties) {
 				if (String.IsNullOrEmpty (kvpair))
 					continue;

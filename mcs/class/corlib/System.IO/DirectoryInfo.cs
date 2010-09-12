@@ -35,7 +35,7 @@ using System.Collections;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
-#if NET_2_0
+#if NET_2_0 && !NET_2_1
 using System.Security.AccessControl;
 #endif
 
@@ -202,6 +202,8 @@ namespace System.IO {
 			if (searchPattern == null)
 				throw new ArgumentNullException ("searchPattern");
 
+			if (!Directory.Exists (FullPath))
+				throw new IOException ("Invalid directory");
 			string [] dirs = Directory.GetDirectories (FullPath, searchPattern);
 			string [] files = Directory.GetFiles (FullPath, searchPattern);
 
@@ -242,7 +244,7 @@ namespace System.IO {
 			return OriginalPath;
 		}
 
-#if NET_2_0
+#if NET_2_0 && !NET_2_1
 		public DirectoryInfo[] GetDirectories (string searchPattern, SearchOption searchOption)
 		{
 			switch (searchOption) {

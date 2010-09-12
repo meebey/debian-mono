@@ -791,8 +791,8 @@ namespace System.Windows.Forms {
 			ActiveWindow = handle;
 		}
 
-		internal override void AudibleAlert() {
-			throw new NotImplementedException();
+		internal override void AudibleAlert(AlertType alert) {
+			AlertSoundPlay ();
 		}
 
 		internal override void CaretVisible (IntPtr hwnd, bool visible) {
@@ -1100,6 +1100,17 @@ namespace System.Windows.Forms {
 		internal override IntPtr DefWndProc(ref Message msg) {
 			Hwnd hwnd = Hwnd.ObjectFromHandle (msg.HWnd);
 			switch ((Msg)msg.Msg) {
+				case Msg.WM_IME_COMPOSITION:
+					string s = KeyboardHandler.ComposedString;
+					foreach (char c in s)
+						SendMessage (msg.HWnd, Msg.WM_IME_CHAR, (IntPtr) c, msg.LParam);
+					break;
+				case Msg.WM_IME_CHAR:
+					// On Windows API it sends two WM_CHAR messages for each byte, but
+					// I wonder if it is worthy to emulate it (also no idea how to 
+					// reconstruct those bytes into chars).
+					SendMessage (msg.HWnd, Msg.WM_CHAR, msg.WParam, msg.LParam);
+					return IntPtr.Zero;
 				case Msg.WM_QUIT: {
 					if (WindowMapping [hwnd.Handle] != null)
 
@@ -1522,7 +1533,11 @@ namespace System.Windows.Forms {
 				clip_region.MakeEmpty();
 
 				foreach (Rectangle r in hwnd.ClipRectangles) {
-					clip_region.Union (r);
+					/* Expand the region slightly.
+					 * See bug 464464.
+					 */
+					Rectangle r2 = Rectangle.FromLTRB (r.Left, r.Top, r.Right, r.Bottom + 1);
+					clip_region.Union (r2);
 				}
 
 				if (hwnd.UserClip != null) {
@@ -1916,11 +1931,16 @@ namespace System.Windows.Forms {
 				SendMessage(hwnd.client_window, Msg.WM_WINDOWPOSCHANGED, IntPtr.Zero, IntPtr.Zero);
 
 				Control ctrl = Control.FromHandle (handle);
-				Size TranslatedSize = TranslateWindowSizeToQuartzWindowSize (ctrl.GetCreateParams (), new Size (width, height));
+				CreateParams cp = ctrl.GetCreateParams ();
+				Size TranslatedSize = TranslateWindowSizeToQuartzWindowSize (cp, new Size (width, height));
 				Carbon.Rect rect = new Carbon.Rect ();
 
 				if (WindowMapping [hwnd.Handle] != null) {
-					SetRect (ref rect, (short)x, (short)(y+MenuBarHeight), (short)(x+TranslatedSize.Width), (short)(y+MenuBarHeight+TranslatedSize.Height));
+					if (StyleSet (cp.Style, WindowStyles.WS_POPUP)) {
+						SetRect (ref rect, (short)x, (short)y, (short)(x+TranslatedSize.Width), (short)(y+TranslatedSize.Height));
+					} else {
+						SetRect (ref rect, (short)x, (short)(y+MenuBarHeight), (short)(x+TranslatedSize.Width), (short)(y+MenuBarHeight+TranslatedSize.Height));
+					}
 					SetWindowBounds ((IntPtr) WindowMapping [hwnd.Handle], 33, ref rect);
 					Carbon.HIRect frame_rect = new Carbon.HIRect (0, 0, TranslatedSize.Width, TranslatedSize.Height);
 					HIViewSetFrame (hwnd.whole_window, ref frame_rect);
@@ -2353,6 +2373,9 @@ namespace System.Windows.Forms {
 		[DllImport("/System/Library/Frameworks/Carbon.framework/Versions/Current/Carbon")]
 		extern static short GetMBarHeight ();
 		
+		[DllImport("/System/Library/Frameworks/Carbon.framework/Versions/Current/Carbon")]
+		extern static void AlertSoundPlay ();
+
 		#region Cursor imports
 		[DllImport("/System/Library/Frameworks/Carbon.framework/Versions/Current/Carbon")]
 		extern static Carbon.HIRect CGDisplayBounds (IntPtr displayID);

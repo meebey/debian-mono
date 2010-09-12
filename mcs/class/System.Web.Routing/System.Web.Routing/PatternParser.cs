@@ -68,21 +68,25 @@ namespace System.Web.Routing
 		void Parse ()
 		{
 			string url = Url;
-
-			if (String.IsNullOrEmpty (url))
-				throw new SystemException ("INTERNAL ERROR: it should not try to parse null or empty string");
-			if (url [0] == '~' || url [0] == '/')
-				throw new ArgumentException ("Url must not start with '~' or '/'");
-			if (url.IndexOf ('?') >= 0)
-				throw new ArgumentException ("Url must not contain '?'");
-
+			parameterNames = new Dictionary <string, bool> (StringComparer.OrdinalIgnoreCase);
+			
+			if (!String.IsNullOrEmpty (url)) {
+				if (url [0] == '~' || url [0] == '/')
+					throw new ArgumentException ("Url must not start with '~' or '/'");
+				if (url.IndexOf ('?') >= 0)
+					throw new ArgumentException ("Url must not contain '?'");
+			} else {
+				segments = new PatternSegment [0];
+				tokens = new PatternToken [0];
+				return;
+			}
+			
 			string[] parts = url.Split ('/');
 			int partsCount = segmentCount = parts.Length;
 			var allTokens = new List <PatternToken> ();
 			PatternToken tmpToken;
 			
-			segments = new PatternSegment [partsCount];			
-			parameterNames = new Dictionary <string, bool> (StringComparer.OrdinalIgnoreCase);
+			segments = new PatternSegment [partsCount];
 			
 			for (int i = 0; i < partsCount; i++) {
 				if (haveSegmentWithCatchAll)
@@ -453,6 +457,7 @@ namespace System.Web.Routing
 				string parameterName = token.Name;
 				object tokenValue;
 
+#if SYSTEMCORE_DEP
 				if (userValues.GetValue (parameterName, out tokenValue)) {
 					if (!defaultValues.Has (parameterName, tokenValue)) {
 						canTrim = false;
@@ -482,6 +487,7 @@ namespace System.Web.Routing
 						ret.Insert (0, tokenValue.ToString ());
 					continue;
 				}
+#endif
 			}
 
 			// All the values specified in userValues that aren't part of the original
@@ -492,8 +498,10 @@ namespace System.Web.Routing
 				foreach (var de in userValues) {
 					string parameterName = de.Key;
 
+#if SYSTEMCORE_DEP
 					if (parameterNames.ContainsKey (parameterName) || defaultValues.Has (parameterName) || constraints.Has (parameterName))
 						continue;
+#endif
 
 					object parameterValue = de.Value;
 					if (parameterValue == null)

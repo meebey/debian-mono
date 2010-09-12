@@ -810,7 +810,7 @@ namespace System.Windows.Forms {
 			root_node.CollapseAll ();
 			EndUpdate ();
 
-			if (IsHandleCreated && vbar.VisibleInternal)
+			if (vbar.VisibleInternal)
 				vbar.Value = vbar.Maximum - VisibleCount + 1;
 		}
 
@@ -1605,7 +1605,7 @@ namespace System.Windows.Forms {
 
 			int use_index = node.Image;
 
-			if (use_index != -1)
+			if (use_index > -1 && use_index < ImageList.Images.Count)
 				ImageList.Draw (dc, x, y, ImageList.ImageSize.Width, ImageList.ImageSize.Height, use_index);
 		}
 
@@ -1726,12 +1726,19 @@ namespace System.Windows.Forms {
 				return;
 
 			r.Inflate (-1, -1);
+
 			if (Focused && node == highlighted_node) {
-				dc.FillRectangle (ThemeEngine.Current.ResPool.GetSolidBrush (ThemeEngine.Current.ColorHighlight), r);
+				// Use the node's BackColor if is not empty, and is not actually the selected one (yet)
+				Color back_color = node != selected_node && node.BackColor != Color.Empty ? node.BackColor :
+					ThemeEngine.Current.ColorHighlight;
+				dc.FillRectangle (ThemeEngine.Current.ResPool.GetSolidBrush (back_color), r);
+
 			} else if (!hide_selection && node == highlighted_node) {
 				dc.FillRectangle (SystemBrushes.Control, r);
 			} else {
-				dc.FillRectangle (ThemeEngine.Current.ResPool.GetSolidBrush (node.BackColor), r);
+				// If selected_node is not the current highlighted one, use the color of the TreeView
+				Color back_color = node == selected_node ? BackColor : node.BackColor;
+				dc.FillRectangle (ThemeEngine.Current.ResPool.GetSolidBrush (back_color), r);
 			}
 		}
 		 
@@ -2183,6 +2190,8 @@ namespace System.Windows.Forms {
 
 				highlighted_node = focused_node;
 				selected_node = focused_node;
+				if (selected_node != null)
+					Invalidate (selected_node.Bounds);
 			}
 		}
 
@@ -2227,8 +2236,10 @@ namespace System.Windows.Forms {
 				return;
 
 			Invalidate (highlighted_node.Bounds);
-			Invalidate (selected_node.Bounds);
-			Invalidate (focused_node.Bounds);
+			if (selected_node != null)
+				Invalidate (selected_node.Bounds);
+			if (focused_node != null)
+				Invalidate (focused_node.Bounds);
 
 			highlighted_node = selected_node;
 			focused_node = selected_node;

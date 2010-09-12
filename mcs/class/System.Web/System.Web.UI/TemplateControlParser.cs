@@ -28,6 +28,7 @@
 //
 
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Security.Permissions;
@@ -78,7 +79,7 @@ namespace System.Web.UI {
 #endif
 		}
 		
-		internal override void ProcessMainAttributes (Hashtable atts)
+		internal override void ProcessMainAttributes (IDictionary atts)
 		{
 			autoEventWireup = GetBool (atts, "AutoEventWireup", autoEventWireup);
 			enableViewState = GetBool (atts, "EnableViewState", enableViewState);
@@ -114,9 +115,9 @@ namespace System.Web.UI {
 			return ctrl;
 		}
 
-		internal override void AddDirective (string directive, Hashtable atts)
+		internal override void AddDirective (string directive, IDictionary atts)
 		{
-			int cmp = String.Compare ("Register", directive, true);
+			int cmp = String.Compare ("Register", directive, true, Helpers.InvariantCulture);
 			if (cmp == 0) {
 				string tagprefix = GetString (atts, "TagPrefix", null);
 				if (tagprefix == null || tagprefix.Trim () == "")
@@ -159,7 +160,7 @@ namespace System.Web.UI {
 				return;
 			}
 
-			cmp = String.Compare ("Reference", directive, true);
+			cmp = String.Compare ("Reference", directive, true, Helpers.InvariantCulture);
 			if (cmp == 0) {
 				string vp = null;
 				string page = GetString (atts, "Page", null);

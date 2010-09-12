@@ -10,7 +10,7 @@ typedef struct _MonoDebuggerThreadInfo MonoDebuggerThreadInfo;
 extern MonoDebuggerThreadInfo *mono_debugger_thread_table;
 
 void
-mono_debugger_thread_created (gsize tid, MonoThread *thread, MonoJitTlsData *jit_tls);
+mono_debugger_thread_created (gsize tid, MonoThread *thread, MonoJitTlsData *jit_tls, gpointer func);
 
 void
 mono_debugger_thread_cleanup (MonoJitTlsData *jit_tls);
@@ -19,7 +19,7 @@ void
 mono_debugger_extended_notification (MonoDebuggerEvent event, guint64 data, guint64 arg);
 
 void
-mono_debugger_trampoline_compiled (MonoMethod *method, const guint8 *code);
+mono_debugger_trampoline_compiled (const guint8 *trampoline, MonoMethod *method, const guint8 *code);
 
 void
 mono_debugger_call_exception_handler (gpointer addr, gpointer stack, MonoObject *exc);
@@ -29,6 +29,9 @@ mono_debugger_handle_exception (MonoContext *ctx, MonoObject *obj);
 
 MonoObject *
 mono_debugger_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObject **exc);
+
+gboolean
+mono_debugger_abort_runtime_invoke (void);
 
 /*
  * Internal exception API.

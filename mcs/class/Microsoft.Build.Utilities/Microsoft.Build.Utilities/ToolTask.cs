@@ -3,8 +3,10 @@
 //
 // Author:
 //   Marek Sieradzki (marek.sieradzki@gmail.com)
+//   Ankit Jain (jankit@novell.com)
 //
 // (C) 2005 Marek Sieradzki
+// Copyright 2009 Novell, Inc (http://www.novell.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -38,21 +40,22 @@ using System.Text.RegularExpressions;
 using Microsoft.Build.Framework;
 using Mono.XBuild.Utilities;
 
+using SCS = System.Collections.Specialized;
+
 namespace Microsoft.Build.Utilities
 {
 	public abstract class ToolTask : Task
 	{
-		StringDictionary	environmentOverride;
+		SCS.ProcessStringDictionary	environmentOverride;
 		int			exitCode;
 		int			timeout;
-		string			toolPath;
-		Process			process;
+		string			toolPath, toolExe;
 		Encoding		responseFileEncoding;
 		MessageImportance	standardErrorLoggingImportance;
 		MessageImportance	standardOutputLoggingImportance;
-		
-		static Regex		regex;
-		
+		StringBuilder toolOutput;
+		bool typeLoadException;
+
 		protected ToolTask ()
 			: this (null, null)
 		{
@@ -72,19 +75,8 @@ namespace Microsoft.Build.Utilities
 			this.HelpKeywordPrefix = helpKeywordPrefix;
 			this.toolPath = MonoLocationHelper.GetBinDir ();
 			this.responseFileEncoding = Encoding.UTF8;
-		}
-
-		static ToolTask ()
-		{
-			regex = new Regex (
-				@"^\s*"
-				+ @"(((?<ORIGIN>(((\d+>)?[a-zA-Z]?:[^:]*)|([^:]*))):)"
-				+ "|())"
-				+ "(?<SUBCATEGORY>(()|([^:]*? )))"
-				+ "(?<CATEGORY>(error|warning)) "
-				+ "(?<CODE>[^:]*):"
-				+ "(?<TEXT>.*)$",
-				RegexOptions.IgnoreCase);
+			this.timeout = Int32.MaxValue;
+			this.environmentOverride = new SCS.ProcessStringDictionary ();
 		}
 
 		[MonoTODO]
@@ -93,24 +85,16 @@ namespace Microsoft.Build.Utilities
 			return true;
 		}
 
-		[MonoTODO]
-		// FIXME: it should write responseFileCommands to temporary response file
-		protected virtual int ExecuteTool (string pathToTool,
-						   string responseFileCommands,
-						   string commandLineCommands)
-		{
-			return RealExecute (pathToTool, responseFileCommands, commandLineCommands) ? 0 : -1;
-		}
-		
 		public override bool Execute ()
 		{
 			if (SkipTaskExecution ())
 				return true;
 
-			int result = ExecuteTool (GenerateFullPathToTool (), GenerateResponseFileCommands (),
+			exitCode = ExecuteTool (GenerateFullPathToTool (), GenerateResponseFileCommands (),
 				GenerateCommandLineCommands ());
-			
-			return result == 0;
+
+			// HandleTaskExecutionErrors is called only if exitCode != 0
+			return exitCode == 0 || HandleTaskExecutionErrors ();
 		}
 		
 		[MonoTODO]
@@ -119,98 +103,114 @@ namespace Microsoft.Build.Utilities
 			return null;
 		}
 		
-		private bool RealExecute (string pathToTool,
-					   string responseFileCommands,
-					   string commandLineCommands)
+		protected virtual int ExecuteTool (string pathToTool,
+						   string responseFileCommands,
+						   string commandLineCommands)
 
 		{
 			if (pathToTool == null)
 				throw new ArgumentNullException ("pathToTool");
 
-			if (!File.Exists (pathToTool)) {
-				Log.LogError ("Unable to find tool {0} at '{1}'", ToolName, pathToTool);
-				return false;
-			}
+			string output, error, responseFileName;
+			StreamWriter outwr, errwr;
 
-			string responseFileName = Path.GetTempFileName ();
-			File.WriteAllText (responseFileName, responseFileCommands);
-
-			string arguments = String.Concat (commandLineCommands, " ", GetResponseFileSwitch (responseFileName));
-
-			Log.LogMessage (MessageImportance.Normal, String.Format ("Tool {0} execution started with arguments: {1} {2}",
-				pathToTool, commandLineCommands, responseFileCommands));
-
-			string output = Path.GetTempFileName ();
-			string error = Path.GetTempFileName ();
-			StreamWriter outwr = new StreamWriter (output);
-			StreamWriter errwr = new StreamWriter (error);
-
-			ProcessStartInfo pinfo = new ProcessStartInfo (pathToTool, arguments);
-			pinfo.WorkingDirectory = GetWorkingDirectory () ?? Environment.CurrentDirectory;
-
-			pinfo.UseShellExecute = false;
-			pinfo.RedirectStandardOutput = true;
-			pinfo.RedirectStandardError = true;
+			outwr = errwr = null;
+			responseFileName = output = error = null;
+			toolOutput = new StringBuilder ();
 
 			try {
-				ProcessWrapper pw = ProcessService.StartProcess (pinfo, outwr, errwr, null, environmentOverride);
-				pw.WaitForOutput();
-				exitCode = pw.ExitCode;
-				outwr.Close();
-				errwr.Close();
-				pw.Dispose ();
-			} catch (System.ComponentModel.Win32Exception e) {
-				Log.LogError ("Error executing tool '{0}': {1}", pathToTool, e.Message);
-				return false;
-			}
-
-			bool typeLoadException = false;
-			StringBuilder compilerOutput = new StringBuilder ();
-			foreach (string s in new string[] { output, error }) {
-				using (StreamReader sr = File.OpenText (s)) {
-					string line;
-					while ((line = sr.ReadLine ()) != null) {
-						if (typeLoadException) {
-							compilerOutput.Append (sr.ReadToEnd ());
-							break;
-						}
-
-						compilerOutput.AppendLine (line);
-
-						line = line.Trim ();
-						if (line.Length == 0)
-							continue;
-
-						if (line.StartsWith ("Unhandled Exception: System.TypeLoadException") ||
-						    line.StartsWith ("Unhandled Exception: System.IO.FileNotFoundException")) {
-							typeLoadException = true;
-						}
-						LogEventsFromTextOutput (line, MessageImportance.Low);
-					}
+				string arguments = commandLineCommands;
+				if (!String.IsNullOrEmpty (responseFileCommands)) {
+					responseFileName = Path.GetTempFileName ();
+					File.WriteAllText (responseFileName, responseFileCommands);
+					arguments = arguments + " " + GetResponseFileSwitch (responseFileName);
 				}
-				if (typeLoadException) {
-					string output_str = compilerOutput.ToString ();
-					Regex reg  = new Regex (@".*WARNING.*used in (mscorlib|System),.*", RegexOptions.Multiline);
-					if (reg.Match (output_str).Success)
-						Log.LogError ("Error: A referenced assembly may be built with an incompatible CLR version. See the compilation output for more details.");
-					else
-						Log.LogError ("Error: A dependency of a referenced assembly may be missing, or you may be referencing an assembly created with a newer CLR version. See the compilation output for more details.");
-					Log.LogError (output_str);
-				}
-			}
 
-			if (!Log.HasLoggedErrors && exitCode != 0)
-				Log.LogError ("Compiler crashed: " + compilerOutput.ToString ());
-			
-			Log.LogMessage (MessageImportance.Low, String.Format ("Tool {0} execution finished.", pathToTool));
-			
-			return !Log.HasLoggedErrors;
+				LogToolCommand (String.Format ("Tool {0} execution started with arguments: {1} {2}",
+						pathToTool, commandLineCommands, responseFileCommands));
+
+				output = Path.GetTempFileName ();
+				error = Path.GetTempFileName ();
+				outwr = new StreamWriter (output);
+				errwr = new StreamWriter (error);
+
+				ProcessStartInfo pinfo = new ProcessStartInfo (pathToTool, arguments);
+				pinfo.WorkingDirectory = GetWorkingDirectory () ?? Environment.CurrentDirectory;
+
+				pinfo.UseShellExecute = false;
+				pinfo.RedirectStandardOutput = true;
+				pinfo.RedirectStandardError = true;
+
+				try {
+					ProcessWrapper pw = ProcessService.StartProcess (pinfo, outwr, errwr, null, environmentOverride);
+					pw.WaitForOutput (timeout == Int32.MaxValue ? -1 : timeout);
+					exitCode = pw.ExitCode;
+					outwr.Close();
+					errwr.Close();
+					pw.Dispose ();
+				} catch (System.ComponentModel.Win32Exception e) {
+					Log.LogError ("Error executing tool '{0}': {1}", pathToTool, e.Message);
+					return -1;
+				}
+
+				ProcessOutputFile (output, StandardOutputLoggingImportance);
+				ProcessOutputFile (error, StandardErrorLoggingImportance);
+
+				Log.LogMessage (MessageImportance.Low, "Tool {0} execution finished.", pathToTool);
+				return exitCode;
+			} finally {
+				DeleteTempFile (responseFileName);
+				if (outwr != null)
+					outwr.Dispose ();
+				if (errwr != null)
+					errwr.Dispose ();
+
+				DeleteTempFile (output);
+				DeleteTempFile (error);
+			}
 		}
-		
-		
-		[MonoTODO]
+
+		void ProcessOutputFile (string filename, MessageImportance importance)
+		{
+			using (StreamReader sr = File.OpenText (filename)) {
+				string line;
+				while ((line = sr.ReadLine ()) != null) {
+					if (typeLoadException) {
+						toolOutput.Append (sr.ReadToEnd ());
+						string output_str = toolOutput.ToString ();
+						Regex reg  = new Regex (@".*WARNING.*used in (mscorlib|System),.*",
+								RegexOptions.Multiline);
+
+						if (reg.Match (output_str).Success)
+							Log.LogError (
+								"Error: A referenced assembly may be built with an incompatible " + 
+								"CLR version. See the compilation output for more details.");
+						else
+							Log.LogError (
+								"Error: A dependency of a referenced assembly may be missing, or " +
+								"you may be referencing an assembly created with a newer CLR " +
+								"version. See the compilation output for more details.");
+
+						Log.LogError (output_str);
+					}
+
+					toolOutput.AppendLine (line);
+					LogEventsFromTextOutput (line, importance);
+				}
+			}
+		}
+
 		protected virtual void LogEventsFromTextOutput (string singleLine, MessageImportance importance)
 		{
+			singleLine = singleLine.Trim ();
+			if (singleLine.Length == 0)
+				return;
+
+			if (singleLine.StartsWith ("Unhandled Exception: System.TypeLoadException") ||
+			    singleLine.StartsWith ("Unhandled Exception: System.IO.FileNotFoundException")) {
+				typeLoadException = true;
+			}
+
 			// When IncludeDebugInformation is true, prevents the debug symbols stats from braeking this.
 			if (singleLine.StartsWith ("WROTE SYMFILE") ||
 				singleLine.StartsWith ("OffsetTable") ||
@@ -218,82 +218,36 @@ namespace Microsoft.Build.Utilities
 				singleLine.StartsWith ("Compilation failed"))
 				return;
 
-			string filename, origin, category, code, subcategory, text;
-			int lineNumber, columnNumber, endLineNumber, endColumnNumber;
-		
-			Match m = regex.Match (singleLine);
-			origin = m.Groups [regex.GroupNumberFromName ("ORIGIN")].Value;
-			category = m.Groups [regex.GroupNumberFromName ("CATEGORY")].Value;
-			code = m.Groups [regex.GroupNumberFromName ("CODE")].Value;
-			subcategory = m.Groups [regex.GroupNumberFromName ("SUBCATEGORY")].Value;
-			text = m.Groups [regex.GroupNumberFromName ("TEXT")].Value;
-			
-			ParseOrigin (origin, out filename, out lineNumber, out columnNumber, out endLineNumber, out endColumnNumber);
-
-			if (category == "warning") {
-				Log.LogWarning (subcategory, code, null, filename, lineNumber, columnNumber, endLineNumber,
-					endColumnNumber, text, null);
-			} else if (category == "error") {
-				Log.LogError (subcategory, code, null, filename, lineNumber, columnNumber, endLineNumber,
-					endColumnNumber, text, null);
+			Match match = CscErrorRegex.Match (singleLine);
+			if (!match.Success) {
+				Log.LogMessage (importance, singleLine);
+				return;
 			}
-		}
-		
-		private void ParseOrigin (string origin, out string filename,
-				     out int lineNumber, out int columnNumber,
-				     out int endLineNumber, out int endColumnNumber)
-		{
-			int lParen;
-			string[] temp;
-			string[] left, right;
-			
-			if (origin.IndexOf ('(') != -1 ) {
-				lParen = origin.IndexOf ('(');
-				filename = origin.Substring (0, lParen);
-				temp = origin.Substring (lParen + 1, origin.Length - lParen - 2).Split (',');
-				if (temp.Length == 1) {
-					left = temp [0].Split ('-');
-					if (left.Length == 1) {
-						lineNumber = Int32.Parse (left [0]);
-						columnNumber = 0;
-						endLineNumber = 0;
-						endColumnNumber = 0;
-					} else if (left.Length == 2) {
-						lineNumber = Int32.Parse (left [0]);
-						columnNumber = 0;
-						endLineNumber = Int32.Parse (left [1]);
-						endColumnNumber = 0;
-					} else
-						throw new Exception ("Invalid line/column format.");
-				} else if (temp.Length == 2) {
-					right = temp [1].Split ('-');
-					lineNumber = Int32.Parse (temp [0]);
-					endLineNumber = 0;
-					if (right.Length == 1) {
-						columnNumber = Int32.Parse (right [0]);
-						endColumnNumber = 0;
-					} else if (right.Length == 2) {
-						columnNumber = Int32.Parse (right [0]);
-						endColumnNumber = Int32.Parse (right [0]);
-					} else
-						throw new Exception ("Invalid line/column format.");
-				} else if (temp.Length == 4) {
-					lineNumber = Int32.Parse (temp [0]);
-					endLineNumber = Int32.Parse (temp [2]);
-					columnNumber = Int32.Parse (temp [1]);
-					endColumnNumber = Int32.Parse (temp [3]);
-				} else
-					throw new Exception ("Invalid line/column format.");
+
+			string filename = match.Result ("${file}") ?? "";
+			string line = match.Result ("${line}");
+			int lineNumber = !string.IsNullOrEmpty (line) ? Int32.Parse (line) : 0;
+
+			string col = match.Result ("${column}");
+			int columnNumber = 0;
+			if (!string.IsNullOrEmpty (col))
+				columnNumber = col == "255+" ? -1 : Int32.Parse (col);
+
+			string category = match.Result ("${level}");
+			string code = match.Result ("${number}");
+			string text = match.Result ("${message}");
+
+			if (String.Compare (category, "warning", StringComparison.OrdinalIgnoreCase) == 0) {
+				Log.LogWarning (null, code, null, filename, lineNumber, columnNumber, -1,
+					-1, text, null);
+			} else if (String.Compare (category, "error", StringComparison.OrdinalIgnoreCase) == 0) {
+				Log.LogError (null, code, null, filename, lineNumber, columnNumber, -1,
+					-1, text, null);
 			} else {
-				filename = origin;
-				lineNumber = 0;
-				columnNumber = 0;
-				endLineNumber = 0;
-				endColumnNumber = 0;
+				Log.LogMessage (importance, singleLine);
 			}
 		}
 
-		[MonoTODO]
 		protected virtual string GenerateCommandLineCommands ()
 		{
 			return null;
@@ -301,22 +255,24 @@ namespace Microsoft.Build.Utilities
 
 		protected abstract string GenerateFullPathToTool ();
 
-		[MonoTODO]
 		protected virtual string GenerateResponseFileCommands ()
 		{
 			return null;
 		}
 
-		[MonoTODO]
 		protected virtual string GetResponseFileSwitch (string responseFilePath)
 		{
 			return String.Format ("@{0}", responseFilePath);
 		}
 
-		[MonoTODO]
 		protected virtual bool HandleTaskExecutionErrors ()
 		{
-			return true;
+			if (!Log.HasLoggedErrors && exitCode != 0)
+				Log.LogError ("Tool exited with code: {0}. Output: {1}", exitCode,
+						toolOutput != null ? toolOutput.ToString () : String.Empty);
+			toolOutput = null;
+
+			return ExitCode == 0 && !Log.HasLoggedErrors;
 		}
 
 		protected virtual HostObjectInitializationStatus InitializeHostObject ()
@@ -324,9 +280,9 @@ namespace Microsoft.Build.Utilities
 			return HostObjectInitializationStatus.NoActionReturnSuccess;
 		}
 
-		[MonoTODO]
 		protected virtual void LogToolCommand (string message)
 		{
+			Log.LogMessage (MessageImportance.Normal, message);
 		}
 		
 		[MonoTODO]
@@ -337,7 +293,7 @@ namespace Microsoft.Build.Utilities
 
 		protected virtual bool SkipTaskExecution()
 		{
-			return false;
+			return !ValidateParameters ();
 		}
 
 		protected virtual bool ValidateParameters()
@@ -345,12 +301,25 @@ namespace Microsoft.Build.Utilities
 			return true;
 		}
 
+		protected void DeleteTempFile (string fileName)
+		{
+			if (String.IsNullOrEmpty (fileName))
+				return;
+
+			try {
+				File.Delete (fileName);
+			} catch (IOException ioe) {
+				Log.LogWarning ("Unable to delete temporary file '{0}' : {1}", ioe.Message);
+			} catch (UnauthorizedAccessException uae) {
+				Log.LogWarning ("Unable to delete temporary file '{0}' : {1}", uae.Message);
+			}
+		}
+
 		protected virtual StringDictionary EnvironmentOverride
 		{
 			get { return environmentOverride; }
 		}
 		
-		[MonoTODO]
 		[Output]
 		public int ExitCode {
 			get { return exitCode; }
@@ -379,10 +348,28 @@ namespace Microsoft.Build.Utilities
 			get { return standardOutputLoggingImportance; }
 		}
 
+		protected virtual bool HasLoggedErrors {
+			get { return Log.HasLoggedErrors; }
+		}
+
 		public virtual int Timeout
 		{
 			get { return timeout; }
 			set { timeout = value; }
+		}
+
+		public virtual string ToolExe
+		{
+			get {
+				if (toolExe == null)
+					return ToolName;
+				else
+					return toolExe;
+			}
+			set {
+				if (!String.IsNullOrEmpty (value))
+					toolExe = value;
+			}
 		}
 
 		protected abstract string ToolName
@@ -393,7 +380,21 @@ namespace Microsoft.Build.Utilities
 		public string ToolPath
 		{
 			get { return toolPath; }
-			set { toolPath  = value; }
+			set {
+				if (!String.IsNullOrEmpty (value))
+					toolPath  = value;
+			}
+		}
+
+		// Snatched from our codedom code, with some changes to make it compatible with csc
+		// (the line+column group is optional is csc)
+		static Regex errorRegex;
+		static Regex CscErrorRegex {
+			get {
+				if (errorRegex == null)
+					errorRegex = new Regex (@"^(\s*(?<file>[^\(]+)(\((?<line>\d*)(,(?<column>\d*[\+]*))?\))?:\s+)*(?<level>\w+)\s+(?<number>.*\d):\s*(?<message>.*)", RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+				return errorRegex;
+			}
 		}
 	}
 }

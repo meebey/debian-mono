@@ -1,10 +1,116 @@
+2010-05-20  Marek Habersack  <mhabersack@novell.com>
+
+	* TypeDescriptor.cs: GetTypeDescriptor correctly forwards the call
+	to the wrapped type, if any. Fixes bug #603060
+
+	* TypeDescriptionProvider.cs: GetTypeDescriptor must return the
+	value from a call forwarded to _parent. Fixes bug #603060
+
+2010-01-15  Alexandre Gomes  <alexmipego@gmail.com>
+
+	* BaseNumberConverter.cs: Fixed CanConvertTo and ConvertTo when
+	targeting primitive types.
+
+2009-11-30  Sebastien Pouliot  <sebastien@ximian.com>
+
+	* TypeConverterAttribute.cs: Add missing [ComVisible] for SL2/3 builds
+	[Backport r147154]
+
+2009-10-14  Jonathan Pryor  <jpryor@novell.com>
+
+	* TypeConverter_2_1.cs: Skip this type in the MonoTouch profile;
+	  MonoTouch will be using the 2.0 version of TypeConverter.
+	* ComponentCollection.cs, PropertyDescriptor.cs: MonoTouch uses the
+	  .NET 2.0 versions of these types.
+
+2009-09-29  Alan McGovern  <amcgovern@novell.com>
+
+	* DefaultValueAttribute.cs: Implement the cctor which takes
+	a Type and a string for the SL2 case.
+	* CategoryAttribute.cs: Fix a typo in the CategoryAttribute.Asynchronous
+	ctor and fix some SL2 specific naming changes for the default properties.
+
+2009-09-24  Ivan N. Zlatev  <contact@i-nz.net>
+
+	* EnumConverter.cs: Fix conversion of 0 flag values.
+	[Fixes bug #541402]
+
+2009-07-22  Jb Evain  <jbevain@novell.com>
+
+	* ExpandableObjectConverter.cs: no method to override for a NET_2_1 profile.
+
+2009-07-20  Tom Hindle <tom_hindle@sil.org>
+
+	* Container.cs: Replaced for loop with for loop.
+	[Fixes bug #522474]
+
+2009-07-19  Gert Driesen  <drieseng@users.sourceforge.net>
+
+	* Container.cs: Use generic list on 2.0 profile, and avoid using var
+	on 1.0 profile. Use for loop instead of while in Dispose to avoid
+	accessing count on each iteration.
+
+2009-07-19  Gert Driesen  <drieseng@users.sourceforge.net>
+
+	* Container.cs: Avoid NRE in Remove and RemoveWithoutUnsiting.
+
+2009-07-18  Gert Driesen  <drieseng@users.sourceforge.net>
+
+	* Container.cs: Changed Dispose(bool) behaviour to match .NET, based
+	on patch by Tom Hindle (tom_hindle@sil.org). Also use ValidateName
+	in Add overloads on 1.0 profile by making it available as private
+	method. Use case-insensitive comparison of component name.
+
+2009-06-29 Gonzalo Paniagua Javier <gonzalo@novell.com>
+
+	* LicenseProviderAttribute.cs: avoid nullref when provider has not
+	been set or cannot be loaded.
+
+2009-06-23  Marek Habersack  <mhabersack@novell.com>
+
+	* TypeDescriptor.cs: do not wrap DefaultTypeDescriptionProvider.
+	Implemented GetAttributes and GetProperties in
+	DefaultTypeDescriptor.
+
+	* AttributeCollection.cs: make sure that attrList is never null.
+
+2009-06-22  Marek Habersack  <mhabersack@novell.com>
+
+	* WeakObjectWrapper.cs, WeakObjectWrapperComparer.cs: added - used
+	by TypeDescriptor for storage of type description providers.
+
+	* TypeDescriptor.cs: implemented part of the 2.0+ API which deals
+	with adding/removing/getting type description providers.
+
+	* AttributeCollection.cs: do not throw NREX when attrList is
+	null in Count.
+
+2009-05-14  Jonathan Pryor  <jpryor@novell.com>
+
+	* ListChangedEventArgs.cs: Fix .NET compatibility problems (discovered
+	  from trying to run the System.Data.Linq unit tests).
+
 2009-04-22 Gonzalo Paniagua Javier <gonzalo@novell.com>
 
 	* Win32Exception.cs: made W32ErrorMessage internal.
 
-2009-02-21  Jb Evain  <jbevain@novell.com>
+2009-02-28  Zoltan Varga  <vargaz@gmail.com>
 
-	* EventHandlerList.cs: fix the 1.1 profile.
+	* EventHandlerList.cs: Change this to use a linked list as stated by the
+	MSDN docs.
+
+2009-02-27  Rodrigo Kumpera  <rkumpera@novell.com>
+
+	* ReflectionPropertyDescriptor.cs: Don't cache getter and
+	setter properties. Cache instead the PropertyInfo objects
+	that defined them.
+
+	PropertyInfo::Get/SetValue is faster than calling the method
+	throught reflection.	
+
+2009-02-21  Kornél Pál  <kornelpal@gmail.com>
+
+	* EventHandlerList.cs: Fix profile 1.x build by not using HandlerEntry.
 
 2009-02-21 Gonzalo Paniagua Javier <gonzalo@novell.com>
 

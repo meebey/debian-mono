@@ -3,6 +3,7 @@
 //
 // Authors:
 //  Lluis Sanchez Gual (lluis@novell.com)
+//  Marek Habersack <mhabersack@novell.com>
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,7 +24,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
-// Copyright (C) 2005 Novell, Inc (http://www.novell.com)
+// Copyright (C) 2005-2009 Novell, Inc (http://www.novell.com)
 //
 
 #if NET_2_0
@@ -70,10 +71,12 @@ namespace System.Web.Configuration
 			return new HttpConfigurationContext(configPath);
 		}
 		
-		public virtual string DecryptSection (string encryptedXml, ProtectedConfigurationProvider protectionProvider,
-						      ProtectedConfigurationSection protectedSection)
+		public virtual string DecryptSection (string encryptedXml, ProtectedConfigurationProvider protectionProvider, ProtectedConfigurationSection protectedSection)
 		{
-			throw new NotImplementedException ();
+			if (protectedSection == null)
+				throw new ArgumentNullException ("protectedSection");
+
+			return protectedSection.EncryptSection (encryptedXml, protectionProvider);
 		}
 		
 		public virtual void DeleteStream (string streamName)
@@ -81,15 +84,27 @@ namespace System.Web.Configuration
 			File.Delete (streamName);
 		}
 		
-		public virtual string EncryptSection (string encryptedXml, ProtectedConfigurationProvider protectionProvider,
-						      ProtectedConfigurationSection protectedSection)
+		public virtual string EncryptSection (string clearXml, ProtectedConfigurationProvider protectionProvider, ProtectedConfigurationSection protectedSection)
 		{
-			throw new NotImplementedException ();
+			if (protectedSection == null)
+				throw new ArgumentNullException ("protectedSection");
+
+			return protectedSection.EncryptSection (clearXml, protectionProvider);
 		}
 		
-		public virtual string GetConfigPathFromLocationSubPath (string configPath, string locatinSubPath)
+		public virtual string GetConfigPathFromLocationSubPath (string configPath, string locationSubPath)
 		{
-			return configPath + "/" + locatinSubPath;
+			if (!String.IsNullOrEmpty (locationSubPath) && !String.IsNullOrEmpty (configPath)) {
+				string relConfigPath = configPath.Length == 1 ? null : configPath.Substring (1) + "/";
+				if (relConfigPath != null && locationSubPath.StartsWith (relConfigPath, StringComparison.Ordinal))
+					locationSubPath = locationSubPath.Substring (relConfigPath.Length);
+			}
+			
+			string ret = configPath + "/" + locationSubPath;
+			if (!String.IsNullOrEmpty (ret) && ret [0] == '/')
+				return ret.Substring (1);
+			
+			return ret;
 		}
 		
 		public virtual Type GetConfigType (string typeName, bool throwOnError)
@@ -185,17 +200,14 @@ namespace System.Web.Configuration
 				locationConfigPath = null;
 			} else {
 				int i;
-				if (locationSubPath == null)
-				{
+				if (locationSubPath == null) {
 					configPath = fullPath;
 					if (configPath.Length > 1)
 						configPath = VirtualPathUtility.RemoveTrailingSlash (configPath);
-				}
-				else
+				} else
 					configPath = locationSubPath;
-
-				if (configPath == HttpRuntime.AppDomainAppVirtualPath
-				    || configPath == "/")
+				
+				if (configPath == HttpRuntime.AppDomainAppVirtualPath || configPath == "/")
 					i = -1;
 				else
 					i = configPath.LastIndexOf ("/");
@@ -362,11 +374,18 @@ namespace System.Web.Configuration
 				case ConfigurationAllowDefinition.MachineToApplication:
 					if (String.IsNullOrEmpty (configPath))
 						return true;
-					return (String.Compare (configPath, MachinePath, StringComparison.Ordinal) == 0) ||
-						(String.Compare (configPath, MachineWebPath, StringComparison.Ordinal) == 0) ||
-						(String.Compare (configPath, "/", StringComparison.Ordinal) == 0) ||
-						(String.Compare (configPath, "~", StringComparison.Ordinal) == 0) ||
-						(String.Compare (configPath, HttpRuntime.AppDomainAppVirtualPath) == 0);
+					string normalized;
+
+					if (VirtualPathUtility.IsRooted (configPath))
+						normalized = VirtualPathUtility.Normalize (configPath);
+					else
+						normalized = configPath;
+					
+					return (String.Compare (normalized, MachinePath, StringComparison.Ordinal) == 0) ||
+						(String.Compare (normalized, MachineWebPath, StringComparison.Ordinal) == 0) ||
+						(String.Compare (normalized, "/", StringComparison.Ordinal) == 0) ||
+						(String.Compare (normalized, "~", StringComparison.Ordinal) == 0) ||
+						(String.Compare (normalized, HttpRuntime.AppDomainAppVirtualPath) == 0);
 				default:
 					return true;
 			}
@@ -411,6 +430,9 @@ namespace System.Web.Configuration
 
 		public virtual Stream OpenStreamForWrite (string streamName, string templateStreamName, ref object writeContext)
 		{
+			string rootConfigPath = GetWebConfigFileName (HttpRuntime.AppDomainAppPath);
+			if (String.Compare (streamName, rootConfigPath, StringComparison.OrdinalIgnoreCase) == 0)
+				WebConfigurationManager.SuppressAppReload (true);
 			return new FileStream (streamName, FileMode.Create, FileAccess.Write);
 		}
 
@@ -438,7 +460,7 @@ namespace System.Web.Configuration
 		}
 
 		public virtual object StartMonitoringStreamForChanges (string streamName, StreamChangeCallback callback)
-		{
+		{			
 			throw new NotImplementedException ();
 		}
 		
@@ -455,14 +477,22 @@ namespace System.Web.Configuration
 				throw new ConfigurationErrorsException ("The section can't be defined in this file (the allowed definition context is '" + allowDefinition + "').", errorInfo.Filename, errorInfo.LineNumber);
 		}
 		
-		[MonoTODO("Does nothing")]
 		public virtual void WriteCompleted (string streamName, bool success, object writeContext)
 		{
-		}
-		
-		[MonoTODO("Does nothing")]
+			WriteCompleted (streamName, success, writeContext, false);
+		}		
+
 		public virtual void WriteCompleted (string streamName, bool success, object writeContext, bool assertPermissions)
 		{
+			// There are probably other things to be done here, but for the moment we
+			// just mark the completed write as one that should not cause application
+			// reload. Note that it might already be too late for suppression, since the
+			// FileSystemWatcher monitor might have already delivered the
+			// notification. If the stream has been open using OpenStreamForWrite then
+			// we're safe, though.
+			string rootConfigPath = GetWebConfigFileName (HttpRuntime.AppDomainAppPath);
+			if (String.Compare (streamName, rootConfigPath, StringComparison.OrdinalIgnoreCase) == 0)
+				WebConfigurationManager.SuppressAppReload (true);
 		}
 
 		public virtual bool SupportsChangeNotifications {

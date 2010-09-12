@@ -109,18 +109,19 @@ namespace System.Windows.Forms
 				}
 			}
 			set {
-				if (this.checked_state != (value ? CheckState.Checked : CheckState.Unchecked)) {
-					this.checked_state = value ? CheckState.Checked : CheckState.Unchecked;
-					this.Invalidate ();
-					this.OnCheckedChanged (EventArgs.Empty);
-				}
+				CheckState = value ? CheckState.Checked : CheckState.Unchecked;
 			}
 		}
 
 		[DefaultValue (false)]
 		public bool CheckOnClick {
 			get { return this.check_on_click; }
-			set { this.check_on_click = value; }
+			set {
+				if (this.check_on_click != value) {
+					this.check_on_click = value;
+					OnUIACheckOnClickChangedEvent (EventArgs.Empty);
+				}
+			}
 		}
 
 		[Bindable (true)]
@@ -133,8 +134,12 @@ namespace System.Windows.Forms
 				if (!Enum.IsDefined (typeof (CheckState), value))
 					throw new InvalidEnumArgumentException (string.Format ("Enum argument value '{0}' is not valid for CheckState", value));
 
+				if (value == checked_state)
+					return;
+
 				this.checked_state = value;
 				this.Invalidate ();
+				this.OnCheckedChanged (EventArgs.Empty);
 				this.OnCheckStateChanged (EventArgs.Empty);
 			}
 		}
@@ -339,8 +344,9 @@ namespace System.Windows.Forms
 			// If DropDown.ShowImageMargin is false, we don't display the image
 			Image draw_image = this.UseImageMargin ? this.Image : null;
 			
-			// Figure out our text color
-			Color font_color = this.ForeColor == SystemColors.ControlText ? SystemColors.MenuText : this.ForeColor;
+			// Disable this color detection until we do the color detection for ToolStrip *completely*
+			// Color font_color = this.ForeColor == SystemColors.ControlText ? SystemColors.MenuText : this.ForeColor;
+			Color font_color = ForeColor;
 			
 			if ((this.Selected || this.Pressed) && this.IsOnDropDown && font_color == SystemColors.MenuText)
 				font_color = SystemColors.HighlightText;
@@ -389,19 +395,41 @@ namespace System.Windows.Forms
 			if (image_layout_rect != Rectangle.Empty)
 				this.Owner.Renderer.DrawItemImage (new ToolStripItemImageRenderEventArgs (e.Graphics, this, draw_image, image_layout_rect));
 
-			if (this.IsOnDropDown && this.HasDropDownItems)
+			if (this.IsOnDropDown && this.HasDropDownItems && this.Parent is ToolStripDropDownMenu)
 				this.Owner.Renderer.DrawArrow (new ToolStripArrowRenderEventArgs (e.Graphics, this, new Rectangle (this.Bounds.Width - 17, 2, 10, 20), Color.Black, ArrowDirection.Right));
+			
 			return;
 		}
 
 		protected internal override bool ProcessCmdKey (ref Message m, Keys keyData)
 		{
-			if (this.Enabled && keyData == this.shortcut_keys) {
+			Control source = Control.FromHandle (m.HWnd);
+			Form f = source == null ? null : (Form)source.TopLevelControl;
+
+			if (this.Enabled && keyData == this.shortcut_keys && GetTopLevelControl () == f) {
 				this.FireEvent (EventArgs.Empty, ToolStripItemEventType.Click);
 				return true;
 			}
 				
 			return base.ProcessCmdKey (ref m, keyData);
+		}
+
+		Control GetTopLevelControl ()
+		{
+			ToolStripItem item = this;
+			while (item.OwnerItem != null)
+				item = item.OwnerItem;
+
+			if (item.Owner == null)
+				return null;
+
+			if (item.Owner is ContextMenuStrip) {
+				Control container = ((ContextMenuStrip)item.Owner).container;
+				return container == null ? null : container.TopLevelControl;
+			}
+
+			// MainMenuStrip
+			return item.Owner.TopLevelControl;
 		}
 
 		protected internal override bool ProcessMnemonic (char charCode)
@@ -440,6 +468,23 @@ namespace System.Windows.Forms
 		}
 		#endregion
 
+		#region UIA Framework Events
+		static object UIACheckOnClickChangedEvent = new object ();
+		
+		internal event EventHandler UIACheckOnClickChanged {
+			add { Events.AddHandler (UIACheckOnClickChangedEvent, value); }
+			remove { Events.RemoveHandler (UIACheckOnClickChangedEvent, value); }
+		}
+
+		internal void OnUIACheckOnClickChangedEvent (EventArgs args)
+		{
+			EventHandler eh
+				= (EventHandler) Events [UIACheckOnClickChangedEvent];
+			if (eh != null)
+				eh (this, args);
+		}
+		#endregion
+
 		#region Internal Properties
 		internal Form MdiClientForm {
 			get { return this.mdi_client_form; }
@@ -466,7 +511,9 @@ namespace System.Windows.Forms
 		{
 			if (this.show_shortcut_keys == false)
 				return string.Empty;
-
+			if (this.Parent == null || !(this.Parent is ToolStripDropDownMenu))
+				return string.Empty;
+				
 			string key_string = string.Empty;
 
 			if (!string.IsNullOrEmpty (this.shortcut_display_string))

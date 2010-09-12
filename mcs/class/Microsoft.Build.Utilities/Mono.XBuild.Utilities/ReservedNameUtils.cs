@@ -66,29 +66,39 @@ namespace Mono.XBuild.Utilities {
 		{
 			return reservedMetadataHash.Contains (metadataName);
 		}
-		
+
 		public static string GetReservedMetadata (string itemSpec,
-						   string metadataName)
+						   string metadataName, IDictionary metadata)
 		{
 			if (metadataName == null)
 				throw new ArgumentNullException ();
+
+			if (String.IsNullOrEmpty (itemSpec))
+				return String.Empty;
 		
 			switch (metadataName.ToLower ()) {
 			case "fullpath":
 				return Path.GetFullPath (itemSpec);
 			case "rootdir":
-				return Path.GetPathRoot (itemSpec);
+				if (Path.IsPathRooted (itemSpec))
+					return Path.GetPathRoot (itemSpec);
+				else
+					return Path.GetPathRoot (Environment.CurrentDirectory);
 			case "filename":
 				return Path.GetFileNameWithoutExtension (itemSpec);
 			case "extension":
 				return Path.GetExtension (itemSpec);
 			case "relativedir":
-				return Path.GetDirectoryName (itemSpec);
+				return WithTrailingSlash (Path.GetDirectoryName (itemSpec));
 			case "directory":
-				return Path.GetDirectoryName (Path.GetFullPath (itemSpec));
+				string fullpath = Path.GetFullPath (itemSpec);
+				return WithTrailingSlash (
+					 Path.GetDirectoryName (fullpath).Substring (Path.GetPathRoot (fullpath).Length));
 			case "recursivedir":
-				// FIXME: how to handle this?
-				return String.Empty;
+				if (metadata != null && metadata.Contains ("RecursiveDir"))
+					return (string)metadata ["RecursiveDir"];
+				else
+					return String.Empty;
 			case "identity":
 				return Path.Combine (Path.GetDirectoryName (itemSpec), Path.GetFileName (itemSpec));
 			case "modifiedtime":
@@ -115,6 +125,14 @@ namespace Mono.XBuild.Utilities {
 			default:
 				throw new ArgumentException ("Invalid reserved metadata name");
 			}
+		}
+
+		static string WithTrailingSlash (string path)
+		{
+			if (path.Length > 0)
+				return path + Path.DirectorySeparatorChar;
+			else
+				return path;
 		}
 	}
 }

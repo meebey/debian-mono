@@ -142,7 +142,12 @@ public class AsyncResult : IAsyncResult, IMessageSink {
 
 	internal IMessage EndInvoke ()
 	{
-		handle.WaitOne ();
+		lock (this) {
+			if (completed)
+				return reply_message;
+		}
+
+		AsyncWaitHandle.WaitOne ();
 		return reply_message;
 	}
 
@@ -150,11 +155,13 @@ public class AsyncResult : IAsyncResult, IMessageSink {
 	{
 		reply_message = msg;
 
-		completed = true;
-		NativeEventCalls.SetEvent_internal (handle.Handle);
+		lock (this) {
+			completed = true;
+			if (handle != null)
+				((ManualResetEvent) AsyncWaitHandle).Set ();
+		}
 		
-		if (async_callback != null)
-		{
+		if (async_callback != null) {
 			AsyncCallback ac = (AsyncCallback) async_callback;
 			ac (this);
 		}

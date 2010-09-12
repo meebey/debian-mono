@@ -33,12 +33,16 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@INSTALL_4_0_TRUE@am__append_1 = $(scripts_4_0)
 subdir = scripts
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/mono-find-provides.in \
 	$(srcdir)/mono-find-requires.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/nls.m4 $(top_srcdir)/po.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/libtool.m4 \
+	$(top_srcdir)/ltoptions.m4 $(top_srcdir)/ltsugar.m4 \
+	$(top_srcdir)/ltversion.m4 $(top_srcdir)/lt~obsolete.m4 \
+	$(top_srcdir)/nls.m4 $(top_srcdir)/po.m4 \
 	$(top_srcdir)/progtest.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/configure.in
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -88,14 +92,13 @@ DOLT_BASH = @DOLT_BASH@
 DSYMUTIL = @DSYMUTIL@
 DTRACE = @DTRACE@
 DTRACEFLAGS = @DTRACEFLAGS@
-ECHO = @ECHO@
+DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
-F77 = @F77@
-FFLAGS = @FFLAGS@
+FGREP = @FGREP@
 GETTEXT_MACRO_VERSION = @GETTEXT_MACRO_VERSION@
 GLIB_CFLAGS = @GLIB_CFLAGS@
 GLIB_LIBS = @GLIB_LIBS@
@@ -113,6 +116,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 INTL = @INTL@
+LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBC = @LIBC@
 LIBGC_CFLAGS = @LIBGC_CFLAGS@
@@ -121,6 +125,12 @@ LIBGC_STATIC_LIBS = @LIBGC_STATIC_LIBS@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
+LIPO = @LIPO@
+LLVM_CFLAGS = @LLVM_CFLAGS@
+LLVM_CONFIG = @LLVM_CONFIG@
+LLVM_CXXFLAGS = @LLVM_CXXFLAGS@
+LLVM_LDFLAGS = @LLVM_LDFLAGS@
+LLVM_LIBS = @LLVM_LIBS@
 LN_S = @LN_S@
 LTCOMPILE = @LTCOMPILE@
 LTCXXCOMPILE = @LTCXXCOMPILE@
@@ -132,11 +142,14 @@ MONO_DL_NEED_USCORE = @MONO_DL_NEED_USCORE@
 MSGFMT = @MSGFMT@
 MSGFMT_015 = @MSGFMT_015@
 MSGMERGE = @MSGMERGE@
+NM = @NM@
 NMEDIT = @NMEDIT@
 OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 OPROFILE_CFLAGS = @OPROFILE_CFLAGS@
 OPROFILE_LIBS = @OPROFILE_LIBS@
+OTOOL = @OTOOL@
+OTOOL64 = @OTOOL64@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
 PACKAGE_NAME = @PACKAGE_NAME@
@@ -166,7 +179,7 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_CC = @ac_ct_CC@
 ac_ct_CXX = @ac_ct_CXX@
-ac_ct_F77 = @ac_ct_F77@
+ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
@@ -183,6 +196,7 @@ builddir = @builddir@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
+docs_dir = @docs_dir@
 dvidir = @dvidir@
 eglib_dir = @eglib_dir@
 exec_prefix = @exec_prefix@
@@ -206,6 +220,7 @@ libmono_ldflags = @libmono_ldflags@
 libsuffix = @libsuffix@
 localedir = @localedir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mcs_topdir = @mcs_topdir@
 mcs_topdir_from_srcdir = @mcs_topdir_from_srcdir@
@@ -229,6 +244,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
+top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @USE_BATCH_FILES_FALSE@SCRIPT_IN = script.in
@@ -246,29 +262,18 @@ top_srcdir = @top_srcdir@
 # command names that had the suffix 2 (like wsdl2)
 #
 @USE_BATCH_FILES_TRUE@SCRIPT_IN = script.bat.in
-@USE_BATCH_FILES_FALSE@SMCS_IN = smcs.in
-@USE_BATCH_FILES_TRUE@SMCS_IN = smcs.bat.in
 @USE_BATCH_FILES_FALSE@FILTER = cat
 @USE_BATCH_FILES_TRUE@FILTER = sed -e 's,\.bat\.exe,\.exe,g' -e 's,/,\\,g'
 @USE_BATCH_FILES_FALSE@SCRIPT_SUFFIX = 
 @USE_BATCH_FILES_TRUE@SCRIPT_SUFFIX = .bat
 COMPAT_1_0_SUFFIX = 1$(SCRIPT_SUFFIX)
 COMPAT_2_0_SUFFIX = 2$(SCRIPT_SUFFIX)
-bin_SCRIPTS = \
-	$(scripts_1_0)		\
-	$(scripts_1_0_umask)	\
-	$(scripts_1_0_compat)	\
-	$(scripts_defaults)	\
-	$(scripts_2_0)		\
-	$(scripts_2_1)		\
-	$(scripts_service)	\
-	$(scripts_nunit)	\
-	$(scripts_rpmhelpers)	\
-	$(MDOC_SUBCOMMANDS)	\
-	$(MDOC_COMPAT)		\
-	mod			\
-	mono-test-install
-
+COMPAT_4_0_SUFFIX = 4$(SCRIPT_SUFFIX)
+bin_SCRIPTS = $(scripts_1_0) $(scripts_1_0_umask) \
+	$(scripts_1_0_compat) $(scripts_defaults) $(scripts_2_0) \
+	$(scripts_service) $(scripts_nunit) $(scripts_rpmhelpers) \
+	$(MDOC_SUBCOMMANDS) $(MDOC_COMPAT) mod$(SCRIPT_SUFFIX) \
+	mono-test-install $(am__append_1)
 scripts_1_0_compat = \
 	al1$(SCRIPT_SUFFIX)			\
 	genxs1$(SCRIPT_SUFFIX)			\
@@ -294,9 +299,7 @@ scripts_1_0 = \
 	macpack$(SCRIPT_SUFFIX)			\
 	mcs$(SCRIPT_SUFFIX)			\
 	mjs$(SCRIPT_SUFFIX)			\
-	monolinker$(SCRIPT_SUFFIX)		\
 	mono-cil-strip$(SCRIPT_SUFFIX)		\
-	mono-xmltool$(SCRIPT_SUFFIX)		\
 	mozroots$(SCRIPT_SUFFIX)		\
 	permview$(SCRIPT_SUFFIX)		\
 	prj2make$(SCRIPT_SUFFIX)		\
@@ -317,18 +320,27 @@ scripts_2_0 = \
 	gmcs$(SCRIPT_SUFFIX)			\
 	httpcfg$(SCRIPT_SUFFIX)			\
 	ilasm2$(SCRIPT_SUFFIX)			\
+	lc$(SCRIPT_SUFFIX)			\
 	mconfig$(SCRIPT_SUFFIX)			\
 	mkbundle2$(SCRIPT_SUFFIX)		\
 	mdoc$(SCRIPT_SUFFIX)                    \
+	monolinker$(SCRIPT_SUFFIX)		\
 	mono-api-info$(SCRIPT_SUFFIX) 		\
 	mono-shlib-cop$(SCRIPT_SUFFIX) 		\
 	monop2$(SCRIPT_SUFFIX) 			\
 	resgen2$(SCRIPT_SUFFIX)			\
+	pdb2mdb$(SCRIPT_SUFFIX)			\
 	wsdl2$(SCRIPT_SUFFIX)			\
 	xsd2$(SCRIPT_SUFFIX)			\
+	mono-xmltool$(SCRIPT_SUFFIX)		\
 	sgen$(SCRIPT_SUFFIX)			\
+	sqlmetal$(SCRIPT_SUFFIX)		\
 	sqlsharp$(SCRIPT_SUFFIX)		\
+	svcutil$(SCRIPT_SUFFIX)			\
 	xbuild$(SCRIPT_SUFFIX)
+
+scripts_4_0 = \
+	dmcs$(SCRIPT_SUFFIX)
 
 MDOC_SUBCOMMANDS = \
 	mdoc-assemble \
@@ -361,19 +373,16 @@ scripts_defaults = \
 	resgen$(SCRIPT_SUFFIX)			\
 	wsdl$(SCRIPT_SUFFIX)
 
-scripts_2_1 = smcs$(SCRIPT_SUFFIX)
 scripts_service = mono-service mono-service2
 scripts_nunit = nunit-console$(SCRIPT_SUFFIX) nunit-console2$(SCRIPT_SUFFIX)
 scripts_rpmhelpers = mono-find-provides mono-find-requires
-CLEANFILES = $(scripts_1_0) $(scripts_1_0_umask) $(scripts_2_0) $(scripts_2_1) $(scripts_defaults) $(scripts_1_0_compat) mono-service mono-service2 nunit-console nunit-console2 mono-find-provides mono-find-requires mod $(MDOC_SUBCOMMANDS)
+CLEANFILES = $(scripts_1_0) $(scripts_1_0_umask) $(scripts_2_0) $(scripts_defaults) $(scripts_1_0_compat) $(scripts_4_0) mono-service mono-service2 nunit-console nunit-console2 mono-find-provides mono-find-requires mod $(MDOC_SUBCOMMANDS)
 DISTCLEANFILES = $(pkgconfig_DATA) $(scripts_rpmhelpers)
 EXTRA_DIST = \
 	script.in		\
 	script.bat.in		\
 	script_umask.in		\
 	script_umask.bat.in	\
-	smcs.in			\
-	smcs.bat.in		\
 	mod.in			\
 	mono-service.in		\
 	mono-find-provides.in	\
@@ -401,6 +410,7 @@ REWRITE_DEBUG = $(REWRITE_COMMON) -e 's,@''mono_interp@,$(mono_interp) --debug,g
 REWRITE1 = $(REWRITE) -e 's,@''framework_version@,1.0,g'
 REWRITE2 = $(REWRITE) -e 's,@''framework_version@,2.0,g'
 REWRITE2_1 = $(REWRITE) -e 's,@''framework_version@,2.1,g'
+REWRITE4 = $(REWRITE) -e 's,@''framework_version@,4.0,g'
 REWRITE1_DEBUG = $(REWRITE_DEBUG) -e 's,@''framework_version@,1.0,g'
 REWRITE2_DEBUG = $(REWRITE_DEBUG) -e 's,@''framework_version@,2.0,g'
 all: all-am
@@ -615,10 +625,7 @@ nunit-console2$(SCRIPT_SUFFIX): $(SCRIPT_IN) Makefile
 	$(REWRITE2_DEBUG) -e 's,@''exe_name@,nunit-console,g' $(srcdir)/$(SCRIPT_IN) | $(FILTER) > $@.tmp
 	mv $@.tmp $@
 
-smcs$(SCRIPT_SUFFIX): $(SMCS_IN) Makefile
-	$(REWRITE2_1) -e "s,@""exe_name@,smcs,g" $(srcdir)/$(SMCS_IN) | $(FILTER) > $@.tmp
-	mv $@.tmp $@
-
+#FIXME: this is not the correct rule for mod.bat.
 mod$(SCRIPT_SUFFIX): mod.in Makefile
 	$(REWRITE1) -e "s,@""exe_name@,mod,g" $(srcdir)/mod.in > $@.tmp
 	mv $@.tmp $@
@@ -627,6 +634,7 @@ $(scripts_1_0): $(SCRIPT_IN) Makefile
 	$(REWRITE1) -e 's,@''exe_name@,$@,g' $(srcdir)/$(SCRIPT_IN) | $(FILTER) > $@.tmp
 	mv $@.tmp $@
 
+#FIXME: this is not the correct rule for bat files.
 $(scripts_1_0_umask): script_umask.in Makefile
 	$(REWRITE1) -e 's,@''exe_name@,$@,g' $(srcdir)/script_umask.in > $@.tmp
 	mv $@.tmp $@
@@ -642,6 +650,11 @@ $(scripts_defaults): $(SCRIPT_IN) Makefile
 $(scripts_2_0): $(SCRIPT_IN) Makefile
 	n=`echo $@ | sed 's,$(COMPAT_2_0_SUFFIX)$$,,'`; \
 	$(REWRITE2) -e "s,@""exe_name@,$$n,g" $(srcdir)/$(SCRIPT_IN) | $(FILTER) > $@.tmp
+	mv $@.tmp $@
+
+$(scripts_4_0): $(SCRIPT_IN) Makefile
+	n=`echo $@ | sed 's,$(COMPAT_4_0_SUFFIX)$$,,'`; \
+	$(REWRITE4) -e "s,@""exe_name@,$$n,g" $(srcdir)/$(SCRIPT_IN) | $(FILTER) > $@.tmp
 	mv $@.tmp $@
 
 $(MDOC_SUBCOMMANDS): Makefile

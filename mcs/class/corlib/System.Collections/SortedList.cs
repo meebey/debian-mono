@@ -43,6 +43,7 @@ namespace System.Collections {
 	[Serializable]
 #if NET_2_0
 	[ComVisible(true)]
+	[System.Diagnostics.DebuggerDisplay ("Count={Count}")]	
 #endif
 	public class SortedList : IDictionary, ICollection,
 	                          IEnumerable, ICloneable {
@@ -597,10 +598,10 @@ namespace System.Collections {
 			while (left <= right) {
 				int guess = (left + right) >> 1;
 
-				int cmp = comparer.Compare (key, table[guess].key);
+				int cmp = comparer.Compare (table[guess].key, key);
 				if (cmp == 0) return guess;
 
-				if (cmp >  0) left = guess+1;
+				if (cmp <  0) left = guess+1;
 				else right = guess-1;
 			}
 

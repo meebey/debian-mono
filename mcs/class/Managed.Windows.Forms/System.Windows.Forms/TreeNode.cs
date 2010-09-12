@@ -214,8 +214,6 @@ namespace System.Windows.Forms
 			get {
 				if (prop_bag != null)
 					return prop_bag.BackColor;
-				if (TreeView != null)
-					return TreeView.BackColor;
 				return Color.Empty;
 			}
 			set {
@@ -314,10 +312,12 @@ namespace System.Windows.Forms
 					TreeView.OnBeforeCheck (args);
 				if (!args.Cancel) {
 					check = value;
-					if (TreeView != null) {
+
+					// TreeView can become null after OnAfterCheck, this the double null check
+					if (TreeView != null)
 						TreeView.OnAfterCheck (new TreeViewEventArgs (this, check_reason));
+					if (TreeView != null)
 						TreeView.UpdateNode (this);
-					}
 				}
 				check_reason = TreeViewAction.Unknown;
 			}
@@ -561,7 +561,7 @@ namespace System.Windows.Forms
 				if (prop_bag == null)
 					prop_bag = new OwnerDrawPropertyBag (); 
 				prop_bag.Font = value;
-				InvalidateWidth ();
+				Invalidate ();
 			}
 		}
 
@@ -657,7 +657,7 @@ namespace System.Windows.Forms
 				if (state_image_index != value) {
 					state_image_index = value;
 					state_image_key = string.Empty;
-					InvalidateWidth ();
+					Invalidate ();
 				}
 			}
 		}
@@ -674,7 +674,7 @@ namespace System.Windows.Forms
 				if (state_image_key != value) {
 					state_image_key = value;
 					state_image_index = -1;
-					InvalidateWidth ();
+					Invalidate ();
 				}
 			}
 		}
@@ -700,7 +700,7 @@ namespace System.Windows.Forms
 				if (text == value)
 					return;
 				text = value;
-				InvalidateWidth ();
+				Invalidate ();
 #if NET_2_0
 				// UIA Framework Event: Text Changed
 				TreeView view = TreeView;
@@ -1061,6 +1061,19 @@ namespace System.Windows.Forms
 
 		internal bool NeedsWidth {
 			get { return width == -1; }
+		}
+
+		internal void Invalidate ()
+		{
+			// invalidate width first so Bounds retrieves 
+			// the updated value (we don't use it here however)
+			width = -1;
+
+			TreeView tv = TreeView;
+			if (tv == null)
+				return;
+
+			tv.UpdateNode (this);
 		}
 
 		internal void InvalidateWidth ()
