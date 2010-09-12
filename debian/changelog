@@ -1,3 +1,10 @@
+mono (2.6.7-3~bpo50+2) lenny-backports; urgency=low
+
+  * debian/control:
+    + Replaced libnunit-cil-dev binary dep with libnunit2.4-cil
+
+ -- Mirco Bauer <meebey@debian.org>  Sun, 12 Sep 2010 23:48:35 +0200
+
 mono (2.6.7-3~bpo50+1) lenny-backports; urgency=low
 
   * Rebuild for lenny-backports.

@@ -260,7 +260,7 @@ Depends: ${misc:Depends},
          libmono-debugger-soft0.0-cil (= ${source:Version}),
          libmono-tasklets2.0-cil (= ${source:Version}),
          libmono-windowsbase3.0-cil (= ${source:Version}),
-         libnunit-cil-dev (>= 2.4)
+         libnunit2.4-cil
 Description: Mono Base Class Libraries (BCL) - Development files
  This package contains development headers for the Mono Base Class Libraries.
  .
