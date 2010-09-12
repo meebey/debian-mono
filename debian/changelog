@@ -13,7 +13,7 @@ mono (2.6.7-3~bpo50+1) lenny-backports; urgency=low
     + Added mono-devel dependency to mono-gmcs for build-dep compatiblity with
       source packages of lenny.
 
- -- Mirco Bauer <meebey@debian.org>  Fri, 25 Sep 2009 21:23:29 +0200
+ -- Mirco Bauer <meebey@debian.org>  Sun, 12 Sep 2010 21:13:52 +0200
 
 mono (2.6.7-3) unstable; urgency=low
 
