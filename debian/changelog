@@ -1,3 +1,10 @@
+mono (2.6.7-4~bpo50+2) lenny-backports; urgency=low
+
+  * debian/control:
+    + Fixed Replaces/Conflicts of libmono-system-data-linq2.0-cil
+
+ -- Mirco Bauer <meebey@debian.org>  Fri, 28 Jan 2011 00:46:50 +0100
+
 mono (2.6.7-4~bpo50+1) lenny-backports; urgency=low
 
   * Rebuild for lenny-backports.
