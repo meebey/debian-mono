@@ -776,8 +776,8 @@ Description: Mono System.Data Library (for CLI 2.0)
 
 Package: libmono-system-data-linq2.0-cil
 Architecture: all
-Replaces: libmono-system-data2.0-cil (<< 2.6.7-4)
-Conflicts: libmono-system-data2.0-cil (<< 2.6.7-4)
+Replaces: libmono-system-data2.0-cil (<< 2.6.7-4~)
+Conflicts: libmono-system-data2.0-cil (<< 2.6.7-4~)
 Depends: ${misc:Depends}, ${cli:Depends}
 Description: Mono System.Data.Linq Library
  Mono is a platform for running and developing applications based on the
