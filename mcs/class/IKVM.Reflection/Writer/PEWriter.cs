@@ -27,6 +27,7 @@ using BYTE = System.Byte;
 using WORD = System.UInt16;
 using DWORD = System.UInt32;
 using ULONGLONG = System.UInt64;
+using IMAGE_DATA_DIRECTORY = IKVM.Reflection.Reader.IMAGE_DATA_DIRECTORY;
 
 namespace IKVM.Reflection.Writer
 {
@@ -135,6 +136,7 @@ namespace IKVM.Reflection.Writer
 	sealed class IMAGE_FILE_HEADER
 	{
 		public const WORD IMAGE_FILE_MACHINE_I386 = 0x014c;
+		public const WORD IMAGE_FILE_MACHINE_ARM = 0x01c4;
 		public const WORD IMAGE_FILE_MACHINE_IA64 = 0x0200;
 		public const WORD IMAGE_FILE_MACHINE_AMD64 = 0x8664;
 
@@ -160,11 +162,6 @@ namespace IKVM.Reflection.Writer
 		public const WORD IMAGE_SUBSYSTEM_WINDOWS_GUI = 2;
 		public const WORD IMAGE_SUBSYSTEM_WINDOWS_CUI = 3;
 
-		public const WORD IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE = 0x0040;
-		public const WORD IMAGE_DLLCHARACTERISTICS_NX_COMPAT = 0x0100;
-		public const WORD IMAGE_DLLCHARACTERISTICS_NO_SEH = 0x0400;
-		public const WORD IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000;
-
 		public WORD Magic = IMAGE_NT_OPTIONAL_HDR32_MAGIC;
 		public BYTE MajorLinkerVersion = 8;
 		public BYTE MinorLinkerVersion = 0;
@@ -176,7 +173,7 @@ namespace IKVM.Reflection.Writer
 		public DWORD BaseOfData;
 		public ULONGLONG ImageBase;
 		public DWORD SectionAlignment = 0x2000;
-		public DWORD FileAlignment = 0x200;
+		public DWORD FileAlignment;
 		public WORD MajorOperatingSystemVersion = 4;
 		public WORD MinorOperatingSystemVersion = 0;
 		public WORD MajorImageVersion = 0;
@@ -189,7 +186,7 @@ namespace IKVM.Reflection.Writer
 		public DWORD CheckSum = 0;
 		public WORD Subsystem;
 		public WORD DllCharacteristics;
-		public ULONGLONG SizeOfStackReserve = 0x100000;
+		public ULONGLONG SizeOfStackReserve;
 		public ULONGLONG SizeOfStackCommit = 0x1000;
 		public ULONGLONG SizeOfHeapReserve = 0x100000;
 		public ULONGLONG SizeOfHeapCommit = 0x1000;
@@ -270,12 +267,6 @@ namespace IKVM.Reflection.Writer
 				bw.Write(DataDirectory[i].Size);
 			}
 		}
-	}
-
-	struct IMAGE_DATA_DIRECTORY
-	{
-		public DWORD VirtualAddress;
-		public DWORD Size;
 	}
 
 	class SectionHeader

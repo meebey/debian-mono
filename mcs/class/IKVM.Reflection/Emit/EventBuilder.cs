@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2009 Jeroen Frijters
+  Copyright (C) 2009-2011 Jeroen Frijters
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -38,8 +38,14 @@ namespace IKVM.Reflection.Emit
 		private MethodBuilder addOnMethod;
 		private MethodBuilder removeOnMethod;
 		private MethodBuilder fireMethod;
-		private List<MethodBuilder> otherMethods;
+		private readonly List<Accessor> accessors = new List<Accessor>();
 		private int lazyPseudoToken;
+
+		private struct Accessor
+		{
+			internal short Semantics;
+			internal MethodBuilder Method;
+		}
 
 		internal EventBuilder(TypeBuilder typeBuilder, string name, EventAttributes attributes, Type eventtype)
 		{
@@ -52,25 +58,36 @@ namespace IKVM.Reflection.Emit
 		public void SetAddOnMethod(MethodBuilder mdBuilder)
 		{
 			addOnMethod = mdBuilder;
+			Accessor acc;
+			acc.Semantics = MethodSemanticsTable.AddOn;
+			acc.Method = mdBuilder;
+			accessors.Add(acc);
 		}
 
 		public void SetRemoveOnMethod(MethodBuilder mdBuilder)
 		{
 			removeOnMethod = mdBuilder;
+			Accessor acc;
+			acc.Semantics = MethodSemanticsTable.RemoveOn;
+			acc.Method = mdBuilder;
+			accessors.Add(acc);
 		}
 
 		public void SetRaiseMethod(MethodBuilder mdBuilder)
 		{
 			fireMethod = mdBuilder;
+			Accessor acc;
+			acc.Semantics = MethodSemanticsTable.Fire;
+			acc.Method = mdBuilder;
+			accessors.Add(acc);
 		}
 
 		public void AddOtherMethod(MethodBuilder mdBuilder)
 		{
-			if (otherMethods == null)
-			{
-				otherMethods = new List<MethodBuilder>();
-			}
-			otherMethods.Add(mdBuilder);
+			Accessor acc;
+			acc.Semantics = MethodSemanticsTable.Other;
+			acc.Method = mdBuilder;
+			accessors.Add(acc);
 		}
 
 		public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
@@ -118,15 +135,22 @@ namespace IKVM.Reflection.Emit
 		public override MethodInfo[] GetOtherMethods(bool nonPublic)
 		{
 			List<MethodInfo> list = new List<MethodInfo>();
-			if (otherMethods != null)
+			foreach (Accessor acc in accessors)
 			{
-				foreach (MethodInfo method in otherMethods)
+				if (acc.Semantics == MethodSemanticsTable.Other && (nonPublic || acc.Method.IsPublic))
 				{
-					if (nonPublic || method.IsPublic)
-					{
-						list.Add(method);
-					}
+					list.Add(acc.Method);
 				}
+			}
+			return list.ToArray();
+		}
+
+		public override MethodInfo[] __GetMethods()
+		{
+			List<MethodInfo> list = new List<MethodInfo>();
+			foreach (Accessor acc in accessors)
+			{
+				list.Add(acc.Method);
 			}
 			return list.ToArray();
 		}
@@ -168,29 +192,18 @@ namespace IKVM.Reflection.Emit
 			rec.EventType = eventtype;
 			int token = 0x14000000 | typeBuilder.ModuleBuilder.Event.AddRecord(rec);
 
-			if (lazyPseudoToken != 0)
+			if (lazyPseudoToken == 0)
+			{
+				lazyPseudoToken = token;
+			}
+			else
 			{
 				typeBuilder.ModuleBuilder.RegisterTokenFixup(lazyPseudoToken, token);
 			}
 
-			if (addOnMethod != null)
+			foreach (Accessor acc in accessors)
 			{
-				AddMethodSemantics(MethodSemanticsTable.AddOn, addOnMethod.MetadataToken, token);
-			}
-			if (removeOnMethod != null)
-			{
-				AddMethodSemantics(MethodSemanticsTable.RemoveOn, removeOnMethod.MetadataToken, token);
-			}
-			if (fireMethod != null)
-			{
-				AddMethodSemantics(MethodSemanticsTable.Fire, fireMethod.MetadataToken, token);
-			}
-			if (otherMethods != null)
-			{
-				foreach (MethodBuilder method in otherMethods)
-				{
-					AddMethodSemantics(MethodSemanticsTable.Other, method.MetadataToken, token);
-				}
+				AddMethodSemantics(acc.Semantics, acc.Method.MetadataToken, token);
 			}
 		}
 
@@ -207,18 +220,26 @@ namespace IKVM.Reflection.Emit
 		{
 			get
 			{
-				if ((addOnMethod != null && addOnMethod.IsPublic) || (removeOnMethod != null && removeOnMethod.IsPublic) || (fireMethod != null && fireMethod.IsPublic))
+				foreach (Accessor acc in accessors)
 				{
-					return true;
-				}
-				if (otherMethods != null)
-				{
-					foreach (MethodBuilder method in otherMethods)
+					if (acc.Method.IsPublic)
 					{
-						if (method.IsPublic)
-						{
-							return true;
-						}
+						return true;
+					}
+				}
+				return false;
+			}
+		}
+
+		internal override bool IsNonPrivate
+		{
+			get
+			{
+				foreach (Accessor acc in accessors)
+				{
+					if ((acc.Method.Attributes & MethodAttributes.MemberAccessMask) > MethodAttributes.Private)
+					{
+						return true;
 					}
 				}
 				return false;
@@ -229,21 +250,31 @@ namespace IKVM.Reflection.Emit
 		{
 			get
 			{
-				if ((addOnMethod != null && addOnMethod.IsStatic) || (removeOnMethod != null && removeOnMethod.IsStatic) || (fireMethod != null && fireMethod.IsStatic))
+				foreach (Accessor acc in accessors)
 				{
-					return true;
-				}
-				if (otherMethods != null)
-				{
-					foreach (MethodBuilder method in otherMethods)
+					if (acc.Method.IsStatic)
 					{
-						if (method.IsStatic)
-						{
-							return true;
-						}
+						return true;
 					}
 				}
 				return false;
+			}
+		}
+
+		internal override bool IsBaked
+		{
+			get { return typeBuilder.IsBaked; }
+		}
+
+		internal override int GetCurrentToken()
+		{
+			if (typeBuilder.ModuleBuilder.IsSaved && typeBuilder.ModuleBuilder.IsPseudoToken(lazyPseudoToken))
+			{
+				return typeBuilder.ModuleBuilder.ResolvePseudoToken(lazyPseudoToken);
+			}
+			else
+			{
+				return lazyPseudoToken;
 			}
 		}
 	}

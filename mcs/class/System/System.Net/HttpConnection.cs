@@ -2,9 +2,10 @@
 // System.Net.HttpConnection
 //
 // Author:
-//	Gonzalo Paniagua Javier (gonzalo@novell.com)
+//	Gonzalo Paniagua Javier (gonzalo.mono@gmail.com)
 //
-// Copyright (c) 2005 Novell, Inc. (http://www.novell.com)
+// Copyright (c) 2005-2009 Novell, Inc. (http://www.novell.com)
+// Copyright (c) 2012 Xamarin, Inc. (http://xamarin.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -61,6 +62,8 @@ namespace System.Net {
 		Timer timer;
 		IPEndPoint local_ep;
 		HttpListener last_listener;
+		int [] client_cert_errors;
+		X509Certificate2 client_cert;
 
 		public HttpConnection (Socket sock, EndPointListener epl, bool secure, X509Certificate2 cert, AsymmetricAlgorithm key)
 		{
@@ -71,12 +74,33 @@ namespace System.Net {
 			if (secure == false) {
 				stream = new NetworkStream (sock, false);
 			} else {
-				SslServerStream ssl_stream = new SslServerStream (new NetworkStream (sock, false), cert, false, false);
+				SslServerStream ssl_stream = new SslServerStream (new NetworkStream (sock, false), cert, false, true, false);
 				ssl_stream.PrivateKeyCertSelectionDelegate += OnPVKSelection;
+				ssl_stream.ClientCertValidationDelegate += OnClientCertificateValidation;
 				stream = ssl_stream;
 			}
 			timer = new Timer (OnTimeout, null, Timeout.Infinite, Timeout.Infinite);
 			Init ();
+		}
+
+		internal int [] ClientCertificateErrors {
+			get { return client_cert_errors; }
+		}
+
+		internal X509Certificate2 ClientCertificate {
+			get { return client_cert; }
+		}
+
+		bool OnClientCertificateValidation (X509Certificate certificate, int[] errors)
+		{
+			if (certificate == null)
+				return true;
+			X509Certificate2 cert = certificate as X509Certificate2;
+			if (cert == null)
+				cert = new X509Certificate2 (certificate.GetRawCertData ());
+			client_cert = cert;
+			client_cert_errors = errors;
+			return true;
 		}
 
 		AsymmetricAlgorithm OnPVKSelection (X509Certificate certificate, string targetHost)
@@ -107,7 +131,13 @@ namespace System.Net {
 		}
 
 		public IPEndPoint LocalEndPoint {
-			get { return (IPEndPoint) sock.LocalEndPoint; }
+			get {
+				if (local_ep != null)
+					return local_ep;
+
+				local_ep = (IPEndPoint) sock.LocalEndPoint;
+				return local_ep;
+			}
 		}
 
 		public IPEndPoint RemoteEndPoint {
@@ -328,7 +358,7 @@ namespace System.Net {
 		string ReadLine (byte [] buffer, int offset, int len, ref int used)
 		{
 			if (current_line == null)
-				current_line = new StringBuilder ();
+				current_line = new StringBuilder (128);
 			int last = offset + len;
 			used = 0;
 			for (int i = offset; i < last && line_state != LineState.LF; i++) {
@@ -409,7 +439,9 @@ namespace System.Net {
 		{
 			if (sock != null) {
 				Stream st = GetResponseStream ();
-				st.Close ();
+				if (st != null)
+					st.Close ();
+
 				o_stream = null;
 			}
 

@@ -49,11 +49,6 @@ namespace IKVM.Reflection.Reader
 			get { return location; }
 		}
 
-		public override string FullName
-		{
-			get { return GetName().FullName; }
-		}
-
 		public override AssemblyName GetName()
 		{
 			return GetNameImpl(ref manifestModule.AssemblyTable.records[0]);
@@ -74,15 +69,15 @@ namespace IKVM.Reflection.Reader
 			}
 			if (rec.Culture != 0)
 			{
-				name.CultureInfo = new System.Globalization.CultureInfo(manifestModule.GetString(rec.Culture));
+				name.Culture = manifestModule.GetString(rec.Culture);
 			}
 			else
 			{
-				name.CultureInfo = System.Globalization.CultureInfo.InvariantCulture;
+				name.Culture = "";
 			}
 			name.HashAlgorithm = (AssemblyHashAlgorithm)rec.HashAlgId;
 			name.CodeBase = this.CodeBase;
-			name.Flags = (AssemblyNameFlags)rec.Flags;
+			name.RawFlags = (AssemblyNameFlags)rec.Flags;
 			return name;
 		}
 
@@ -101,14 +96,27 @@ namespace IKVM.Reflection.Reader
 			return list.ToArray();
 		}
 
-		internal override Type GetTypeImpl(string typeName)
+		internal override Type FindType(TypeName typeName)
 		{
-			Type type = manifestModule.GetType(typeName);
+			Type type = manifestModule.FindType(typeName);
 			for (int i = 0; type == null && i < externalModules.Length; i++)
 			{
 				if ((manifestModule.File.records[i].Flags & ContainsNoMetaData) == 0)
 				{
-					type = GetModule(i).GetType(typeName);
+					type = GetModule(i).FindType(typeName);
+				}
+			}
+			return type;
+		}
+
+		internal override Type FindTypeIgnoreCase(TypeName lowerCaseName)
+		{
+			Type type = manifestModule.FindTypeIgnoreCase(lowerCaseName);
+			for (int i = 0; type == null && i < externalModules.Length; i++)
+			{
+				if ((manifestModule.File.records[i].Flags & ContainsNoMetaData) == 0)
+				{
+					type = GetModule(i).FindTypeIgnoreCase(lowerCaseName);
 				}
 			}
 			return type;
@@ -116,7 +124,7 @@ namespace IKVM.Reflection.Reader
 
 		public override string ImageRuntimeVersion
 		{
-			get { return manifestModule.ImageRuntimeVersion; }
+			get { return manifestModule.__ImageRuntimeVersion; }
 		}
 
 		public override Module ManifestModule
@@ -193,17 +201,21 @@ namespace IKVM.Reflection.Reader
 			}
 			// TODO add ModuleResolve event
 			string location = Path.Combine(Path.GetDirectoryName(this.location), manifestModule.GetString(manifestModule.File.records[index].Name));
-			return LoadModule(index, File.ReadAllBytes(location), location);
+			return LoadModule(index, null, location);
 		}
 
 		private Module LoadModule(int index, byte[] rawModule, string location)
 		{
 			if ((manifestModule.File.records[index].Flags & ContainsNoMetaData) != 0)
 			{
-				return externalModules[index] = new ResourceModule(this, manifestModule.GetString(manifestModule.File.records[index].Name), location);
+				return externalModules[index] = new ResourceModule(manifestModule, index, location);
 			}
 			else
 			{
+				if (rawModule == null)
+				{
+					rawModule = File.ReadAllBytes(location);
+				}
 				return externalModules[index] = new ModuleReader(this, manifestModule.universe, new MemoryStream(rawModule), location);
 			}
 		}
@@ -247,9 +259,19 @@ namespace IKVM.Reflection.Reader
 			return manifestModule.__GetReferencedAssemblies();
 		}
 
+		public override AssemblyNameFlags __AssemblyFlags
+		{
+			get { return (AssemblyNameFlags)manifestModule.AssemblyTable.records[0].Flags; }
+		}
+
+		internal string Name
+		{
+			get { return manifestModule.GetString(manifestModule.AssemblyTable.records[0].Name); }
+		}
+
 		internal override IList<CustomAttributeData> GetCustomAttributesData(Type attributeType)
 		{
-			return manifestModule.GetCustomAttributes(0x20000001, attributeType);
+			return CustomAttributeData.GetCustomAttributesImpl(null, manifestModule, 0x20000001, attributeType) ?? CustomAttributeData.EmptyList;
 		}
 	}
 }

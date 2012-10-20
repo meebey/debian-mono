@@ -92,7 +92,7 @@ namespace System.Net.Sockets {
 			public Socket Sock;
 			public IntPtr handle;
 			object state;
-			AsyncCallback callback;
+			AsyncCallback callback; // used from the runtime
 			WaitHandle waithandle;
 
 			Exception delayedException;
@@ -226,7 +226,11 @@ namespace System.Net.Sockets {
 					Worker worker = (Worker) pending [i];
 					SocketAsyncResult ares = worker.result;
 					cb = new WaitCallback (ares.CompleteDisposed);
+#if MOONLIGHT
+					ThreadPool.QueueUserWorkItem (cb, null);
+#else
 					ThreadPool.UnsafeQueueUserWorkItem (cb, null);
+#endif
 				}
 			}
 
@@ -245,7 +249,8 @@ namespace System.Net.Sockets {
 				Queue queue = null;
 				if (operation == SocketOperation.Receive ||
 				    operation == SocketOperation.ReceiveFrom ||
-				    operation == SocketOperation.ReceiveGeneric) {
+				    operation == SocketOperation.ReceiveGeneric ||
+				    operation == SocketOperation.Accept) {
 					queue = Sock.readQ;
 				} else if (operation == SocketOperation.Send ||
 					   operation == SocketOperation.SendTo ||
@@ -258,7 +263,7 @@ namespace System.Net.Sockets {
 					Worker worker = null;
 					SocketAsyncCall sac = null;
 					lock (queue) {
-						// queue.Count will only be 0 if the socket is closed while receive/send
+						// queue.Count will only be 0 if the socket is closed while receive/send/accept
 						// operation(s) are pending and at least one call to this method is
 						// waiting on the lock while another one calls CompleteAllOnDispose()
 						if (queue.Count > 0)
@@ -861,7 +866,7 @@ namespace System.Net.Sockets {
 		private SocketType socket_type;
 		private ProtocolType protocol_type;
 		internal bool blocking=true;
-		Thread blocking_thread;
+		List<Thread> blocking_threads;
 		private bool isbound;
 		/* When true, the socket was connected at the time of
 		 * the last IO operation
@@ -881,6 +886,44 @@ namespace System.Net.Sockets {
  		 */
 		internal EndPoint seed_endpoint = null;
 
+		void RegisterForBlockingSyscall ()
+		{
+			while (blocking_threads == null) {
+				//In the rare event this CAS fail, there's a good chance other thread won, so we're kosher.
+				//In the VERY rare event of all CAS fail together, we pay the full price of of failure.
+				Interlocked.CompareExchange (ref blocking_threads, new List<Thread> (), null);
+			}
+
+			try {
+				
+			} finally {
+				/* We must use a finally block here to make this atomic. */
+				lock (blocking_threads) {
+					blocking_threads.Add (Thread.CurrentThread);
+				}
+			}
+		}
+
+		/* This must be called from a finally block! */
+		void UnRegisterForBlockingSyscall ()
+		{
+			//If this NRE, we're in deep problems because Register Must have
+			lock (blocking_threads) {
+				blocking_threads.Remove (Thread.CurrentThread);
+			}
+		}
+
+		void AbortRegisteredThreads () {
+			if (blocking_threads == null)
+				return;
+
+			lock (blocking_threads) {
+				foreach (var t in blocking_threads)
+					cancel_blocking_socket_operation (t);
+				blocking_threads.Clear ();
+			}
+		}
+
 #if !TARGET_JVM
 		// Creates a new system socket, returning the handle
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -890,43 +933,43 @@ namespace System.Net.Sockets {
 						      out int error);
 #endif		
 		
-		public Socket(AddressFamily family, SocketType type, ProtocolType proto)
+		public Socket(AddressFamily addressFamily, SocketType socketType, ProtocolType protocolType)
 		{
 #if NET_2_1 && !MOBILE
-			switch (family) {
+			switch (addressFamily) {
 			case AddressFamily.InterNetwork:	// ok
 			case AddressFamily.InterNetworkV6:	// ok
 			case AddressFamily.Unknown:		// SocketException will be thrown later (with right error #)
 				break;
 			// case AddressFamily.Unspecified:
 			default:
-				throw new ArgumentException ("family");
+				throw new ArgumentException ("addressFamily");
 			}
 
-			switch (type) {
+			switch (socketType) {
 			case SocketType.Stream:			// ok
 			case SocketType.Unknown:		// SocketException will be thrown later (with right error #)
 				break;
 			default:
-				throw new ArgumentException ("type");
+				throw new ArgumentException ("socketType");
 			}
 
-			switch (proto) {
+			switch (protocolType) {
 			case ProtocolType.Tcp:			// ok
 			case ProtocolType.Unspecified:		// ok
 			case ProtocolType.Unknown:		// SocketException will be thrown later (with right error #)
 				break;
 			default:
-				throw new ArgumentException ("proto");
+				throw new ArgumentException ("protocolType");
 			}
 #endif
-			address_family=family;
-			socket_type=type;
-			protocol_type=proto;
+			address_family = addressFamily;
+			socket_type = socketType;
+			protocol_type = protocolType;
 			
 			int error;
 			
-			socket = Socket_internal (family, type, proto, out error);
+			socket = Socket_internal (addressFamily, socketType, protocolType, out error);
 			if (error != 0)
 				throw new SocketException (error);
 #if !NET_2_1 || MOBILE
@@ -1140,8 +1183,10 @@ namespace System.Net.Sockets {
 					return; */
 			}
 		}
+		[MethodImplAttribute(MethodImplOptions.InternalCall)]
+		static extern void cancel_blocking_socket_operation (Thread thread);
 
-		protected virtual void Dispose (bool explicitDisposing)
+		protected virtual void Dispose (bool disposing)
 		{
 			if (disposed)
 				return;
@@ -1154,11 +1199,8 @@ namespace System.Net.Sockets {
 				closed = true;
 				IntPtr x = socket;
 				socket = (IntPtr) (-1);
-				Thread th = blocking_thread;
-				if (th != null) {
-					th.Abort ();
-					blocking_thread = null;
-				}
+				
+				AbortRegisteredThreads ();
 
 				if (was_connected)
 					Linger (x);
@@ -1232,23 +1274,21 @@ namespace System.Net.Sockets {
 
 			int error = 0;
 
-			blocking_thread = Thread.CurrentThread;
 			try {
+				RegisterForBlockingSyscall ();
 				Connect_internal (socket, serial, out error);
-			} catch (ThreadAbortException) {
-				if (disposed) {
-					Thread.ResetAbort ();
-					error = (int) SocketError.Interrupted;
-				}
 			} finally {
-				blocking_thread = null;
+				UnRegisterForBlockingSyscall ();
 			}
 
 			if (error == 0 || error == 10035)
 				seed_endpoint = remoteEP; // Keep the ep around for non-blocking sockets
 
-			if (error != 0)
+			if (error != 0) {
+				if (closed)
+					error = SOCKET_CLOSED;
 				throw new SocketException (error);
+			}
 
 #if !MOONLIGHT
 			if (socket_type == SocketType.Dgram && (ep.Address.Equals (IPAddress.Any) || ep.Address.Equals (IPAddress.IPv6Any)))
@@ -1601,7 +1641,6 @@ namespace System.Net.Sockets {
 			DnsEndPoint dep = (e.RemoteEndPoint as DnsEndPoint);
 			if (dep != null) {
 				addresses = Dns.GetHostAddresses (dep.Host);
-				IPEndPoint endpoint;
 #if MOONLIGHT && !INSIDE_SYSTEM
 				if (!e.PolicyRestricted && !SecurityManager.HasElevatedPermissions) {
 					List<IPAddress> valid = new List<IPAddress> ();
@@ -1631,18 +1670,19 @@ namespace System.Net.Sockets {
 #endif
 					return false;
 			}
-			return true; // do not use remote endpoint
 #else
 			return false; // < NET_4_0 -> use remote endpoint
 #endif
 		}
 
 		bool ConnectAsyncReal (SocketAsyncEventArgs e)
-		{
-			IPAddress [] addresses = null;
+		{			
 			bool use_remoteep = true;
 #if MOONLIGHT || NET_4_0
+			IPAddress [] addresses = null;
 			use_remoteep = !GetCheckedIPs (e, out addresses);
+#endif
+#if MOONLIGHT
 			bool policy_failed = (e.SocketError == SocketError.AccessDenied);
 #endif
 			e.curSocket = this;
@@ -1749,8 +1789,8 @@ namespace System.Net.Sockets {
 
 			// FIXME: this is canceling a synchronous connect, not an async one
 			Socket s = e.ConnectSocket;
-			if ((s != null) && (s.blocking_thread != null))
-				s.blocking_thread.Abort ();
+			if (s != null)
+				s.AbortRegisteredThreads ();
 		}
 #endif
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]

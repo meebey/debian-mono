@@ -46,18 +46,17 @@ namespace IKVM.Reflection.Impl
 		byte[] GetDebugInfo(ref IMAGE_DEBUG_DIRECTORY idd);
 		void RemapToken(int oldToken, int newToken);
 		void DefineLocalVariable2(string name, FieldAttributes attributes, int signature, SymAddressKind addrKind, int addr1, int addr2, int addr3, int startOffset, int endOffset);
+		void OpenMethod(SymbolToken symbolToken, MethodBase mb);
 	}
 
 	static class SymbolSupport
 	{
-		private static readonly bool runningOnMono = System.Type.GetType("Mono.Runtime") != null;
-
 		internal static ISymbolWriterImpl CreateSymbolWriterFor(ModuleBuilder moduleBuilder)
 		{
-#if !NO_SYMBOL_WRITER
-			throw new NotSupportedException ("IKVM.Reflection with no symbol writer support");
+#if NO_SYMBOL_WRITER
+			throw new NotSupportedException("IKVM.Reflection compiled with NO_SYMBOL_WRITER does not support writing debugging symbols.");
 #else
-			if (runningOnMono)
+			if (Universe.MonoRuntime)
 			{
 #if MONO
 				return new MdbWriter(moduleBuilder);

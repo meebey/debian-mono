@@ -6,6 +6,7 @@
  *   Zoltan Varga (vargaz@gmail.com)
  *
  * (C) 2001 Ximian, Inc.
+ * Copyright 2003-2011 Novell, Inc (http://www.novell.com)
  * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
  */
 
@@ -157,7 +158,9 @@ mono_arch_patch_callsite (guint8 *method_start, guint8 *orig_code, guint8 *addr)
 				VALGRIND_DISCARD_TRANSLATIONS (orig_code - 11, sizeof (gpointer));
 			}
 		} else {
-			if ((((guint64)(addr)) >> 32) != 0) {
+			gboolean disp_32bit = ((((gint64)addr - (gint64)orig_code)) < (1 << 30)) && ((((gint64)addr - (gint64)orig_code)) > -(1 << 30));
+
+			if ((((guint64)(addr)) >> 32) != 0 && !disp_32bit) {
 #ifdef MONO_ARCH_NOMAP32BIT
 				/* Print some diagnostics */
 				MonoJitInfo *ji = mono_jit_info_table_find (mono_domain_get (), (char*)orig_code);
@@ -182,7 +185,6 @@ mono_arch_patch_callsite (guint8 *method_start, guint8 *orig_code, guint8 *addr)
 				mono_arch_flush_icache (thunk_start, thunk_code - thunk_start);
 #endif
 			}
-			g_assert ((((guint64)(orig_code)) >> 32) == 0);
 			if (can_write) {
 				InterlockedExchange ((gint32*)(orig_code - 4), ((gint64)addr - (gint64)orig_code));
 				VALGRIND_DISCARD_TRANSLATIONS (orig_code - 5, 4);
@@ -381,6 +383,13 @@ mono_arch_nullify_plt_entry (guint8 *code, mgreg_t *regs)
 	mono_arch_patch_plt_entry (code, NULL, regs, nullified_class_init_trampoline);
 }
 
+static void
+stack_unaligned (MonoTrampolineType tramp_type)
+{
+	printf ("%d\n", tramp_type);
+	g_assert_not_reached ();
+}
+
 guchar*
 mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInfo **info, gboolean aot)
 {
@@ -390,13 +399,13 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 	gboolean has_caller;
 	GSList *unwind_ops = NULL;
 	MonoJumpInfo *ji = NULL;
-	const guint kMaxCodeSize = NACL_SIZE (548, 548*2);
+	const guint kMaxCodeSize = NACL_SIZE (600, 600*2);
 
 #if defined(__native_client_codegen__)
 	const guint kNaClTrampOffset = 17;
 #endif
 
-	if (tramp_type == MONO_TRAMPOLINE_JUMP)
+	if (tramp_type == MONO_TRAMPOLINE_JUMP || tramp_type == MONO_TRAMPOLINE_HANDLER_BLOCK_GUARD)
 		has_caller = FALSE;
 	else
 		has_caller = TRUE;
@@ -491,9 +500,29 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 	for (i = 0; i < 8; ++i)
 		amd64_movsd_membase_reg (code, AMD64_RBP, saved_fpregs_offset + (i * sizeof(mgreg_t)), i);
 
+	/* Check that the stack is aligned */
+#if defined(__default_codegen__)
+	amd64_mov_reg_reg (code, AMD64_R11, AMD64_RSP, sizeof (mgreg_t));
+	amd64_alu_reg_imm (code, X86_AND, AMD64_R11, 15);
+	amd64_alu_reg_imm (code, X86_CMP, AMD64_R11, 0);
+	br [0] = code;
+	amd64_branch_disp (code, X86_CC_Z, 0, FALSE);
+	if (aot) {
+		amd64_mov_reg_imm (code, AMD64_R11, 0);
+		amd64_mov_reg_membase (code, AMD64_R11, AMD64_R11, 0, 8);
+	} else {
+		amd64_mov_reg_imm (code, AMD64_RDI, tramp_type);
+		amd64_mov_reg_imm (code, AMD64_R11, stack_unaligned);
+		amd64_call_reg (code, AMD64_R11);
+	}
+	mono_amd64_patch (br [0], code);
+	//amd64_breakpoint (code);
+#endif
+
 	if (tramp_type != MONO_TRAMPOLINE_GENERIC_CLASS_INIT &&
-			tramp_type != MONO_TRAMPOLINE_MONITOR_ENTER &&
-			tramp_type != MONO_TRAMPOLINE_MONITOR_EXIT) {
+		tramp_type != MONO_TRAMPOLINE_MONITOR_ENTER &&
+		tramp_type != MONO_TRAMPOLINE_MONITOR_EXIT &&
+		tramp_type != MONO_TRAMPOLINE_HANDLER_BLOCK_GUARD) {
 		/* Obtain the trampoline argument which is encoded in the instruction stream */
 		if (aot) {
 			/* Load the GOT offset */
@@ -1180,7 +1209,7 @@ mono_arch_invalidate_method (MonoJitInfo *ji, void *func, gpointer func_arg)
 static void
 handler_block_trampoline_helper (gpointer *ptr)
 {
-	MonoJitTlsData *jit_tls = TlsGetValue (mono_jit_tls_id);
+	MonoJitTlsData *jit_tls = mono_native_tls_get_value (mono_jit_tls_id);
 	*ptr = jit_tls->handler_block_return_address;
 }
 
@@ -1198,8 +1227,9 @@ mono_arch_create_handler_block_trampoline (void)
 
 	if (mono_get_jit_tls_offset () != -1) {
 		code = mono_amd64_emit_tls_get (code, AMD64_RDI, mono_get_jit_tls_offset ());
-		/*simulate a call*/
 		amd64_mov_reg_membase (code, AMD64_RDI, AMD64_RDI, G_STRUCT_OFFSET (MonoJitTlsData, handler_block_return_address), 8);
+		/* Simulate a call */
+		amd64_push_reg (code, AMD64_RAX);
 		amd64_jump_code (code, tramp);
 	} else {
 		/*Slow path uses a c helper*/

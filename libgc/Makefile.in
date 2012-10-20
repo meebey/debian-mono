@@ -186,6 +186,7 @@ distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_CPPFLAGS = -I$(top_builddir)/.. -I$(top_srcdir)/..
 AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
@@ -220,7 +221,6 @@ FGREP = @FGREP@
 GC_CFLAGS = @GC_CFLAGS@
 GC_VERSION = @GC_VERSION@
 GREP = @GREP@
-INCLUDES = -I$(top_builddir)/.. -I$(top_srcdir)/..
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -233,7 +233,7 @@ LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LIPO = @LIPO@
 LN_S = @LN_S@
-LTCOMPILE = $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(INCLUDES) \
+LTCOMPILE = $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) \
 	-I$(top_srcdir)/include $(AM_CPPFLAGS) $(CPPFLAGS) \
 	$(AM_CFLAGS) $(MY_CFLAGS) $(GC_CFLAGS) 
 
@@ -322,8 +322,8 @@ target_all = @target_all@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AUTOMAKE_OPTIONS = foreign
-SUBDIRS = include doc
+ACLOCAL_AMFLAGS = -I m4
+SUBDIRS = m4 include doc
 
 #
 # libtool is not capable of creating shared/static versions of a convenience

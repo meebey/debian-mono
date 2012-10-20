@@ -38,7 +38,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about the System.Net assembly
-// v3.5 Assembly
 
 [assembly: AssemblyTitle ("System.Net.dll")]
 [assembly: AssemblyDescription ("System.Net.dll")]
@@ -64,14 +63,6 @@ using System.Runtime.InteropServices;
 	[assembly: AssemblyKeyFile ("../ecma.pub")]
 	[assembly: AllowPartiallyTrustedCallers]
 	[assembly: SecurityCritical]
-	[assembly: Debuggable (DebuggableAttribute.DebuggingModes.DisableOptimizations | 
-	                       DebuggableAttribute.DebuggingModes.EnableEditAndContinue | 
-	                       DebuggableAttribute.DebuggingModes.IgnoreSymbolStoreSequencePoints)]
 #endif
 
 [assembly: ComVisible (false)]
-
-[assembly: CompilationRelaxations (CompilationRelaxations.NoStringInterning)]
-[assembly: RuntimeCompatibility (WrapNonExceptionThrows = true)]
-[assembly: SecurityPermission (SecurityAction.RequestMinimum, Execution = true)]
-[assembly: SecurityPermission (SecurityAction.RequestMinimum, SkipVerification = true)]

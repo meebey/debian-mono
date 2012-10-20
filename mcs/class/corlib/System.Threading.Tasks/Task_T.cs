@@ -91,7 +91,7 @@ namespace System.Threading.Tasks
 		}
 		
 		public Task (Func<TResult> function, CancellationToken cancellationToken, TaskCreationOptions creationOptions)
-			: base (TaskActionInvoker.Create (function), null, cancellationToken, creationOptions, null)
+			: base (TaskActionInvoker.Create (function), null, cancellationToken, creationOptions)
 		{
 			if (function == null)
 				throw new ArgumentNullException ("function");
@@ -116,14 +116,14 @@ namespace System.Threading.Tasks
 		}
 
 		public Task (Func<object, TResult> function, object state, CancellationToken cancellationToken, TaskCreationOptions creationOptions)
-			: base (TaskActionInvoker.Create (function), state, cancellationToken, creationOptions, null)
+			: base (TaskActionInvoker.Create (function), state, cancellationToken, creationOptions)
 		{
 			if (function == null)
 				throw new ArgumentNullException ("function");
 		}
 
-		internal Task (TaskActionInvoker invoker, object state, CancellationToken cancellationToken, TaskCreationOptions creationOptions, Task parent)
-			: base (invoker, state, cancellationToken, creationOptions, parent)
+		internal Task (TaskActionInvoker invoker, object state, CancellationToken cancellationToken, TaskCreationOptions creationOptions, Task parent, Task contAncestor = null, bool ignoreCancellation = false)
+			: base (invoker, state, cancellationToken, creationOptions, parent, contAncestor, ignoreCancellation)
 		{
 		}
 
@@ -159,6 +159,7 @@ namespace System.Threading.Tasks
 			                   null,
 			                   cancellationToken,
 			                   GetCreationOptions (continuationOptions),
+			                   null,
 			                   this);
 			ContinueWithCore (t, continuationOptions, scheduler);
 			
@@ -196,10 +197,11 @@ namespace System.Threading.Tasks
 				throw new ArgumentNullException ("scheduler");
 
 			var t = new Task<TNewResult> (TaskActionInvoker.Create (continuationFunction),
-			                                           null,
-			                                           cancellationToken,
-			                                           GetCreationOptions (continuationOptions),
-			                                           this);
+			                              null,
+			                              cancellationToken,
+			                              GetCreationOptions (continuationOptions),
+			                              null,
+			                              this);
 			ContinueWithCore (t, continuationOptions, scheduler);
 			
 			return t;
@@ -259,10 +261,11 @@ namespace System.Threading.Tasks
 				throw new ArgumentNullException ("scheduler");
 
 			var t = new Task (TaskActionInvoker.Create (continuationAction),
-							   state,
-							   cancellationToken,
-							   GetCreationOptions (continuationOptions),
-							   this);
+			                  state,
+			                  cancellationToken,
+			                  GetCreationOptions (continuationOptions),
+			                  null,
+			                  this);
 
 			ContinueWithCore (t, continuationOptions, scheduler);
 
@@ -300,10 +303,11 @@ namespace System.Threading.Tasks
 				throw new ArgumentNullException ("scheduler");
 
 			var t = new Task<TNewResult> (TaskActionInvoker.Create (continuationFunction),
-							   state,
-							   cancellationToken,
-							   GetCreationOptions (continuationOptions),
-							   this);
+			                              state,
+			                              cancellationToken,
+			                              GetCreationOptions (continuationOptions),
+			                              null,
+			                              this);
 
 			ContinueWithCore (t, continuationOptions, scheduler);
 
@@ -318,6 +322,13 @@ namespace System.Threading.Tasks
 		public new TaskAwaiter<TResult> GetAwaiter ()
 		{
 			return new TaskAwaiter<TResult> (this);
+		}
+
+		internal static Task<TResult> FromException (Exception ex)
+		{
+			var tcs = new TaskCompletionSource<TResult>();
+			tcs.TrySetException (ex);
+			return tcs.Task;
 		}
 #endif
 	}

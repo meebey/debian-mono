@@ -206,13 +206,13 @@
 
 /* Fd := MVF Rm */
 
-#define ARM_MVFD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_MVFD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_MVF,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_MVFD(p,dreg,sreg)      ARM_MVFD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_MVFD(p,dreg,sreg)      ARM_FPA_MVFD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_MVFS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_MVFS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_MVF,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_MVFS(p,dreg,sreg)      ARM_MVFS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_MVFS(p,dreg,sreg)      ARM_FPA_MVFS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- MNF -- */
@@ -220,13 +220,13 @@
 
 /* Fd := MNF Rm */
 
-#define ARM_MNFD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_MNFD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_MNF,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_MNFD(p,dreg,sreg)      ARM_MNFD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_MNFD(p,dreg,sreg)      ARM_FPA_MNFD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_MNFS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_MNFS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_MNF,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_MNFS(p,dreg,sreg)      ARM_MNFS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_MNFS(p,dreg,sreg)      ARM_FPA_MNFS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- ABS -- */
@@ -234,13 +234,13 @@
 
 /* Fd := ABS Rm */
 
-#define ARM_ABSD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ABSD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ABS,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_ABSD(p,dreg,sreg)      ARM_ABSD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ABSD(p,dreg,sreg)      ARM_FPA_ABSD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_ABSS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ABSS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ABS,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_ABSS(p,dreg,sreg)      ARM_ABSS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ABSS(p,dreg,sreg)      ARM_FPA_ABSS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- RND -- */
@@ -248,13 +248,13 @@
 
 /* Fd := RND Rm */
 
-#define ARM_RNDD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_RNDD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_RND,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_RNDD(p,dreg,sreg)      ARM_RNDD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_RNDD(p,dreg,sreg)      ARM_FPA_RNDD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_RNDS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_RNDS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_RND,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_RNDS(p,dreg,sreg)      ARM_RNDS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_RNDS(p,dreg,sreg)      ARM_FPA_RNDS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- SQT -- */
@@ -262,13 +262,13 @@
 
 /* Fd := SQT Rm */
 
-#define ARM_SQTD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_SQTD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_SQT,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_SQTD(p,dreg,sreg)      ARM_SQTD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_SQTD(p,dreg,sreg)      ARM_FPA_SQTD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_SQTS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_SQTS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_SQT,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_SQTS(p,dreg,sreg)      ARM_SQTS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_SQTS(p,dreg,sreg)      ARM_FPA_SQTS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- LOG -- */
@@ -276,13 +276,13 @@
 
 /* Fd := LOG Rm */
 
-#define ARM_LOGD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_LOGD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_LOG,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_LOGD(p,dreg,sreg)      ARM_LOGD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_LOGD(p,dreg,sreg)      ARM_FPA_LOGD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_LOGS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_LOGS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_LOG,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_LOGS(p,dreg,sreg)      ARM_LOGS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_LOGS(p,dreg,sreg)      ARM_FPA_LOGS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- EXP -- */
@@ -290,13 +290,13 @@
 
 /* Fd := EXP Rm */
 
-#define ARM_EXPD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_EXPD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_EXP,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_EXPD(p,dreg,sreg)      ARM_EXPD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_EXPD(p,dreg,sreg)      ARM_FPA_EXPD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_EXPS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_EXPS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_EXP,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_EXPS(p,dreg,sreg)      ARM_EXPS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_EXPS(p,dreg,sreg)      ARM_FPA_EXPS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- SIN -- */
@@ -304,13 +304,13 @@
 
 /* Fd := SIN Rm */
 
-#define ARM_SIND_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_SIND_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_SIN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_SIND(p,dreg,sreg)      ARM_SIND_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_SIND(p,dreg,sreg)      ARM_FPA_SIND_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_SINS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_SINS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_SIN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_SINS(p,dreg,sreg)      ARM_SINS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_SINS(p,dreg,sreg)      ARM_FPA_SINS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- COS -- */
@@ -318,13 +318,13 @@
 
 /* Fd := COS Rm */
 
-#define ARM_COSD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_COSD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_COS,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_COSD(p,dreg,sreg)      ARM_COSD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_COSD(p,dreg,sreg)      ARM_FPA_COSD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_COSS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_COSS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_COS,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_COSS(p,dreg,sreg)      ARM_COSS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_COSS(p,dreg,sreg)      ARM_FPA_COSS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- TAN -- */
@@ -332,13 +332,13 @@
 
 /* Fd := TAN Rm */
 
-#define ARM_TAND_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_TAND_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_TAN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_TAND(p,dreg,sreg)      ARM_TAND_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_TAND(p,dreg,sreg)      ARM_FPA_TAND_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_TANS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_TANS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_TAN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_TANS(p,dreg,sreg)      ARM_TANS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_TANS(p,dreg,sreg)      ARM_FPA_TANS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- ASN -- */
@@ -346,13 +346,13 @@
 
 /* Fd := ASN Rm */
 
-#define ARM_ASND_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ASND_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ASN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_ASND(p,dreg,sreg)      ARM_ASND_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ASND(p,dreg,sreg)      ARM_FPA_ASND_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_ASNS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ASNS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ASN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_ASNS(p,dreg,sreg)      ARM_ASNS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ASNS(p,dreg,sreg)      ARM_FPA_ASNS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- ACS -- */
@@ -360,13 +360,13 @@
 
 /* Fd := ACS Rm */
 
-#define ARM_ACSD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ACSD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ACS,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_ACSD(p,dreg,sreg)      ARM_ACSD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ACSD(p,dreg,sreg)      ARM_FPA_ACSD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_ACSS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ACSS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ACS,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_ACSS(p,dreg,sreg)      ARM_ACSS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ACSS(p,dreg,sreg)      ARM_FPA_ACSS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- ATN -- */
@@ -374,13 +374,13 @@
 
 /* Fd := ATN Rm */
 
-#define ARM_ATND_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ATND_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ATN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_ATND(p,dreg,sreg)      ARM_ATND_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ATND(p,dreg,sreg)      ARM_FPA_ATND_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_ATNS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_ATNS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_ATN,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_ATNS(p,dreg,sreg)      ARM_ATNS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_ATNS(p,dreg,sreg)      ARM_FPA_ATNS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- URD -- */
@@ -388,13 +388,13 @@
 
 /* Fd := URD Rm */
 
-#define ARM_URDD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_URDD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_URD,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_URDD(p,dreg,sreg)      ARM_URDD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_URDD(p,dreg,sreg)      ARM_FPA_URDD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_URDS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_URDS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_URD,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_URDS(p,dreg,sreg)      ARM_URDS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_URDS(p,dreg,sreg)      ARM_FPA_URDS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 /* -- NRM -- */
@@ -402,13 +402,13 @@
 
 /* Fd := NRM Rm */
 
-#define ARM_NRMD_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_NRMD_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_NRM,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_DOUBLE))
-#define ARM_NRMD(p,dreg,sreg)      ARM_NRMD_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_NRMD(p,dreg,sreg)      ARM_FPA_NRMD_COND(p,dreg,sreg,ARMCOND_AL)
 
-#define ARM_NRMS_COND(p,dreg,sreg,cond) \
+#define ARM_FPA_NRMS_COND(p,dreg,sreg,cond) \
         ARM_EMIT((p), ARM_DEF_FPA_CPDO_MONADIC((cond),ARM_FPA_NRM,(dreg),(sreg),ARM_FPA_ROUND_NEAREST,ARM_FPA_ROUND_SINGLE))
-#define ARM_NRMS(p,dreg,sreg)      ARM_NRMS_COND(p,dreg,sreg,ARMCOND_AL)
+#define ARM_FPA_NRMS(p,dreg,sreg)      ARM_FPA_NRMS_COND(p,dreg,sreg,ARMCOND_AL)
 
 
 

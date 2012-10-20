@@ -19,7 +19,6 @@
 
 using System;
 using System.Collections;
-using System.Text;
 using System.Runtime.InteropServices;
 
 namespace System.Data.OracleClient.Oci {
@@ -254,20 +253,15 @@ namespace System.Data.OracleClient.Oci {
 				throw new InvalidOperationException ("StatementHandle is already disposed.");
 			}
 
-			ulong rsize = 0;
+			int rsize = 0;
 			byte [] buffer;
 			
-			UIntPtr rsizep = new UIntPtr (rsize);
 			// Get size of buffer
-			OciCalls.OCIUnicodeToCharSet (Parent, null, commandText, ref rsizep);
-			rsize = rsizep.ToUInt64 ();
+			OciCalls.OCIUnicodeToCharSet (Parent, null, commandText, out rsize);
 			
-			//rsize = Encoding.UTF8.GetMaxByteCount (commandText.Length+1);
-
 			// Fill buffer
 			buffer = new byte[rsize];
-
-			OciCalls.OCIUnicodeToCharSet (Parent, buffer, commandText, ref rsizep);
+			OciCalls.OCIUnicodeToCharSet (Parent, buffer, commandText, out rsize);
 
 			// Execute statement
 			status = OciCalls.OCIStmtPrepare (this,

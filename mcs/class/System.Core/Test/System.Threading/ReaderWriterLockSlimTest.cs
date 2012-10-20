@@ -29,8 +29,10 @@
 using System;
 using NUnit.Framework;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Linq;
+#if NET_4_0
+using System.Threading.Tasks;
+#endif
 
 namespace MonoTests.System.Threading
 {
@@ -404,7 +406,7 @@ namespace MonoTests.System.Threading
 			Assert.IsTrue (v.TryEnterWriteLock (100));
 			v.ExitWriteLock ();
 		}
-
+#if NET_4_0
 		[Test]
 		public void EnterWriteLockWhileInUpgradeAndOtherWaiting ()
 		{
@@ -428,7 +430,7 @@ namespace MonoTests.System.Threading
 
             Assert.IsTrue (task1.Wait (500));
 		}
-
+#endif
 		[Test]
 		public void RecursiveReadLockTest ()
 		{

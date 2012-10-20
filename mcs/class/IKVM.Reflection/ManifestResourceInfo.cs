@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2009 Jeroen Frijters
+  Copyright (C) 2009-2012 Jeroen Frijters
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -27,7 +27,7 @@ using IKVM.Reflection.Metadata;
 
 namespace IKVM.Reflection
 {
-	public class ManifestResourceInfo
+	public sealed class ManifestResourceInfo
 	{
 		private readonly ModuleReader module;
 		private readonly int index;
@@ -38,6 +38,16 @@ namespace IKVM.Reflection
 			this.index = index;
 		}
 
+		public ResourceAttributes __ResourceAttributes
+		{
+			get { return (ResourceAttributes)module.ManifestResource.records[index].Flags; }
+		}
+
+		public int __Offset
+		{
+			get { return module.ManifestResource.records[index].Offset; }
+		}
+
 		public ResourceLocation ResourceLocation
 		{
 			get
@@ -45,8 +55,12 @@ namespace IKVM.Reflection
 				int implementation = module.ManifestResource.records[index].Implementation;
 				if ((implementation >> 24) == AssemblyRefTable.Index)
 				{
-					//return ResourceLocation.ContainedInAnotherAssembly;
-					throw new NotImplementedException();
+					Assembly asm = ReferencedAssembly;
+					if (asm == null || asm.__IsMissing)
+					{
+						return ResourceLocation.ContainedInAnotherAssembly;
+					}
+					return asm.GetManifestResourceInfo(module.GetString(module.ManifestResource.records[index].Name)).ResourceLocation | ResourceLocation.ContainedInAnotherAssembly;
 				}
 				else if ((implementation >> 24) == FileTable.Index)
 				{
@@ -65,7 +79,15 @@ namespace IKVM.Reflection
 
 		public Assembly ReferencedAssembly
 		{
-			get { throw new NotImplementedException(); }
+			get
+			{
+				int implementation = module.ManifestResource.records[index].Implementation;
+				if ((implementation >> 24) == AssemblyRefTable.Index)
+				{
+					return module.ResolveAssemblyRef((implementation & 0xFFFFFF) - 1);
+				}
+				return null;
+			}
 		}
 
 		public string FileName
@@ -84,7 +106,7 @@ namespace IKVM.Reflection
 						return module.GetString(module.File.records[(implementation & 0xFFFFFF) - 1].Name);
 					}
 				}
-				throw new NotImplementedException();
+				return null;
 			}
 		}
 	}
