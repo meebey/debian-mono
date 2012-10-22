@@ -1,3 +1,13 @@
+mono (3.0.0+dfsg-1~exp1) UNRELEASED; urgency=low
+
+  * New major upstream release
+    + Dropped obsolete downstream patches:
+      - master-experimental-patches/CVE-2012-3382-Mono.Web-XSS
+      - master-experimental-patches/X.509_fixes
+      - master-experimental-patches/fix_mono-api-info
+
+ -- Mirco Bauer <meebey@debian.org>  Sat, 20 Oct 2012 23:04:14 +0200
+
 mono (2.10.8.1-6) unstable; urgency=low
 
   * [da2fc97] Remove armhf from list of supported architectures. It 
