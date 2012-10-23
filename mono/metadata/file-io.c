@@ -7,6 +7,7 @@
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2012 Xamarin Inc (http://www.xamarin.com)
  */
 
 #include <config.h>
@@ -174,21 +175,13 @@ static gint64 convert_filetime (const FILETIME *filetime)
 	return (gint64)ticks;
 }
 
-static void convert_win32_file_attribute_data (const WIN32_FILE_ATTRIBUTE_DATA *data, const gunichar2 *name, MonoIOStat *stat)
+static void convert_win32_file_attribute_data (const WIN32_FILE_ATTRIBUTE_DATA *data, MonoIOStat *stat)
 {
-	int len;
-	
 	stat->attributes = data->dwFileAttributes;
 	stat->creation_time = convert_filetime (&data->ftCreationTime);
 	stat->last_access_time = convert_filetime (&data->ftLastAccessTime);
 	stat->last_write_time = convert_filetime (&data->ftLastWriteTime);
 	stat->length = ((gint64)data->nFileSizeHigh << 32) | data->nFileSizeLow;
-
-	len = 0;
-	while (name [len])
-		++ len;
-
-	MONO_STRUCT_SETREF (stat, name, mono_string_new_utf16 (mono_domain_get (), name, len));
 }
 
 /* Managed file attributes have nearly but not quite the same values
@@ -335,6 +328,7 @@ ves_icall_System_IO_MonoIO_GetFileSystemEntries (MonoString *path,
 	
 	MONO_ARCH_SAVE_REGS;
 
+	result = NULL;
 	*error = ERROR_SUCCESS;
 
 	domain = mono_domain_get ();
@@ -343,11 +337,11 @@ ves_icall_System_IO_MonoIO_GetFileSystemEntries (MonoString *path,
 	if (attributes != -1) {
 		if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
 			*error = ERROR_INVALID_NAME;
-			return (NULL);
+			goto leave;
 		}
 	} else {
 		*error = GetLastError ();
-		return (NULL);
+		goto leave;
 	}
 	
 	find_handle = FindFirstFile (mono_string_chars (path_with_pattern), &data);
@@ -356,15 +350,11 @@ ves_icall_System_IO_MonoIO_GetFileSystemEntries (MonoString *path,
 		
 		if (find_error == ERROR_FILE_NOT_FOUND || find_error == ERROR_NO_MORE_FILES) {
 			/* No files, so just return an empty array */
-			result = mono_array_new (domain,
-						 mono_defaults.string_class,
-						 0);
-
-			return(result);
+			goto leave;
 		}
 		
 		*error = find_error;
-		return(NULL);
+		goto leave;
 	}
 
 	utf8_path = get_search_dir (path_with_pattern);
@@ -404,7 +394,12 @@ ves_icall_System_IO_MonoIO_GetFileSystemEntries (MonoString *path,
 	}
 	g_ptr_array_free (names, TRUE);
 	g_free (utf8_path);
-	
+
+leave:
+	// If there's no array and no error, then return an empty array.
+	if (result == NULL && *error == ERROR_SUCCESS)
+		result = mono_array_new (domain, mono_defaults.string_class, 0);
+
 	return result;
 }
 
@@ -733,9 +728,7 @@ ves_icall_System_IO_MonoIO_GetFileStat (MonoString *path, MonoIOStat *stat,
 	result = get_file_attributes_ex (mono_string_chars (path), &data);
 
 	if (result) {
-		convert_win32_file_attribute_data (&data,
-						   mono_string_chars (path),
-						   stat);
+		convert_win32_file_attribute_data (&data, stat);
 	} else {
 		*error=GetLastError ();
 		memset (stat, 0, sizeof (MonoIOStat));

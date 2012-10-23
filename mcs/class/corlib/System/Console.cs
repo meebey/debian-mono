@@ -89,9 +89,16 @@ namespace System
 			}
 		}
 #endif
+
 		internal static TextWriter stdout;
 		private static TextWriter stderr;
 		private static TextReader stdin;
+
+#if NET_4_5
+		static TextWriter console_stdout;
+		static TextWriter console_stderr;
+		static TextReader console_stdin;
+#endif
 
 		static Console ()
 		{
@@ -133,25 +140,42 @@ namespace System
 					inputEncoding = outputEncoding = Encoding.Default;
 			}
 
-			stderr = new UnexceptionalStreamWriter (OpenStandardError (0), outputEncoding); 
-			((StreamWriter)stderr).AutoFlush = true;
-			stderr = TextWriter.Synchronized (stderr, true);
+			SetupStreams (inputEncoding, outputEncoding);
+		}
 
+		static void SetupStreams (Encoding inputEncoding, Encoding outputEncoding)
+		{
 #if !NET_2_1
 			if (!Environment.IsRunningOnWindows && ConsoleDriver.IsConsole) {
 				StreamWriter w = new CStreamWriter (OpenStandardOutput (0), outputEncoding);
 				w.AutoFlush = true;
 				stdout = TextWriter.Synchronized (w, true);
+
+				w = new CStreamWriter (OpenStandardOutput (0), outputEncoding);
+				w.AutoFlush = true;
+				stderr = TextWriter.Synchronized (w, true);
+				
 				stdin = new CStreamReader (OpenStandardInput (0), inputEncoding);
 			} else {
 #endif
 				stdout = new UnexceptionalStreamWriter (OpenStandardOutput (0), outputEncoding);
 				((StreamWriter)stdout).AutoFlush = true;
 				stdout = TextWriter.Synchronized (stdout, true);
+
+				stderr = new UnexceptionalStreamWriter (OpenStandardError (0), outputEncoding); 
+				((StreamWriter)stderr).AutoFlush = true;
+				stderr = TextWriter.Synchronized (stderr, true);
+
 				stdin = new UnexceptionalStreamReader (OpenStandardInput (0), inputEncoding);
 				stdin = TextReader.Synchronized (stdin);
 #if !NET_2_1
 			}
+#endif
+
+#if NET_4_5
+			console_stderr = stderr;
+			console_stdout = stdout;
+			console_stdin = stdin;
 #endif
 
 #if MONODROID
@@ -183,6 +207,26 @@ namespace System
 				return stdin;
 			}
 		}
+
+#if NET_4_5
+		public static bool IsErrorRedirected {
+			get {
+				return stderr != console_stderr || ConsoleDriver.IsErrorRedirected;
+			}
+		}
+
+		public static bool IsOutputRedirected {
+			get {
+				return stdout != console_stdout || ConsoleDriver.IsOutputRedirected;
+			}
+		}
+
+		public static bool IsInputRedirected {
+			get {
+				return stdin != console_stdin || ConsoleDriver.IsInputRedirected;
+			}
+		}
+#endif
 
 		private static Stream Open (IntPtr handle, FileAccess access, int bufferSize)
 		{
@@ -530,12 +574,18 @@ namespace System
 
 		public static Encoding InputEncoding {
 			get { return inputEncoding; }
-			set { inputEncoding = value; }
+			set {
+				inputEncoding = value;
+				SetupStreams (inputEncoding, outputEncoding);
+			}
 		}
 
 		public static Encoding OutputEncoding {
 			get { return outputEncoding; }
-			set { outputEncoding = value; }
+			set {
+				outputEncoding = value;
+				SetupStreams (inputEncoding, outputEncoding);
+			}
 		}
 
 		public static ConsoleColor BackgroundColor {

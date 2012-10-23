@@ -69,6 +69,7 @@
 # if (defined(GC_DGUX386_THREADS) || defined(GC_OSF1_THREADS) || \
       defined(GC_DARWIN_THREADS) || defined(GC_AIX_THREADS)) || \
       defined(GC_NETBSD_THREADS) && !defined(USE_PTHREAD_SPECIFIC) || \
+      defined(GC_FREEBSD_THREADS) && !defined(USE_PTHREAD_SPECIFIC) || \
       defined(GC_OPENBSD_THREADS)
 #   define USE_PTHREAD_SPECIFIC
 # endif
@@ -181,6 +182,10 @@ void GC_thr_init();
 static GC_bool parallel_initialized = FALSE;
 
 void GC_init_parallel();
+
+static pthread_t main_pthread_self;
+static void *main_stack, *main_altstack;
+static int main_stack_size, main_altstack_size;
 
 # if defined(THREAD_LOCAL_ALLOC) && !defined(DBG_HDRS_ALL)
 
@@ -688,9 +693,14 @@ extern pthread_mutex_t nacl_thread_alloc_lock;
 extern __thread int nacl_thread_idx;
 extern __thread GC_thread nacl_gc_thread_self;
 
+extern void nacl_pre_syscall_hook();
+extern void nacl_post_syscall_hook();
+extern void nacl_register_gc_hooks(void (*pre)(), void (*post)());
+
 void nacl_initialize_gc_thread()
 {
     int i;
+    nacl_register_gc_hooks(nacl_pre_syscall_hook, nacl_post_syscall_hook);
     pthread_mutex_lock(&nacl_thread_alloc_lock);
     if (!nacl_thread_parking_inited)
     {
@@ -841,6 +851,30 @@ int GC_thread_is_registered (void)
 	UNLOCK();
 
 	return ptr ? 1 : 0;
+}
+
+void GC_register_altstack (void *stack, int stack_size, void *altstack, int altstack_size)
+{
+	GC_thread thread;
+
+	LOCK();
+	thread = (void *)GC_lookup_thread(pthread_self());
+	if (thread) {
+		thread->stack = stack;
+		thread->stack_size = stack_size;
+		thread->altstack = altstack;
+		thread->altstack_size = altstack_size;
+	} else {
+		/*
+		 * This happens if we are called before GC_thr_init ().
+		 */
+		main_pthread_self = pthread_self ();
+		main_stack = stack;
+		main_stack_size = stack_size;
+		main_altstack = altstack;
+		main_altstack_size = altstack_size;
+	}
+	UNLOCK();
 }
 
 #ifdef HANDLE_FORK
@@ -1078,6 +1112,12 @@ void GC_thr_init()
          gc_thread_vtable->thread_created (pthread_self (), &t->stop_info.stack_ptr);
 #     endif
 #endif
+		 if (pthread_self () == main_pthread_self) {
+			 t->stack = main_stack;
+			 t->stack_size = main_stack_size;
+			 t->altstack = main_altstack;
+			 t->altstack_size = main_altstack_size;
+		 }
 
     GC_stop_init();
 

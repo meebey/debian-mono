@@ -1,5 +1,4 @@
-AUTOMAKE_OPTIONS = foreign
-ACLOCAL_AMFLAGS = -I .
+ACLOCAL_AMFLAGS = -I m4
 
 MOONLIGHT_SUBDIRS = $(libgc_dir) eglib/src mono
 
@@ -7,7 +6,7 @@ if CROSS_COMPILING
 SUBDIRS = po $(libgc_dir) eglib mono $(ikvm_native_dir) data runtime scripts man samples msvc $(docs_dir)
 # Keep in sync with SUBDIRS
 ## 'tools' is not normally built
-DIST_SUBDIRS = po libgc eglib mono ikvm-native         data runtime scripts man samples tools msvc docs
+DIST_SUBDIRS = m4 po libgc eglib mono ikvm-native data runtime scripts man samples tools msvc docs
 else
 if ONLY_MOONLIGHT
 SUBDIRS = $(MOONLIGHT_SUBDIRS) runtime
@@ -15,9 +14,17 @@ else
 SUBDIRS = po $(libgc_dir) eglib mono $(ikvm_native_dir) support data runtime scripts man samples msvc $(docs_dir)
 # Keep in sync with SUBDIRS
 ## 'tools' is not normally built
-DIST_SUBDIRS = po libgc eglib mono ikvm-native support data runtime scripts man samples tools msvc docs
+DIST_SUBDIRS = m4 po libgc eglib mono ikvm-native support data runtime scripts man samples tools msvc docs
 endif
 endif
+
+all: update_submodules
+
+SUBMODULE_ERROR='Could not recursively update all git submodules. You may experience compilation problems if some submodules are out of date'
+update_submodules:
+	@$(srcdir)/scripts/update_submodules
+
+.PHONY: update_submodules
 
 EXTRA_DIST= \
 	    LICENSE \
@@ -25,10 +32,9 @@ EXTRA_DIST= \
 	    build-mingw32.sh \
 	    mkinstalldirs \
 	    mono-uninstalled.pc.in \
-	    nls.m4 \
-	    po.m4 \
-	    progtest.m4 \
-	    winconfig.h
+	    winconfig.h \
+	    mono-core.spec \
+	    external
 
 DISTCHECK_CONFIGURE_FLAGS = EXTERNAL_MCS=false EXTERNAL_RUNTIME=false
 
@@ -37,7 +43,9 @@ GIT_DIR ?= $(srcdir)/.git
 dist-hook:
 	test -d $(distdir)/mcs || mkdir $(distdir)/mcs
 	d=`cd $(distdir)/mcs && pwd`; cd $(mcs_topdir) && $(MAKE) distdir=$$d dist-recursive
-	test ! -d $(GIT_DIR) || ./scripts/commits-to-changelog.py --root=$(distdir) last-commit-with-compulsory-changelog-entry
+	rm -rf `find $(top_distdir)/external -path '*\.git' -and -type d`
+# Disable this for now because it is very slow and causes wrench to timeout:
+#	test ! -d $(GIT_DIR) || ./scripts/commits-to-changelog.py --root=$(distdir) last-commit-with-compulsory-changelog-entry
 
 pkgconfigdir = $(libdir)/pkgconfig
 noinst_DATA = mono-uninstalled.pc
@@ -47,7 +55,7 @@ DISTCLEANFILES= mono-uninstalled.pc
 mcslib = $(mcs_topdir)/class/lib
 monolite = $(mcslib)/monolite
 mono_corlib_version = $(shell sed -n "s/\#define MONO_CORLIB_VERSION //p" $(srcdir)/mono/metadata/appdomain.c)
-monolite_url = http://mono.ximian.com/daily/monolite-$(mono_corlib_version)-latest.tar.gz
+monolite_url = http://storage.bos.xamarin.com/mono-dist-master/latest/monolite-$(mono_corlib_version)-latest.tar.gz
 .PHONY: get-monolite-latest 
 get-monolite-latest:
 	-rm -fr $(mcslib)/monolite-*
@@ -143,6 +151,7 @@ package-inputs:
 		 read output; echo "      <output>$$output</output>"; \
 		 read built;  echo "      <built_sources>$$built</built_sources>"; \
 		 read libou;  echo "      <library_output>$$libou</library_output>"; \
+		 read fx_ver; echo "      <fx_version>$$fx_ver</fx_version>"; \
 		 read resp;   echo "      <response>$$resp</response>"; \
 		echo "    </project>") >> msvc/scripts/order.xml; \
 	done

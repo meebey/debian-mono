@@ -40,11 +40,13 @@ target_triplet = @target@
 subdir = mono/profiler
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in ChangeLog
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/libtool.m4 \
-	$(top_srcdir)/ltoptions.m4 $(top_srcdir)/ltsugar.m4 \
-	$(top_srcdir)/ltversion.m4 $(top_srcdir)/lt~obsolete.m4 \
-	$(top_srcdir)/nls.m4 $(top_srcdir)/po.m4 \
-	$(top_srcdir)/progtest.m4 $(top_srcdir)/acinclude.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/iconv.m4 \
+	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
+	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
+	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/configure.in
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -75,27 +77,39 @@ am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libmono_profiler_aot_la_DEPENDENCIES = $(LIBMONO)
+am__DEPENDENCIES_1 =
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@am__DEPENDENCIES_2 = $(top_builddir)/mono/metadata/libmonoruntime-static.la \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(top_builddir)/mono/io-layer/libwapi.la \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(top_builddir)/mono/utils/libmonoutils.la \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(am__DEPENDENCIES_1) \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(am__DEPENDENCIES_1) \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(am__DEPENDENCIES_1)
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@am__DEPENDENCIES_3 = $(top_builddir)/mono/mini/$(LIBMONO_LA) \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(am__DEPENDENCIES_2)
+@SHARED_MONO_TRUE@@SUPPORT_BOEHM_TRUE@am__DEPENDENCIES_3 = $(top_builddir)/mono/mini/$(LIBMONO_LA)
+@SUPPORT_BOEHM_FALSE@am__DEPENDENCIES_3 = $(top_builddir)/mono/mini/libmonosgen-$(API_VER).la
+libmono_profiler_aot_la_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libmono_profiler_aot_la_OBJECTS = mono-profiler-aot.lo
 libmono_profiler_aot_la_OBJECTS =  \
 	$(am_libmono_profiler_aot_la_OBJECTS)
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@am_libmono_profiler_aot_la_rpath =  \
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@	-rpath $(libdir)
-libmono_profiler_cov_la_DEPENDENCIES = $(LIBMONO)
+libmono_profiler_cov_la_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libmono_profiler_cov_la_OBJECTS = mono-cov.lo
 libmono_profiler_cov_la_OBJECTS =  \
 	$(am_libmono_profiler_cov_la_OBJECTS)
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@am_libmono_profiler_cov_la_rpath =  \
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@	-rpath $(libdir)
-am__DEPENDENCIES_1 =
-libmono_profiler_iomap_la_DEPENDENCIES = $(LIBMONO) \
-	$(am__DEPENDENCIES_1)
+libmono_profiler_iomap_la_DEPENDENCIES = $(am__DEPENDENCIES_3) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 am_libmono_profiler_iomap_la_OBJECTS = mono-profiler-iomap.lo
 libmono_profiler_iomap_la_OBJECTS =  \
 	$(am_libmono_profiler_iomap_la_OBJECTS)
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@am_libmono_profiler_iomap_la_rpath =  \
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@	-rpath $(libdir)
-libmono_profiler_log_la_DEPENDENCIES = $(LIBMONO) \
+libmono_profiler_log_la_DEPENDENCIES = $(am__DEPENDENCIES_3) \
 	$(am__DEPENDENCIES_1)
 am_libmono_profiler_log_la_OBJECTS = proflog.lo
 libmono_profiler_log_la_OBJECTS =  \
@@ -139,7 +153,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BISON = @BISON@
 BOEHM_DEFINES = @BOEHM_DEFINES@
 BUILD_EXEEXT = @BUILD_EXEEXT@
 BUILD_GLIB_CFLAGS = @BUILD_GLIB_CFLAGS@
@@ -193,9 +206,11 @@ INTL = @INTL@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBC = @LIBC@
-LIBGC_CFLAGS = @LIBGC_CFLAGS@
+LIBGC_CPPFLAGS = @LIBGC_CPPFLAGS@
 LIBGC_LIBS = @LIBGC_LIBS@
 LIBGC_STATIC_LIBS = @LIBGC_STATIC_LIBS@
+LIBICONV = @LIBICONV@
+LIBMONO_LA = @LIBMONO_LA@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -208,6 +223,7 @@ LLVM_LIBS = @LLVM_LIBS@
 LN_S = @LN_S@
 LTCOMPILE = @LTCOMPILE@
 LTCXXCOMPILE = @LTCXXCOMPILE@
+LTLIBICONV = @LTLIBICONV@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
@@ -326,25 +342,33 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 @HAVE_ZLIB_FALSE@Z_LIBS = 
 @HAVE_ZLIB_TRUE@Z_LIBS = -lz
-INCLUDES = \
+AM_CPPFLAGS = \
 	-fexceptions -DMONO_USE_EXC_TABLES	\
 	-I$(top_srcdir) 	\
 	$(GLIB_CFLAGS)
 
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@lib_LTLIBRARIES = libmono-profiler-cov.la libmono-profiler-aot.la libmono-profiler-iomap.la libmono-profiler-log.la
 @DISABLE_PROFILER_FALSE@@JIT_SUPPORTED_TRUE@@PLATFORM_DARWIN_TRUE@libmono_profiler_log_la_LDFLAGS = -Wl,-undefined -Wl,suppress -Wl,-flat_namespace
-@SUPPORT_BOEHM_FALSE@LIBMONO = $(top_builddir)/mono/mini/libmonosgen-$(API_VER).la
 
 # Do something that uses OPROFILE_CFLAGS and OPROFILE_LIBS
-@SUPPORT_BOEHM_TRUE@LIBMONO = $(top_builddir)/mono/mini/libmono-$(API_VER).la
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@static_libs = \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(top_builddir)/mono/metadata/libmonoruntime-static.la	\
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(top_builddir)/mono/io-layer/libwapi.la	\
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(top_builddir)/mono/utils/libmonoutils.la \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(GLIB_LIBS) $(LIBICONV) \
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@	$(LIBGC_STATIC_LIBS)
+
+@SHARED_MONO_FALSE@@SUPPORT_BOEHM_TRUE@LIBMONO = $(top_builddir)/mono/mini/$(LIBMONO_LA) $(static_libs)
+@SHARED_MONO_TRUE@@SUPPORT_BOEHM_TRUE@LIBMONO = $(top_builddir)/mono/mini/$(LIBMONO_LA)
+@SUPPORT_BOEHM_FALSE@LIBMONO = $(top_builddir)/mono/mini/libmonosgen-$(API_VER).la
 libmono_profiler_cov_la_SOURCES = mono-cov.c
-libmono_profiler_cov_la_LIBADD = $(LIBMONO)
+libmono_profiler_cov_la_LIBADD = $(LIBMONO) $(GLIB_LIBS) $(LIBICONV)
 libmono_profiler_aot_la_SOURCES = mono-profiler-aot.c
-libmono_profiler_aot_la_LIBADD = $(LIBMONO)
+libmono_profiler_aot_la_LIBADD = $(LIBMONO) $(GLIB_LIBS) $(LIBICONV)
 #libmono_profiler_logging_la_SOURCES = mono-profiler-logging.c
-#libmono_profiler_logging_la_LIBADD = $(LIBMONO) $(GLIB_LIBS)
+#libmono_profiler_logging_la_LIBADD = $(LIBMONO) $(GLIB_LIBS) $(LIBICONV)
 libmono_profiler_iomap_la_SOURCES = mono-profiler-iomap.c
-libmono_profiler_iomap_la_LIBADD = $(LIBMONO) $(GLIB_LIBS)
+libmono_profiler_iomap_la_LIBADD = $(LIBMONO) $(GLIB_LIBS) $(LIBICONV)
 libmono_profiler_log_la_SOURCES = proflog.c
 libmono_profiler_log_la_LIBADD = $(LIBMONO) $(Z_LIBS)
 mprof_report_SOURCES = decode.c
@@ -353,9 +377,9 @@ PLOG_TESTS_SRC = test-alloc.cs test-busy.cs test-monitor.cs test-excleave.cs \
 	test-heapshot.cs test-traces.cs
 
 PLOG_TESTS = $(PLOG_TESTS_SRC:.cs=.exe)
-with_mono_path = MONO_PATH=$(mcs_topdir)/class/lib/net_2_0
+with_mono_path = MONO_PATH=$(mcs_topdir)/class/lib/net_4_0
 RUNTIME = $(with_mono_path) $(top_builddir)/runtime/mono-wrapper
-MCS = $(RUNTIME) $(mcs_topdir)/class/lib/net_2_0/gmcs.exe -unsafe -nowarn:0162 -nowarn:0168 -nowarn:0219 -debug
+MCS = $(RUNTIME) $(mcs_topdir)/class/lib/build/mcs.exe -unsafe -nowarn:0162 -nowarn:0168 -nowarn:0219 -debug
 EXTRA_DIST = utils.c utils.h proflog.h log-profiler.txt perf_event.h \
 	$(PLOG_TESTS_SRC) ptestrunner.pl
 
@@ -372,9 +396,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu mono/profiler/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign mono/profiler/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu mono/profiler/Makefile
+	  $(AUTOMAKE) --foreign mono/profiler/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \

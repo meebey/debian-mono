@@ -1,7 +1,3 @@
-2010-08-13  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Correct typo in Barrier test fixture name
-
 2010-03-02  Jérémie Laval  <jeremie.laval@gmail.com>
 
 	* BarrierTest.cs: Add BarrierTest.

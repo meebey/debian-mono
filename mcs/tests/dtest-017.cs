@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 class B<U>
 {
@@ -24,6 +25,10 @@ delegate dynamic D (dynamic d);
 
 class DynamicAssignments
 {
+	static void Foo (IA<object> o)
+	{
+	}
+	
 	static int Main ()
 	{
 		dynamic d1 = null;
@@ -62,6 +67,17 @@ class DynamicAssignments
 		D del = delegate (object del_arg) {
 			 return (object) null;
 		};
+		
+		Action<IA<dynamic>> del2 = Foo;
+		
+		Action<object> del31 = null;
+		Action<dynamic> del32 = del31;
+		
+		I<dynamic>[] a20 = null;
+		I<object>[] b20 = a20;
+		
+		dynamic[] d40 = null;
+		IEnumerable<object> d41 = d40;
 
 		return 0;
 	}

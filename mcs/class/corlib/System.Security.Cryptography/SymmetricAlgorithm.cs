@@ -58,19 +58,13 @@ namespace System.Security.Cryptography {
 		{
 			ModeValue = CipherMode.CBC;
 			PaddingValue = PaddingMode.PKCS7;
-			m_disposed = false;
 		}
 
-#if MOONLIGHT
-		// No Finalizer or IDisposable.Dispose in Silverlight 2.0
-		// Documentation makes it "clear" that Clear MUST BE CALLED to zero out sensitive information
-#else		
-		~SymmetricAlgorithm () 
-		{
-			Dispose (false);
-		}
-#endif
+#if NET_4_0
+		public void Dispose ()
+#else
 		void IDisposable.Dispose () 
+#endif
 		{
 			Dispose (true);
 			GC.SuppressFinalize (this);  // Finalization is now unnecessary

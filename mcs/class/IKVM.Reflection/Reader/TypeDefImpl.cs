@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2009 Jeroen Frijters
+  Copyright (C) 2009-2011 Jeroen Frijters
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -29,7 +29,7 @@ using IKVM.Reflection.Metadata;
 
 namespace IKVM.Reflection.Reader
 {
-	sealed class TypeDefImpl : Type
+	sealed class TypeDefImpl : TypeInfo
 	{
 		private readonly ModuleReader module;
 		private readonly int index;
@@ -41,8 +41,9 @@ namespace IKVM.Reflection.Reader
 		{
 			this.module = module;
 			this.index = index;
-			this.typeName = TypeNameParser.Escape(module.GetString(module.TypeDef.records[index].TypeName));
-			this.typeNamespace = TypeNameParser.Escape(module.GetString(module.TypeDef.records[index].TypeNamespace));
+			this.typeName = module.GetString(module.TypeDef.records[index].TypeName);
+			this.typeNamespace = module.GetString(module.TypeDef.records[index].TypeNamespace);
+			MarkEnumOrValueType(typeNamespace, typeName);
 		}
 
 		public override Type BaseType
@@ -65,21 +66,26 @@ namespace IKVM.Reflection.Reader
 
 		public override EventInfo[] __GetDeclaredEvents()
 		{
-			int token = this.MetadataToken;
-			// TODO use binary search?
-			for (int i = 0; i < module.EventMap.records.Length; i++)
+			foreach (int i in module.EventMap.Filter(this.MetadataToken))
 			{
-				if (module.EventMap.records[i].Parent == token)
+				int evt = module.EventMap.records[i].EventList - 1;
+				int end = module.EventMap.records.Length > i + 1 ? module.EventMap.records[i + 1].EventList - 1 : module.Event.records.Length;
+				EventInfo[] events = new EventInfo[end - evt];
+				if (module.EventPtr.RowCount == 0)
 				{
-					int evt = module.EventMap.records[i].EventList - 1;
-					int end = module.EventMap.records.Length > i + 1 ? module.EventMap.records[i + 1].EventList - 1 : module.Event.records.Length;
-					EventInfo[] events = new EventInfo[end - evt];
 					for (int j = 0; evt < end; evt++, j++)
 					{
 						events[j] = new EventInfoImpl(module, this, evt);
 					}
-					return events;
 				}
+				else
+				{
+					for (int j = 0; evt < end; evt++, j++)
+					{
+						events[j] = new EventInfoImpl(module, this, module.EventPtr.records[evt] - 1);
+					}
+				}
+				return events;
 			}
 			return Empty<EventInfo>.Array;
 		}
@@ -89,26 +95,35 @@ namespace IKVM.Reflection.Reader
 			int field = module.TypeDef.records[index].FieldList - 1;
 			int end = module.TypeDef.records.Length > index + 1 ? module.TypeDef.records[index + 1].FieldList - 1 : module.Field.records.Length;
 			FieldInfo[] fields = new FieldInfo[end - field];
-			for (int i = 0; field < end; i++, field++)
+			if (module.FieldPtr.RowCount == 0)
 			{
-				fields[i] = module.GetFieldAt(this, field);
+				for (int i = 0; field < end; i++, field++)
+				{
+					fields[i] = module.GetFieldAt(this, field);
+				}
+			}
+			else
+			{
+				for (int i = 0; field < end; i++, field++)
+				{
+					fields[i] = module.GetFieldAt(this, module.FieldPtr.records[field] - 1);
+				}
 			}
 			return fields;
 		}
 
 		public override Type[] __GetDeclaredInterfaces()
 		{
-			int token = this.MetadataToken;
-			List<Type> list = new List<Type>();
-			// TODO use binary search?
-			for (int i = 0; i < module.InterfaceImpl.records.Length; i++)
+			List<Type> list = null;
+			foreach (int i in module.InterfaceImpl.Filter(this.MetadataToken))
 			{
-				if (module.InterfaceImpl.records[i].Class == token)
+				if (list == null)
 				{
-					list.Add(module.ResolveType(module.InterfaceImpl.records[i].Interface, this));
+					list = new List<Type>();
 				}
+				list.Add(module.ResolveType(module.InterfaceImpl.records[i].Interface, this));
 			}
-			return list.ToArray();
+			return Util.ToArray(list, Type.EmptyTypes);
 		}
 
 		public override MethodBase[] __GetDeclaredMethods()
@@ -116,34 +131,40 @@ namespace IKVM.Reflection.Reader
 			int method = module.TypeDef.records[index].MethodList - 1;
 			int end = module.TypeDef.records.Length > index + 1 ? module.TypeDef.records[index + 1].MethodList - 1 : module.MethodDef.records.Length;
 			MethodBase[] methods = new MethodBase[end - method];
-			for (int i = 0; method < end; method++, i++)
+			if (module.MethodPtr.RowCount == 0)
 			{
-				methods[i] = module.GetMethodAt(this, method);
+				for (int i = 0; method < end; method++, i++)
+				{
+					methods[i] = module.GetMethodAt(this, method);
+				}
+			}
+			else
+			{
+				for (int i = 0; method < end; method++, i++)
+				{
+					methods[i] = module.GetMethodAt(this, module.MethodPtr.records[method] - 1);
+				}
 			}
 			return methods;
 		}
 
 		public override __MethodImplMap __GetMethodImplMap()
 		{
+			PopulateGenericArguments();
 			List<MethodInfo> bodies = new List<MethodInfo>();
 			List<List<MethodInfo>> declarations = new List<List<MethodInfo>>();
-			int token = this.MetadataToken;
-			// TODO use binary search?
-			for (int i = 0; i < module.MethodImpl.records.Length; i++)
+			foreach (int i in module.MethodImpl.Filter(this.MetadataToken))
 			{
-				if (module.MethodImpl.records[i].Class == token)
+				MethodInfo body = (MethodInfo)module.ResolveMethod(module.MethodImpl.records[i].MethodBody, typeArgs, null);
+				int index = bodies.IndexOf(body);
+				if (index == -1)
 				{
-					MethodInfo body = (MethodInfo)module.ResolveMethod(module.MethodImpl.records[i].MethodBody, typeArgs, null);
-					int index = bodies.IndexOf(body);
-					if (index == -1)
-					{
-						index = bodies.Count;
-						bodies.Add(body);
-						declarations.Add(new List<MethodInfo>());
-					}
-					MethodInfo declaration = (MethodInfo)module.ResolveMethod(module.MethodImpl.records[i].MethodDeclaration, typeArgs, null);
-					declarations[index].Add(declaration);
+					index = bodies.Count;
+					bodies.Add(body);
+					declarations.Add(new List<MethodInfo>());
 				}
+				MethodInfo declaration = (MethodInfo)module.ResolveMethod(module.MethodImpl.records[i].MethodDeclaration, typeArgs, null);
+				declarations[index].Add(declaration);
 			}
 			__MethodImplMap map = new __MethodImplMap();
 			map.TargetType = this;
@@ -160,7 +181,7 @@ namespace IKVM.Reflection.Reader
 		{
 			int token = this.MetadataToken;
 			List<Type> list = new List<Type>();
-			// TODO use binary search?
+			// note that the NestedClass table is sorted on NestedClass, so we can't use binary search
 			for (int i = 0; i < module.NestedClass.records.Length; i++)
 			{
 				if (module.NestedClass.records[i].EnclosingClass == token)
@@ -173,38 +194,48 @@ namespace IKVM.Reflection.Reader
 
 		public override PropertyInfo[] __GetDeclaredProperties()
 		{
-			int token = this.MetadataToken;
-			// TODO use binary search?
-			for (int i = 0; i < module.PropertyMap.records.Length; i++)
+			foreach (int i in module.PropertyMap.Filter(this.MetadataToken))
 			{
-				if (module.PropertyMap.records[i].Parent == token)
+				int property = module.PropertyMap.records[i].PropertyList - 1;
+				int end = module.PropertyMap.records.Length > i + 1 ? module.PropertyMap.records[i + 1].PropertyList - 1 : module.Property.records.Length;
+				PropertyInfo[] properties = new PropertyInfo[end - property];
+				if (module.PropertyPtr.RowCount == 0)
 				{
-					int property = module.PropertyMap.records[i].PropertyList - 1;
-					int end = module.PropertyMap.records.Length > i + 1 ? module.PropertyMap.records[i + 1].PropertyList - 1 : module.Property.records.Length;
-					PropertyInfo[] properties = new PropertyInfo[end - property];
 					for (int j = 0; property < end; property++, j++)
 					{
 						properties[j] = new PropertyInfoImpl(module, this, property);
 					}
-					return properties;
 				}
+				else
+				{
+					for (int j = 0; property < end; property++, j++)
+					{
+						properties[j] = new PropertyInfoImpl(module, this, module.PropertyPtr.records[property] - 1);
+					}
+				}
+				return properties;
 			}
 			return Empty<PropertyInfo>.Array;
 		}
 
-		public override string Name
+		public override string __Name
 		{
 			get { return typeName; }
 		}
 
-		public override string Namespace
+		public override string __Namespace
 		{
 			get { return typeNamespace; }
 		}
 
-		public override Type UnderlyingSystemType
+		public override string Name
 		{
-			get { return this; }
+			get { return TypeNameParser.Escape(typeName); }
+		}
+
+		public override string FullName
+		{
+			get { return GetFullName(); }
 		}
 
 		public override int MetadataToken
@@ -247,16 +278,10 @@ namespace IKVM.Reflection.Reader
 			return typeArgs[index];
 		}
 
-		public override Type[][] __GetGenericArgumentsOptionalCustomModifiers()
+		public override CustomModifiers[] __GetGenericArgumentsCustomModifiers()
 		{
 			PopulateGenericArguments();
-			return Util.Copy(new Type[typeArgs.Length][]);
-		}
-
-		public override Type[][] __GetGenericArgumentsRequiredCustomModifiers()
-		{
-			PopulateGenericArguments();
-			return Util.Copy(new Type[typeArgs.Length][]);
+			return new CustomModifiers[typeArgs.Length];
 		}
 
 		public override bool IsGenericType
@@ -266,7 +291,16 @@ namespace IKVM.Reflection.Reader
 
 		public override bool IsGenericTypeDefinition
 		{
-			get { return module.GenericParam.FindFirstByOwner(this.MetadataToken) != -1; }
+			get
+			{
+				if ((typeFlags & (TypeFlags.IsGenericTypeDefinition | TypeFlags.NotGenericTypeDefinition)) == 0)
+				{
+					typeFlags |= module.GenericParam.FindFirstByOwner(this.MetadataToken) == -1
+						? TypeFlags.NotGenericTypeDefinition
+						: TypeFlags.IsGenericTypeDefinition;
+				}
+				return (typeFlags & TypeFlags.IsGenericTypeDefinition) != 0;
+			}
 		}
 
 		public override Type GetGenericTypeDefinition()
@@ -295,23 +329,23 @@ namespace IKVM.Reflection.Reader
 			return sb.ToString();
 		}
 
+		internal bool IsNestedByFlags
+		{
+			get { return (this.Attributes & TypeAttributes.VisibilityMask & ~TypeAttributes.Public) != 0; }
+		}
+
 		public override Type DeclaringType
 		{
 			get
 			{
 				// note that we cannot use Type.IsNested for this, because that calls DeclaringType
-				if ((this.Attributes & TypeAttributes.VisibilityMask & ~TypeAttributes.Public) == 0)
+				if (!IsNestedByFlags)
 				{
 					return null;
 				}
-				// TODO use binary search (if sorted)
-				int token = this.MetadataToken;
-				for (int i = 0; i < module.NestedClass.records.Length; i++)
+				foreach (int i in module.NestedClass.Filter(this.MetadataToken))
 				{
-					if (module.NestedClass.records[i].NestedClass == token)
-					{
-						return module.ResolveType(module.NestedClass.records[i].EnclosingClass, null, null);
-					}
+					return module.ResolveType(module.NestedClass.records[i].EnclosingClass, null, null);
 				}
 				throw new InvalidOperationException();
 			}
@@ -325,7 +359,8 @@ namespace IKVM.Reflection.Reader
 				switch (this.Attributes & TypeAttributes.LayoutMask)
 				{
 					case TypeAttributes.AutoLayout:
-						return null;
+						layout = new StructLayoutAttribute(LayoutKind.Auto);
+						break;
 					case TypeAttributes.SequentialLayout:
 						layout = new StructLayoutAttribute(LayoutKind.Sequential);
 						break;
@@ -335,34 +370,41 @@ namespace IKVM.Reflection.Reader
 					default:
 						throw new BadImageFormatException();
 				}
-				int token = this.MetadataToken;
-				// TODO use binary search?
-				for (int i = 0; i < module.ClassLayout.records.Length; i++)
+				switch (this.Attributes & TypeAttributes.StringFormatMask)
 				{
-					if (module.ClassLayout.records[i].Parent == token)
-					{
-						layout.Pack = module.ClassLayout.records[i].PackingSize;
-						layout.Size = module.ClassLayout.records[i].ClassSize;
-						switch (this.Attributes & TypeAttributes.StringFormatMask)
-						{
-							case TypeAttributes.AnsiClass:
-								layout.CharSet = CharSet.Ansi;
-								break;
-							case TypeAttributes.UnicodeClass:
-								layout.CharSet = CharSet.Unicode;
-								break;
-							case TypeAttributes.AutoClass:
-								layout.CharSet = CharSet.Auto;
-								break;
-							default:
-								layout.CharSet = CharSet.None;
-								break;
-						}
-						return layout;
-					}
+					case TypeAttributes.AnsiClass:
+						layout.CharSet = CharSet.Ansi;
+						break;
+					case TypeAttributes.UnicodeClass:
+						layout.CharSet = CharSet.Unicode;
+						break;
+					case TypeAttributes.AutoClass:
+						layout.CharSet = CharSet.Auto;
+						break;
+					default:
+						layout.CharSet = CharSet.None;
+						break;
 				}
-				return null;
+				if (!__GetLayout(out layout.Pack, out layout.Size))
+				{
+					// compatibility with System.Reflection
+					layout.Pack = 8;
+				}
+				return layout;
 			}
+		}
+
+		public override bool __GetLayout(out int packingSize, out int typeSize)
+		{
+			foreach (int i in module.ClassLayout.Filter(this.MetadataToken))
+			{
+				packingSize = module.ClassLayout.records[i].PackingSize;
+				typeSize = module.ClassLayout.records[i].ClassSize;
+				return true;
+			}
+			packingSize = 0;
+			typeSize = 0;
+			return false;
 		}
 
 		public override Module Module
@@ -373,6 +415,11 @@ namespace IKVM.Reflection.Reader
 		internal override bool IsModulePseudoType
 		{
 			get { return index == 0; }
+		}
+
+		internal override bool IsBaked
+		{
+			get { return true; }
 		}
 	}
 }

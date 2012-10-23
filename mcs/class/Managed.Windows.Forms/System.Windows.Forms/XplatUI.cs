@@ -43,7 +43,7 @@ namespace System.Windows.Forms {
 	internal class XplatUI {
 		#region Local Variables
 		static XplatUIDriver		driver;
-		static String			default_class_name;
+//		static String			default_class_name;
 		internal static ArrayList key_filters = new ArrayList ();
 		#endregion	// Local Variables
 
@@ -90,7 +90,7 @@ namespace System.Windows.Forms {
 			// Compose name with current domain id because on Win32 we register class name
 			// and name must be unique to process. If we load MWF into multiple appdomains
 			// and try to register same class name we fail.
-			default_class_name = "SWFClass" + System.Threading.Thread.GetDomainID ().ToString ();
+//			default_class_name = "SWFClass" + System.Threading.Thread.GetDomainID ().ToString ();
 
 			if (RunningOnUnix) {
 				//if (Environment.GetEnvironmentVariable ("not_supported_MONO_MWF_USE_NEW_X11_BACKEND") != null) {
@@ -549,10 +549,10 @@ namespace System.Windows.Forms {
 			return driver.ClipboardOpen (primary_selection);
 		}
 
-		internal static void ClipboardStore (IntPtr handle, object obj, int type, XplatUI.ObjectToClipboard converter)
+		internal static void ClipboardStore (IntPtr handle, object obj, int type, XplatUI.ObjectToClipboard converter, bool copy)
 		{
-			DriverDebug ("ClipboardStore ({0:X}, {1}, {2}): Called", handle.ToInt32 (), obj, type, converter);
-			driver.ClipboardStore (handle, obj, type, converter);
+			DriverDebug ("ClipboardStore ({0:X}, {1}, {2}, {3}, {4}): Called", handle.ToInt32 (), obj, type, converter, copy);
+			driver.ClipboardStore (handle, obj, type, converter, copy);
 		}
 
 		internal static object ClipboardRetrieve (IntPtr handle, int type, XplatUI.ClipboardToObject converter)

@@ -72,8 +72,6 @@ static int indent_level = 0;
 int mini_alpha_verbose_level = 0;
 static int bwx_supported = 0;
 
-static gboolean tls_offset_inited = FALSE;
-
 static int appdomain_tls_offset = -1,
   lmf_tls_offset = -1,
   thread_tls_offset = -1;
@@ -1689,7 +1687,7 @@ emit_call(MonoCompile *cfg, unsigned int *code,
 /*------------------------------------------------------------------*/
 
 int
-mono_arch_get_argument_info (MonoMethodSignature *csig,
+mono_arch_get_argument_info (MonoGenericSharingContext *gsctx, MonoMethodSignature *csig,
                              int param_count,
                              MonoJitArgumentInfo *arg_info)
 {
@@ -1745,7 +1743,7 @@ mono_arch_emit_epilog (MonoCompile *cfg)
     {
       cfg->code_size *= 2;
       cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
-      mono_jit_stats.code_reallocs++;
+      cfg->stat_code_reallocs++;
     }
   
   code = (unsigned int *)(cfg->native_code + cfg->code_len);
@@ -1845,7 +1843,7 @@ mono_arch_emit_exceptions (MonoCompile *cfg)
     {
       cfg->code_size *= 2;
       cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
-      mono_jit_stats.code_reallocs++;
+      cfg->stat_code_reallocs++;
     }
   
   code = (unsigned int *)((char *)cfg->native_code + cfg->code_len);
@@ -2189,7 +2187,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 	   cfg->code_size *= 2;
 	   cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
 	   code = (unsigned int *)(cfg->native_code + offset);
-	   mono_jit_stats.code_reallocs++;
+	   cfg->stat_code_reallocs++;
 	 }
 	  
        mono_debug_record_line_number (cfg, ins, offset);
@@ -3921,21 +3919,21 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 
 /*------------------------------------------------------------------*/
 /*                                                                  */
-/* Name         - mono_arch_cpu_optimizazions                       */
+/* Name         - mono_arch_cpu_optimizations                       */
 /*                                                                  */
 /* Function     - Returns the optimizations supported on this CPU   */
 /*                                                                  */
 /*------------------------------------------------------------------*/
 
 guint32
-mono_arch_cpu_optimizazions (guint32 *exclude_mask)
+mono_arch_cpu_optimizations (guint32 *exclude_mask)
 {
    guint32 opts = 0;
 
    if (getenv("MONO_ALPHA_DEBUG"))
 	mini_alpha_verbose_level = 1;
    
-   ALPHA_DEBUG("mono_arch_cpu_optimizazions");
+   ALPHA_DEBUG("mono_arch_cpu_optimizations");
    
    /*----------------------------------------------------------*/
    /* no alpha-specific optimizations yet                       */
@@ -3946,6 +3944,23 @@ mono_arch_cpu_optimizazions (guint32 *exclude_mask)
    return opts;
 }
 /*========================= End of Function ========================*/
+
+/*------------------------------------------------------------------*/
+/*                                                                  */
+/* Name         - mono_arch_cpu_enumerate_simd_versions             */
+/*                                                                  */
+/* Function     - Returns the SIMD instruction sets on this CPU     */
+/*                                                                  */
+/*------------------------------------------------------------------*/
+guint32
+mono_arch_cpu_enumerate_simd_versions (void)
+{
+	/* SIMD is currently unimplemented */
+	return 0;
+}
+/*========================= End of Function ========================*/
+
+
 
 /*------------------------------------------------------------------*/
 /*                                                                  */
@@ -4285,20 +4300,16 @@ mono_arch_is_inst_imm (gint64 imm)
 
 /*------------------------------------------------------------------*/
 /*                                                                  */
-/* Name         - mono_arch_setup_jit_tls_data                      */
+/* Name         - mono_arch_finish_init                             */
 /*                                                                  */
 /* Function     - Setup the JIT's Thread Level Specific Data.       */
 /*                                                                  */
 /*------------------------------------------------------------------*/
 
 void
-mono_arch_setup_jit_tls_data (MonoJitTlsData *tls)
+mono_arch_finish_init (void)
 {
-   ALPHA_DEBUG("mono_arch_setup_jit_tls_data");
-   
-   if (!tls_offset_inited) {
-	  tls_offset_inited = TRUE;
-   }
+   ALPHA_DEBUG("mono_arch_finish_init");
    
    if (!lmf_addr_key_inited) {
 	  lmf_addr_key_inited = TRUE;
@@ -5544,7 +5555,7 @@ mono_arch_allocate_vars (MonoCompile *cfg)
      }
    
    /* Allocate locals */
-   offsets = mono_allocate_stack_slots_full (cfg,
+   offsets = mono_allocate_stack_slots (cfg,
 					     /*cfg->arch.omit_fp ? FALSE:*/ TRUE, 
 					     &locals_stack_size,
 					     &locals_stack_align);

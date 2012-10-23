@@ -7,6 +7,7 @@
 // 
 // (C) Ville Palo
 // (c) 2003 Ximian, Inc. (http://www.ximian.com)
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 // 
 
 using NUnit.Framework;
@@ -341,14 +342,8 @@ namespace MonoTests.System.IO
 		}
 
 		[Test]
-#if NET_2_0
 		// FileShare.Inheritable is ignored, but file does not exist
 		[ExpectedException (typeof (FileNotFoundException))]
-#else
-		// share: Enum value was out of legal range.
-		// (FileShare.Inheritable is not valid)
-		[ExpectedException (typeof (ArgumentOutOfRangeException))]
-#endif
 		public void CtorArgumentOutOfRangeException3 ()
 		{
 			string path = TempFolder + DSC + "CtorArgumentOutOfRangeException1";
@@ -423,14 +418,8 @@ namespace MonoTests.System.IO
 
 
 		[Test]
-#if NET_2_0
 		// FileShare.Inheritable is ignored, but file does not exist
 		[ExpectedException (typeof (FileNotFoundException))]
-#else
-		// share: Enum value was out of legal range.
-		// (FileShare.Inheritable is not valid)
-		[ExpectedException (typeof (ArgumentOutOfRangeException))]
-#endif
 		public void CtorArgumentOutOfRangeException5 ()
 		{
 			string path = TempFolder + Path.DirectorySeparatorChar + "temp";
@@ -838,7 +827,6 @@ namespace MonoTests.System.IO
 			}
 		}
 
-#if NET_2_0
 		[Test] // bug #79250
 		public void FileShare_Delete ()
 		{
@@ -869,7 +857,6 @@ namespace MonoTests.System.IO
 				File.Delete (fn);
 			}
 		}
-#endif
 
 		[Test]
 		public void Write ()
@@ -1603,7 +1590,6 @@ namespace MonoTests.System.IO
 			}
 		}
 
-#if NET_2_0
 		[Category("TargetJvmNotSupported")] // FileOptions.DeleteOnClose not supported for TARGET_JVM
 		[Test]
 		public void DeleteOnClose ()
@@ -1617,6 +1603,39 @@ namespace MonoTests.System.IO
 			Assert.AreEqual (false, File.Exists (path), "DOC#2");
 			
 		}
-#endif
+
+		[Test]
+		public void WriteWithExposedHandle ()
+		{
+			string path = TempFolder + DSC + "exposed-handle.txt";
+			FileStream fs1 = null;
+			FileStream fs2 = null;
+			DeleteFile (path);
+			
+			try {
+				fs1 = new FileStream (path, FileMode.Create);
+				fs2 = new FileStream (fs1.SafeFileHandle, FileAccess.ReadWrite);
+				fs1.WriteByte (Convert.ToByte ('H'));
+				fs1.WriteByte (Convert.ToByte ('E'));
+				fs1.WriteByte (Convert.ToByte ('L'));
+				fs2.WriteByte (Convert.ToByte ('L'));
+				fs2.WriteByte (Convert.ToByte ('O'));
+				long fs1Pos = fs1.Position;
+				fs1.Flush ();
+				fs2.Flush (); 
+				fs1.Close ();
+				fs2.Close ();
+
+				var check = Encoding.ASCII.GetString (File.ReadAllBytes (path));
+				Assert.AreEqual ("HELLO", check, "EXPOSED#1");
+				Assert.AreEqual (5, fs1Pos, "EXPOSED#2");
+			} finally {
+				if (fs1 != null)
+					fs1.Close ();
+				if (fs2 != null)
+					fs2.Close ();
+				DeleteFile (path);
+			}
+		}
 	}
 }

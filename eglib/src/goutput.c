@@ -5,6 +5,8 @@
  *   Miguel de Icaza (miguel@novell.com)
  *
  * (C) 2006 Novell, Inc.
+ * Copyright 2011 Xamarin Inc.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -117,7 +119,9 @@ g_logv (const gchar *log_domain, GLogLevelFlags log_level, const gchar *format, 
 #else
 	char *msg;
 	
-	vasprintf (&msg, format, args);
+	if (vasprintf (&msg, format, args) < 0)
+		return;
+	
 	printf ("%s%s%s\n",
 		log_domain != NULL ? log_domain : "",
 		log_domain != NULL ? ": " : "",
@@ -126,7 +130,6 @@ g_logv (const gchar *log_domain, GLogLevelFlags log_level, const gchar *format, 
 	if (log_level & fatal){
 		fflush (stdout);
 		fflush (stderr);
-		abort ();
 	}
 #endif
 	if (log_level & fatal){

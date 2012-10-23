@@ -109,33 +109,11 @@ mono_arch_fregname (int reg)
 		return "unknown";
 }
 
-G_GNUC_UNUSED static void
-break_count (void)
-{
-}
-
-G_GNUC_UNUSED static gboolean
-debug_count (void)
-{
-	static int count = 0;
-	count ++;
-
-	if (count == atoi (getenv ("COUNT"))) {
-		break_count ();
-	}
-
-	if (count > atoi (getenv ("COUNT"))) {
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
 static gboolean
 debug_ins_sched (void)
 {
 #if 0
-	return debug_count ();
+	return mono_debug_count ();
 #else
 	return TRUE;
 #endif
@@ -145,7 +123,7 @@ static gboolean
 debug_omit_fp (void)
 {
 #if 0
-	return debug_count ();
+	return mono_debug_count ();
 #else
 	return TRUE;
 #endif
@@ -575,7 +553,7 @@ get_call_info (MonoCompile *cfg, MonoMemPool *mp, MonoMethodSignature *sig, gboo
  * Returns the size of the argument area on the stack.
  */
 int
-mono_arch_get_argument_info (MonoMethodSignature *csig, int param_count, MonoJitArgumentInfo *arg_info)
+mono_arch_get_argument_info (MonoGenericSharingContext *gsctx, MonoMethodSignature *csig, int param_count, MonoJitArgumentInfo *arg_info)
 {
 	int k;
 	CallInfo *cinfo = get_call_info (NULL, NULL, csig, FALSE);
@@ -625,10 +603,23 @@ mono_arch_cleanup (void)
  * This function returns the optimizations supported on this cpu.
  */
 guint32
-mono_arch_cpu_optimizazions (guint32 *exclude_mask)
+mono_arch_cpu_optimizations (guint32 *exclude_mask)
 {
 	*exclude_mask = 0;
 
+	return 0;
+}
+
+/*
+ * This function test for all SIMD functions supported.
+ *
+ * Returns a bitmask corresponding to all supported versions.
+ *
+ */
+guint32
+mono_arch_cpu_enumerate_simd_versions (void)
+{
+	/* SIMD is currently unimplemented */
 	return 0;
 }
 
@@ -875,7 +866,7 @@ mono_arch_allocate_vars (MonoCompile *cfg)
 	}
 
 	/* Allocate locals */
-	offsets = mono_allocate_stack_slots_full (cfg, cfg->arch.omit_fp ? FALSE : TRUE, &locals_stack_size, &locals_stack_align);
+	offsets = mono_allocate_stack_slots (cfg, cfg->arch.omit_fp ? FALSE : TRUE, &locals_stack_size, &locals_stack_align);
 	if (locals_stack_align) {
 		offset = ALIGN_TO (offset, locals_stack_align);
 	}
@@ -2070,7 +2061,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			cfg->code_size *= 2;
 			cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
 			code_start = cfg->native_code + offset;
-			mono_jit_stats.code_reallocs++;
+			cfg->stat_code_reallocs++;
 
 			ia64_codegen_init (code, code_start);
 		}
@@ -4061,7 +4052,7 @@ mono_arch_emit_epilog (MonoCompile *cfg)
 	while (cfg->code_len + max_epilog_size > cfg->code_size) {
 		cfg->code_size *= 2;
 		cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
-		mono_jit_stats.code_reallocs++;
+		cfg->stat_code_reallocs++;
 	}
 
 	/* FIXME: Emit unwind info */
@@ -4175,7 +4166,7 @@ mono_arch_emit_exceptions (MonoCompile *cfg)
 	while (cfg->code_len + code_size > (cfg->code_size - 16)) {
 		cfg->code_size *= 2;
 		cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
-		mono_jit_stats.code_reallocs++;
+		cfg->stat_code_reallocs++;
 	}
 
 	ia64_codegen_init (code, cfg->native_code + cfg->code_len);
@@ -4525,7 +4516,7 @@ mono_arch_get_delegate_method_ptr_addr (guint8* code, mgreg_t *regs)
 }
 
 void
-mono_arch_setup_jit_tls_data (MonoJitTlsData *tls)
+mono_arch_finish_init (void)
 {
 }
 
@@ -4762,7 +4753,7 @@ mono_arch_get_domain_intrinsic (MonoCompile* cfg)
 	return mono_get_domain_intrinsic (cfg);
 }
 
-gpointer
+mgreg_t
 mono_arch_context_get_int_reg (MonoContext *ctx, int reg)
 {
 	/* FIXME: implement */

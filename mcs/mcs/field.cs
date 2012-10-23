@@ -9,6 +9,7 @@
 //
 // Copyright 2001, 2002, 2003 Ximian, Inc (http://www.ximian.com)
 // Copyright 2004-2008 Novell, Inc
+// Copyright 2011 Xamarin Inc
 //
 
 using System;
@@ -61,10 +62,8 @@ namespace Mono.CSharp
 
 		static readonly string[] attribute_targets = new string [] { "field" };
 
-		protected FieldBase (DeclSpace parent, FullNamedExpression type, Modifiers mod,
-				     Modifiers allowed_mod, MemberName name, Attributes attrs)
-			: base (parent, null, type, mod, allowed_mod | Modifiers.ABSTRACT, Modifiers.PRIVATE,
-				name, attrs)
+		protected FieldBase (TypeDefinition parent, FullNamedExpression type, Modifiers mod, Modifiers allowed_mod, MemberName name, Attributes attrs)
+			: base (parent, type, mod, allowed_mod | Modifiers.ABSTRACT, Modifiers.PRIVATE, name, attrs)
 		{
 			if ((mod & Modifiers.ABSTRACT) != 0)
 				Report.Error (681, Location, "The modifier 'abstract' is not valid on fields. Try using a property instead");
@@ -78,12 +77,24 @@ namespace Mono.CSharp
 			}
 		}
 
+		public List<FieldDeclarator> Declarators {
+			get {
+				return this.declarators;
+			}
+		}
+
 		public Expression Initializer {
 			get {
 				return initializer;
 			}
 			set {
 				this.initializer = value;
+			}
+		}
+
+		public string Name {
+			get {
+				return MemberName.Name;
 			}
 		}
 
@@ -108,8 +119,7 @@ namespace Mono.CSharp
 
 			declarators.Add (declarator);
 
-			// TODO: This will probably break
-			Parent.AddMember (this, declarator.Name.Value);
+			Parent.AddNameToContainer (this, declarator.Name.Value);
 		}
 
 		public override void ApplyAttributeBuilder (Attribute a, MethodSpec ctor, byte[] cdata, PredefinedAttributes pa)
@@ -166,7 +176,8 @@ namespace Mono.CSharp
  				return false;
 
 			MemberSpec candidate;
-			var conflict_symbol = MemberCache.FindBaseMember (this, out candidate);
+			bool overrides = false;
+			var conflict_symbol = MemberCache.FindBaseMember (this, out candidate, ref overrides);
 			if (conflict_symbol == null)
 				conflict_symbol = candidate;
 
@@ -194,7 +205,7 @@ namespace Mono.CSharp
 
 		public virtual Constant ConvertInitializer (ResolveContext rc, Constant expr)
 		{
-			return expr.ConvertImplicitly (rc, MemberType);
+			return expr.ConvertImplicitly (MemberType);
 		}
 
 		protected override void DoMemberTypeDependentChecks ()
@@ -220,14 +231,16 @@ namespace Mono.CSharp
 
 		public override void Emit ()
 		{
-			if (member_type == InternalType.Dynamic) {
+			if (member_type.BuiltinType == BuiltinTypeSpec.Type.Dynamic) {
 				Module.PredefinedAttributes.Dynamic.EmitAttribute (FieldBuilder);
-			} else if (!(Parent is CompilerGeneratedClass) && member_type.HasDynamicElement) {
+			} else if (!Parent.IsCompilerGenerated && member_type.HasDynamicElement) {
 				Module.PredefinedAttributes.Dynamic.EmitAttribute (FieldBuilder, member_type, Location);
 			}
 
 			if ((ModFlags & Modifiers.COMPILER_GENERATED) != 0 && !Parent.IsCompilerGenerated)
 				Module.PredefinedAttributes.CompilerGenerated.EmitAttribute (FieldBuilder);
+			if ((ModFlags & Modifiers.DEBUGGER_HIDDEN) != 0)
+				Module.PredefinedAttributes.DebuggerBrowsable.EmitAttribute (FieldBuilder, System.Diagnostics.DebuggerBrowsableState.Never);
 
 			if (OptAttributes != null) {
 				OptAttributes.Emit ();
@@ -236,6 +249,8 @@ namespace Mono.CSharp
 			if (((status & Status.HAS_OFFSET) == 0) && (ModFlags & (Modifiers.STATIC | Modifiers.BACKING_FIELD)) == 0 && Parent.PartialContainer.HasExplicitLayout) {
 				Report.Error (625, Location, "`{0}': Instance field types marked with StructLayout(LayoutKind.Explicit) must have a FieldOffset attribute", GetSignatureForError ());
 			}
+
+			ConstraintChecker.Check (this, member_type, type_expr.Location);
 
 			base.Emit ();
 		}
@@ -337,6 +352,11 @@ namespace Mono.CSharp
 			fs.metaInfo = MemberCache.GetMember (TypeParameterMutator.GetMemberDeclaringType (DeclaringType), this).metaInfo;
 			return fs;
 		}
+
+		public override List<TypeSpec> ResolveMissingDependencies ()
+		{
+			return memberType.ResolveMissingDependencies ();
+		}
 	}
 
 	/// <summary>
@@ -357,7 +377,7 @@ namespace Mono.CSharp
 			Modifiers.PRIVATE |
 			Modifiers.UNSAFE;
 
-		public FixedField (DeclSpace parent, FullNamedExpression type, Modifiers mod, MemberName name, Attributes attrs)
+		public FixedField (TypeDefinition parent, FullNamedExpression type, Modifiers mod, MemberName name, Attributes attrs)
 			: base (parent, type, mod, AllowedModifiers, name, attrs)
 		{
 		}
@@ -375,7 +395,7 @@ namespace Mono.CSharp
 
 		public override Constant ConvertInitializer (ResolveContext rc, Constant expr)
 		{
-			return expr.ImplicitConversionRequired (rc, TypeManager.int32_type, Location);
+			return expr.ImplicitConversionRequired (rc, rc.BuiltinTypes.Int, Location);
 		}
 
 		public override bool Define ()
@@ -383,29 +403,31 @@ namespace Mono.CSharp
 			if (!base.Define ())
 				return false;
 
-			if (!TypeManager.IsPrimitiveType (MemberType)) {
+			if (!BuiltinTypeSpec.IsPrimitiveType (MemberType)) {
 				Report.Error (1663, Location,
 					"`{0}': Fixed size buffers type must be one of the following: bool, byte, short, int, long, char, sbyte, ushort, uint, ulong, float or double",
 					GetSignatureForError ());
 			} else if (declarators != null) {
 				var t = new TypeExpression (MemberType, TypeExpression.Location);
-				int index = Parent.PartialContainer.Fields.IndexOf (this);
 				foreach (var d in declarators) {
 					var f = new FixedField (Parent, t, ModFlags, new MemberName (d.Name.Value, d.Name.Location), OptAttributes);
 					f.initializer = d.Initializer;
 					((ConstInitializer) f.initializer).Name = d.Name.Value;
-					Parent.PartialContainer.Fields.Insert (++index, f);
+					f.Define ();
+					Parent.PartialContainer.Members.Add (f);
 				}
 			}
 			
 			// Create nested fixed buffer container
 			string name = String.Format ("<{0}>__FixedBuffer{1}", Name, GlobalCounter++);
-			fixed_buffer_type = Parent.TypeBuilder.DefineNestedType (name, Parent.Module.DefaultCharSetType |
-				TypeAttributes.NestedPublic | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit, TypeManager.value_type.GetMetaInfo ());
+			fixed_buffer_type = Parent.TypeBuilder.DefineNestedType (name,
+				TypeAttributes.NestedPublic | TypeAttributes.Sealed | TypeAttributes.BeforeFieldInit,
+				Compiler.BuiltinTypes.ValueType.GetMetaInfo ());
 
 			var ffield = fixed_buffer_type.DefineField (FixedElementName, MemberType.GetMetaInfo (), FieldAttributes.Public);
 			
 			FieldBuilder = Parent.TypeBuilder.DefineField (Name, fixed_buffer_type, ModifiersExtensions.FieldAttr (ModFlags));
+
 			var element_spec = new FieldSpec (null, this, MemberType, ffield, ModFlags);
 			spec = new FixedFieldSpec (Parent.Definition, this, FieldBuilder, element_spec, ModFlags);
 
@@ -442,6 +464,11 @@ namespace Mono.CSharp
 
 			EmitFieldSize (buffer_size);
 
+#if STATIC
+			if (Module.HasDefaultCharSet)
+				fixed_buffer_type.__SetAttributes (fixed_buffer_type.Attributes | Module.DefaultCharSetType);
+#endif
+
 			Module.PredefinedAttributes.UnsafeValueType.EmitAttribute (fixed_buffer_type);
 			Module.PredefinedAttributes.CompilerGenerated.EmitAttribute (fixed_buffer_type);
 			fixed_buffer_type.CreateType ();
@@ -451,40 +478,38 @@ namespace Mono.CSharp
 
 		void EmitFieldSize (int buffer_size)
 		{
-			int type_size = Expression.GetTypeSize (MemberType);
+			int type_size = BuiltinTypeSpec.GetSize (MemberType);
 
 			if (buffer_size > int.MaxValue / type_size) {
 				Report.Error (1664, Location, "Fixed size buffer `{0}' of length `{1}' and type `{2}' exceeded 2^31 limit",
 					GetSignatureForError (), buffer_size.ToString (), TypeManager.CSharpName (MemberType));
 				return;
 			}
-			
-			PredefinedAttribute pa;
+
 			AttributeEncoder encoder;
 
-			pa = Module.PredefinedAttributes.StructLayout;
-			if (pa.Constructor == null && !pa.ResolveConstructor (Location, TypeManager.short_type))
+			var ctor = Module.PredefinedMembers.StructLayoutAttributeCtor.Resolve (Location);
+			if (ctor == null)
 				return;
 
-			var char_set_type = Module.PredefinedTypes.CharSet.Resolve (Location);
-			if (char_set_type == null)
-				return;
-
-			var field_size = pa.GetField ("Size", TypeManager.int32_type, Location);
-			var field_charset = pa.GetField ("CharSet", char_set_type, Location);
+			var field_size = Module.PredefinedMembers.StructLayoutSize.Resolve (Location);
+			var field_charset = Module.PredefinedMembers.StructLayoutCharSet.Resolve (Location);
 			if (field_size == null || field_charset == null)
 				return;
 
-			var char_set = CharSet ?? Module.DefaultCharSet;
+			var char_set = CharSet ?? Module.DefaultCharSet ?? 0;
 
 			encoder = new AttributeEncoder ();
 			encoder.Encode ((short)LayoutKind.Sequential);
 			encoder.EncodeNamedArguments (
 				new [] { field_size, field_charset },
-				new Constant [] { new IntConstant (buffer_size * type_size, Location), new IntConstant ((int) char_set, Location) }
+				new Constant [] { 
+					new IntConstant (Compiler.BuiltinTypes, buffer_size * type_size, Location),
+					new IntConstant (Compiler.BuiltinTypes, (int) char_set, Location)
+				}
 			);
 
-			pa.EmitAttribute (fixed_buffer_type, encoder);
+			fixed_buffer_type.SetCustomAttribute ((ConstructorInfo) ctor.GetMetaInfo (), encoder.ToArray ());
 
 			//
 			// Don't emit FixedBufferAttribute attribute for private types
@@ -492,8 +517,8 @@ namespace Mono.CSharp
 			if ((ModFlags & Modifiers.PRIVATE) != 0)
 				return;
 
-			pa = Module.PredefinedAttributes.FixedBuffer;
-			if (pa.Constructor == null && !pa.ResolveConstructor (Location, TypeManager.type_type, TypeManager.int32_type))
+			ctor = Module.PredefinedMembers.FixedBufferAttributeCtor.Resolve (Location);
+			if (ctor == null)
 				return;
 
 			encoder = new AttributeEncoder ();
@@ -501,7 +526,7 @@ namespace Mono.CSharp
 			encoder.Encode (buffer_size);
 			encoder.EncodeEmptyNamedArguments ();
 
-			pa.EmitAttribute (FieldBuilder, encoder);
+			FieldBuilder.SetCustomAttribute ((ConstructorInfo) ctor.GetMetaInfo (), encoder.ToArray ());
 		}
 	}
 
@@ -549,23 +574,29 @@ namespace Mono.CSharp
 			Modifiers.UNSAFE |
 			Modifiers.READONLY;
 
-		public Field (DeclSpace parent, FullNamedExpression type, Modifiers mod, MemberName name,
-			      Attributes attrs)
+		public Field (TypeDefinition parent, FullNamedExpression type, Modifiers mod, MemberName name, Attributes attrs)
 			: base (parent, type, mod, AllowedModifiers, name, attrs)
 		{
 		}
 
 		bool CanBeVolatile ()
 		{
-			if (TypeManager.IsReferenceType (MemberType))
+			switch (MemberType.BuiltinType) {
+			case BuiltinTypeSpec.Type.Bool:
+			case BuiltinTypeSpec.Type.Char:
+			case BuiltinTypeSpec.Type.SByte:
+			case BuiltinTypeSpec.Type.Byte:
+			case BuiltinTypeSpec.Type.Short:
+			case BuiltinTypeSpec.Type.UShort:
+			case BuiltinTypeSpec.Type.Int:
+			case BuiltinTypeSpec.Type.UInt:
+			case BuiltinTypeSpec.Type.Float:
+			case BuiltinTypeSpec.Type.UIntPtr:
+			case BuiltinTypeSpec.Type.IntPtr:
 				return true;
+			}
 
-			if (MemberType == TypeManager.bool_type || MemberType == TypeManager.char_type ||
-				MemberType == TypeManager.sbyte_type || MemberType == TypeManager.byte_type ||
-				MemberType == TypeManager.short_type || MemberType == TypeManager.ushort_type ||
-				MemberType == TypeManager.int32_type || MemberType == TypeManager.uint32_type ||
-				MemberType == TypeManager.float_type ||
-				MemberType == TypeManager.intptr_type || MemberType == TypeManager.uintptr_type)
+			if (TypeSpec.IsReferenceType (MemberType))
 				return true;
 
 			if (MemberType.IsEnum)
@@ -574,6 +605,11 @@ namespace Mono.CSharp
 			return false;
 		}
 
+		public override void Accept (StructuralVisitor visitor)
+		{
+			visitor.Visit (this);
+		}
+		
 		public override bool Define ()
 		{
 			if (!base.Define ())
@@ -581,7 +617,7 @@ namespace Mono.CSharp
 
 			MetaType[] required_modifier = null;
 			if ((ModFlags & Modifiers.VOLATILE) != 0) {
-				var mod = Module.PredefinedTypes.IsVolatile.Resolve (Location);
+				var mod = Module.PredefinedTypes.IsVolatile.Resolve ();
 				if (mod != null)
 					required_modifier = new MetaType[] { mod.GetMetaInfo () };
 			}
@@ -591,25 +627,27 @@ namespace Mono.CSharp
 
 			spec = new FieldSpec (Parent.Definition, this, MemberType, FieldBuilder, ModFlags);
 
-			// Don't cache inaccessible fields
-			if ((ModFlags & Modifiers.BACKING_FIELD) == 0) {
+			//
+			// Don't cache inaccessible fields except for struct where we
+			// need them for definitive assignment checks
+			//
+			if ((ModFlags & Modifiers.BACKING_FIELD) == 0 || Parent.Kind == MemberKind.Struct) {
 				Parent.MemberCache.AddMember (spec);
 			}
 
 			if (initializer != null) {
-				((TypeContainer) Parent).RegisterFieldForInitialization (this,
-					new FieldInitializer (spec, initializer, this));
+				Parent.RegisterFieldForInitialization (this, new FieldInitializer (this, initializer, TypeExpression.Location));
 			}
 
 			if (declarators != null) {
-				var t = new TypeExpression (MemberType, TypeExpression.Location);
-				int index = Parent.PartialContainer.Fields.IndexOf (this);
 				foreach (var d in declarators) {
+					var t = new TypeExpression (MemberType, d.Name.Location);
 					var f = new Field (Parent, t, ModFlags, new MemberName (d.Name.Value, d.Name.Location), OptAttributes);
 					if (d.Initializer != null)
 						f.initializer = d.Initializer;
 
-					Parent.PartialContainer.Fields.Insert (++index, f);
+					f.Define ();
+					Parent.PartialContainer.Members.Add (f);
 				}
 			}
 
