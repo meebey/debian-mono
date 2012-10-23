@@ -34,9 +34,14 @@ using System.Collections;
 namespace System.Threading
 {
 	[ComVisible (true)]
-	public sealed class Timer : MarshalByRefObject, IDisposable
+	public sealed class Timer
+#if MOONLIGHT
+		: IDisposable
+#else
+		: MarshalByRefObject, IDisposable
+#endif
 	{
-		static Scheduler scheduler = Scheduler.Instance;
+		static readonly Scheduler scheduler = Scheduler.Instance;
 #region Timer instance fields
 		TimerCallback callback;
 		object state;
@@ -123,10 +128,10 @@ namespace System.Threading
 		bool Change (long dueTime, long period, bool first)
 		{
 			if (dueTime > MaxValue)
-				throw new ArgumentOutOfRangeException ("Due time too large");
+				throw new ArgumentOutOfRangeException ("dueTime", "Due time too large");
 
 			if (period > MaxValue)
-				throw new ArgumentOutOfRangeException ("Period too large");
+				throw new ArgumentOutOfRangeException ("period", "Period too large");
 
 			// Timeout.Infinite == -1, so this accept everything greater than -1
 			if (dueTime < Timeout.Infinite)
@@ -338,7 +343,11 @@ namespace System.Threading
 							list.RemoveAt (i);
 							count--;
 							i--;
+#if MOONLIGHT
+							ThreadPool.QueueUserWorkItem (TimerCaller, timer);
+#else
 							ThreadPool.UnsafeQueueUserWorkItem (TimerCaller, timer);
+#endif
 							long period = timer.period_ms;
 							long due_time = timer.due_time_ms;
 							bool no_more = (period == -1 || ((period == 0 || period == Timeout.Infinite) && due_time != Timeout.Infinite));

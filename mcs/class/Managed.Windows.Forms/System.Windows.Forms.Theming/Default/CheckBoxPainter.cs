@@ -26,7 +26,6 @@ using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 
-#if NET_2_0
 namespace System.Windows.Forms.Theming.Default
 {
 	/// <summary>
@@ -129,7 +128,7 @@ namespace System.Windows.Forms.Theming.Default
 			if (state == CheckState.Checked)
 				DrawCheck (g, bounds, Color.Black);
 			else if (state == CheckState.Indeterminate)
-				DrawCheck (g, bounds, SystemColors.ControlDarkDark);
+				DrawCheck (g, bounds, SystemColors.ControlDark);
 		}
 		
 		public virtual void DrawHotCheckBox (Graphics g, Rectangle bounds, Color backColor, Color foreColor, CheckState state)
@@ -356,4 +355,3 @@ namespace System.Windows.Forms.Theming.Default
 		#endregion
 	}
 }
-#endif

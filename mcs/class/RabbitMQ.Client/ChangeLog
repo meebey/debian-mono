@@ -1,7 +1,3 @@
-2010-10-15  Marek Safar  <marek.safar@gmail.com>
-
-	Clean up few more warnings
-
 2010-07-09  Andrew Jorgensen  <ajorgensen@novell.com>
 
 	* Makefile: Fix make dist again (IntAllocator.cs)
@@ -28,7 +24,7 @@
 
 	* Updated to version 1.6 of the RabbitMQ libraries
 
-2009-05-26  Andrew Jorgensen  <ajorgensen@novell.com>
+2009-05-26  Andrew Jorgensen  <ajorgensen@novell.com>Rabbit
 
 	* Makefile: Fixed dist from last commit here
 

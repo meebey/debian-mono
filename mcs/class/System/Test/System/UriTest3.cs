@@ -439,6 +439,8 @@ namespace MonoTests.System
 			Uri uri11 = new Uri ("mailto:xxx@xxx.com?subject=hola");
 			Uri uri12 = new Uri ("mailto:xxx@mail.xxx.com?subject=hola");
 			Uri uri13 = new Uri ("mailto:xxx@xxx.com/foo/bar");
+			Uri uri14 = new Uri ("http://www.contoso.com/test1/");
+			Uri uri15 = new Uri ("http://www.contoso.com/");
 
 			AssertRelativeUri ("foo/bar/index.htm#fragment", uri1, uri2, "#A");
 			AssertRelativeUri ("../../index.htm?x=2", uri2, uri1, "#B");
@@ -470,6 +472,8 @@ namespace MonoTests.System
 			Assert.IsTrue (relativeUri.IsAbsoluteUri, "#N1");
 			Assert.AreEqual (uri5.ToString (), relativeUri.ToString (), "#N2");
 			Assert.AreEqual (uri5.OriginalString, relativeUri.OriginalString, "#N3");
+
+			AssertRelativeUri ("../", uri14, uri15, "#O");
 		}
 
 		[Test]
@@ -623,6 +627,19 @@ namespace MonoTests.System
 							: base(DefaultOptions)
 			{
 			}
+		}
+
+		[Test]
+		public void DomainLabelLength ()
+		{
+			UriHostNameType type = Uri.CheckHostName ("3.141592653589793238462643383279502884197169399375105820974944592.com");
+			Assert.AreEqual (UriHostNameType.Dns, type, "DomainLabelLength#1");
+			type = Uri.CheckHostName ("3141592653589793238462643383279502884197169399375105820974944592.com");
+			Assert.AreEqual (UriHostNameType.Unknown, type, "DomainLabelLength#2");
+			type = Uri.CheckHostName ("3.1415926535897932384626433832795028841971693993751058209749445923.com");
+			Assert.AreEqual (UriHostNameType.Unknown, type, "DomainLabelLength#2");
+			type = Uri.CheckHostName ("3.141592653589793238462643383279502884197169399375105820974944592._om");
+			Assert.AreEqual (UriHostNameType.Unknown, type, "DomainLabelLength#3");
 		}
 	}
 }

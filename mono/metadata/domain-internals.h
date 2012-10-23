@@ -1,5 +1,6 @@
 /*
  * Appdomain-related internal data structures and functions.
+ * Copyright 2012 Xamarin Inc (http://www.xamarin.com)
  */
 #ifndef __MONO_METADATA_DOMAIN_INTERNALS_H__
 #define __MONO_METADATA_DOMAIN_INTERNALS_H__
@@ -97,9 +98,31 @@ typedef struct {
 	int dummy;
 } MonoGenericSharingContext;
 
+/* Simplified DWARF location list entry */
+typedef struct {
+	/* Whenever the value is in a register */
+	gboolean is_reg;
+	/*
+	 * If is_reg is TRUE, the register which contains the value. Otherwise
+	 * the base register.
+	 */
+	int reg;
+	/*
+	 * If is_reg is FALSE, the offset of the stack location relative to 'reg'.
+	 * Otherwise, 0.
+	 */
+	int offset;
+	/*
+	 * Offsets of the PC interval where the value is in this location.
+	 */
+	int from, to;
+} MonoDwarfLocListEntry;
+
 typedef struct
 {
 	MonoGenericSharingContext *generic_sharing_context;
+	int nlocs;
+	MonoDwarfLocListEntry *locations;
 	gint32 this_offset;
 	guint8 this_reg;
 	gboolean has_this:1;
@@ -147,6 +170,16 @@ typedef struct
 	guint32 stack_size;
 } MonoArchEHJitInfo;
 
+typedef struct {
+	gboolean    cas_inited:1;
+	gboolean    cas_class_assert:1;
+	gboolean    cas_class_deny:1;
+	gboolean    cas_class_permitonly:1;
+	gboolean    cas_method_assert:1;
+	gboolean    cas_method_deny:1;
+	gboolean    cas_method_permitonly:1;
+} MonoMethodCasInfo;
+
 struct _MonoJitInfo {
 	/* NOTE: These first two elements (method and
 	   next_jit_code_hash) must be in the same order and at the
@@ -161,18 +194,14 @@ struct _MonoJitInfo {
 	guint32     num_clauses:15;
 	/* Whenever the code is domain neutral or 'shared' */
 	gboolean    domain_neutral:1;
-	gboolean    cas_inited:1;
-	gboolean    cas_class_assert:1;
-	gboolean    cas_class_deny:1;
-	gboolean    cas_class_permitonly:1;
-	gboolean    cas_method_assert:1;
-	gboolean    cas_method_deny:1;
-	gboolean    cas_method_permitonly:1;
+	gboolean    has_cas_info:1;
 	gboolean    has_generic_jit_info:1;
 	gboolean    has_try_block_holes:1;
 	gboolean    has_arch_eh_info:1;
 	gboolean    from_aot:1;
 	gboolean    from_llvm:1;
+	gboolean    dbg_hidden_inited:1;
+	gboolean    dbg_hidden:1;
 
 	/* FIXME: Embed this after the structure later*/
 	gpointer    gc_info; /* Currently only used by SGen */
@@ -213,6 +242,13 @@ typedef struct _MonoThunkFreeList {
 } MonoThunkFreeList;
 
 typedef struct _MonoJitCodeHash MonoJitCodeHash;
+
+typedef struct _MonoTlsDataRecord MonoTlsDataRecord;
+struct _MonoTlsDataRecord {
+	MonoTlsDataRecord *next;
+	guint32 tls_offset;
+	guint32 size;
+};
 
 struct _MonoDomain {
 	/*
@@ -284,6 +320,7 @@ struct _MonoDomain {
 	MonoMethod         *private_invoke_method;
 	/* Used to store offsets of thread and context static fields */
 	GHashTable         *special_static_fields;
+	MonoTlsDataRecord  *tlsrec_list;
 	/* 
 	 * This must be a GHashTable, since these objects can't be finalized
 	 * if the hashtable contains a GC visible reference to them.
@@ -341,6 +378,12 @@ struct _MonoDomain {
 	MonoClass *socket_class;
 	MonoClass *ad_unloaded_ex_class;
 	MonoClass *process_class;
+
+	/* Cache function pointers for architectures  */
+	/* that require wrappers */
+	GHashTable *ftnptrs_hash;
+
+	guint32 execution_context_field_offset;
 };
 
 typedef struct  {
@@ -450,6 +493,9 @@ mono_jit_info_get_try_block_hole_table_info (MonoJitInfo *ji) MONO_INTERNAL;
 
 MonoArchEHJitInfo*
 mono_jit_info_get_arch_eh_info (MonoJitInfo *ji) MONO_INTERNAL;
+
+MonoMethodCasInfo*
+mono_jit_info_get_cas_info (MonoJitInfo *ji) MONO_INTERNAL;
 
 /* 
  * Installs a new function which is used to return a MonoJitInfo for a method inside

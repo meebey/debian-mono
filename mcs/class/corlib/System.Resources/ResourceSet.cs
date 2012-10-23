@@ -41,19 +41,14 @@ namespace System.Resources
 	[ComVisible (true)]
 	public class ResourceSet : IDisposable, IEnumerable
 	{
+#if !MOONLIGHT
 		[NonSerialized]
+#endif
 		protected IResourceReader Reader;
 		protected Hashtable Table;
 		bool resources_read;
 		[NonSerialized] Hashtable table_nocase;
 
-		[NonSerialized]
-		private bool disposed;
-
-		internal bool IsDisposed {
-			get { return disposed || Reader == null; }
-		}
-		
 		// Constructors
 		protected ResourceSet ()
 		{
@@ -67,6 +62,12 @@ namespace System.Resources
 				throw new ArgumentNullException ("reader");
 			Table = new Hashtable ();
 			Reader = reader;
+		}
+		
+		internal bool IsDisposed {
+			get {
+				return Table == null;
+			}
 		}
 
 		[SecurityPermission (SecurityAction.LinkDemand, SerializationFormatter = true)]
@@ -111,7 +112,6 @@ namespace System.Resources
 			Reader = null;
 			Table = null;
 			table_nocase = null;
-			disposed = true;
 		}
 
 		public virtual Type GetDefaultReader ()

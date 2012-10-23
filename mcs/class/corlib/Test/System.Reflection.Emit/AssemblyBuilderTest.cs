@@ -276,14 +276,12 @@ public class AssemblyBuilderTest
 		Assert.IsNull (ab.GetDynamicModule ("FOO4"));
 	}
 
-#if NET_1_1
 	[Test]
 	public void TestImageRuntimeVersion ()
 	{
 		string version = ab.ImageRuntimeVersion;
 		Assert.IsTrue (version.Length > 0);
 	}
-#endif
 
 	[Test]
 	public void TestAddResourceFile_Name_Null ()
@@ -779,6 +777,10 @@ public class AssemblyBuilderTest
 		try {
 			ab.Save ("lib.dll");
 			Assert.Fail ("#A1");
+#if NET_4_0
+		} catch (CultureNotFoundException ex) {
+		}
+#else
 		} catch (ArgumentException ex) {
 			// Culture name doesnotexist is not supported
 			Assert.AreEqual (typeof (ArgumentException), ex.GetType (), "#A2");
@@ -787,6 +789,7 @@ public class AssemblyBuilderTest
 			Assert.IsTrue (ex.Message.IndexOf ("doesnotexist") != -1, "#A5");
 			Assert.AreEqual ("name", ex.ParamName, "#A6");
 		}
+#endif
 
 		ab = AppDomain.CurrentDomain.DefineDynamicAssembly (aname,
 			AssemblyBuilderAccess.RunAndSave, tempDir);
@@ -802,6 +805,10 @@ public class AssemblyBuilderTest
 		try {
 			ab.Save ("lib.dll");
 			Assert.Fail ("#B1");
+#if NET_4_0
+		} catch (CultureNotFoundException ex) {
+		}
+#else
 		} catch (ArgumentException ex) {
 			// Culture name neutral is not supported
 			Assert.AreEqual (typeof (ArgumentException), ex.GetType (), "#B2");
@@ -810,6 +817,7 @@ public class AssemblyBuilderTest
 			Assert.IsTrue (ex.Message.IndexOf ("neutral") != -1, "#B5");
 			Assert.AreEqual ("name", ex.ParamName, "#B6");
 		}
+#endif
 	}
 
 	[Test] // DefineVersionInfoResource ()
@@ -891,6 +899,10 @@ public class AssemblyBuilderTest
 		try {
 			ab.Save ("lib.dll");
 			Assert.Fail ("#A1");
+#if NET_4_0
+		} catch (CultureNotFoundException ex) {
+		}
+#else
 		} catch (ArgumentException ex) {
 			// Culture name doesnotexist is not supported
 			Assert.AreEqual (typeof (ArgumentException), ex.GetType (), "#A2");
@@ -899,6 +911,7 @@ public class AssemblyBuilderTest
 			Assert.IsTrue (ex.Message.IndexOf ("doesnotexist") != -1, "#A5");
 			Assert.AreEqual ("name", ex.ParamName, "#A6");
 		}
+#endif
 
 		ab = AppDomain.CurrentDomain.DefineDynamicAssembly (aname,
 			AssemblyBuilderAccess.RunAndSave, tempDir);
@@ -914,6 +927,10 @@ public class AssemblyBuilderTest
 		try {
 			ab.Save ("lib.dll");
 			Assert.Fail ("#B1");
+#if NET_4_0
+		} catch (CultureNotFoundException ex) {
+		}
+#else
 		} catch (ArgumentException ex) {
 			// Culture name neutral is not supported
 			Assert.AreEqual (typeof (ArgumentException), ex.GetType (), "#B2");
@@ -922,6 +939,7 @@ public class AssemblyBuilderTest
 			Assert.IsTrue (ex.Message.IndexOf ("neutral") != -1, "#B5");
 			Assert.AreEqual ("name", ex.ParamName, "#B6");
 		}
+#endif
 	}
 
 	[Test] // DefineVersionInfoResource (String, String, String, String, String)

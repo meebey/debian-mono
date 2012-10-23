@@ -42,9 +42,10 @@ using System.Runtime.InteropServices;
 namespace System.Reflection.Emit {
 
 	[ComVisible (true)]
+	[StructLayout (LayoutKind.Sequential)]
 	public sealed class DynamicMethod : MethodInfo {
 
-#pragma warning disable 169, 414
+#pragma warning disable 169, 414, 649
 		#region Sync with reflection.h
 		private RuntimeMethodHandle mhandle;
 		private string name;
@@ -61,12 +62,13 @@ namespace System.Reflection.Emit {
 		private IntPtr referenced_by;
 		private Type owner;
 		#endregion
-#pragma warning restore 169, 414
+#pragma warning restore 169, 414, 649
 		
 		private Delegate deleg;
 		private MonoMethod method;
 		private ParameterBuilder[] pinfo;
 		internal bool creating;
+		private DynamicILInfo il_info;
 
 		public DynamicMethod (string name, Type returnType, Type[] parameterTypes, Module m) : this (name, returnType, parameterTypes, m, false) {
 		}
@@ -110,9 +112,12 @@ namespace System.Reflection.Emit {
 					if (parameterTypes [i] == null)
 						throw new ArgumentException ("Parameter " + i + " is null", "parameterTypes");
 			}
+			if (owner != null && (owner.IsArray || owner.IsInterface)) {
+				throw new ArgumentException ("Owner can't be an array or an interface.");
+			}
 
 			if (m == null)
-				m = AnonHostModuleHolder.anon_host_module;
+				m = AnonHostModuleHolder.AnonHostModule;
 
 			this.name = name;
 			this.attributes = attributes | MethodAttributes.Static;
@@ -213,9 +218,10 @@ namespace System.Reflection.Emit {
 			throw new NotImplementedException ();
 		}
 
-		[MonoTODO("Not implemented")]
 		public DynamicILInfo GetDynamicILInfo () {
-			throw new NotImplementedException ();
+			if (il_info == null)
+				il_info = new DynamicILInfo (this);
+			return il_info;
 		}
 
 		public ILGenerator GetILGenerator () {
@@ -253,6 +259,10 @@ namespace System.Reflection.Emit {
 		{
 			return parameters == null ? 0 : parameters.Length;
 		}		
+
+		internal override Type GetParameterType (int pos) {
+			return parameters [pos];
+		}
 
 		/*
 		public override object Invoke (object obj, object[] parameters) {
@@ -404,6 +414,12 @@ namespace System.Reflection.Emit {
 				AssemblyBuilder ab = AppDomain.CurrentDomain.DefineDynamicAssembly (aname, AssemblyBuilderAccess.Run);
 
 				anon_host_module = ab.GetManifestModule ();
+			}
+
+			public static Module AnonHostModule {
+				get {
+					return anon_host_module;
+				}
 			}
 		}
 	}

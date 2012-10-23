@@ -1,14 +1,3 @@
-2011-08-18  Alan McGovern  <alan.mcgovern@gmail.com>
-
-	Merge pull request #161 from LogosBible/master
-
-	Fix bug #311: On LinkedList.Clear, detach each node instead of
-	dropping them en masse.
-
-2010-12-26  Luke Halliwell  <luke.j.halliwell@gmail.com>
-
-	Fix for bug 349053 - unable to serialize SortedDictionary
-
 2010-04-09  Raja R Harinath  <harinath@hurrynot.org>
 
 	* SortedSetTest.cs (ViewCount): Test that count reflects changes

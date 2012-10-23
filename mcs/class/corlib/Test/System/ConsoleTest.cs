@@ -8,7 +8,7 @@
 using NUnit.Framework;
 using System;
 using System.IO;
-
+using System.Text;
 
 namespace MonoTests.System
 {
@@ -321,8 +321,23 @@ public class ConsoleTest
 	[Test]
 	public void TestWriteLine_Params()
 	{
+		Stream s = new MemoryStream();
+		TextWriter w = new StreamWriter(s);
+		((StreamWriter)w).AutoFlush = true;
+		TextReader r = new StreamReader(s);
+		Console.SetOut(w);
+
 		Console.WriteLine ("text {0}", (object[]) null);
 	}
 
+	// Bug 678357
+	[Test]
+	public void EncodingTest ()
+	{
+		Console.OutputEncoding = Encoding.ASCII;
+		Assert.AreEqual (Console.OutputEncoding, Console.Out.Encoding);
+		Console.OutputEncoding = Encoding.UTF8;
+		Assert.AreEqual (Console.OutputEncoding, Console.Out.Encoding);
+	}
 }
 }

@@ -27,6 +27,11 @@ namespace IKVM.Reflection
 {
 	public abstract class MethodBase : MemberInfo
 	{
+		// prevent external subclasses
+		internal MethodBase()
+		{
+		}
+
 		internal abstract MethodSignature MethodSignature { get; }
 		internal abstract int ParameterCount { get; }
 		public abstract ParameterInfo[] GetParameters();
@@ -34,6 +39,7 @@ namespace IKVM.Reflection
 		public abstract MethodImplAttributes GetMethodImplementationFlags();
 		public abstract MethodBody GetMethodBody();
 		public abstract CallingConventions CallingConvention { get; }
+		public abstract int __MethodRVA { get; }
 
 		public bool IsConstructor
 		{
@@ -128,6 +134,11 @@ namespace IKVM.Reflection
 			get { return IsGenericMethodDefinition; }
 		}
 
+		public virtual MethodBase __GetMethodOnTypeDefinition()
+		{
+			return this;
+		}
+
 		// This goes to the (uninstantiated) MethodInfo on the (uninstantiated) Type. For constructors
 		// it also has the effect of removing the ConstructorInfo wrapper and returning the underlying MethodInfo.
 		internal abstract MethodInfo GetMethodOnTypeDefinition();
@@ -135,5 +146,18 @@ namespace IKVM.Reflection
 		internal abstract int ImportTo(Emit.ModuleBuilder module);
 
 		internal abstract MethodBase BindTypeParameters(Type type);
+
+		internal sealed override bool BindingFlagsMatch(BindingFlags flags)
+		{
+			return BindingFlagsMatch(IsPublic, flags, BindingFlags.Public, BindingFlags.NonPublic)
+				&& BindingFlagsMatch(IsStatic, flags, BindingFlags.Static, BindingFlags.Instance);
+		}
+
+		internal sealed override bool BindingFlagsMatchInherited(BindingFlags flags)
+		{
+			return (Attributes & MethodAttributes.MemberAccessMask) > MethodAttributes.Private
+				&& BindingFlagsMatch(IsPublic, flags, BindingFlags.Public, BindingFlags.NonPublic)
+				&& BindingFlagsMatch(IsStatic, flags, BindingFlags.Static | BindingFlags.FlattenHierarchy, BindingFlags.Instance);
+		}
 	}
 }

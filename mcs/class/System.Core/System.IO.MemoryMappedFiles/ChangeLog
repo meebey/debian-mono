@@ -1,20 +1,3 @@
-2011-11-03  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	Implement a mobile ready version of memory mapped files.
-
-2011-10-31  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	Move all Mono.Unix deps into a single place and put a skeleton of
-	MOBILE support for mmap'd files.
-
-2010-12-15  Marek Safar  <marek.safar@gmail.com>
-
-	Some .net 4.0 api compatibility fixes
-
-2010-10-15  Marek Safar  <marek.safar@gmail.com>
-
-	Clean up few more warnings
-
 2010-05-25  Jb Evain  <jbevain@novell.com>
 
 	* MemoryMappedViewAccessor.cs: fix API.

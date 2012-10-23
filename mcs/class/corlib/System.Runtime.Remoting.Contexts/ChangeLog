@@ -1,12 +1,3 @@
-2010-10-15  Marek Safar  <marek.safar@gmail.com>
-
-	Warnings cleanup
-
-2010-08-04  Zoltan Varga  <vargaz@gmail.com>
-
-	Avoid creating the namedSlots array in the static cctor, so it is
-	not constructed at runtime shutdown.
-
 2010-03-16  Jb Evain  <jbevain@novell.com>
 
 	* Context.cs: use MOONLIGHT symbol to disambiguate

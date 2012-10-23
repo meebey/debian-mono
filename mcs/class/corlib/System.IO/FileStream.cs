@@ -9,6 +9,7 @@
 //
 // (C) 2001-2003 Ximian, Inc.  http://www.ximian.com
 // Copyright (C) 2004-2005, 2008, 2010 Novell, Inc (http://www.novell.com)
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -38,12 +39,16 @@ using System.Runtime.Remoting.Messaging;
 using System.Security;
 using System.Security.Permissions;
 using System.Threading;
-
 using Microsoft.Win32.SafeHandles;
+
 #if NET_2_1
 using System.IO.IsolatedStorage;
 #else
 using System.Security.AccessControl;
+#endif
+
+#if NET_4_5
+using System.Threading.Tasks;
 #endif
 
 namespace System.IO
@@ -95,6 +100,7 @@ namespace System.IO
 			}
 
 			this.handle = handle;
+			ExposeHandle ();
 			this.access = access;
 			this.owner = ownsHandle;
 			this.async = isAsync;
@@ -105,8 +111,6 @@ namespace System.IO
 #else
 			this.anonymous = false;
 #endif
-			InitBuffer (bufferSize, isZeroSize);
-
 			if (canseek) {
 				buf_start = MonoIO.Seek (handle, 0, SeekOrigin.Current, out error);
 				if (error != MonoIOError.ERROR_SUCCESS) {
@@ -409,9 +413,23 @@ namespace System.IO
 				if (handle == MonoIO.InvalidHandle)
 					throw new ObjectDisposedException ("Stream has been closed");
 
-				if(CanSeek == false)
+				if (CanSeek == false)
 					throw new NotSupportedException("The stream does not support seeking");
-				
+
+				if (safeHandle != null) {
+					// If the handle was leaked outside we always ask the real handle
+					MonoIOError error;
+
+					long ret = MonoIO.Seek (handle, 0,SeekOrigin.Current,out error);
+
+					if (error != MonoIOError.ERROR_SUCCESS) {
+						// don't leak the path information for isolated storage
+						throw MonoIO.GetException (GetSecureFileName (name), error);
+					}
+
+					return ret;
+				}
+	
 				return(buf_start + buf_offset);
 			}
 			set {
@@ -435,6 +453,9 @@ namespace System.IO
 			[SecurityPermission (SecurityAction.LinkDemand, UnmanagedCode = true)]
 			[SecurityPermission (SecurityAction.InheritanceDemand, UnmanagedCode = true)]
 			get {
+				if (safeHandle == null) {
+					ExposeHandle ();
+				}
 				return handle;
 			}
 		}
@@ -443,19 +464,21 @@ namespace System.IO
 			[SecurityPermission (SecurityAction.LinkDemand, UnmanagedCode = true)]
 			[SecurityPermission (SecurityAction.InheritanceDemand, UnmanagedCode = true)]
 			get {
-				SafeFileHandle ret;
-
-				if (safeHandle != null)
-					ret = safeHandle;
-				else
-					ret = new SafeFileHandle (handle, owner);
-
-				FlushBuffer ();
-				return ret;
+				if (safeHandle == null) {
+					ExposeHandle ();
+				}
+				return safeHandle;
 			}
 		}
 
 		// methods
+
+	  void ExposeHandle ()
+		{
+			safeHandle = new SafeFileHandle (handle, false);
+			FlushBuffer ();
+			InitBuffer (0, true);
+		}
 
 		public override int ReadByte ()
 		{
@@ -535,27 +558,20 @@ namespace System.IO
 
 		int ReadInternal (byte [] dest, int offset, int count)
 		{
-			int copied = 0;
-
 			int n = ReadSegment (dest, offset, count);
-			copied += n;
-			count -= n;
-			
-			if (count == 0) {
-				/* If there was already enough
-				 * buffered, no need to read
-				 * more from the file.
-				 */
-				return (copied);
+			if (n == count) {
+				return count;
 			}
-
+			
+			int copied = n;
+			count -= n;
 			if (count > buf_size) {
 				/* Read as much as we can, up
 				 * to count bytes
 				 */
 				FlushBuffer();
 				n = ReadData (handle, dest,
-					      offset+copied,
+					      offset+n,
 					      count);
 			
 				/* Make the next buffer read
@@ -569,9 +585,7 @@ namespace System.IO
 						 count);
 			}
 
-			copied += n;
-
-			return copied;
+			return copied + n;
 		}
 
 		delegate int ReadDelegate (byte [] buffer, int offset, int count);
@@ -913,6 +927,9 @@ namespace System.IO
 			Exception exc = null;
 			if (handle != MonoIO.InvalidHandle) {
 				try {
+					// If the FileStream is in "exposed" status
+					// it means that we do not have a buffer(we write the data without buffering)
+					// therefor we don't and can't flush the buffer becouse we don't have one.
 					FlushBuffer ();
 				} catch (Exception e) {
 					exc = e;
@@ -953,12 +970,35 @@ namespace System.IO
 #if !NET_2_1
 		public FileSecurity GetAccessControl ()
 		{
-			throw new NotImplementedException ();
+			return new FileSecurity (SafeFileHandle,
+						 AccessControlSections.Owner |
+						 AccessControlSections.Group |
+						 AccessControlSections.Access);
 		}
 		
 		public void SetAccessControl (FileSecurity fileSecurity)
 		{
-			throw new NotImplementedException ();
+			if (null == fileSecurity)
+				throw new ArgumentNullException ("fileSecurity");
+				
+			fileSecurity.PersistModifications (SafeFileHandle);
+		}
+#endif
+
+#if NET_4_5
+		public override Task FlushAsync (CancellationToken cancellationToken)
+		{
+			return base.FlushAsync (cancellationToken);
+		}
+
+		public override Task<int> ReadAsync (byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			return base.ReadAsync (buffer, offset, count, cancellationToken);
+		}
+
+		public override Task WriteAsync (byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+		{
+			return base.WriteAsync (buffer, offset, count, cancellationToken);
 		}
 #endif
 
@@ -971,18 +1011,15 @@ namespace System.IO
 
 		private int ReadSegment (byte [] dest, int dest_offset, int count)
 		{
-			if (count > buf_length - buf_offset) {
-				count = buf_length - buf_offset;
-			}
+			count = Math.Min (count, buf_length - buf_offset);
 			
 			if (count > 0) {
-				Buffer.BlockCopy (buf, buf_offset,
-						  dest, dest_offset,
-						  count);
+				// Use the fastest method, all range checks has been done
+				Buffer.BlockCopyInternal (buf, buf_offset, dest, dest_offset, count);
 				buf_offset += count;
 			}
 			
-			return(count);
+			return count;
 		}
 
 		private int WriteSegment (byte [] src, int src_offset,
@@ -1012,7 +1049,7 @@ namespace System.IO
 			if (buf_dirty) {
 				MonoIOError error;
 
-				if (CanSeek == true) {
+				if (CanSeek == true && safeHandle == null) {
 					MonoIO.Seek (handle, buf_start,
 						     SeekOrigin.Begin,
 						     out error);
@@ -1135,29 +1172,31 @@ namespace System.IO
 
 		// fields
 
-		internal const int DefaultBufferSize = 8192;
+		internal const int DefaultBufferSize = 4096;
 
 		// Input buffer ready for recycling				
 		static byte[] buf_recycle;
 		static readonly object buf_recycle_lock = new object ();
 
+		private byte [] buf;			// the buffer
+		private string name = "[Unknown]";	// name of file.
+
+		SafeFileHandle safeHandle;              // set only when using one of the
+							// constructors taking SafeFileHandle
+
+		private long append_startpos;
+		IntPtr handle;				// handle to underlying file
+
 		private FileAccess access;
 		private bool owner;
 		private bool async;
 		private bool canseek;
-		private long append_startpos;
 		private bool anonymous;
+		private bool buf_dirty;			// true if buffer has been written to
 
-		private byte [] buf;			// the buffer
 		private int buf_size;			// capacity in bytes
 		private int buf_length;			// number of valid bytes in buffer
 		private int buf_offset;			// position of next byte
-		private bool buf_dirty;			// true if buffer has been written to
 		private long buf_start;			// location of buffer in file
-		private string name = "[Unknown]";	// name of file.
-
-		IntPtr handle;				// handle to underlying file
-		SafeFileHandle safeHandle;              // set only when using one of the
-							// constructors taking SafeFileHandle
 	}
 }

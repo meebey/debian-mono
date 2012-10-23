@@ -1,7 +1,3 @@
-2011-04-13  Marek Habersack  <grendel@twistedcode.net>
-
-	[asp.net] Make web.config path check test case-insensitive
-
 2010-02-18  Marek Habersack  <mhabersack@novell.com>
 
 	* HostingEnvironmentTest.cs: added a test for HostEnvironment

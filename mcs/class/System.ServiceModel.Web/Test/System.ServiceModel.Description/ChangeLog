@@ -1,24 +1,3 @@
-2011-08-24  Atsushi Eno  <atsushi@ximian.com>
-
-	Skip serialization when the return type is void.
-
-	This batch should fix bug #206.
-
-2011-08-23  Atsushi Eno  <atsushi@ximian.com>
-
-	UriTemplate should not be mandatory, make it optional. Fix unit
-	test.
-
-2010-10-15  Frank Wilhelm  <fwilhelm@nowisys.de>
-
-	Make Validate() less restrictive for contracts with explicit
-	UriTemplate.
-
-2010-09-13  Atsushi Eno  <atsushi@ximian.com>
-
-	implemented large parts of WCF standard endpoints and
-	configuration support.
-
 2010-07-14  Atsushi Enomoto  <atsushi@ximian.com>
 
 	* WebHttpBehaviorTest.cs : add test for deserializing Raw request

@@ -325,8 +325,10 @@
         These aren't used when dyld support is enabled (it is by default) */
 #    define DATASTART ((ptr_t) get_etext())
 #    define DATAEND	((ptr_t) get_end())
-#    define STACKBOTTOM ((ptr_t) 0xc0000000)
+#    define STACKBOTTOM ((ptr_t) pthread_get_stackaddr_np(pthread_self()))
+#ifndef USE_MMAP
 #    define USE_MMAP
+#endif
 #    define USE_MMAP_ANON
 #    define USE_ASM_PUSH_REGS
      /* This is potentially buggy. It needs more testing. See the comments in
@@ -1202,7 +1204,8 @@
 #   ifdef NACL
 #	define OS_TYPE "NACL"
 	extern int etext[];
-#	define DATASTART ((ptr_t)((((word) (etext)) + 0xfff) & ~0xfff))
+//#	define DATASTART ((ptr_t)((((word) (etext)) + 0xfff) & ~0xfff))
+#       define DATASTART ((ptr_t)0x10000000)
 	extern int _end[];
 #	define DATAEND (_end)
 #	ifdef STACK_GRAN
@@ -1445,6 +1448,7 @@
 #     define DYNAMIC_LOADING
       extern int _end[];
 #     define DATAEND (_end)
+#pragma weak __data_start
       extern int __data_start[];
 #     define DATASTART ((ptr_t)(__data_start))
 #     if defined(_MIPS_SZPTR) && (_MIPS_SZPTR == 64)
@@ -2480,7 +2484,7 @@
 	           extern void *ps3_get_mem (size_t size);
 #              define GET_MEM(bytes) (struct hblk*) ps3_get_mem (bytes)
 #           else
-		extern ptr_t GC_unix_get_mem();
+		extern ptr_t GC_unix_get_mem(word size);
 #               define GET_MEM(bytes) (struct hblk *)GC_unix_get_mem(bytes)
 #endif
 #	      endif

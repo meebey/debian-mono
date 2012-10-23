@@ -4,6 +4,7 @@
 // Zoltan Varga (vargaz@freemail.hu)
 //
 // (C) Ximian, Inc.  http://www.ximian.com
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 //
 
@@ -80,7 +81,7 @@ namespace MonoTests.System.Reflection
 			Bar = 2
 		};
 
-		public static void paramMethod (int i, [In] int j, [Out] int k, [Optional] int l, [In,Out] int m, [DefaultParameterValue (ParamEnum.Foo)] ParamEnum n)
+		public static void paramMethod (int i, [In] int j, [Out] int k, [Optional] int l, [In,Out] int m, ParamEnum n = ParamEnum.Foo)
 		{
 		}
 

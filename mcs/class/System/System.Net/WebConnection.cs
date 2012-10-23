@@ -91,7 +91,7 @@ namespace System.Net
                 {
                         Type type = Type.GetType ("MonoTouch.ObjCRuntime.Runtime, monotouch");
 			if (type != null)
-	                        start_wwan = type.GetMethod ("StartWWAN");
+	                        start_wwan = type.GetMethod ("StartWWAN", new Type [] { typeof (System.Uri) });
                 }
 #endif
 
@@ -174,12 +174,18 @@ namespace System.Net
 					} catch (Exception se) {
 						// The Socket ctor can throw if we run out of FD's
 						if (!request.Aborted)
-							status = WebExceptionStatus.ConnectFailure;
+								status = WebExceptionStatus.ConnectFailure;
 						connect_exception = se;
 						return;
 					}
 					IPEndPoint remote = new IPEndPoint (address, sPoint.Address.Port);
 					socket.NoDelay = !sPoint.UseNagleAlgorithm;
+					try {
+						sPoint.KeepAliveSetup (socket);
+					} catch {
+						// Ignore. Not supported in all platforms.
+					}
+
 					if (!sPoint.CallEndPointDelegate (socket, remote)) {
 						socket.Close ();
 						socket = null;
@@ -427,7 +433,12 @@ namespace System.Net
 			int nread = -1;
 			try {
 				nread = ns.EndRead (result);
+			} catch (ObjectDisposedException) {
+				return;
 			} catch (Exception e) {
+				if (e.InnerException is ObjectDisposedException)
+					return;
+
 				cnc.HandleError (WebExceptionStatus.ReceiveFailure, e, "ReadDone1");
 				return;
 			}
@@ -452,7 +463,7 @@ namespace System.Net
 					exc = e;
 				}
 
-				if (exc != null) {
+				if (exc != null || pos == -1) {
 					cnc.HandleError (WebExceptionStatus.ServerProtocolViolation, exc, "ReadDone4");
 					return;
 				}
@@ -483,7 +494,11 @@ namespace System.Net
 				stream.ReadBuffer = cnc.buffer;
 				stream.ReadBufferOffset = pos;
 				stream.ReadBufferSize = nread;
-				stream.CheckResponseInBuffer ();
+				try {
+					stream.CheckResponseInBuffer ();
+				} catch (Exception e) {
+					cnc.HandleError (WebExceptionStatus.ReceiveFailure, e, "ReadDone7");
+				}
 			} else if (cnc.chunkStream == null) {
 				try {
 					cnc.chunkStream = new ChunkStream (cnc.buffer, pos, nread, data.Headers);
@@ -549,7 +564,7 @@ namespace System.Net
 				if (readState == ReadState.None) {
 					lineok = ReadLine (buffer, ref pos, max, ref line);
 					if (!lineok)
-						return -1;
+						return 0;
 
 					if (line == null) {
 						emptyFirstLine = true;
@@ -610,7 +625,7 @@ namespace System.Net
 					}
 
 					if (!finished)
-						return -1;
+						return 0;
 
 					foreach (string s in headers)
 						Data.Headers.SetInternal (s);
@@ -649,8 +664,7 @@ namespace System.Net
 				return;
 
 			keepAlive = request.KeepAlive;
-			Data = new WebConnectionData ();
-			Data.request = request;
+			Data = new WebConnectionData (request);
 		retry:
 			Connect (request);
 			if (request.Aborted)
@@ -715,7 +729,8 @@ namespace System.Net
 		internal void NextRead ()
 		{
 			lock (this) {
-				Data.request.FinishedReading = true;
+				if (Data.request != null)
+					Data.request.FinishedReading = true;
 				string header = (sPoint.UsesProxy) ? "Proxy-Connection" : "Connection";
 				string cncHeader = (Data.Headers != null) ? Data.Headers [header] : null;
 				bool keepAlive = (Data.Version == HttpVersion.Version11 && this.keepAlive);
@@ -784,17 +799,19 @@ namespace System.Net
 
 		internal IAsyncResult BeginRead (HttpWebRequest request, byte [] buffer, int offset, int size, AsyncCallback cb, object state)
 		{
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					return null;
+				s = nstream;
 			}
 
 			IAsyncResult result = null;
-			if (!chunkedRead || chunkStream.WantMore) {
+			if (!chunkedRead || (!chunkStream.DataAvailable && chunkStream.WantMore)) {
 				try {
-					result = nstream.BeginRead (buffer, offset, size, cb, state);
+					result = s.BeginRead (buffer, offset, size, cb, state);
 					cb = null;
 				} catch (Exception) {
 					HandleError (WebExceptionStatus.ReceiveFailure, null, "chunked BeginRead");
@@ -818,11 +835,13 @@ namespace System.Net
 		
 		internal int EndRead (HttpWebRequest request, IAsyncResult result)
 		{
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
+				s = nstream;
 			}
 
 			int nbytes = 0;
@@ -832,9 +851,9 @@ namespace System.Net
 				wr = (WebAsyncResult) nsAsync;
 				IAsyncResult inner = wr.InnerAsyncResult;
 				if (inner != null && !(inner is WebAsyncResult))
-					nbytes = nstream.EndRead (inner);
+					nbytes = s.EndRead (inner);
 			} else if (!(nsAsync is WebAsyncResult)) {
-				nbytes = nstream.EndRead (nsAsync);
+				nbytes = s.EndRead (nsAsync);
 				wr = (WebAsyncResult) result;
 			}
 
@@ -905,16 +924,18 @@ namespace System.Net
 
 		internal IAsyncResult BeginWrite (HttpWebRequest request, byte [] buffer, int offset, int size, AsyncCallback cb, object state)
 		{
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					return null;
+				s = nstream;
 			}
 
 			IAsyncResult result = null;
 			try {
-				result = nstream.BeginWrite (buffer, offset, size, cb, state);
+				result = s.BeginWrite (buffer, offset, size, cb, state);
 			} catch (Exception) {
 				status = WebExceptionStatus.SendFailure;
 				throw;
@@ -928,15 +949,17 @@ namespace System.Net
 			if (request.FinishedReading)
 				return;
 
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
+				s = nstream;
 			}
 
 			try {
-				nstream.EndWrite (result);
+				s.EndWrite (result);
 			} catch (Exception exc) {
 				status = WebExceptionStatus.SendFailure;
 				if (exc.InnerException != null)
@@ -950,15 +973,17 @@ namespace System.Net
 			if (request.FinishedReading)
 				return true;
 
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
+				s = nstream;
 			}
 
 			try {
-				nstream.EndWrite (result);
+				s.EndWrite (result);
 				return true;
 			} catch {
 				status = WebExceptionStatus.SendFailure;
@@ -968,18 +993,20 @@ namespace System.Net
 
 		internal int Read (HttpWebRequest request, byte [] buffer, int offset, int size)
 		{
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					return 0;
+				s = nstream;
 			}
 
 			int result = 0;
 			try {
 				bool done = false;
 				if (!chunkedRead) {
-					result = nstream.Read (buffer, offset, size);
+					result = s.Read (buffer, offset, size);
 					done = (result == 0);
 				}
 
@@ -1008,15 +1035,17 @@ namespace System.Net
 		internal bool Write (HttpWebRequest request, byte [] buffer, int offset, int size, ref string err_msg)
 		{
 			err_msg = null;
+			Stream s = null;
 			lock (this) {
 				if (Data.request != request)
 					throw new ObjectDisposedException (typeof (NetworkStream).FullName);
 				if (nstream == null)
 					return false;
+				s = nstream;
 			}
 
 			try {
-				nstream.Write (buffer, offset, size);
+				s.Write (buffer, offset, size);
 				// here SSL handshake should have been done
 				if (ssl && !certsAvailable)
 					GetCertificates ();
@@ -1072,7 +1101,7 @@ namespace System.Net
 			lock (this) {
 				lock (queue) {
 					HttpWebRequest req = (HttpWebRequest) sender;
-					if (Data.request == req) {
+					if (Data.request == req || Data.request == null) {
 						if (!req.FinishedReading) {
 							status = WebExceptionStatus.RequestCanceled;
 							Close (false);

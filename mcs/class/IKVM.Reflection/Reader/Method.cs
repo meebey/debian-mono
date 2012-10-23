@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2009 Jeroen Frijters
+  Copyright (C) 2009-2012 Jeroen Frijters
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -59,6 +59,11 @@ namespace IKVM.Reflection.Reader
 			}
 			int rva = module.MethodDef.records[index].RVA;
 			return rva == 0 ? null : new MethodBody(module, rva, context);
+		}
+
+		public override int __MethodRVA
+		{
+			get { return module.MethodDef.records[index].RVA; }
 		}
 
 		public override CallingConventions CallingConvention
@@ -227,125 +232,6 @@ namespace IKVM.Reflection.Reader
 			get { return module; }
 		}
 
-		internal override IList<CustomAttributeData> GetCustomAttributesData(Type attributeType)
-		{
-			List<CustomAttributeData> list = module.GetCustomAttributes(this.MetadataToken, attributeType);
-			if ((this.Attributes & MethodAttributes.PinvokeImpl) != 0
-				&& (attributeType == null || attributeType.IsAssignableFrom(module.universe.System_Runtime_InteropServices_DllImportAttribute)))
-			{
-				CreateDllImportPseudoCustomAttribute(list);
-			}
-			return list;
-		}
-
-		private void CreateDllImportPseudoCustomAttribute(List<CustomAttributeData> attribs)
-		{
-			int token = this.MetadataToken;
-			// TODO use binary search?
-			for (int i = 0; i < module.ImplMap.records.Length; i++)
-			{
-				if (module.ImplMap.records[i].MemberForwarded == token)
-				{
-					const short NoMangle = 0x0001;
-					const short CharSetMask = 0x0006;
-					const short CharSetNotSpec = 0x0000;
-					const short CharSetAnsi = 0x0002;
-					const short CharSetUnicode = 0x0004;
-					const short CharSetAuto = 0x0006;
-					const short SupportsLastError = 0x0040;
-					const short CallConvMask = 0x0700;
-					const short CallConvWinapi = 0x0100;
-					const short CallConvCdecl = 0x0200;
-					const short CallConvStdcall = 0x0300;
-					const short CallConvThiscall = 0x0400;
-					const short CallConvFastcall = 0x0500;
-					// non-standard flags
-					const short BestFitOn = 0x0010;
-					const short BestFitOff = 0x0020;
-					const short CharMapErrorOn = 0x1000;
-					const short CharMapErrorOff = 0x2000;
-
-					Type type = module.universe.System_Runtime_InteropServices_DllImportAttribute;
-					ConstructorInfo constructor = type.GetConstructor(new Type[] { module.universe.System_String });
-					List<CustomAttributeNamedArgument> list = new List<CustomAttributeNamedArgument>();
-					int flags = module.ImplMap.records[i].MappingFlags;
-					string entryPoint = module.GetString(module.ImplMap.records[i].ImportName);
-					string dllName = module.GetString(module.ModuleRef.records[(module.ImplMap.records[i].ImportScope & 0xFFFFFF) - 1]);
-					System.Runtime.InteropServices.CharSet? charSet;
-					switch (flags & CharSetMask)
-					{
-						case CharSetAnsi:
-							charSet = System.Runtime.InteropServices.CharSet.Ansi;
-							break;
-						case CharSetUnicode:
-							charSet = System.Runtime.InteropServices.CharSet.Unicode;
-							break;
-						case CharSetAuto:
-							charSet = System.Runtime.InteropServices.CharSet.Auto;
-							break;
-						case CharSetNotSpec:
-						default:
-							charSet = null;
-							break;
-					}
-					System.Runtime.InteropServices.CallingConvention callingConvention;
-					switch (flags & CallConvMask)
-					{
-						case CallConvCdecl:
-							callingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl;
-							break;
-						case CallConvFastcall:
-							callingConvention = System.Runtime.InteropServices.CallingConvention.FastCall;
-							break;
-						case CallConvStdcall:
-							callingConvention = System.Runtime.InteropServices.CallingConvention.StdCall;
-							break;
-						case CallConvThiscall:
-							callingConvention = System.Runtime.InteropServices.CallingConvention.ThisCall;
-							break;
-						case CallConvWinapi:
-						default:
-							callingConvention = System.Runtime.InteropServices.CallingConvention.Winapi;
-							break;
-					}
-					list.Add(MakeNamedArgument(type, "EntryPoint", entryPoint));
-					list.Add(MakeNamedArgument(type, "ExactSpelling", flags, NoMangle));
-					list.Add(MakeNamedArgument(type, "SetLastError", flags, SupportsLastError));
-					list.Add(MakeNamedArgument(type, "PreserveSig", (int)GetMethodImplementationFlags(), (int)MethodImplAttributes.PreserveSig));
-					list.Add(MakeNamedArgument(type, "CallingConvention", (int)callingConvention));
-					if (charSet.HasValue)
-					{
-						list.Add(MakeNamedArgument(type, "CharSet", (int)charSet.Value));
-					}
-					if ((flags & (BestFitOn | BestFitOff)) != 0)
-					{
-						list.Add(MakeNamedArgument(type, "BestFitMapping", flags, BestFitOn));
-					}
-					if ((flags & (CharMapErrorOn | CharMapErrorOff)) != 0)
-					{
-						list.Add(MakeNamedArgument(type, "ThrowOnUnmappableChar", flags, CharMapErrorOn));
-					}
-					attribs.Add(new CustomAttributeData(constructor, new object[] { dllName }, list));
-					return;
-				}
-			}
-		}
-
-		private static CustomAttributeNamedArgument MakeNamedArgument(Type type, string field, string value)
-		{
-			return new CustomAttributeNamedArgument(type.GetField(field), new CustomAttributeTypedArgument(type.Module.universe.System_String, value));
-		}
-
-		private static CustomAttributeNamedArgument MakeNamedArgument(Type type, string field, int value)
-		{
-			return new CustomAttributeNamedArgument(type.GetField(field), new CustomAttributeTypedArgument(type.Module.universe.System_Int32, value));
-		}
-
-		private static CustomAttributeNamedArgument MakeNamedArgument(Type type, string field, int flags, int flagMask)
-		{
-			return new CustomAttributeNamedArgument(type.GetField(field), new CustomAttributeTypedArgument(type.Module.universe.System_Boolean, (flags & flagMask) != 0));
-		}
-
 		internal override MethodSignature MethodSignature
 		{
 			get { return lazyMethodSignature ?? (lazyMethodSignature = MethodSignature.ReadSig(module, module.GetBlob(module.MethodDef.records[index].Signature), this)); }
@@ -354,6 +240,38 @@ namespace IKVM.Reflection.Reader
 		internal override int ImportTo(Emit.ModuleBuilder module)
 		{
 			return module.ImportMethodOrField(declaringType, this.Name, this.MethodSignature);
+		}
+
+		public override MethodInfo[] __GetMethodImpls()
+		{
+			Type[] typeArgs = null;
+			List<MethodInfo> list = null;
+			foreach (int i in module.MethodImpl.Filter(declaringType.MetadataToken))
+			{
+				if (module.MethodImpl.records[i].MethodBody == this.MetadataToken)
+				{
+					if (typeArgs == null)
+					{
+						typeArgs = declaringType.GetGenericArguments();
+					}
+					if (list == null)
+					{
+						list = new List<MethodInfo>();
+					}
+					list.Add((MethodInfo)module.ResolveMethod(module.MethodImpl.records[i].MethodDeclaration, typeArgs, null));
+				}
+			}
+			return Util.ToArray(list, Empty<MethodInfo>.Array);
+		}
+
+		internal override int GetCurrentToken()
+		{
+			return this.MetadataToken;
+		}
+
+		internal override bool IsBaked
+		{
+			get { return true; }
 		}
 	}
 
@@ -404,7 +322,7 @@ namespace IKVM.Reflection.Reader
 					Type attr = universe.System_Runtime_CompilerServices_DecimalConstantAttribute;
 					if (attr != null)
 					{
-						foreach (CustomAttributeData cad in GetCustomAttributesData(attr))
+						foreach (CustomAttributeData cad in CustomAttributeData.__GetCustomAttributes(this, attr, false))
 						{
 							IList<CustomAttributeTypedArgument> args = cad.ConstructorArguments;
 							if (args.Count == 5)
@@ -437,14 +355,16 @@ namespace IKVM.Reflection.Reader
 			}
 		}
 
-		public override Type[] GetRequiredCustomModifiers()
+		public override CustomModifiers __GetCustomModifiers()
 		{
-			return Util.Copy(position == -1 ? method.MethodSignature.GetReturnTypeRequiredCustomModifiers(method) : method.MethodSignature.GetParameterRequiredCustomModifiers(method, position));
+			return position == -1
+				? method.MethodSignature.GetReturnTypeCustomModifiers(method)
+				: method.MethodSignature.GetParameterCustomModifiers(method, position);
 		}
 
-		public override Type[] GetOptionalCustomModifiers()
+		public override bool __TryGetFieldMarshal(out FieldMarshal fieldMarshal)
 		{
-			return Util.Copy(position == -1 ? method.MethodSignature.GetReturnTypeOptionalCustomModifiers(method) : method.MethodSignature.GetParameterOptionalCustomModifiers(method, position));
+			return FieldMarshal.ReadFieldMarshal(this.Module, this.MetadataToken, out fieldMarshal);
 		}
 
 		public override MemberInfo Member
@@ -469,17 +389,6 @@ namespace IKVM.Reflection.Reader
 		internal override Module Module
 		{
 			get { return method.Module; }
-		}
-
-		internal override IList<CustomAttributeData> GetCustomAttributesData(Type attributeType)
-		{
-			IList<CustomAttributeData> list = base.GetCustomAttributesData(attributeType);
-			if ((this.Attributes & ParameterAttributes.HasFieldMarshal) != 0
-				&& (attributeType == null || attributeType.IsAssignableFrom(this.Module.universe.System_Runtime_InteropServices_MarshalAsAttribute)))
-			{
-				list.Add(MarshalSpec.GetMarshalAsAttribute(this.Module, this.MetadataToken));
-			}
-			return list;
 		}
 	}
 }

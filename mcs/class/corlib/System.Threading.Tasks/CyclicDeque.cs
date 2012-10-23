@@ -30,22 +30,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
+#if INSIDE_MONO_PARALLEL
+namespace Mono.Threading.Tasks
+#else
 namespace System.Threading.Tasks
+#endif
 {
-	internal enum PopResult	{
-		Succeed,
-		Empty,
-		Abort
-	}
-
-	internal interface IDequeOperations<T>
-	{
-		void PushBottom (T obj);
-		PopResult PopBottom (out T obj);
-		PopResult PopTop (out T obj);
-	}
-
-	internal class CyclicDeque<T> : IDequeOperations<T>
+#if INSIDE_MONO_PARALLEL
+	public
+#endif
+	class CyclicDeque<T> : IConcurrentDeque<T>
 	{
 		const int BaseSize = 11;
 		
@@ -66,11 +60,11 @@ namespace System.Threading.Tasks
 			if (b - upperBound >= a.Size - 1) {
 				upperBound = Interlocked.Read (ref top);
 				a = a.Grow (b, upperBound);
-				Interlocked.Exchange (ref array, a);
+				array = a;
 			}
 			
 			// Register the new value
-			a[b] = obj;
+			a.segment[b % a.size] = obj;
 			Interlocked.Increment (ref bottom);
 		}
 		
@@ -89,7 +83,7 @@ namespace System.Threading.Tasks
 				return PopResult.Empty;
 			}
 			
-			obj = a[b];
+			obj = a.segment[b % a.size];
 			if (size > 0)
 				return PopResult.Succeed;
 			Interlocked.Add (ref bottom, t + 1 - b);
@@ -98,6 +92,22 @@ namespace System.Threading.Tasks
 				return PopResult.Empty;
 			
 			return PopResult.Succeed;
+		}
+
+		public bool PeekBottom (out T obj)
+		{
+			obj = default (T);
+
+			long b = Interlocked.Decrement (ref bottom);
+			var a = array;
+			long t = Interlocked.Read (ref top);
+			long size = b - t;
+
+			if (size < 0)
+				return false;
+
+			obj = a.segment[b % a.size];
+			return true;
 		}
 		
 		public PopResult PopTop (out T obj)
@@ -114,9 +124,25 @@ namespace System.Threading.Tasks
 				return PopResult.Abort;
 			
 			var a = array;
-			obj = a[t];
+			obj = a.segment[t % a.size];
 			
 			return PopResult.Succeed;
+		}
+
+		internal bool PeekTop (out T obj)
+		{
+			obj = default (T);
+
+			long t = Interlocked.Read (ref top);
+			long b = Interlocked.Read (ref bottom);
+
+			if (b - t <= 0)
+				return false;
+
+			var a = array;
+			obj = a.segment[t % a.size];
+
+			return true;
 		}
 		
 		public IEnumerable<T> GetEnumerable ()
@@ -124,13 +150,21 @@ namespace System.Threading.Tasks
 			var a = array;
 			return a.GetEnumerable (bottom, ref top);
 		}
+
+		public bool IsEmpty {
+			get {
+				long t = Interlocked.Read (ref top);
+				long b = Interlocked.Read (ref bottom);
+				return b - t <= 0;
+			}
+		}
 	}
 	
 	internal class CircularArray<T>
 	{
 		readonly int baseSize;
-		readonly int size;
-		readonly T[] segment;
+		public readonly int size;
+		public readonly T[] segment;
 		
 		public CircularArray (int baseSize)
 		{
@@ -147,10 +181,10 @@ namespace System.Threading.Tasks
 		
 		public T this[long index] {
 			get {
-				return segment[index % Size];
+				return segment[index % size];
 			}
 			set {
-				segment[index % Size] = value;
+				segment[index % size] = value;
 			}
 		}
 		
@@ -159,7 +193,7 @@ namespace System.Threading.Tasks
 			var grow = new CircularArray<T> (baseSize + 1);
 			
 			for (long i = top; i < bottom; i++) {
-				grow[i] = this[i];
+				grow.segment[i] = segment[i % size];
 			}
 			
 			return grow;
