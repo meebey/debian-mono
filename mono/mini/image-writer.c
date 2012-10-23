@@ -53,7 +53,7 @@
  * TARGET_ASM_GAS == GNU assembler
  */
 #if !defined(TARGET_ASM_APPLE) && !defined(TARGET_ASM_GAS)
-#if defined(__MACH__) && !defined(__native_client_codegen__)
+#if defined(TARGET_MACH) && !defined(__native_client_codegen__)
 #define TARGET_ASM_APPLE
 #else
 #define TARGET_ASM_GAS
@@ -63,7 +63,7 @@
 /*
  * Defines for the directives used by different assemblers
  */
-#if defined(TARGET_POWERPC) || defined(__MACH__)
+#if defined(TARGET_POWERPC) || defined(TARGET_MACH)
 #define AS_STRING_DIRECTIVE ".asciz"
 #else
 #define AS_STRING_DIRECTIVE ".string"
@@ -117,7 +117,7 @@
 #define USE_ELF_WRITER 1
 #endif
 
-#if defined(TARGET_ARM) && !defined(__MACH__)
+#if defined(TARGET_ARM) && !defined(TARGET_MACH)
 #define USE_ELF_WRITER 1
 #endif
 
@@ -1758,7 +1758,7 @@ static void
 asm_writer_emit_symbol_diff (MonoImageWriter *acfg, const char *end, const char* start, int offset)
 {
 #ifdef TARGET_ASM_APPLE
-	char symbol [128];
+	//char symbol [128];
 #endif
 
 	if (acfg->mode != EMIT_LONG) {

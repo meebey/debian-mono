@@ -55,12 +55,11 @@ namespace System.Net
 		bool useConnect;
 		object locker = new object ();
 		object hostE = new object ();
-#if NET_1_1
 		bool useNagle;
-#endif
-#if NET_2_0
 		BindIPEndPoint endPointCallback = null;
-#endif
+		bool tcp_keepalive;
+		int tcp_keepalive_time;
+		int tcp_keepalive_interval;
 		
 		// Constructors
 
@@ -79,7 +78,6 @@ namespace System.Net
 			get { return uri; }
 		}
 
-#if NET_2_0
 		static Exception GetMustImplement ()
 		{
 			return new NotImplementedException ();
@@ -90,7 +88,6 @@ namespace System.Net
 			get { return endPointCallback; }
 			set { endPointCallback = value; }
 		}
-#endif
 		
 		public X509Certificate Certificate {
 			get { return certificate; }
@@ -100,7 +97,6 @@ namespace System.Net
 			get { return clientCertificate; }
 		}
 
-#if NET_2_0
 		[MonoTODO]
 		public int ConnectionLeaseTimeout
 		{
@@ -111,7 +107,6 @@ namespace System.Net
 				throw GetMustImplement ();
 			}
 		}
-#endif
 		
 		public int ConnectionLimit {
 			get { return connectionLimit; }
@@ -156,7 +151,6 @@ namespace System.Net
 			get { return protocolVersion; }
 		}
 
-#if NET_2_0
 		[MonoTODO]
 		public int ReceiveBufferSize
 		{
@@ -167,13 +161,12 @@ namespace System.Net
 				throw GetMustImplement ();
 			}
 		}
-#endif
 		
 		public bool SupportsPipelining {
 			get { return HttpVersion.Version11.Equals (protocolVersion); }
 		}
 
-#if NET_1_1
+
 		public bool Expect100Continue {
 			get { return SendContinue; }
 			set { SendContinue = value; }
@@ -183,7 +176,6 @@ namespace System.Net
 			get { return useNagle; }
 			set { useNagle = value; }
 		}
-#endif
 
 		internal bool SendContinue {
 			get { return sendContinue &&
@@ -191,14 +183,48 @@ namespace System.Net
 			set { sendContinue = value; }
 		}
 		// Methods
-		
-#if !NET_2_0
-		public override int GetHashCode() 
+
+		public void SetTcpKeepAlive (bool enabled, int keepAliveTime, int keepAliveInterval)
 		{
-			return base.GetHashCode ();
+			if (enabled) {
+				if (keepAliveTime <= 0)
+					throw new ArgumentOutOfRangeException ("keepAliveTime", "Must be greater than 0");
+				if (keepAliveInterval <= 0)
+					throw new ArgumentOutOfRangeException ("keepAliveInterval", "Must be greater than 0");
+			}
+
+			tcp_keepalive = enabled;
+			tcp_keepalive_time = keepAliveTime;
+			tcp_keepalive_interval = keepAliveInterval;
 		}
-#endif
-		
+
+		internal void KeepAliveSetup (Socket socket)
+		{
+			if (!tcp_keepalive)
+				return;
+
+			byte [] bytes = new byte [12];
+			PutBytes (bytes, (uint) (tcp_keepalive ? 1 : 0), 0);
+			PutBytes (bytes, (uint) tcp_keepalive_time, 4);
+			PutBytes (bytes, (uint) tcp_keepalive_interval, 8);
+			socket.IOControl (IOControlCode.KeepAliveValues, bytes, null);
+		}
+
+		static void PutBytes (byte [] bytes, uint v, int offset)
+		{
+			if (BitConverter.IsLittleEndian) {
+				bytes [offset] = (byte) (v & 0x000000ff);
+				bytes [offset + 1] = (byte) ((v & 0x0000ff00) >> 8);
+				bytes [offset + 2] = (byte) ((v & 0x00ff0000) >> 16);
+				bytes [offset + 3] = (byte) ((v & 0xff000000) >> 24);
+			} else {
+				bytes [offset + 3] = (byte) (v & 0x000000ff);
+				bytes [offset + 2] = (byte) ((v & 0x0000ff00) >> 8);
+				bytes [offset + 1] = (byte) ((v & 0x00ff0000) >> 16);
+				bytes [offset] = (byte) ((v & 0xff000000) >> 24);
+			}
+		}
+
 		// Internal Methods
 
 		internal bool UsesProxy {
@@ -298,7 +324,6 @@ namespace System.Net
 			return cnc.SendRequest (request);
 		}
 #endif
-#if NET_2_0
 		public bool CloseConnectionGroup (string connectionGroupName)
 		{
 			lock (locker) {
@@ -311,7 +336,6 @@ namespace System.Net
 
 			return false;
 		}
-#endif
 
 		internal void IncrementConnection ()
 		{
@@ -336,7 +360,6 @@ namespace System.Net
 			clientCertificate = client;
 		}
 
-#if NET_2_0
 		internal bool CallEndPointDelegate (Socket sock, IPEndPoint remote)
 		{
 			if (endPointCallback == null)
@@ -372,7 +395,6 @@ namespace System.Net
 				return true;
 			}
 		}
-#endif
 	}
 }
 

@@ -27,12 +27,15 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Dispatcher;
 
 namespace System.ServiceModel.Description
 {
+	[DebuggerDisplay ("Name={name}")]
+	[DebuggerDisplay ("Address={address}")]
 	public class ServiceEndpoint
 	{
 		ContractDescription contract;
@@ -118,6 +121,9 @@ namespace System.ServiceModel.Description
 
 		internal void Validate ()
 		{
+			if (Contract.Operations.Count == 0)
+				throw new InvalidOperationException (String.Format ("ContractDescription '{0}' has zero operations; a contract must have at least one operation.", Contract.ContractType.Name));
+
 			foreach (IContractBehavior b in Contract.Behaviors)
 				b.Validate (Contract, this);
 			foreach (IEndpointBehavior b in Behaviors)

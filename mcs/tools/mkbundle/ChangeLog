@@ -1,28 +1,3 @@
-2011-08-01  Jeffrey Stedfast  <jeff@xamarin.com>
-
-	Oops, fixed a typo
-
-2011-07-29  Jeffrey Stedfast  <jeff@xamarin.com>
-
-	Fix a mkbundle compiler warning by #including mono-config.h
-
-2010-08-26  Gonzalo Paniagua Javier  <gonzalo.mono@gmail.com>
-
-	Fix the build
-
-2010-08-26  Gonzalo Paniagua Javier  <gonzalo.mono@gmail.com>
-
-	Add more info for -z parameter
-
-	Mention that zlib development package is needed for that option to
-	work.
-
-2010-08-26  Gonzalo Paniagua Javier  <gonzalo.mono@gmail.com>
-
-	Free allocated unmanaged memory.
-
-	Ditto.
-
 2010-03-18  Zoltan Varga  <vargaz@gmail.com>
 
 	* mkbundle.cs: Update after the mono.pc and libmono version bump.

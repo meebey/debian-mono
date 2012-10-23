@@ -56,6 +56,7 @@ namespace IKVM.Reflection
 			{
 				initLocals = true;
 				body = br.ReadBytes(b >> 2);
+				maxStack = 8;
 			}
 			else if ((b & 3) == CorILMethod_FatFormat)
 			{
@@ -108,7 +109,7 @@ namespace IKVM.Reflection
 				}
 				if (localVarSigTok != 0)
 				{
-					ByteReader sig = module.ResolveSignature(localVarSigTok);
+					ByteReader sig = module.GetStandAloneSig((localVarSigTok & 0xFFFFFF) - 1);
 					Signature.ReadLocalVarSig(module, sig, context, locals);
 				}
 			}

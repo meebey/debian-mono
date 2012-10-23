@@ -26,7 +26,6 @@
 //	Jonathan Pobst (monkey@jpobst.com)
 //
 
-#if NET_2_0
 using System;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
@@ -727,16 +726,22 @@ namespace System.Windows.Forms
 		protected override void Dispose (bool disposing)
 		{
 			if (!IsDisposed) {
-				CloseToolTip (null);
-				// ToolStripItem.Dispose modifes the collection,
-				// so we iterate it in reverse order
-				for (int i = Items.Count - 1; i >= 0; i--)
-					Items [i].Dispose ();
-					
-				if (this.overflow_button != null && this.overflow_button.drop_down != null)
-					this.overflow_button.drop_down.Dispose ();
 
-				ToolStripManager.RemoveToolStrip (this);
+				if(disposing) {
+					// Event Handler must be stopped before disposing Items.
+					Events.Dispose();
+
+					CloseToolTip (null);
+					// ToolStripItem.Dispose modifes the collection,
+					// so we iterate it in reverse order
+					for (int i = Items.Count - 1; i >= 0; i--)
+						Items [i].Dispose ();
+
+					if (this.overflow_button != null && this.overflow_button.drop_down != null)
+						this.overflow_button.drop_down.Dispose ();
+
+					ToolStripManager.RemoveToolStrip (this);
+				}
 				base.Dispose (disposing);
 			}
 		}
@@ -1426,25 +1431,28 @@ namespace System.Windows.Forms
 				Point currentLocation = Point.Empty;
 				int tallest = 0;
 				
-				foreach (ToolStripItem tsi in items) {
-					if ((DisplayRectangle.Width - currentLocation.X) < (tsi.Width + tsi.Margin.Horizontal)) {
+				foreach (ToolStripItem tsi in items)
+					if (tsi.Available) {
+						Size tsi_preferred = tsi.GetPreferredSize (Size.Empty);
 
-						currentLocation.Y += tallest;
-						tallest = 0;
+						if ((DisplayRectangle.Width - currentLocation.X) < (tsi_preferred.Width + tsi.Margin.Horizontal)) {
+
+							currentLocation.Y += tallest;
+							tallest = 0;
+							
+							currentLocation.X = DisplayRectangle.Left;
+						}
+
+						// Offset the left margin and set the control to our point
+						currentLocation.Offset (tsi.Margin.Left, 0);
+						tallest = Math.Max (tallest, tsi_preferred.Height + tsi.Margin.Vertical);
 						
-						currentLocation.X = DisplayRectangle.Left;
+						// Update our location pointer
+						currentLocation.X += tsi_preferred.Width + tsi.Margin.Right;
 					}
 
-					// Offset the left margin and set the control to our point
-					currentLocation.Offset (tsi.Margin.Left, 0);
-					tallest = Math.Max (tallest, tsi.Height + tsi.Margin.Vertical);
-					
-					// Update our location pointer
-					currentLocation.X += tsi.Width + tsi.Margin.Right;
-				}
-
 				currentLocation.Y += tallest;
-				return new Size (currentLocation.X, currentLocation.Y);
+				return new Size (currentLocation.X + this.Padding.Horizontal, currentLocation.Y + this.Padding.Vertical);
 			}
 				
 			if (this.orientation == Orientation.Vertical) {
@@ -1786,4 +1794,3 @@ namespace System.Windows.Forms
 		#endregion
 	}
 }
-#endif

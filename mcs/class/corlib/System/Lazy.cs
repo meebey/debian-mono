@@ -41,14 +41,15 @@ namespace System
 	[SerializableAttribute]
 	[ComVisibleAttribute(false)]
 	[HostProtectionAttribute(SecurityAction.LinkDemand, Synchronization = true, ExternalThreading = true)]
+	[DebuggerDisplay ("ThreadSafetyMode={Mode}, IsValueCreated={IsValueCreated}, IsValueFaulted={IsValueFaulted}, Value={ValueForDebugDisplay}")]
 	public class Lazy<T> 
 	{
 		T value;
-		bool inited;
-		LazyThreadSafetyMode mode;
 		Func<T> factory;
 		object monitor;
 		Exception exception;
+		LazyThreadSafetyMode mode;
+		bool inited;
 
 		public Lazy ()
 			: this (LazyThreadSafetyMode.ExecutionAndPublication)

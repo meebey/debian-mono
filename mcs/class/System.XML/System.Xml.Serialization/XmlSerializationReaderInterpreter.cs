@@ -94,6 +94,9 @@ namespace System.Xml.Serialization
 
 		object ReadEncodedObject (XmlTypeMapping typeMap)
 		{
+#if MOONLIGHT
+			throw new NotSupportedException ();
+#else
 			object ob = null;
 			Reader.MoveToContent();
 			if (Reader.NodeType == System.Xml.XmlNodeType.Element) 
@@ -108,10 +111,14 @@ namespace System.Xml.Serialization
 
 			ReadReferencedElements();
 			return ob;
+#endif
 		}
 
 		protected virtual object ReadMessage (XmlMembersMapping typeMap)
 		{
+#if MOONLIGHT
+			throw new NotSupportedException ();
+#else
 			object[] parameters = new object[typeMap.Count];
 
 			if (typeMap.HasWrapperElement)
@@ -168,6 +175,7 @@ namespace System.Xml.Serialization
 				ReadReferencedElements();
 
 			return parameters;
+#endif
 		}
 
 		object ReadRoot (XmlTypeMapping rootMap)
@@ -223,7 +231,7 @@ namespace System.Xml.Serialization
 					return ReadTypedPrimitive (AnyType);
             }
 
-			object ob = Activator.CreateInstance (typeMap.TypeData.Type, true);
+			object ob = CreateInstance (typeMap.TypeData.Type, true);
 
 			Reader.MoveToElement();
 			bool isEmpty = Reader.IsEmptyElement;
@@ -271,6 +279,7 @@ namespace System.Xml.Serialization
 							nss.Add ("", Reader.Value);
 					}
 				}	
+#if !MOONLIGHT
 				else if (anyAttrMember != null) 
 				{
 					XmlAttribute attr = (XmlAttribute) Document.ReadNode(Reader);
@@ -279,13 +288,16 @@ namespace System.Xml.Serialization
 				}
 				else
 					ProcessUnknownAttribute(ob);
+#endif
 			}
 
+#if !MOONLIGHT
 			if (anyAttrMember != null)
 			{
 				anyAttributeArray = ShrinkArray ((Array)anyAttributeArray, anyAttributeIndex, anyAttrMember.TypeData.Type.GetElementType(), true);
 				SetMemberValue (anyAttrMember, ob, anyAttributeArray, isValueList);
 			}
+#endif
 			Reader.MoveToElement ();
 		}
 
@@ -501,9 +513,10 @@ namespace System.Xml.Serialization
 							SetMemberValue (mem, ob, GetValueFromXmlString (Reader.ReadString(), info.TypeData, info.MappedType), isValueList);
 					}
 				}
+#if !MOONLIGHT
 				else 
 					UnknownNode(ob);
-
+#endif
 				Reader.MoveToContent();
 			}
 
@@ -620,7 +633,7 @@ namespace System.Xml.Serialization
 					return ReadObject (elem.MappedType, elem.IsNullable, true);
 
 				case SchemaTypes.XmlSerializable:
-					object ob = Activator.CreateInstance (elem.TypeData.Type, true);
+					object ob = CreateInstance (elem.TypeData.Type, true);
 					return ReadSerializable ((IXmlSerializable)ob);
 
 				default:
@@ -731,13 +744,22 @@ namespace System.Xml.Serialization
 			else	// Must be IEnumerable
 			{
 				if (list == null) {
-					if (canCreateInstance) list = Activator.CreateInstance (type, true);
+					if (canCreateInstance) list = CreateInstance (type, true);
 					else throw CreateReadOnlyCollectionException (type.FullName);
 				}
 
 				MethodInfo mi = type.GetMethod ("Add", new Type[] {listType.ListItemType} );
 				mi.Invoke (list, new object[] { value });
 			}
+		}
+
+		static object CreateInstance (Type type, bool nonPublic)
+		{
+#if MOONLIGHT
+			return Activator.CreateInstance (type); // always false
+#else
+			return Activator.CreateInstance (type, nonPublic);
+#endif
 		}
 
 		object CreateInstance (Type type)
@@ -750,7 +772,7 @@ namespace System.Xml.Serialization
 			if (listType.IsArray)
 				return EnsureArrayIndex (null, 0, listType.GetElementType());
 			else
-				return Activator.CreateInstance (listType, true);
+				return CreateInstance (listType, true);
 		}
 		
 		object InitializeList (TypeData listType)
@@ -758,7 +780,7 @@ namespace System.Xml.Serialization
 			if (listType.Type.IsArray)
 				return null;
 			else
-				return Activator.CreateInstance (listType.Type, true);
+				return CreateInstance (listType.Type, true);
 		}
 
 		void FillList (object list, object items)
@@ -786,10 +808,14 @@ namespace System.Xml.Serialization
 		
 		object ReadXmlNode (TypeData type, bool wrapped)
 		{
+#if MOONLIGHT
+			throw new NotSupportedException ();
+#else
 			if (type.Type == typeof (XmlDocument))
 				return ReadXmlDocument (wrapped);
 			else
 				return ReadXmlNode (wrapped);
+#endif
 		}
 
 		object ReadPrimitiveElement (XmlTypeMapping typeMap, bool isNullable)
@@ -814,7 +840,7 @@ namespace System.Xml.Serialization
 			EnumMap map = (EnumMap) typeMap.ObjectMap;
 			string ev = map.GetEnumName (typeMap.TypeFullName, val);
 			if (ev == null) throw CreateUnknownConstantException (val, typeMap.TypeData.Type);
-			return Enum.Parse (typeMap.TypeData.Type, ev);
+			return Enum.Parse (typeMap.TypeData.Type, ev, false);
 		}
 
 		object ReadXmlSerializableElement (XmlTypeMapping typeMap, bool isNullable)
@@ -824,7 +850,7 @@ namespace System.Xml.Serialization
 			{
 				if (Reader.LocalName == typeMap.ElementName && Reader.NamespaceURI == typeMap.Namespace)
 				{
-					object ob = Activator.CreateInstance (typeMap.TypeData.Type, true);
+					object ob = CreateInstance (typeMap.TypeData.Type, true);
 					return ReadSerializable ((IXmlSerializable)ob);
 				}
 				else

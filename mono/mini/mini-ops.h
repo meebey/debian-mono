@@ -1,4 +1,8 @@
-
+/*
+ * Copyright 2003 Ximian, Inc
+ * Copyright 2003-2011 Novell Inc
+ * Copyright 2011 Xamarin Inc
+ */
 MINI_OP(OP_LOAD,	"load", NONE, NONE, NONE)
 MINI_OP(OP_LDADDR,	"ldaddr", IREG, NONE, NONE)
 MINI_OP(OP_STORE,	"store", NONE, NONE, NONE)
@@ -96,7 +100,7 @@ MINI_OP(OP_STOREI8_MEMBASE_REG, "storei8_membase_reg", IREG, LREG, NONE)
 MINI_OP(OP_STORER4_MEMBASE_REG, "storer4_membase_reg", IREG, FREG, NONE)
 MINI_OP(OP_STORER8_MEMBASE_REG, "storer8_membase_reg", IREG, FREG, NONE)
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#ifdef MONO_ARCH_SIMD_INTRINSICS
 MINI_OP(OP_STOREX_MEMBASE_REG, "storex_membase_reg", IREG, XREG, NONE)
 MINI_OP(OP_STOREX_ALIGNED_MEMBASE_REG,     "storex_aligned_membase_reg", IREG, XREG, NONE)
 MINI_OP(OP_STOREX_NTA_MEMBASE_REG,     "storex_nta_membase_reg", IREG, XREG, NONE)
@@ -124,7 +128,7 @@ MINI_OP(OP_LOADR8_MEMBASE,"loadr8_membase", FREG, IREG, NONE)
 
 MINI_OP(OP_LOADX_MEMBASE, 			"loadx_membase", XREG, IREG, NONE)
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#ifdef MONO_ARCH_SIMD_INTRINSICS
 MINI_OP(OP_LOADX_ALIGNED_MEMBASE,  "loadx_aligned_membase", XREG, IREG, NONE)
 #endif
 
@@ -243,13 +247,13 @@ MINI_OP(OP_LSHR_UN, "long_shr_un", LREG, LREG, IREG)
 /* 64 bit opcodes: must be in the same order as the matching CEE_ opcodes: unops_op_map */
 MINI_OP(OP_LNEG,       "long_neg", LREG, LREG, NONE)
 MINI_OP(OP_LNOT,       "long_not", LREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_I1,"long_conv_to_i1", LREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_I2,"long_conv_to_i2", LREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_I4,"long_conv_to_i4", LREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_I1,"long_conv_to_i1", IREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_I2,"long_conv_to_i2", IREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_I4,"long_conv_to_i4", IREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_I8,"long_conv_to_i8", LREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_R4,"long_conv_to_r4", FREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_R8,"long_conv_to_r8", FREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_U4,"long_conv_to_u4", LREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_U4,"long_conv_to_u4", IREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_U8,"long_conv_to_u8", LREG, LREG, NONE)
 
 MINI_OP(OP_LCONV_TO_U2,   "long_conv_to_u2", IREG, LREG, NONE)
@@ -605,7 +609,7 @@ MINI_OP(OP_NOT_NULL, "not_null", NONE, IREG, NONE)
 
 /* SIMD opcodes. */
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#ifdef MONO_ARCH_SIMD_INTRINSICS
 
 MINI_OP(OP_ADDPS, "addps", XREG, XREG, XREG)
 MINI_OP(OP_DIVPS, "divps", XREG, XREG, XREG)

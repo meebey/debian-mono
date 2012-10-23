@@ -449,6 +449,16 @@ namespace MonoTests.System.Threading
 		}
 
 		[Test]
+		public void TestUndivisibleByPageSizeMaxStackSize ()
+		{
+			const int undivisible_stacksize = 1048573;
+
+			var thread = new Thread (new ThreadStart (delegate {}), undivisible_stacksize);
+			thread.Start ();
+			thread.Join ();
+		}
+
+		[Test]
 		public void TestIsBackground1 ()
 		{
 			if (is_win32 && is_mono)
@@ -467,7 +477,6 @@ namespace MonoTests.System.Threading
 		}
 
 		[Test]
-		[Category ("NotDotNet")] // on MS, ThreadState is immediately Stopped after Abort
 		public void TestIsBackground2 ()
 		{
 			C2Test test1 = new C2Test();
@@ -478,7 +487,14 @@ namespace MonoTests.System.Threading
 			} finally {
 				TestThread.Abort();
 			}
-			Assert.IsTrue (TestThread.IsBackground, "#52 Is Background Changed to Start ");
+			
+			if (TestThread.IsAlive) {
+				try {
+					Assert.IsTrue (TestThread.IsBackground, "#52 Is Background Changed to Start ");
+				} catch (ThreadStateException) {
+					// Ignore if thread died meantime
+				}
+			}
 		}
 
 		[Test]
@@ -807,25 +823,17 @@ namespace MonoTests.System.Threading
 		}
 		
 		[Test]
+		[Category ("NotDotNet")] // it crashes nunit.
 		public void Test_InterruptCurrentThread ()
 		{
 			bool interruptedExceptionThrown = false;
 
+			Thread.CurrentThread.Interrupt ();
 			try {
-				try {
-					Thread.CurrentThread.Interrupt ();
-				} finally {
-					try {
-						Thread.Sleep (0);
-					} catch (ThreadInterruptedException) {
-						Assert.Fail ("ThreadInterruptedException should not be thrown.");
-					}
-				}
+				Thread.Sleep (0);
+				Assert.Fail ();
 			} catch (ThreadInterruptedException) {
-				interruptedExceptionThrown = true;
 			}
-
-			Assert.IsFalse (interruptedExceptionThrown, "ThreadInterruptedException should not be thrown.");
 		}
 
 		void CheckIsRunning (string s, Thread t)
@@ -1111,6 +1119,26 @@ namespace MonoTests.System.Threading
 				exception_occured = true;
 			}
 			Assert.IsTrue (exception_occured, "Thread1 Started Invalid Exception Occured");
+		}
+
+		[Test]
+		public void Volatile () {
+			double v3 = 55667;
+			Thread.VolatileWrite (ref v3, double.MaxValue);
+			Assert.AreEqual (v3, double.MaxValue);
+
+			float v4 = 1;
+			Thread.VolatileWrite (ref v4, float.MaxValue);
+			Assert.AreEqual (v4, float.MaxValue);
+		}
+
+		[Test]
+		public void SetNameTpThread () {
+			ThreadPool.QueueUserWorkItem(new WaitCallback(ThreadProc));
+		}
+
+		static void ThreadProc(Object stateInfo) {
+			Thread.CurrentThread.Name = "My Worker";
 		}
 	}
 

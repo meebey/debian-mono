@@ -6,6 +6,7 @@
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
  */
 #include <config.h>
 #include <stdio.h>
@@ -66,6 +67,9 @@ static char **extra_gac_paths = NULL;
 #ifndef DISABLE_ASSEMBLY_REMAPPING
 /* The list of system assemblies what will be remapped to the running
  * runtime version. WARNING: this list must be sorted.
+ * The integer number is an index in the MonoRuntimeInfo structure, whose
+ * values can be found in domain.c - supported_runtimes. Look there
+ * to understand what remapping will be made.
  */
 static const AssemblyVersionMap framework_assemblies [] = {
 	{"Accessibility", 0},
@@ -581,7 +585,7 @@ fallback (void)
 	mono_set_dirs (MONO_ASSEMBLIES, MONO_CFG_DIR);
 }
 
-static void
+static G_GNUC_UNUSED void
 set_dirs (char *exe)
 {
 	char *base;
@@ -836,7 +840,36 @@ mono_assembly_remap_version (MonoAssemblyName *aname, MonoAssemblyName *dest_ana
 	int pos, first, last;
 
 	if (aname->name == NULL) return aname;
+
 	current_runtime = mono_get_runtime_info ();
+
+	if (aname->flags & ASSEMBLYREF_RETARGETABLE_FLAG) {
+		const AssemblyVersionSet* vset;
+
+		/* Remap to current runtime */
+		vset = &current_runtime->version_sets [0];
+
+		memcpy (dest_aname, aname, sizeof(MonoAssemblyName));
+		dest_aname->major = vset->major;
+		dest_aname->minor = vset->minor;
+		dest_aname->build = vset->build;
+		dest_aname->revision = vset->revision;
+		dest_aname->flags &= ~ASSEMBLYREF_RETARGETABLE_FLAG;
+
+		/* Remap assembly name */
+		if (!strcmp (aname->name, "System.Net"))
+			dest_aname->name = g_strdup ("System");
+
+		mono_trace (G_LOG_LEVEL_WARNING, MONO_TRACE_ASSEMBLY,
+					"The request to load the retargetable assembly %s v%d.%d.%d.%d was remapped to %s v%d.%d.%d.%d",
+					aname->name,
+					aname->major, aname->minor, aname->build, aname->revision,
+					dest_aname->name,
+					vset->major, vset->minor, vset->build, vset->revision
+					);
+
+		return dest_aname;
+	}
 
 	first = 0;
 	last = G_N_ELEMENTS (framework_assemblies) - 1;
@@ -1631,7 +1664,7 @@ mono_assembly_load_from_full (MonoImage *image, const char*fname,
 	loaded_assemblies = g_list_prepend (loaded_assemblies, ass);
 	mono_assemblies_unlock ();
 
-#ifdef ENABLE_COREE
+#ifdef HOST_WIN32
 	if (image->is_module_handle)
 		mono_image_fixup_vtable (image);
 #endif
@@ -1669,7 +1702,7 @@ mono_assembly_name_free (MonoAssemblyName *aname)
 }
 
 static gboolean
-parse_public_key (const gchar *key, gchar** pubkey)
+parse_public_key (const gchar *key, gchar** pubkey, gboolean *is_ecma)
 {
 	const gchar *pkey;
 	gchar header [16], val, *arr;
@@ -1682,11 +1715,12 @@ parse_public_key (const gchar *key, gchar** pubkey)
 	/* allow the ECMA standard key */
 	if (strcmp (key, "00000000000000000400000000000000") == 0) {
 		if (pubkey) {
-			arr = g_strdup ("b77a5c561934e089");
-			*pubkey = arr;
+			*pubkey = g_strdup (key);
+			*is_ecma = TRUE;
 		}
 		return TRUE;
 	}
+	*is_ecma = FALSE;
 	val = g_ascii_xdigit_value (key [0]) << 4;
 	val |= g_ascii_xdigit_value (key [1]);
 	switch (val) {
@@ -1809,9 +1843,19 @@ build_assembly_name (const char *name, const char *version, const char *culture,
 	}
 
 	if (key) {
-		if (strcmp (key, "null") == 0 || !parse_public_key (key, &pkey)) {
+		gboolean is_ecma;
+		if (strcmp (key, "null") == 0 || !parse_public_key (key, &pkey, &is_ecma)) {
 			mono_assembly_name_free (aname);
 			return FALSE;
+		}
+
+		if (is_ecma) {
+			if (save_public_key)
+				aname->public_key = (guint8*)pkey;
+			else
+				g_free (pkey);
+			g_strlcpy ((gchar*)aname->public_key_token, "b77a5c561934e089", MONO_PUBLIC_KEY_TOKEN_LENGTH);
+			return TRUE;
 		}
 		
 		len = mono_metadata_decode_blob_size ((const gchar *) pkey, (const gchar **) &pkeyptr);
@@ -1847,6 +1891,25 @@ parse_assembly_directory_name (const char *name, const char *dirname, MonoAssemb
 	return res;
 }
 
+static gboolean
+split_key_value (const gchar *pair, gchar **key, guint32 *keylen, gchar **value)
+{
+	char *eqsign = strchr (pair, '=');
+	if (!eqsign) {
+		*key = NULL;
+		*keylen = 0;
+		*value = NULL;
+		return FALSE;
+	}
+
+	*key = (gchar*)pair;
+	*keylen = eqsign - *key;
+	while (*keylen > 0 && g_ascii_isspace ((*key) [*keylen - 1]))
+		(*keylen)--;
+	*value = g_strstrip (eqsign + 1);
+	return TRUE;
+}
+
 gboolean
 mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboolean save_public_key, gboolean *is_version_defined, gboolean *is_token_defined)
 {
@@ -1857,13 +1920,14 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 	gchar *key = NULL;
 	gchar *retargetable = NULL;
 	gboolean res;
-	gchar *value;
+	gchar *value, *part_name;
+	guint32 part_name_len;
 	gchar **parts;
 	gchar **tmp;
 	gboolean version_defined;
 	gboolean token_defined;
 	guint32 flags = 0;
-	guint32 arch = PROCESSOR_ARCHITECTURE_NONE;
+	guint32 arch = MONO_PROCESSOR_ARCHITECTURE_NONE;
 
 	if (!is_version_defined)
 		is_version_defined = &version_defined;
@@ -1883,10 +1947,12 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 	tmp++;
 
 	while (*tmp) {
-		value = g_strstrip (*tmp);
-		if (!g_ascii_strncasecmp (value, "Version=", 8)) {
+		if (!split_key_value (g_strstrip (*tmp), &part_name, &part_name_len, &value))
+			goto cleanup_and_fail;
+
+		if (part_name_len == 7 && !g_ascii_strncasecmp (part_name, "Version", part_name_len)) {
 			*is_version_defined = TRUE;
-			version = g_strstrip (value + 8);
+			version = value;
 			if (strlen (version) == 0) {
 				goto cleanup_and_fail;
 			}
@@ -1894,8 +1960,8 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 			continue;
 		}
 
-		if (!g_ascii_strncasecmp (value, "Culture=", 8)) {
-			culture = g_strstrip (value + 8);
+		if (part_name_len == 7 && !g_ascii_strncasecmp (part_name, "Culture", part_name_len)) {
+			culture = value;
 			if (strlen (culture) == 0) {
 				goto cleanup_and_fail;
 			}
@@ -1903,9 +1969,9 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 			continue;
 		}
 
-		if (!g_ascii_strncasecmp (value, "PublicKeyToken=", 15)) {
+		if (part_name_len == 14 && !g_ascii_strncasecmp (part_name, "PublicKeyToken", part_name_len)) {
 			*is_token_defined = TRUE;
-			token = g_strstrip (value + 15);
+			token = value;
 			if (strlen (token) == 0) {
 				goto cleanup_and_fail;
 			}
@@ -1913,8 +1979,8 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 			continue;
 		}
 
-		if (!g_ascii_strncasecmp (value, "PublicKey=", 10)) {
-			key = g_strstrip (value + 10);
+		if (part_name_len == 9 && !g_ascii_strncasecmp (part_name, "PublicKey", part_name_len)) {
+			key = value;
 			if (strlen (key) == 0) {
 				goto cleanup_and_fail;
 			}
@@ -1922,8 +1988,8 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 			continue;
 		}
 
-		if (!g_ascii_strncasecmp (value, "Retargetable=", 13)) {
-			retargetable = g_strstrip (value + 13);
+		if (part_name_len == 12 && !g_ascii_strncasecmp (part_name, "Retargetable", part_name_len)) {
+			retargetable = value;
 			if (strlen (retargetable) == 0) {
 				goto cleanup_and_fail;
 			}
@@ -1936,18 +2002,17 @@ mono_assembly_name_parse_full (const char *name, MonoAssemblyName *aname, gboole
 			continue;
 		}
 
-		if (!g_ascii_strncasecmp (value, "ProcessorArchitecture=", 22)) {
-			char *s = g_strstrip (value + 22);
-			if (!g_ascii_strcasecmp (s, "None"))
-				arch = PROCESSOR_ARCHITECTURE_NONE;
-			else if (!g_ascii_strcasecmp (s, "MSIL"))
-				arch = PROCESSOR_ARCHITECTURE_MSIL;
-			else if (!g_ascii_strcasecmp (s, "X86"))
-				arch = PROCESSOR_ARCHITECTURE_X86;
-			else if (!g_ascii_strcasecmp (s, "IA64"))
-				arch = PROCESSOR_ARCHITECTURE_IA64;
-			else if (!g_ascii_strcasecmp (s, "AMD64"))
-				arch = PROCESSOR_ARCHITECTURE_AMD64;
+		if (part_name_len == 21 && !g_ascii_strncasecmp (part_name, "ProcessorArchitecture", part_name_len)) {
+			if (!g_ascii_strcasecmp (value, "None"))
+				arch = MONO_PROCESSOR_ARCHITECTURE_NONE;
+			else if (!g_ascii_strcasecmp (value, "MSIL"))
+				arch = MONO_PROCESSOR_ARCHITECTURE_MSIL;
+			else if (!g_ascii_strcasecmp (value, "X86"))
+				arch = MONO_PROCESSOR_ARCHITECTURE_X86;
+			else if (!g_ascii_strcasecmp (value, "IA64"))
+				arch = MONO_PROCESSOR_ARCHITECTURE_IA64;
+			else if (!g_ascii_strcasecmp (value, "AMD64"))
+				arch = MONO_PROCESSOR_ARCHITECTURE_AMD64;
 			else
 				goto cleanup_and_fail;
 			tmp++;
@@ -2824,6 +2889,21 @@ MonoAssembly*
 mono_assembly_loaded (MonoAssemblyName *aname)
 {
 	return mono_assembly_loaded_full (aname, FALSE);
+}
+
+void
+mono_assembly_release_gc_roots (MonoAssembly *assembly)
+{
+	if (assembly == NULL || assembly == REFERENCE_MISSING)
+		return;
+
+	if (assembly->dynamic) {
+		int i;
+		MonoDynamicImage *dynimg = (MonoDynamicImage *)assembly->image;
+		for (i = 0; i < dynimg->image.module_count; ++i)
+			mono_dynamic_image_release_gc_roots ((MonoDynamicImage *)dynimg->image.modules [i]);
+		mono_dynamic_image_release_gc_roots (dynimg);
+	}
 }
 
 /*

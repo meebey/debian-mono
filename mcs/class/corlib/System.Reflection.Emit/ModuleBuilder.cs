@@ -46,6 +46,7 @@ namespace System.Reflection.Emit {
 	[ComVisible (true)]
 	[ComDefaultInterface (typeof (_ModuleBuilder))]
 	[ClassInterface (ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public class ModuleBuilder : Module, _ModuleBuilder {
 
 #pragma warning disable 169, 414
@@ -919,6 +920,51 @@ namespace System.Reflection.Emit {
 				return Type.GetTypeFromHandle (new RuntimeTypeHandle (handle));
 		}
 
+		public override bool Equals (object obj)
+		{
+			return base.Equals (obj);
+		}
+
+		public override int GetHashCode ()
+		{
+			return base.GetHashCode ();
+		}
+
+		public override bool IsDefined (Type attributeType, bool inherit)
+		{
+			return base.IsDefined (attributeType, inherit);
+		}
+
+		public override object[] GetCustomAttributes (bool inherit)
+		{
+			return base.GetCustomAttributes (inherit);
+		}
+
+		public override object[] GetCustomAttributes (Type attributeType, bool inherit)
+		{
+			return base.GetCustomAttributes (attributeType, inherit);
+		}
+
+		public override FieldInfo GetField (string name, BindingFlags bindingAttr)
+		{
+			return base.GetField (name, bindingAttr);
+		}
+
+		public override FieldInfo[] GetFields (BindingFlags bindingFlags)
+		{
+			return base.GetFields (bindingFlags);
+		}
+
+		public override MethodInfo[] GetMethods (BindingFlags bindingFlags)
+		{
+			return base.GetMethods (bindingFlags);
+		}
+
+		public override int MetadataToken {
+			get {
+				return base.MetadataToken;
+			}
+		}
 #endif
 	}
 

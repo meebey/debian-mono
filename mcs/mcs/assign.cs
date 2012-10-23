@@ -10,6 +10,7 @@
 //
 // Copyright 2001, 2002, 2003 Ximian, Inc.
 // Copyright 2004-2008 Novell, Inc
+// Copyright 2011 Xamarin Inc
 //
 using System;
 
@@ -51,7 +52,7 @@ namespace Mono.CSharp {
 		// be data on the stack that it can use to compuatate its value. This is
 		// for expressions like a [f ()] ++, where you can't call `f ()' twice.
 		//
-		void EmitAssign (EmitContext ec, Expression source, bool leave_copy, bool prepare_for_load);
+		void EmitAssign (EmitContext ec, Expression source, bool leave_copy, bool isCompound);
 
 		/*
 		For simple assignments, this interface is very simple, EmitAssign is called with source
@@ -201,6 +202,11 @@ namespace Mono.CSharp {
 			builder = null;
 		}
 
+		public override bool ContainsEmitWithAwait ()
+		{
+			return false;
+		}
+
 		public override Expression CreateExpressionTree (ResolveContext ec)
 		{
 			Arguments args = new Arguments (1);
@@ -236,9 +242,9 @@ namespace Mono.CSharp {
 				Emit (ec);
 		}
 
-		public void EmitAssign (EmitContext ec, Expression source, bool leave_copy, bool prepare_for_load)
+		public void EmitAssign (EmitContext ec, Expression source, bool leave_copy, bool isCompound)
 		{
-			if (prepare_for_load)
+			if (isCompound)
 				throw new NotImplementedException ();
 
 			source.Emit (ec);
@@ -294,12 +300,6 @@ namespace Mono.CSharp {
 			this.loc = loc;
 		}
 		
-		public override Expression CreateExpressionTree (ResolveContext ec)
-		{
-			ec.Report.Error (832, loc, "An expression tree cannot contain an assignment operator");
-			return null;
-		}
-
 		public Expression Target {
 			get { return target; }
 		}
@@ -308,6 +308,17 @@ namespace Mono.CSharp {
 			get {
 				return source;
 			}
+		}
+
+		public override bool ContainsEmitWithAwait ()
+		{
+			return target.ContainsEmitWithAwait () || source.ContainsEmitWithAwait ();
+		}
+
+		public override Expression CreateExpressionTree (ResolveContext ec)
+		{
+			ec.Report.Error (832, loc, "An expression tree cannot contain an assignment operator");
+			return null;
 		}
 
 		protected override Expression DoResolve (ResolveContext ec)
@@ -332,7 +343,7 @@ namespace Mono.CSharp {
 			type = target_type;
 
 			if (!(target is IAssignMethod)) {
-				Error_ValueAssignment (ec, loc);
+				target.Error_ValueAssignment (ec, source);
 				return null;
 			}
 
@@ -346,7 +357,7 @@ namespace Mono.CSharp {
 			return this;
 		}
 
-#if NET_4_0
+#if NET_4_0 || MONODROID
 		public override System.Linq.Expressions.Expression MakeExpression (BuilderContext ctx)
 		{
 			var tassign = target as IDynamicAssign;
@@ -377,7 +388,7 @@ namespace Mono.CSharp {
 #endif
 		protected virtual Expression ResolveConversions (ResolveContext ec)
 		{
-			source = Convert.ImplicitConversionRequired (ec, source, target.Type, loc);
+			source = Convert.ImplicitConversionRequired (ec, source, target.Type, source.Location);
 			if (source == null)
 				return null;
 
@@ -406,6 +417,11 @@ namespace Mono.CSharp {
 
 			_target.target = target.Clone (clonectx);
 			_target.source = source.Clone (clonectx);
+		}
+
+		public override object Accept (StructuralVisitor visitor)
+		{
+			return visitor.Visit (this);
 		}
 	}
 
@@ -467,6 +483,20 @@ namespace Mono.CSharp {
 		public CompilerAssign (Expression target, Expression source, Location loc)
 			: base (target, source, loc)
 		{
+			if (target.Type != null) {
+				type = target.Type;
+				eclass = ExprClass.Value;
+			}
+		}
+
+		protected override Expression DoResolve (ResolveContext ec)
+		{
+			var expr = base.DoResolve (ec);
+			var vr = target as VariableReference;
+			if (vr != null && vr.VariableInfo != null)
+				vr.VariableInfo.IsEverAssigned = false;
+
+			return expr;
 		}
 
 		public void UpdateSource (Expression source)
@@ -508,12 +538,12 @@ namespace Mono.CSharp {
 		ExpressionStatement resolved;
 		IMemberContext mc;
 
-		public FieldInitializer (FieldSpec spec, Expression expression, IMemberContext mc)
-			: base (new FieldExpr (spec, expression.Location), expression, expression.Location)
+		public FieldInitializer (FieldBase mc, Expression expression, Location loc)
+			: base (new FieldExpr (mc.Spec, expression.Location), expression, loc)
 		{
 			this.mc = mc;
-			if (!spec.IsStatic)
-				((FieldExpr)target).InstanceExpression = CompilerGeneratedThis.Instance;
+			if (!mc.IsStatic)
+				((FieldExpr)target).InstanceExpression = new CompilerGeneratedThis (mc.CurrentType, expression.Location);
 		}
 
 		protected override Expression DoResolve (ResolveContext ec)
@@ -534,17 +564,24 @@ namespace Mono.CSharp {
 		{
 			if (resolved == null)
 				return;
-			
+
+			//
+			// Emit sequence symbol info even if we are in compiler generated
+			// block to allow debugging field initializers when constructor is
+			// compiler generated
+			//
+			if (ec.HasSet (BuilderContext.Options.OmitDebugInfo) && ec.HasMethodSymbolBuilder) {
+				using (ec.With (BuilderContext.Options.OmitDebugInfo, false)) {
+					ec.Mark (loc);
+				}
+			}
+
 			if (resolved != this)
 				resolved.EmitStatement (ec);
 			else
 				base.EmitStatement (ec);
 		}
 		
-		public bool IsComplexInitializer {
-			get { return !(source is Constant); }
-		}
-
 		public bool IsDefaultInitializer {
 			get {
 				Constant c = source as Constant;
@@ -553,6 +590,12 @@ namespace Mono.CSharp {
 				
 				FieldExpr fe = (FieldExpr)target;
 				return c.IsDefaultInitializer (fe.Type);
+			}
+		}
+
+		public override bool IsSideEffectFree {
+			get {
+				return source.IsSideEffectFree;
 			}
 		}
 	}
@@ -565,11 +608,17 @@ namespace Mono.CSharp {
 		// This is just a hack implemented for arrays only
 		public sealed class TargetExpression : Expression
 		{
-			Expression child;
+			readonly Expression child;
+
 			public TargetExpression (Expression child)
 			{
 				this.child = child;
 				this.loc = child.Location;
+			}
+
+			public override bool ContainsEmitWithAwait ()
+			{
+				return child.ContainsEmitWithAwait ();
 			}
 
 			public override Expression CreateExpressionTree (ResolveContext ec)
@@ -588,6 +637,11 @@ namespace Mono.CSharp {
 			{
 				child.Emit (ec);
 			}
+
+			public override Expression EmitToField (EmitContext ec)
+			{
+				return child.EmitToField (ec);
+			}
 		}
 
 		// Used for underlying binary operator
@@ -595,17 +649,23 @@ namespace Mono.CSharp {
 		Expression right;
 		Expression left;
 
-		public CompoundAssign (Binary.Operator op, Expression target, Expression source, Location loc)
-			: base (target, source, loc)
+		public CompoundAssign (Binary.Operator op, Expression target, Expression source)
+			: base (target, source, target.Location)
 		{
 			right = source;
 			this.op = op;
 		}
 
-		public CompoundAssign (Binary.Operator op, Expression target, Expression source, Expression left, Location loc)
-			: this (op, target, source, loc)
+		public CompoundAssign (Binary.Operator op, Expression target, Expression source, Expression left)
+			: this (op, target, source)
 		{
 			this.left = left;
+		}
+
+		public Binary.Operator Operator {
+			get {
+				return op;
+			}
 		}
 
 		protected override Expression DoResolve (ResolveContext ec)
@@ -660,7 +720,7 @@ namespace Mono.CSharp {
 			if (left == null)
 				left = new TargetExpression (target);
 
-			source = new Binary (op, left, right, true, loc);
+			source = new Binary (op, left, right, true);
 
 			if (target is DynamicMemberAssignable) {
 				Arguments targs = ((DynamicMemberAssignable) target).Arguments;
@@ -749,13 +809,13 @@ namespace Mono.CSharp {
 				}
 			}
 
-			if (source.Type == InternalType.Dynamic) {
+			if (source.Type.BuiltinType == BuiltinTypeSpec.Type.Dynamic) {
 				Arguments arg = new Arguments (1);
 				arg.Add (new Argument (source));
 				return new SimpleAssign (target, new DynamicConversion (target_type, CSharpBinderFlags.ConvertExplicit, arg, loc), loc).Resolve (ec);
 			}
 
-			right.Error_ValueCannotBeConverted (ec, loc, target_type, false);
+			right.Error_ValueCannotBeConverted (ec, target_type, false);
 			return null;
 		}
 
@@ -765,6 +825,11 @@ namespace Mono.CSharp {
 
 			ctarget.right = ctarget.source = source.Clone (clonectx);
 			ctarget.target = target.Clone (clonectx);
+		}
+
+		public override object Accept (StructuralVisitor visitor)
+		{
+			return visitor.Visit (this);
 		}
 	}
 }

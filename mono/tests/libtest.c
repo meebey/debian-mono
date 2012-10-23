@@ -55,6 +55,17 @@ static void* marshal_alloc (gsize size)
 #endif
 }
 
+static void* marshal_alloc0 (gsize size)
+{
+#ifdef WIN32
+	void* ptr = CoTaskMemAlloc (size);
+	memset(ptr, 0, size);
+	return ptr;
+#else
+	return g_malloc0 (size);
+#endif
+}
+
 static char* marshal_strdup (const char *str)
 {
 #ifdef WIN32
@@ -98,6 +109,8 @@ static gunichar2* marshal_bstr_alloc(const gchar* str)
 	return (gunichar2*)(ret + 4);
 #endif
 }
+
+#define marshal_new0(type,size)       ((type *) marshal_alloc0 (sizeof (type)* (size)))
 
 LIBTEST_API int STDCALL
 mono_cominterop_is_supported (void)
@@ -709,7 +722,7 @@ mono_test_marshal_class (int i, int j, int k, simplestruct2 *ss, int l)
 		   ss->e == 99 && ss->f == 1.5 && ss->g == 42 && ss->h == (guint64)123))
 		return NULL;
 
-	res = g_new0 (simplestruct2, 1);
+	res = marshal_new0 (simplestruct2, 1);
 	memcpy (res, ss, sizeof (simplestruct2));
 	res->d = marshal_strdup ("TEST");
 	return res;
@@ -726,7 +739,7 @@ mono_test_marshal_byref_class (simplestruct2 **ssp)
 		   ss->e == 99 && ss->f == 1.5 && ss->g == 42 && ss->h == (guint64)123))
 		return 1;
 
-	res = g_new0 (simplestruct2, 1);
+	res = marshal_new0 (simplestruct2, 1);
 	memcpy (res, ss, sizeof (simplestruct2));
 	res->d = marshal_strdup ("TEST-RES");
 
@@ -1083,6 +1096,22 @@ mono_test_marshal_stringbuilder_out_unicode (gunichar2 **s)
 	return 0;
 }
 
+LIBTEST_API int STDCALL
+mono_test_marshal_stringbuilder_ref (char **s)
+{
+	const char m[] = "This is my message.  Isn't it nice?";
+	char *str;
+
+	if (strcmp (*s, "ABC"))
+		return 1;
+
+	str = marshal_alloc (strlen (m) + 1);
+	memcpy (str, m, strlen (m) + 1);
+	
+	*s = str;
+	return 0;
+}
+
 typedef struct {
 #ifndef __GNUC__
     char a;
@@ -1395,6 +1424,8 @@ string_marshal_test2 (char **str)
 	if (strcmp (*str, "TEST1"))
 		return -1;
 
+	*str = marshal_strdup ("TEST2");
+
 	return 0;
 }
 
@@ -1423,10 +1454,10 @@ TestBlittableClass (BlittableClass *vl)
 		vl->a++;
 		vl->b++;
 
-		res = g_new0 (BlittableClass, 1);
+		res = marshal_new0 (BlittableClass, 1);
 		memcpy (res, vl, sizeof (BlittableClass));
 	} else {
-		res = g_new0 (BlittableClass, 1);
+		res = marshal_new0 (BlittableClass, 1);
 		res->a = 42;
 		res->b = 43;
 	}
@@ -3133,16 +3164,19 @@ ITestOut(MonoComObject* pUnk, MonoComObject* *ppUnk)
 	return S_OK;
 }
 
+static void create_com_object (MonoComObject** pOut);
+
 LIBTEST_API int STDCALL 
 get_ITest(MonoComObject* pUnk, MonoComObject* *ppUnk)
 {
+	create_com_object (ppUnk);
 	return S_OK;
 }
 
 static void create_com_object (MonoComObject** pOut)
 {
-	*pOut = g_new0 (MonoComObject, 1);
-	(*pOut)->vtbl = g_new0 (MonoIUnknown, 1);
+	*pOut = marshal_new0 (MonoComObject, 1);
+	(*pOut)->vtbl = marshal_new0 (MonoIUnknown, 1);
 
 	(*pOut)->m_ref = 1;
 	(*pOut)->vtbl->QueryInterface = MonoQueryInterface;
@@ -3263,7 +3297,7 @@ mono_test_marshal_ccw_itest (MonoComObject *pUnk)
 /* thunks.cs:TestStruct */
 typedef struct _TestStruct {
 	int A;
-	double B ALIGN(8);  /* align according to  mono's struct layout */
+	double B;
 } TestStruct;
 
 /* Searches for mono symbols in all loaded modules */
@@ -5045,4 +5079,60 @@ mono_test_marshal_thread_attach (SimpleDelegate del)
 
 	return call_managed_res;
 #endif
+}
+
+typedef int (STDCALL *Callback) (void);
+
+static Callback callback;
+
+LIBTEST_API void STDCALL 
+mono_test_marshal_set_callback (Callback cb)
+{
+	callback = cb;
+}
+
+LIBTEST_API int STDCALL 
+mono_test_marshal_call_callback (void)
+{
+	return callback ();
+}
+
+LIBTEST_API int STDCALL
+mono_test_marshal_lpstr (char *str)
+{
+	return strcmp ("ABC", str);
+}
+
+LIBTEST_API int STDCALL
+mono_test_marshal_lpwstr (gunichar2 *str)
+{
+	char *s;
+	int res;
+
+	s = g_utf16_to_utf8 (str, -1, NULL, NULL, NULL);
+	res = strcmp ("ABC", s);
+	g_free (s);
+
+	return res;
+}
+
+LIBTEST_API char* STDCALL
+mono_test_marshal_return_lpstr (void)
+{
+	char *res = marshal_alloc (4);
+	strcpy (res, "XYZ");
+	return res;
+}
+
+
+LIBTEST_API gunichar2* STDCALL
+mono_test_marshal_return_lpwstr (void)
+{
+	gunichar2 *res = marshal_alloc (8);
+	gunichar2* tmp = g_utf8_to_utf16 ("XYZ", -1, NULL, NULL, NULL);
+
+	memcpy (res, tmp, 8);
+	g_free (tmp);
+
+	return res;
 }

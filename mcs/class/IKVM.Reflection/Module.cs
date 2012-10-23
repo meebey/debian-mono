@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2009-2010 Jeroen Frijters
+  Copyright (C) 2009-2012 Jeroen Frijters
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -50,6 +50,11 @@ namespace IKVM.Reflection
 			get { return isManifestModule; }
 		}
 
+		public Guid ModuleVersionId
+		{
+			get { return module.ModuleVersionId; }
+		}
+
 		private void CheckManifestModule()
 		{
 			if (!IsManifestModule)
@@ -77,14 +82,14 @@ namespace IKVM.Reflection
 			}
 		}
 
-		internal Assembly ToAssembly()
+		internal AssemblyReader ToAssembly()
 		{
 			if (imported)
 			{
 				throw new InvalidOperationException();
 			}
 			imported = true;
-			return module.Assembly;
+			return (AssemblyReader)module.Assembly;
 		}
 
 		internal Module ToModule(Assembly assembly)
@@ -105,6 +110,7 @@ namespace IKVM.Reflection
 		internal readonly ModuleTable ModuleTable = new ModuleTable();
 		internal readonly TypeRefTable TypeRef = new TypeRefTable();
 		internal readonly TypeDefTable TypeDef = new TypeDefTable();
+		internal readonly FieldPtrTable FieldPtr = new FieldPtrTable();
 		internal readonly FieldTable Field = new FieldTable();
 		internal readonly MemberRefTable MemberRef = new MemberRefTable();
 		internal readonly ConstantTable Constant = new ConstantTable();
@@ -113,12 +119,15 @@ namespace IKVM.Reflection
 		internal readonly DeclSecurityTable DeclSecurity = new DeclSecurityTable();
 		internal readonly ClassLayoutTable ClassLayout = new ClassLayoutTable();
 		internal readonly FieldLayoutTable FieldLayout = new FieldLayoutTable();
+		internal readonly ParamPtrTable ParamPtr = new ParamPtrTable();
 		internal readonly ParamTable Param = new ParamTable();
 		internal readonly InterfaceImplTable InterfaceImpl = new InterfaceImplTable();
 		internal readonly StandAloneSigTable StandAloneSig = new StandAloneSigTable();
 		internal readonly EventMapTable EventMap = new EventMapTable();
+		internal readonly EventPtrTable EventPtr = new EventPtrTable();
 		internal readonly EventTable Event = new EventTable();
 		internal readonly PropertyMapTable PropertyMap = new PropertyMapTable();
+		internal readonly PropertyPtrTable PropertyPtr = new PropertyPtrTable();
 		internal readonly PropertyTable Property = new PropertyTable();
 		internal readonly MethodSemanticsTable MethodSemantics = new MethodSemanticsTable();
 		internal readonly MethodImplTable MethodImpl = new MethodImplTable();
@@ -128,6 +137,7 @@ namespace IKVM.Reflection
 		internal readonly FieldRVATable FieldRVA = new FieldRVATable();
 		internal readonly AssemblyTable AssemblyTable = new AssemblyTable();
 		internal readonly AssemblyRefTable AssemblyRef = new AssemblyRefTable();
+		internal readonly MethodPtrTable MethodPtr = new MethodPtrTable();
 		internal readonly MethodDefTable MethodDef = new MethodDefTable();
 		internal readonly NestedClassTable NestedClass = new NestedClassTable();
 		internal readonly FileTable File = new FileTable();
@@ -137,7 +147,7 @@ namespace IKVM.Reflection
 		internal readonly MethodSpecTable MethodSpec = new MethodSpecTable();
 		internal readonly GenericParamConstraintTable GenericParamConstraint = new GenericParamConstraintTable();
 
-		internal Module(Universe universe)
+		protected Module(Universe universe)
 		{
 			this.universe = universe;
 		}
@@ -148,6 +158,7 @@ namespace IKVM.Reflection
 			tables[ModuleTable.Index] = ModuleTable;
 			tables[TypeRefTable.Index] = TypeRef;
 			tables[TypeDefTable.Index] = TypeDef;
+			tables[FieldPtrTable.Index] = FieldPtr;
 			tables[FieldTable.Index] = Field;
 			tables[MemberRefTable.Index] = MemberRef;
 			tables[ConstantTable.Index] = Constant;
@@ -156,12 +167,15 @@ namespace IKVM.Reflection
 			tables[DeclSecurityTable.Index] = DeclSecurity;
 			tables[ClassLayoutTable.Index] = ClassLayout;
 			tables[FieldLayoutTable.Index] = FieldLayout;
+			tables[ParamPtrTable.Index] = ParamPtr;
 			tables[ParamTable.Index] = Param;
 			tables[InterfaceImplTable.Index] = InterfaceImpl;
 			tables[StandAloneSigTable.Index] = StandAloneSig;
 			tables[EventMapTable.Index] = EventMap;
+			tables[EventPtrTable.Index] = EventPtr;
 			tables[EventTable.Index] = Event;
 			tables[PropertyMapTable.Index] = PropertyMap;
+			tables[PropertyPtrTable.Index] = PropertyPtr;
 			tables[PropertyTable.Index] = Property;
 			tables[MethodSemanticsTable.Index] = MethodSemantics;
 			tables[MethodImplTable.Index] = MethodImpl;
@@ -171,6 +185,7 @@ namespace IKVM.Reflection
 			tables[FieldRVATable.Index] = FieldRVA;
 			tables[AssemblyTable.Index] = AssemblyTable;
 			tables[AssemblyRefTable.Index] = AssemblyRef;
+			tables[MethodPtrTable.Index] = MethodPtr;
 			tables[MethodDefTable.Index] = MethodDef;
 			tables[NestedClassTable.Index] = NestedClass;
 			tables[FileTable.Index] = File;
@@ -192,6 +207,16 @@ namespace IKVM.Reflection
 			throw new NotSupportedException();
 		}
 
+		public virtual bool __GetSectionInfo(int rva, out string name, out int characteristics)
+		{
+			throw new NotSupportedException();
+		}
+
+		public virtual int __ReadDataFromRVA(int rva, byte[] data, int offset, int length)
+		{
+			throw new NotSupportedException();
+		}
+
 		public virtual void GetPEKind(out PortableExecutableKinds peKind, out ImageFileMachine machine)
 		{
 			throw new NotSupportedException();
@@ -204,47 +229,47 @@ namespace IKVM.Reflection
 
 		public FieldInfo GetField(string name)
 		{
-			return IsResource() ? null : GetModuleType().GetField(name);
+			return GetField(name, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 		}
 
 		public FieldInfo GetField(string name, BindingFlags bindingFlags)
 		{
-			return IsResource() ? null : GetModuleType().GetField(name, bindingFlags);
+			return IsResource() ? null : GetModuleType().GetField(name, bindingFlags | BindingFlags.DeclaredOnly);
 		}
 
 		public FieldInfo[] GetFields()
 		{
-			return IsResource() ? Empty<FieldInfo>.Array : GetModuleType().GetFields();
+			return GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 		}
 
 		public FieldInfo[] GetFields(BindingFlags bindingFlags)
 		{
-			return IsResource() ? Empty<FieldInfo>.Array : GetModuleType().GetFields(bindingFlags);
+			return IsResource() ? Empty<FieldInfo>.Array : GetModuleType().GetFields(bindingFlags | BindingFlags.DeclaredOnly);
 		}
 
 		public MethodInfo GetMethod(string name)
 		{
-			return IsResource() ? null : GetModuleType().GetMethod(name);
+			return IsResource() ? null : GetModuleType().GetMethod(name, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 		}
 
 		public MethodInfo GetMethod(string name, Type[] types)
 		{
-			return IsResource() ? null : GetModuleType().GetMethod(name, types);
+			return IsResource() ? null : GetModuleType().GetMethod(name, BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly, null, types, null);
 		}
 
 		public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConv, Type[] types, ParameterModifier[] modifiers)
 		{
-			return IsResource() ? null : GetModuleType().GetMethod(name, bindingAttr, binder, callConv, types, modifiers);
+			return IsResource() ? null : GetModuleType().GetMethod(name, bindingAttr | BindingFlags.DeclaredOnly, binder, callConv, types, modifiers);
 		}
 
 		public MethodInfo[] GetMethods()
 		{
-			return IsResource() ? Empty<MethodInfo>.Array : GetModuleType().GetMethods();
+			return GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly);
 		}
 
 		public MethodInfo[] GetMethods(BindingFlags bindingFlags)
 		{
-			return IsResource() ? Empty<MethodInfo>.Array : GetModuleType().GetMethods(bindingFlags);
+			return IsResource() ? Empty<MethodInfo>.Array : GetModuleType().GetMethods(bindingFlags | BindingFlags.DeclaredOnly);
 		}
 
 		public ConstructorInfo __ModuleInitializer
@@ -252,14 +277,8 @@ namespace IKVM.Reflection
 			get { return IsResource() ? null : GetModuleType().TypeInitializer; }
 		}
 
-		public byte[] ResolveSignature(int metadataToken)
+		public virtual byte[] ResolveSignature(int metadataToken)
 		{
-			ModuleReader rdr = this as ModuleReader;
-			if (rdr != null)
-			{
-				ByteReader br = rdr.ResolveSignature(metadataToken);
-				return br.ReadBytes(br.Length);
-			}
 			throw new NotSupportedException();
 		}
 
@@ -278,17 +297,25 @@ namespace IKVM.Reflection
 		public abstract string FullyQualifiedName { get; }
 		public abstract string Name { get; }
 		public abstract Guid ModuleVersionId { get; }
-		public abstract Type ResolveType(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments);
 		public abstract MethodBase ResolveMethod(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments);
 		public abstract FieldInfo ResolveField(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments);
 		public abstract MemberInfo ResolveMember(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments);
 
 		public abstract string ResolveString(int metadataToken);
-		public abstract Type[] __ResolveOptionalParameterTypes(int metadataToken);
+		public abstract Type[] __ResolveOptionalParameterTypes(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments, out CustomModifiers[] customModifiers);
 		public abstract string ScopeName { get; }
 
-		internal abstract Type GetTypeImpl(string typeName);
 		internal abstract void GetTypesImpl(List<Type> list);
+
+		internal abstract Type FindType(TypeName name);
+		internal abstract Type FindTypeIgnoreCase(TypeName lowerCaseName);
+
+		[Obsolete("Please use __ResolveOptionalParameterTypes(int, Type[], Type[], out CustomModifiers[]) instead.")]
+		public Type[] __ResolveOptionalParameterTypes(int metadataToken)
+		{
+			CustomModifiers[] dummy;
+			return __ResolveOptionalParameterTypes(metadataToken, null, null, out dummy);
+		}
 
 		public Type GetType(string className)
 		{
@@ -302,10 +329,6 @@ namespace IKVM.Reflection
 
 		public Type GetType(string className, bool throwOnError, bool ignoreCase)
 		{
-			if (ignoreCase)
-			{
-				throw new NotImplementedException();
-			}
 			TypeNameParser parser = TypeNameParser.Parse(className, throwOnError);
 			if (parser.Error)
 			{
@@ -322,7 +345,15 @@ namespace IKVM.Reflection
 					return null;
 				}
 			}
-			return parser.Expand(GetTypeImpl(parser.FirstNamePart), this.Assembly, throwOnError, className);
+			TypeName typeName = TypeName.Split(TypeNameParser.Unescape(parser.FirstNamePart));
+			Type type = ignoreCase
+				? FindTypeIgnoreCase(typeName.ToLowerInvariant())
+				: FindType(typeName);
+			if (type == null && __IsMissing)
+			{
+				throw new MissingModuleException((MissingModule)this);
+			}
+			return parser.Expand(type, this.Assembly, throwOnError, className, false, ignoreCase);
 		}
 
 		public Type[] GetTypes()
@@ -354,6 +385,42 @@ namespace IKVM.Reflection
 		{
 			return ResolveType(metadataToken, null, null);
 		}
+
+		internal sealed class GenericContext : IGenericContext
+		{
+			private readonly Type[] genericTypeArguments;
+			private readonly Type[] genericMethodArguments;
+
+			internal GenericContext(Type[] genericTypeArguments, Type[] genericMethodArguments)
+			{
+				this.genericTypeArguments = genericTypeArguments;
+				this.genericMethodArguments = genericMethodArguments;
+			}
+
+			public Type GetGenericTypeArgument(int index)
+			{
+				return genericTypeArguments[index];
+			}
+
+			public Type GetGenericMethodArgument(int index)
+			{
+				return genericMethodArguments[index];
+			}
+		}
+
+		public Type ResolveType(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments)
+		{
+			if ((metadataToken >> 24) == TypeSpecTable.Index)
+			{
+				return ResolveType(metadataToken, new GenericContext(genericTypeArguments, genericMethodArguments));
+			}
+			else
+			{
+				return ResolveType(metadataToken, null);
+			}
+		}
+
+		internal abstract Type ResolveType(int metadataToken, IGenericContext context);
 
 		public MethodBase ResolveMethod(int metadataToken)
 		{
@@ -387,63 +454,96 @@ namespace IKVM.Reflection
 
 		public abstract AssemblyName[] __GetReferencedAssemblies();
 
-		internal Type CanonicalizeType(Type type)
+		public virtual void __ResolveReferencedAssemblies(Assembly[] assemblies)
 		{
-			Type canon;
-			if (!universe.canonicalizedTypes.TryGetValue(type, out canon))
+			throw new NotSupportedException();
+		}
+
+		public abstract string[] __GetReferencedModules();
+
+		public abstract Type[] __GetReferencedTypes();
+
+		public abstract Type[] __GetExportedTypes();
+
+		public virtual bool __IsMissing
+		{
+			get { return false; }
+		}
+
+		public long __ImageBase
+		{
+			get { return GetImageBaseImpl(); }
+		}
+
+		protected abstract long GetImageBaseImpl();
+
+		public long __StackReserve
+		{
+			get { return GetStackReserveImpl(); }
+		}
+
+		protected abstract long GetStackReserveImpl();
+
+		public int __FileAlignment
+		{
+			get { return GetFileAlignmentImpl(); }
+		}
+
+		protected abstract int GetFileAlignmentImpl();
+
+		public DllCharacteristics __DllCharacteristics
+		{
+			get { return GetDllCharacteristicsImpl(); }
+		}
+
+		protected abstract DllCharacteristics GetDllCharacteristicsImpl();
+
+		public virtual byte[] __ModuleHash
+		{
+			get { throw new NotSupportedException(); }
+		}
+
+		public virtual int __EntryPointRVA
+		{
+			get { throw new NotSupportedException(); }
+		}
+
+		public virtual int __EntryPointToken
+		{
+			get { throw new NotSupportedException(); }
+		}
+
+		public virtual string __ImageRuntimeVersion
+		{
+			get { throw new NotSupportedException(); }
+		}
+
+		public IEnumerable<CustomAttributeData> __EnumerateCustomAttributeTable()
+		{
+			List<CustomAttributeData> list = new List<CustomAttributeData>(CustomAttribute.RowCount);
+			for (int i = 0; i < CustomAttribute.RowCount; i++)
 			{
-				canon = type;
-				universe.canonicalizedTypes.Add(canon, canon);
+				list.Add(new CustomAttributeData(this, i));
 			}
-			return canon;
+			return list;
+		}
+
+		[Obsolete]
+		public List<CustomAttributeData> __GetCustomAttributesFor(int token)
+		{
+			return CustomAttributeData.GetCustomAttributesImpl(new List<CustomAttributeData>(), this, token, null);
 		}
 
 		internal abstract Type GetModuleType();
 
 		internal abstract ByteReader GetBlob(int blobIndex);
 
-		internal IList<CustomAttributeData> GetCustomAttributesData(Type attributeType)
-		{
-			return GetCustomAttributes(0x00000001, attributeType);
-		}
-
-		internal List<CustomAttributeData> GetCustomAttributes(int metadataToken, Type attributeType)
-		{
-			List<CustomAttributeData> list = new List<CustomAttributeData>();
-			// TODO use binary search?
-			for (int i = 0; i < CustomAttribute.records.Length; i++)
-			{
-				if (CustomAttribute.records[i].Parent == metadataToken)
-				{
-					if (attributeType == null)
-					{
-						list.Add(new CustomAttributeData(this, i));
-					}
-					else
-					{
-						ConstructorInfo constructor = (ConstructorInfo)ResolveMethod(CustomAttribute.records[i].Type);
-						if (attributeType.IsAssignableFrom(constructor.DeclaringType))
-						{
-							list.Add(new CustomAttributeData(this.Assembly, constructor, GetBlob(CustomAttribute.records[i].Value)));
-						}
-					}
-				}
-			}
-			return list;
-		}
-
 		internal IList<CustomAttributeData> GetDeclarativeSecurity(int metadataToken)
 		{
 			List<CustomAttributeData> list = new List<CustomAttributeData>();
-			// TODO use binary search?
-			for (int i = 0; i < DeclSecurity.records.Length; i++)
+			foreach (int i in DeclSecurity.Filter(metadataToken))
 			{
-				if (DeclSecurity.records[i].Parent == metadataToken)
-				{
-					int action = DeclSecurity.records[i].Action;
-					int permissionSet = DeclSecurity.records[i].PermissionSet;
-					CustomAttributeData.ReadDeclarativeSecurity(this.Assembly, list, action, GetBlob(permissionSet));
-				}
+				CustomAttributeData.ReadDeclarativeSecurity(this, i, list);
 			}
 			return list;
 		}
@@ -454,6 +554,114 @@ namespace IKVM.Reflection
 
 		internal virtual void ExportTypes(int fileToken, IKVM.Reflection.Emit.ModuleBuilder manifestModule)
 		{
+		}
+
+		internal virtual string GetString(int index)
+		{
+			throw new NotSupportedException();
+		}
+	}
+
+	abstract class NonPEModule : Module
+	{
+		protected NonPEModule(Universe universe)
+			: base(universe)
+		{
+		}
+
+		protected virtual Exception InvalidOperationException()
+		{
+			return new InvalidOperationException();
+		}
+
+		protected virtual Exception NotSupportedException()
+		{
+			return new NotSupportedException();
+		}
+
+		protected virtual Exception ArgumentOutOfRangeException()
+		{
+			return new ArgumentOutOfRangeException();
+		}
+
+		internal sealed override Type GetModuleType()
+		{
+			throw InvalidOperationException();
+		}
+
+		internal sealed override ByteReader GetBlob(int blobIndex)
+		{
+			throw InvalidOperationException();
+		}
+
+		public sealed override AssemblyName[] __GetReferencedAssemblies()
+		{
+			throw NotSupportedException();
+		}
+
+		public sealed override string[] __GetReferencedModules()
+		{
+			throw NotSupportedException();
+		}
+
+		public override Type[] __GetReferencedTypes()
+		{
+			throw NotSupportedException();
+		}
+
+		public override Type[] __GetExportedTypes()
+		{
+			throw NotSupportedException();
+		}
+
+		protected sealed override long GetImageBaseImpl()
+		{
+			throw NotSupportedException();
+		}
+
+		protected sealed override long GetStackReserveImpl()
+		{
+			throw NotSupportedException();
+		}
+
+		protected sealed override int GetFileAlignmentImpl()
+		{
+			throw NotSupportedException();
+		}
+
+		protected override DllCharacteristics GetDllCharacteristicsImpl()
+		{
+			throw NotSupportedException();
+		}
+
+		internal sealed override Type ResolveType(int metadataToken, IGenericContext context)
+		{
+			throw ArgumentOutOfRangeException();
+		}
+
+		public sealed override MethodBase ResolveMethod(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments)
+		{
+			throw ArgumentOutOfRangeException();
+		}
+
+		public sealed override FieldInfo ResolveField(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments)
+		{
+			throw ArgumentOutOfRangeException();
+		}
+
+		public sealed override MemberInfo ResolveMember(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments)
+		{
+			throw ArgumentOutOfRangeException();
+		}
+
+		public sealed override string ResolveString(int metadataToken)
+		{
+			throw ArgumentOutOfRangeException();
+		}
+
+		public sealed override Type[] __ResolveOptionalParameterTypes(int metadataToken, Type[] genericTypeArguments, Type[] genericMethodArguments, out CustomModifiers[] customModifiers)
+		{
+			throw ArgumentOutOfRangeException();
 		}
 	}
 

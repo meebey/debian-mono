@@ -1,1 +1,1 @@
-#define FULL_VERSION "mono-2-10/f12adef"
+#define FULL_VERSION "(no/c3a0383"
