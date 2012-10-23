@@ -8,7 +8,7 @@
 using NUnit.Framework;
 using System;
 using System.IO;
-
+using System.Text;
 
 namespace MonoTests.System
 {
@@ -223,6 +223,12 @@ public class ConsoleTest
 			Assert.AreEqual (testStr, line, "Wrong line");
 		}
 	}
+	
+	[Test]
+	public void TestWrite_Params()
+	{
+		Console.Write ("text {0}", (object[]) null);
+	}
 
 	[Test]
 	public void TestWrite()
@@ -311,6 +317,27 @@ public class ConsoleTest
 		// TODO - Likewise for char[], decimal, double, int, long, object, single, uint32, uint64
 		// TODO - write with format string
 	}
+	
+	[Test]
+	public void TestWriteLine_Params()
+	{
+		Stream s = new MemoryStream();
+		TextWriter w = new StreamWriter(s);
+		((StreamWriter)w).AutoFlush = true;
+		TextReader r = new StreamReader(s);
+		Console.SetOut(w);
 
+		Console.WriteLine ("text {0}", (object[]) null);
+	}
+
+	// Bug 678357
+	[Test]
+	public void EncodingTest ()
+	{
+		Console.OutputEncoding = Encoding.ASCII;
+		Assert.AreEqual (Console.OutputEncoding, Console.Out.Encoding);
+		Console.OutputEncoding = Encoding.UTF8;
+		Assert.AreEqual (Console.OutputEncoding, Console.Out.Encoding);
+	}
 }
 }

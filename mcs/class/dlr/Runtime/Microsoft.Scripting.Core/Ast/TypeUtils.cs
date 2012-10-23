@@ -2,24 +2,21 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
  *
  * ***************************************************************************/
 
-#if CLR2
+#if !FEATURE_CORE_DLR
 using Microsoft.Scripting.Ast;
 #else
 using System.Linq.Expressions;
-#endif
-#if SILVERLIGHT
-using System.Core;
 #endif
 
 using System.Collections.Generic;
@@ -147,12 +144,11 @@ namespace System.Dynamic.Utils {
             return false;
         }
 
-        internal static bool AreEquivalent(Type t1, Type t2)
-        {
-#if CLR2 || SILVERLIGHT
-            return t1 == t2;
-#else
+        internal static bool AreEquivalent(Type t1, Type t2) {
+#if FEATURE_TYPE_EQUIVALENCE
             return t1 == t2 || t1.IsEquivalentTo(t2);
+#else
+            return t1 == t2;
 #endif
         }
 
@@ -280,7 +276,7 @@ namespace System.Dynamic.Utils {
         private static bool IsDelegate(Type t)
         {
             Debug.Assert(t != null);
-            return t.IsSubclassOf(typeof(System.Delegate));
+            return t.IsSubclassOf(typeof(System.MulticastDelegate));
         }
 
         internal static bool IsLegalExplicitVariantDelegateConversion(Type source, Type dest)

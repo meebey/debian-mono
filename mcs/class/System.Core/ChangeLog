@@ -1,32 +1,3 @@
-2010-09-01  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Split ReaderWriterLockSlim helper classes into their own files
-
-2010-08-31  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Fix non 4.0 build of ReaderWriterLockSlim.
-
-	It needs to be cleaned up though.
-
-2010-08-31  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Factorize tatas pattern in TryRelaxedSet method in AtomicBoolean,
-	add AtomicBoolean to the compilation file list for System.Core
-
-2010-08-26  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	[PLinq] Add a more specialized visitor object for checking query
-	ordering.
-
-2010-08-24  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	[PLinq] Plug in QueryJoinNode for Join operator
-
-2010-08-20  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	[PLinq] Add implementation of Take/TakeWhile operators (including
-	corresponding query node and unit tests)
-
 2010-06-18  Rolf Bjarne Kvinge  <RKvinge@novell.com>
 
 	* System.Core/Dummy.cs: 

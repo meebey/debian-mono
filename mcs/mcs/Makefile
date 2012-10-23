@@ -1,48 +1,39 @@
+# To produce a debugging parser, use the version that says "-cvt"
+JAY_FLAGS=-c
+# JAY_FLAGS=-cvt
+
 thisdir := mcs
 SUBDIRS := 
 include ../build/rules.make
 
 EXTRA_DISTFILES = \
-	*mcs.csproj		\
-	compiler.doc		\
-	*mcs.sln		\
-	*cs-parser.jay		\
-	*.sources		\
-	NOTES			\
-	TODO			\
-	*mcs.exe.config
+	mcs.csproj		\
+	mcs.sln		\
+	cs-parser.jay		\
+	mcs.exe.sources
 
-COMPILER_NAME = gmcs
-
-ifeq (net_2_0, $(PROFILE))
-INTERNAL_GMCS = $(RUNTIME) $(RUNTIME_FLAGS) $(topdir)/class/lib/$(BOOTSTRAP_PROFILE)/gmcs.exe
+ifeq (basic, $(PROFILE))
+PROGRAM = basic.exe
+sourcefile = mcs.exe.sources
+else
+PROGRAM_USE_INTERMEDIATE_FILE = true
+PROGRAM = mcs.exe
+the_libdir = $(topdir)/class/lib/build/
+LOCAL_MCS_FLAGS += -lib:$(topdir)/class/lib/build -debug
 endif
 
-ifeq (moonlight_bootstrap, $(PROFILE))
-INTERNAL_GMCS = $(RUNTIME) $(RUNTIME_FLAGS) $(topdir)/class/lib/$(BOOTSTRAP_PROFILE)/gmcs.exe
-endif
+LOCAL_MCS_FLAGS += -d:STATIC,NO_SYMBOL_WRITER
 
-ifeq (2.1, $(FRAMEWORK_VERSION))
-LOCAL_MCS_FLAGS += -d:SMCS_SOURCE
-COMPILER_NAME = smcs
-endif
-
-ifeq (4.0, $(FRAMEWORK_VERSION))
-COMPILER_NAME = dmcs
-endif
-
-PROGRAM = $(topdir)/class/lib/$(PROFILE)/$(COMPILER_NAME).exe
-
-BUILT_SOURCES = cs-parser.cs
+PROGRAM_INSTALL_DIR = $(mono_libdir)/mono/4.5
 
 PROGRAM_COMPILE = $(BOOT_COMPILE)
 
+BUILT_SOURCES = cs-parser.cs
+
 CLEAN_FILES += y.output
 
-# Use -cvt for parser debug version
 %-parser.cs: %-parser.jay $(topdir)/jay/skeleton.cs
-	$(topdir)/jay/jay -cv < $(topdir)/jay/skeleton.cs $< > jay-tmp.out && mv jay-tmp.out $@
-
+	$(topdir)/jay/jay $(JAY_FLAGS) < $(topdir)/jay/skeleton.cs $< > jay-tmp.out && mv jay-tmp.out $@
 
 KEEP_OUTPUT_FILE_COPY = yes
 
@@ -50,14 +41,14 @@ include ../build/executable.make
 
 csproj-local:
 	config_file=`basename $(PROGRAM) .exe`-$(PROFILE).input; \
-	echo $(thisdir):$$config_file >> $(topdir)/../mono/msvc/scripts/order; \
+	echo $(thisdir):$$config_file >> $(topdir)/../msvc/scripts/order; \
 	(echo $(is_boot); \
 	echo $(BOOTSTRAP_MCS);	\
 	echo $(USE_MCS_FLAGS) $(LIBRARY_FLAGS) $(LIB_MCS_FLAGS); \
 	echo $(PROGRAM); \
 	echo $(BUILT_SOURCES); \
 	echo $(PROGRAM); \
-	echo $(response)) > $(topdir)/../mono/msvc/scripts/inputs/$$config_file
+	echo $(response)) > $(topdir)/../msvc/scripts/inputs/$$config_file
 
 #
 # Below this line we have local targets used for testing and development
@@ -81,10 +72,6 @@ mcs3.exe: mcs2.exe
 
 wc:
 	wc -l $(BUILT_SOURCES) `cat $(sourcefile)`
-
-ctest: 
-	rm -f mcs2.exe mcs3.exe
-	$(MAKE) USE_MCS_FLAGS="-d:NET_1_1 -d:ONLY_1_1" btest
 
 # we need this because bash tries to use its own crappy timer
 FRIENDLY_TIME = $(shell which time) -f'%U seconds'
@@ -110,6 +97,10 @@ do-gettext:
 
 profile : $(PROGRAM)
 	$(RUNTIME) $(RUNTIME_FLAGS) --profile=$(PROFILER) $(PROGRAM) $(USE_MCS_FLAGS) -target:exe -out:mcs2.exe $(BUILT_SOURCES) @$(response)
+
+debug-parser:
+	rm cs-parser.cs
+	$(MAKE) JAY_FLAGS=-cvt
 
 #
 # quick hack target, to quickly develop the gmcs compiler

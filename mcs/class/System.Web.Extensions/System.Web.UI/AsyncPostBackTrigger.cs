@@ -38,7 +38,8 @@ namespace System.Web.UI
 	public class AsyncPostBackTrigger : UpdatePanelControlTrigger
 	{
 		static readonly MethodInfo _eventHandler = typeof (AsyncPostBackTrigger).GetMethod ("OnEvent");
-
+		static readonly char[] _controlIdSeparators = {'_', '$'};
+		
 		string _eventName;
 
 		public new string ControlID {
@@ -69,18 +70,32 @@ namespace System.Web.UI
 			string ctrlUniqueID = ctrl != null ? ctrl.UniqueID : null;
 			if (ctrlUniqueID == null)
 				return false;
-			
-			if (String.Compare (Owner.ScriptManager.AsyncPostBackSourceElementID, ctrlUniqueID, StringComparison.Ordinal) == 0)
+
+			string asyncPostBackElementID = Owner.ScriptManager.AsyncPostBackSourceElementID;
+			if (String.Compare (asyncPostBackElementID, ctrlUniqueID, StringComparison.Ordinal) == 0)
 				return true;
+			else {
+				int sep = asyncPostBackElementID.IndexOfAny (_controlIdSeparators);
+				if (sep > -1 && String.Compare (asyncPostBackElementID, 0, ctrlUniqueID, 0, ctrlUniqueID.Length, StringComparison.Ordinal) == 0)
+					return true;
+			}
+			
 			return false;
 		}
 
-		// LAME SPEC: it seems DefaultEventAttribute is never queried for the event name.
 		protected internal override void Initialize ()
 		{
 			Control c = FindTargetControl (true);
 			ScriptManager sm = Owner.ScriptManager;
 			string eventName = EventName;
+			if (String.IsNullOrEmpty (eventName)) {
+				object[] attrs = c.GetType ().GetCustomAttributes (typeof (DefaultEventAttribute), true);
+				if (attrs != null && attrs.Length > 0) {
+					var dea = attrs [0] as DefaultEventAttribute;
+					if (dea != null)
+						eventName = dea.Name;
+				}
+			}
 
 			if (!String.IsNullOrEmpty (eventName)) {
 				EventInfo evi = c.GetType ().GetEvent (eventName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
@@ -109,7 +124,7 @@ namespace System.Web.UI
 		}
 
 		public override string ToString () {
-			return String.Format ("AsyncPostBack: {0}.{1}", ControlID, EventName);
+			return String.Format ("AsyncPostBackTrigger: {0}.{1}", ControlID, EventName);
 		}
 	}
 }

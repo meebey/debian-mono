@@ -35,6 +35,8 @@ namespace System.Linq.Parallel
 
 	internal class QueryCheckerVisitor : INodeVisitor
 	{
+		const int minSequentialThreshold = 20;
+
 		// Information gathering
 		ParallelMergeOptions? options = null;
 		ParallelExecutionMode? mode = null;
@@ -51,41 +53,45 @@ namespace System.Linq.Parallel
 		}
 
 		#region INodeVisitor implementation
-		public void Visit<T> (QueryBaseNode<T> node)
+		public void Visit (QueryBaseNode node)
 		{
 			// Nothing to do atm. Later we can check if the node is a
 			// Take or a Skip and set accordingly UseStrip
 		}
 
-		public void Visit<U, V> (QueryChildNode<U, V> node)
+		public void Visit (QueryChildNode node)
 		{
 			node.Parent.Visit (this);
 		}
 
-		public void Visit<T> (QueryOptionNode<T> node)
+		public void Visit (QueryOptionNode node)
 		{
 			MergeOptions (node.GetOptions ());
 
-			Visit<T, T> ((QueryChildNode<T, T>)node);
+			Visit ((QueryChildNode)node);
 		}
 
-		public void Visit<T> (QueryStartNode<T> node)
+		public void Visit (QueryStartNode node)
 		{
 			if (behindOrderGuard == null)
 				behindOrderGuard = false;
 			if (degreeOfParallelism != null)
 				partitionCount = degreeOfParallelism.Value;
+
+			int count;
+			if ((count = node.Count) != -1 && count < minSequentialThreshold)
+				ShouldBeSequential = true;
 		}
 
-		public void Visit<T, TParent> (QueryStreamNode<T, TParent> node)
+		public void Visit (QueryStreamNode node)
 		{
 			if (node.IsIndexed)
 				UseStrip = true;
 
-			Visit<T, TParent> ((QueryChildNode<T, TParent>)node);
+			Visit ((QueryChildNode)node);
 		}
 
-		public void Visit<T> (QueryOrderGuardNode<T> node)
+		public void Visit (QueryOrderGuardNode node)
 		{
 			if (behindOrderGuard == null) {
 				if (node.EnsureOrder) {
@@ -96,28 +102,28 @@ namespace System.Linq.Parallel
 				}
 			}
 
-			Visit<T, T> ((QueryStreamNode<T, T>)node);
+			Visit ((QueryStreamNode)node);
 		}
 
-		public void Visit<TFirst, TSecond, TResult> (QueryMuxNode<TFirst, TSecond, TResult> node)
+		public void Visit (QueryMuxNode node)
 		{
-			Visit<TResult, TFirst> ((QueryChildNode<TResult, TFirst>)node);
+			Visit ((QueryChildNode)node);
 		}
 
-		public void Visit<T> (QueryHeadWorkerNode<T> node)
+		public void Visit (QueryHeadWorkerNode node)
 		{
 			// Wouldn't it be better with standard Linq?
 			if (node.Count.HasValue && node.Count < partitionCount)
 				ShouldBeSequential = true;
 
-			Visit<T, T> ((QueryStreamNode<T, T>)node);
+			Visit ((QueryStreamNode)node);
 		}
 		#endregion
 
 		internal QueryOptions Options {
 			get {
 				return new QueryOptions (options, mode, token == null ? CancellationToken.None : token.Value,
-				                         UseStrip, behindOrderGuard, partitionCount, implementerToken);
+				                         UseStrip, behindOrderGuard, partitionCount, implementerToken, ShouldBeSequential);
 			}
 		}
 

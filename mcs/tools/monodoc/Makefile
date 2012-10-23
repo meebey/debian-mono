@@ -4,6 +4,53 @@ include ../../build/rules.make
 
 LIBRARY = monodoc.dll
 LIBRARY_PACKAGE = monodoc
+# Remove a bunch of "obsolete"-type warning for Lucene.NET
+LOCAL_MCS_FLAGS = /nowarn:618,612,672,809
+
+IMAGES = \
+	Resources/images/bc_bg.png		\
+	Resources/images/bc_separator.png	\
+	Resources/images/error.png		\
+	Resources/images/hatch.png		\
+	Resources/images/headerbg.png		\
+	Resources/images/help.png		\
+	Resources/images/house.png		\
+	Resources/images/members.png		\
+	Resources/images/namespace.png		\
+	Resources/images/privclass.png		\
+	Resources/images/privdelegate.png	\
+	Resources/images/privenumeration.png	\
+	Resources/images/privevent.png		\
+	Resources/images/privextension.png	\
+	Resources/images/privfield.png		\
+	Resources/images/privinterface.png	\
+	Resources/images/privmethod.png		\
+	Resources/images/privproperty.png	\
+	Resources/images/privstructure.png	\
+	Resources/images/protclass.png		\
+	Resources/images/protdelegate.png	\
+	Resources/images/protenumeration.png	\
+	Resources/images/protevent.png		\
+	Resources/images/protextension.png	\
+	Resources/images/protfield.png		\
+	Resources/images/protinterface.png	\
+	Resources/images/protmethod.png		\
+	Resources/images/protproperty.png	\
+	Resources/images/protstructure.png	\
+	Resources/images/pubclass.png		\
+	Resources/images/pubdelegate.png	\
+	Resources/images/pubenumeration.png	\
+	Resources/images/pubevent.png		\
+	Resources/images/pubextension.png	\
+	Resources/images/pubfield.png		\
+	Resources/images/pubinterface.png	\
+	Resources/images/pubmethod.png		\
+	Resources/images/pubproperty.png	\
+	Resources/images/pubstructure.png	\
+	Resources/images/reference.png		\
+	Resources/images/treebg.png		
+
+IMAGE_RESOURCE_COMMAND = $(foreach file,$(IMAGES),/resource:$(file),$(notdir $(file)))
 
 RESOURCE_FILES = \
 	../../docs/monodoc.xml            \
@@ -22,7 +69,8 @@ RESOURCE_FILES = \
 	Resources/mono-ecma-css.xsl       \
 	Resources/mono-ecma-impl.xsl      \
 	Resources/mono-ecma.css           \
-	Resources/mono-ecma.xsl
+	Resources/mono-ecma.xsl		\
+	$(IMAGES)
 
 MAN_TEST_FILES = \
 	Test/man-provider-test.cs   \
@@ -42,7 +90,7 @@ EXTRA_DISTFILES = \
 
 LIB_MCS_FLAGS = \
 	/codepage:utf8                                                    \
-	/nowarn:169,164,162,168,219                                       \
+	/nowarn:169,164,162,168,219,618,612                                      \
 	/r:Commons.Xml.Relaxng                                            \
 	/resource:../../docs/monodoc.xml,monodoc.xml                      \
 	/resource:Resources/base.css,base.css                             \
@@ -61,12 +109,13 @@ LIB_MCS_FLAGS = \
 	/resource:Resources/mono-ecma-impl.xsl,mono-ecma-impl.xsl         \
 	/resource:Resources/mono-ecma.css,mono-ecma.css                   \
 	/resource:Resources/mono-ecma.xsl,mono-ecma.xsl                   \
+	$(IMAGE_RESOURCE_COMMAND)					  \
 	/r:ICSharpCode.SharpZipLib                                        \
 	/r:$(corlib)                                                      \
 	/r:System.dll                                                     \
 	/r:System.Core.dll                                                \
-	/r:System.Web                                                     \
-	/r:System.Web.Services                                            \
+	/r:System.Configuration.dll                                       \
+	/r:System.Web.Services.dll                                        \
 	/r:System.Xml.dll
 
 include ../../build/library.make

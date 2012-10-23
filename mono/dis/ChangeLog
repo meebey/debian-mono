@@ -1,7 +1,3 @@
-2010-08-04  Marek Safar  <marek.safar@gmail.com>
-
-	Add escaping for legacy keyword.
-
 2010-04-07  Jb Evain  <jbevain@novell.com>
 
 	* main.c: don't overwrite method_name.

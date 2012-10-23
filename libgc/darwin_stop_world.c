@@ -79,7 +79,7 @@ void GC_push_all_stacks() {
   kern_return_t r;
   GC_thread p;
   pthread_t me;
-  ptr_t lo, hi;
+  ptr_t lo, hi, altstack_lo, altstack_hi;
 #if defined(POWERPC)
   ppc_thread_state_t state;
   mach_msg_type_number_t thread_state_count = PPC_THREAD_STATE_COUNT;
@@ -252,6 +252,16 @@ void GC_push_all_stacks() {
 	hi = GC_stackbottom;
       else
 	hi = p->stack_end;
+
+	  if (p->altstack && lo >= p->altstack && lo <= p->altstack + p->altstack_size) {
+		  altstack_lo = lo;
+		  altstack_hi = p->altstack + p->altstack_size;
+		  lo = (char*)p->stack;
+		  hi = (char*)p->stack + p->stack_size;
+	  }	else {
+		  altstack_lo = NULL;
+	  }
+
 #if DEBUG_THREADS
       GC_printf3("Darwin: Stack for thread 0x%lx = [%lx,%lx)\n",
 		 (unsigned long) p -> id,
@@ -259,7 +269,10 @@ void GC_push_all_stacks() {
 		 (unsigned long) hi
 		 );
 #endif
-      GC_push_all_stack(lo,hi);
+	  if (lo)
+		  GC_push_all_stack(lo,hi);
+	  if (altstack_lo)
+		  GC_push_all_stack(altstack_lo,altstack_hi);
     } /* for(p=GC_threads[i]...) */
   } /* for(i=0;i<THREAD_TABLE_SZ...) */
 }
@@ -569,6 +582,9 @@ void GC_stop_world()
     thread_act_array_t act_list, prev_list;
     mach_msg_type_number_t listcount, prevcount;
     
+    if (GC_notify_event)
+        GC_notify_event (GC_EVENT_PRE_STOP_WORLD);
+
 #   if DEBUG_THREADS
       GC_printf1("Stopping the world from 0x%lx\n", mach_thread_self());
 #   endif
@@ -639,6 +655,9 @@ void GC_stop_world()
     #endif
 	  
 	  mach_port_deallocate(my_task, my_thread);
+
+    if (GC_notify_event)
+        GC_notify_event (GC_EVENT_POST_STOP_WORLD);
 }
 
 /* Caller holds allocation lock, and has held it continuously since	*/
@@ -654,6 +673,9 @@ void GC_start_world()
   mach_msg_type_number_t listcount;
   struct thread_basic_info info;
   mach_msg_type_number_t outCount = THREAD_INFO_MAX;
+
+  if (GC_notify_event)
+      GC_notify_event (GC_EVENT_PRE_START_WORLD);
   
 #   if DEBUG_THREADS
       GC_printf0("World starting\n");
@@ -700,6 +722,10 @@ void GC_start_world()
     vm_deallocate(my_task, (vm_address_t)act_list, sizeof(thread_t) * listcount);
 	
 	mach_port_deallocate(my_task, my_thread);
+
+    if (GC_notify_event)
+        GC_notify_event (GC_EVENT_POST_START_WORLD);
+
 #   if DEBUG_THREADS
      GC_printf0("World started\n");
 #   endif

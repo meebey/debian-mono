@@ -1,19 +1,19 @@
-/* ****************************************************************************
+﻿/* ****************************************************************************
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
  *
  * ***************************************************************************/
 
-#if CLR2
+#if !FEATURE_CORE_DLR
 using Microsoft.Scripting.Ast;
 using Microsoft.Scripting.Ast.Compiler;
 #else
@@ -21,9 +21,7 @@ using System.Linq.Expressions;
 using System.Linq.Expressions.Compiler;
 #endif
 
-#if SILVERLIGHT
-using System.Core;
-#else
+#if FEATURE_REMOTING
 using System.Runtime.Remoting;
 #endif
 
@@ -166,8 +164,7 @@ namespace System.Dynamic {
         }
 
         private static BindingRestrictions AddRemoteObjectRestrictions(BindingRestrictions restrictions, object[] args, ReadOnlyCollection<ParameterExpression> parameters) {
-#if !SILVERLIGHT
-
+#if FEATURE_REMOTING
             for (int i = 0; i < parameters.Count; i++) {
                 var expr = parameters[i];
                 var value = args[i] as MarshalByRefObject;
@@ -203,7 +200,6 @@ namespace System.Dynamic {
                     restrictions = restrictions.Merge(remotedRestriction);
                 }
             }
-
 #endif
             return restrictions;
         }
@@ -279,7 +275,7 @@ namespace System.Dynamic {
             }
         }
 
-#if !SILVERLIGHT
+#if FEATURE_COM
         private static readonly Type ComObjectType = typeof(object).Assembly.GetType("System.__ComObject");
         private static bool IsComObject(object obj) {
             // we can't use System.Runtime.InteropServices.Marshal.IsComObject(obj) since it doesn't work in partial trust

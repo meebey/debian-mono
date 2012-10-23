@@ -2,12 +2,19 @@
 ../../build/common/MonoTODOAttribute.cs
 Assembly/AssemblyInfo.cs
 Assembly/Locale.cs
-System.Resources/ResXDataNode.cs
-System.Resources/ResXFileRef.cs
+System.Resources/ByteArrayFromResXHandler.cs
 System.Resources/ResXNullRef.cs
 System.Resources/ResXResourceReader.cs
+System.Resources/FileRefHandler.cs
+System.Resources/NullRefHandler.cs
 System.Resources/ResXResourceSet.cs
+System.Resources/InMemoryHandler.cs
 System.Resources/ResXResourceWriter.cs
+System.Resources/ResXDataNode.cs
+System.Resources/SerializedFromResXHandler.cs
+System.Resources/ResXDataNodeHandler.cs
+System.Resources/TypeConverterFromResXHandler.cs
+System.Resources/ResXFileRef.cs
 System.Windows.Forms.Design/ComponentEditorForm.cs
 System.Windows.Forms.Design/ComponentEditorPage.cs
 System.Windows.Forms.Design/EventsTab.cs
@@ -383,7 +390,6 @@ System.Windows.Forms/IDataGridEditingService.cs
 System.Windows.Forms/IDataGridViewEditingCell.cs
 System.Windows.Forms/IDataGridViewEditingControl.cs
 System.Windows.Forms/IDataObject.cs
-System.Windows.Forms/IDeviceContext.cs
 System.Windows.Forms/IDropTarget.cs
 System.Windows.Forms/IFeatureSupport.cs
 System.Windows.Forms/IFileReaderService.cs
@@ -433,7 +439,6 @@ System.Windows.Forms/Label.cs
 System.Windows.Forms/LabelEditEventArgs.cs
 System.Windows.Forms/LabelEditEventHandler.cs
 System.Windows.Forms/LabelEditTextBox.cs
-System.Windows.Forms/LayoutEngine.cs
 System.Windows.Forms/LayoutEventArgs.cs
 System.Windows.Forms/LayoutEventHandler.cs
 System.Windows.Forms/LayoutSettings.cs
@@ -816,6 +821,7 @@ System.Windows.Forms.Layout/DefaultLayout.cs
 System.Windows.Forms.Layout/FlowLayout.cs
 System.Windows.Forms.Layout/TableLayout.cs
 System.Windows.Forms.Layout/TableLayoutSettingsTypeConverter.cs
+System.Windows.Forms.Layout/LayoutEngine.cs
 System.Windows.Forms.CarbonInternal/ApplicationHandler.cs
 System.Windows.Forms.CarbonInternal/ControlHandler.cs
 System.Windows.Forms.CarbonInternal/Cursor.cs

@@ -33,6 +33,7 @@
 //  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -41,16 +42,33 @@ using System.Web.Caching;
 using System.Xml;
 using System.Xml.XPath;
 
+using MonoTests.System.Web.Caching;
+
 namespace Tester
 {
 	static class Utils
 	{
+		public static T GetOptionalAttribute <T> (this XPathNavigator nav, string name, out bool found)
+		{
+			string value = nav.GetAttribute (name, String.Empty);
+			if (String.IsNullOrEmpty (value)) {
+				found = false;
+				return default(T);
+			}
+			found = true;
+			return ConvertAttribute <T> (value);
+		}
+		
 		public static T GetRequiredAttribute <T> (this XPathNavigator nav, string name)
 		{
 			string value = nav.GetAttribute (name, String.Empty);
 			if (String.IsNullOrEmpty (value))
 				throw new InvalidOperationException (String.Format ("Required attribute '{0}' missing.", name));
+			return ConvertAttribute <T> (value);
+		}
 
+		static T ConvertAttribute <T> (string value)
+		{
 			if (typeof (T) == typeof (string))
 				return (T)((object)value);
 			
@@ -86,140 +104,155 @@ namespace Tester
 			sb.Append ("}\n");
 		}
 		
-		public static void FormatQueueSize (this StringBuilder sb, string indent, PriorityQueueState qs)
+		public static void FormatQueueSize (this StreamWriter sw, PriorityQueueState qs)
 		{
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Count, \"Queue size after sequence\");\n\n",
-					 qs.Queue.Count, qs.QueueName);
+			var ti = new CacheItemPriorityQueueTestItem () {
+				Operation = QueueOperation.QueueSize,
+				QueueCount = qs.Queue.Count
+			};
+			sw.WriteLine (ti.Serialize ());
 		}
-		
-		public static void FormatDisableItem (this StringBuilder sb, string indent, PriorityQueueState qs, List <CacheItem> list, int index)
+
+		static int FindQueueIndex (PriorityQueueState qs, CacheItem item)
 		{
-			CacheItem item = list [index];
-			sb.Append (indent);
-			sb.AppendFormat ("{0} = {1} [{2}];\n", qs.ItemName, qs.ListName, index);
-			sb.Append (indent);
+			CacheItem ci;
 			
-			if (item == null) {
-				sb.AppendFormat ("Assert.IsNull ({0}, \"Disable-{1:0000}-1\");\n",
-						 qs.ItemName, qs.DisableCount);
-				return;
+			for (int i = 0; i < qs.Queue.Count; i++) {
+				ci = ((IList)qs.Queue) [i] as CacheItem;
+				if (ci == null)
+					continue;
+
+				if (ci.Guid == item.Guid)
+					return i;
 			}
 			
-			sb.AppendFormat ("Assert.IsNotNull ({0}, \"Disable-{1:0000}-1\");\n",
-					 qs.ItemName, qs.DisableCount);
-
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual (\"{0}\", {1}.Guid.ToString(), \"Disable-{2:0000}-3\");\n",
-					 item.Guid.ToString (), qs.ItemName, qs.DisableCount);
+			throw new ApplicationException (String.Format ("Failed to find CacheItem with UUID {0} in the queue.", item.Guid));
+		}
+		
+		public static void FormatUpdate (this StreamWriter sw, PriorityQueueState qs, List <CacheItem> list, CacheItem updatedItem, int index)
+		{
+			CacheItem item = list [index];
+			item.ExpiresAt = updatedItem.ExpiresAt;
+			int qidx = FindQueueIndex (qs, item);
+			qs.Update (qidx);
 			
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Disabled, \"Disable-{2:0000}-3\");\n",
-					 item.Disabled.ToString ().ToLowerInvariant (),
-					 qs.ItemName, qs.DisableCount);
-			sb.Append (indent);
-			sb.AppendFormat ("{0}.Disabled = true;\n\n", qs.ItemName);
-
+			var ti = new CacheItemPriorityQueueTestItem () {
+				Operation = QueueOperation.Update,
+				QueueCount = qs.Queue.Count,
+				OperationCount = qs.UpdateCount,
+				ListIndex = index,
+				ExpiresAt = updatedItem.ExpiresAt,
+				PriorityQueueIndex = FindQueueIndex (qs, item),
+				Guid = updatedItem.Guid != null ? updatedItem.Guid.ToString () : null
+			};
+			sw.WriteLine (ti.Serialize ());
+			qs.UpdateCount++;
+		}
+		
+		public static void FormatDisableItem (this StreamWriter sw, PriorityQueueState qs, List <CacheItem> list, int index)
+		{
+			CacheItem item = list [index];
+			var ti = new CacheItemPriorityQueueTestItem () {
+				Operation = QueueOperation.Disable,
+				QueueCount = qs.Queue.Count,
+				ListIndex = index,
+				PriorityQueueIndex = item.PriorityQueueIndex,
+				OperationCount = qs.DisableCount
+			};
+			if (item == null)
+				ti.IsNull = true;
+			else {
+				ti.Guid = item.Guid.ToString ();
+				ti.IsDisabled = item.Disabled;
+				ti.Disable = true;
+			}
+			sw.WriteLine (ti.Serialize ());
 			item.Disabled = true;
-			
 			qs.DisableCount++;
 		}
 		
-		public static void FormatDequeue (this StringBuilder sb, string indent, PriorityQueueState qs)
+		public static void FormatDequeue (this StreamWriter sw, PriorityQueueState qs)
 		{
 			CacheItem item = qs.Dequeue ();
-
-			sb.Append (indent);
-			sb.AppendFormat ("{0} = {1}.Dequeue ();\n", qs.ItemName, qs.QueueName);
-			sb.Append (indent);
-			if (item != null)
-				sb.AppendFormat ("Assert.IsNotNull ({0}, \"Dequeue-{1:0000}-1\");\n", qs.ItemName, qs.DequeueCount);
-			else
-				sb.AppendFormat ("Assert.IsNull ({0}, \"Dequeue-{1:0000}-1\");\n", qs.ItemName, qs.DequeueCount);
-			
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Count, \"Dequeue-{2:0000}-2\");\n",
-					 qs.Queue.Count, qs.QueueName, qs.DequeueCount);
-
+			var ti = new CacheItemPriorityQueueTestItem () {
+				Operation = QueueOperation.Dequeue,
+				QueueCount = qs.Queue.Count,
+				OperationCount = qs.DequeueCount,
+				PriorityQueueIndex = item.PriorityQueueIndex
+			};
 			if (item != null) {
-				sb.Append (indent);
-				sb.AppendFormat ("Assert.AreEqual (\"{0}\", {1}.Guid.ToString (), \"Dequeue-{2:0000}-3\");\n",
-						 item.Guid.ToString (), qs.ItemName, qs.DequeueCount);
-				sb.Append (indent);
-				sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Disabled, \"Dequeue-{2:0000}-4\");\n\n",
-						 item.Disabled.ToString ().ToLowerInvariant (), qs.ItemName, qs.DequeueCount);
-			}
+				ti.Guid = item.Guid.ToString ();
+				ti.IsDisabled = item.Disabled;
+			} else
+				ti.IsNull = true;
 			
+			sw.WriteLine (ti.Serialize ());
 			qs.DequeueCount++;
 		}
 
-		public static void FormatPeek (this StringBuilder sb, string indent, PriorityQueueState qs)
+		public static void FormatPeek (this StreamWriter sw, PriorityQueueState qs)
 		{
 			CacheItem item = qs.Peek ();
-
-			sb.Append (indent);
-			sb.AppendFormat ("{0} = {1}.Peek ();\n", qs.ItemName, qs.QueueName);
-			sb.Append (indent);
-			if (item != null)
-				sb.AppendFormat ("Assert.IsNotNull ({0}, \"Peek-{1:0000}-1\");\n", qs.ItemName, qs.PeekCount);
-			else
-				sb.AppendFormat ("Assert.IsNull ({0}, \"Peek-{1:0000}-1\");\n", qs.ItemName, qs.PeekCount);
-
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Count, \"Peek-{2:0000}-2\");\n", qs.Queue.Count, qs.QueueName, qs.PeekCount);
-
+			var ti = new CacheItemPriorityQueueTestItem () {
+				Operation = QueueOperation.Peek,
+				QueueCount = qs.Queue.Count,
+				OperationCount = qs.PeekCount,
+				PriorityQueueIndex = item.PriorityQueueIndex
+			};
 			if (item != null) {
-				sb.Append (indent);
-				sb.AppendFormat ("Assert.AreEqual (\"{0}\", {1}.Guid.ToString (), \"Peek-{2:0000}-3\");\n",
-						 item.Guid.ToString (), qs.ItemName, qs.PeekCount);
-				sb.Append (indent);
-				sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Disabled, \"Peek-{2:0000}-4\");\n\n",
-						 item.Disabled.ToString ().ToLowerInvariant (), qs.ItemName, qs.PeekCount);
-			}
-
+				ti.Guid = item.Guid.ToString ();
+				ti.IsDisabled = item.Disabled;
+			} else
+				ti.IsNull = true;
+			
+			sw.WriteLine (ti.Serialize ());
 			qs.PeekCount++;
 		}
 		
-		public static void FormatEnqueue (this StringBuilder sb, string indent, PriorityQueueState qs, List <CacheItem> list, int index)
+		public static void FormatEnqueue (this StreamWriter sw, PriorityQueueState qs, List <CacheItem> list, int index)
 		{
-			qs.Enqueue (list [index]);
-			sb.Append (indent);
-			sb.AppendFormat ("{0}.Enqueue ({1} [{2}]);\n", qs.QueueName, qs.ListName, index);
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual ({0}, {1}.Count, \"Enqueue-{2:0000}-1\");\n",
-					 qs.Queue.Count, qs.QueueName, qs.EnqueueCount);
-			sb.Append (indent);
-			sb.AppendFormat ("Assert.AreEqual (\"{0}\", {1}.Peek ().Guid.ToString(), \"Enqueue-{2:0000}-2\");\n\n",
-					 qs.Peek ().Guid.ToString (), qs.QueueName, qs.EnqueueCount);
+			CacheItem item = list [index];
+			qs.Enqueue (item);
 
+			var ti = new CacheItemPriorityQueueTestItem () {
+				Operation = QueueOperation.Enqueue,
+				QueueCount = qs.Queue.Count,
+				ListIndex = index,
+				Guid = qs.Peek ().Guid.ToString (),
+				OperationCount = qs.EnqueueCount,
+				PriorityQueueIndex = item.PriorityQueueIndex
+			};
+			
+			sw.WriteLine (ti.Serialize ());
 			qs.EnqueueCount++;
 		}
-
-		public static void FormatList (this StringBuilder sb, string indent, string listName, List <CacheItem> list)
+		
+		public static void FormatList (this StreamWriter sw, List <CacheItem> list)
 		{
 			if (list == null || list.Count == 0) {
-				sb.AppendFormat (indent + "var {0} = new List <CacheItem> ();\n", listName);
+				sw.WriteLine ("# No CacheItems found!");
 				return;
 			}
 
-			sb.AppendFormat (indent + "var {0} = new List <CacheItem> {{\n", listName);
+			sw.WriteLine ("# Each row contains TestCacheItem fields, one item per line, in the following order:");
+			sw.WriteLine ("# Key, AbsoluteExpiration, SlidingExpiration, Priority, LastChange, ExpiresAt, Disabled, Guid, PriorityQueueIndex");
 
 			foreach (CacheItem ci in list)
-				CreateNewCacheItemInstanceCode (indent + "\t", sb, ci);
-			sb.Append (indent + "};\n");
+				CreateNewCacheItemInstanceCode (sw, ci);
 		}
 
-		static void CreateNewCacheItemInstanceCode (string indent, StringBuilder sb, CacheItem item)
+		static void CreateNewCacheItemInstanceCode (StreamWriter sw, CacheItem item)
 		{
-			sb.Append (indent + "new CacheItem {");
-			sb.AppendFormat ("Key = \"{0}\", ", item.Key.Replace ("\n", "\\n").Replace ("\r", "\\r"));
-			sb.AppendFormat ("AbsoluteExpiration = DateTime.Parse (\"{0}\"), ", item.AbsoluteExpiration.ToString ());
-			sb.AppendFormat ("SlidingExpiration = TimeSpan.Parse (\"{0}\"), ", item.SlidingExpiration.ToString ());
-			sb.AppendFormat ("Priority = CacheItemPriority.{0}, ", item.Priority);
-			sb.AppendFormat ("LastChange = DateTime.Parse (\"{0}\"), ", item.LastChange.ToString ());
-			sb.AppendFormat ("ExpiresAt = {0}, ", item.ExpiresAt);
-			sb.AppendFormat ("Disabled = {0}, ", item.Disabled.ToString ().ToLowerInvariant ());
-			sb.AppendFormat ("Guid = new Guid (\"{0}\")}}, \n", item.Guid.ToString ());
+			sw.Write ("{0},", item.Key.Replace ("\n", "\\n").Replace ("\r", "\\r").Replace (",", "&comma;"));
+			sw.Write ("{0},", item.AbsoluteExpiration.Ticks);
+			sw.Write ("{0},", item.SlidingExpiration.Ticks);
+			sw.Write ("{0},", (int)item.Priority);
+			sw.Write ("{0},", item.LastChange.Ticks);
+			sw.Write ("{0},", item.ExpiresAt);
+			sw.Write ("{0},", item.Disabled.ToString ().ToLowerInvariant ());
+			sw.Write ("{0},", item.Guid.ToString ());
+			sw.Write ("{0}", item.PriorityQueueIndex);
+			sw.WriteLine ();
 		}
 	}
 }

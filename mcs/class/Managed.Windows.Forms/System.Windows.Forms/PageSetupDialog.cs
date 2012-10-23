@@ -33,6 +33,7 @@ using System.Drawing;
 using System.Drawing.Printing;
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 
 namespace System.Windows.Forms
 {
@@ -50,9 +51,7 @@ namespace System.Windows.Forms
 		private bool allow_printer;
 		private bool show_help;
 		private bool show_network;
-#if NET_2_0
 		private bool enable_metric;
-#endif
 		private GroupBox groupbox_paper;
 		private Label label_source;
 		private Label label_size;
@@ -139,7 +138,6 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (true)]
 		[DefaultValue (false)]
 		[MonoTODO ("Stubbed, not implemented")]
@@ -148,7 +146,6 @@ namespace System.Windows.Forms
 			get { return enable_metric; }
 			set { enable_metric = value; }
 		}
-#endif
 
 		public Margins MinMargins {
 			get { return min_margins; }
@@ -454,7 +451,12 @@ namespace System.Windows.Forms
 		}
 
 		static bool UseYardPound {
-			get { return !RegionInfo.CurrentRegion.IsMetric; }
+			get {
+				var current = RegionInfo.CurrentRegion;
+				if (current == null)
+					return true;
+				return !current.IsMetric;
+			}
 		}
 
 		// .Net uses PrinterSettings property if it is not null.
@@ -856,7 +858,7 @@ namespace System.Windows.Forms
 
 			bool loaded = false;
 
-			System.Text.StringBuilder sb;
+			StringBuilder sb;
 			float displayHeight;
 			new Font font;
 
@@ -882,7 +884,7 @@ namespace System.Windows.Forms
 
 			public PagePreview ()
 			{
-				sb = new System.Text.StringBuilder ();
+				sb = new StringBuilder ();
 				for (int i = 0; i < 4; i++) {
 					sb.Append ("blabla piu piublapiu haha lai dlais dhlçai shd ");
 					sb.Append ("çoasd çlaj sdç\r\n lajsd lçaisdj lçillaisd lahs dli");

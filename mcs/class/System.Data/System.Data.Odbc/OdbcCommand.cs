@@ -67,6 +67,7 @@ namespace System.Data.Odbc
 		bool designTimeVisible;
 		bool prepared;
 		IntPtr hstmt = IntPtr.Zero;
+		object generation = null; // validity of hstmt
 
 		bool disposed;
 		
@@ -132,23 +133,13 @@ namespace System.Data.Odbc
 		}
 
 		[OdbcDescriptionAttribute ("Time to wait for command to execute")]
-#if NET_1_0 || ONLY_1_1
-		[DefaultValue (DEFAULT_COMMAND_TIMEOUT)]
-#endif
-		public
-#if NET_2_0
-		override
-#endif
+		public override
 		int CommandTimeout {
 			get { return timeout; }
 			set {
 				if (value < 0)
-#if NET_2_0
 					throw new ArgumentException ("The property value assigned is less than 0.",
 						"CommandTimeout");
-#else
-					throw new ArgumentException ("The property value assigned is less than 0.");
-#endif
 				timeout = value;
 			}
 		}
@@ -353,10 +344,11 @@ namespace System.Data.Odbc
 			OdbcReturn ret;
 
 			if (hstmt != IntPtr.Zero)
+				// Free the existing hstmt.  Also unlinks from the connection.
 				FreeStatement ();
-			else
-				Connection.Link (this);
-
+			// Link this command to the connection.  The hstmt created below
+			// only remains valid while generation == Connection.generation.
+			generation = Connection.Link (this);
 			ret = libodbc.SQLAllocHandle (OdbcHandleType.Stmt, Connection.hDbc, ref hstmt);
 			if (ret != OdbcReturn.Success && ret != OdbcReturn.SuccessWithInfo)
 				throw connection.CreateOdbcException (OdbcHandleType.Dbc, Connection.hDbc);
@@ -376,18 +368,29 @@ namespace System.Data.Odbc
 			if (hstmt == IntPtr.Zero)
 				return;
 
+			// Normally the command is unlinked from the connection, but during
+			// OdbcConnection.Close() this would be pointless and (quadratically)
+			// slow.
 			if (unlink)
 				Connection.Unlink (this);
 
-			// free previously allocated handle.
-			OdbcReturn ret = libodbc.SQLFreeStmt (hstmt, libodbc.SQLFreeStmtOptions.Close);
-			if ((ret!=OdbcReturn.Success) && (ret!=OdbcReturn.SuccessWithInfo))
-				throw connection.CreateOdbcException (OdbcHandleType.Stmt, hstmt);
+			// Serialize with respect to the connection's own destruction
+			lock(Connection) {
+				// If the connection has already called SQLDisconnect then hstmt
+				// may have already been freed, in which case it is not safe to
+				// use.  Thus the generation check.
+				if(Connection.Generation == generation) {
+					// free previously allocated handle.
+					OdbcReturn ret = libodbc.SQLFreeStmt (hstmt, libodbc.SQLFreeStmtOptions.Close);
+					if ((ret!=OdbcReturn.Success) && (ret!=OdbcReturn.SuccessWithInfo))
+						throw connection.CreateOdbcException (OdbcHandleType.Stmt, hstmt);
 			
-			ret = libodbc.SQLFreeHandle ((ushort) OdbcHandleType.Stmt, hstmt);
-			if (ret != OdbcReturn.Success && ret != OdbcReturn.SuccessWithInfo)
-				throw connection.CreateOdbcException (OdbcHandleType.Stmt, hstmt);
-			hstmt = IntPtr.Zero;
+					ret = libodbc.SQLFreeHandle ((ushort) OdbcHandleType.Stmt, hstmt);
+					if (ret != OdbcReturn.Success && ret != OdbcReturn.SuccessWithInfo)
+						throw connection.CreateOdbcException (OdbcHandleType.Stmt, hstmt);
+				}
+				hstmt = IntPtr.Zero;
+			}
 		}
 		
 		private void ExecSQL (CommandBehavior behavior, bool createReader, string sql)
@@ -449,7 +452,7 @@ namespace System.Data.Odbc
 			    (CommandText.ToUpper().IndexOf("INSERT")!=-1) ||
 			    (CommandText.ToUpper().IndexOf("DELETE")!=-1)) {
 				int numrows = 0;
-				OdbcReturn ret = libodbc.SQLRowCount (hstmt, ref numrows);
+				libodbc.SQLRowCount (hstmt, ref numrows);
 				records = numrows;
 			} else
 				records = -1;

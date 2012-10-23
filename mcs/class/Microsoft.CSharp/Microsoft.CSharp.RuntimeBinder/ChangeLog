@@ -1,28 +1,3 @@
-2010-09-16  Marek Safar  <marek.safar@gmail.com>
-
-	[639407] Clean up more static stuff to fix repl instances.
-
-2010-08-26  Marek Safar  <marek.safar@gmail.com>
-
-	Always build type from compiler type when flagged
-
-2010-08-26  Marek Safar  <marek.safar@gmail.com>
-
-	Run event type detection on actual and not context type
-
-2010-08-25  Marek Safar  <marek.safar@gmail.com>
-
-	Defer null check to resolver
-
-2010-08-25  Marek Safar  <marek.safar@gmail.com>
-
-	Import private members too when using dynamic context
-
-2010-08-04  Jb Evain  <jbevain@gmail.com>
-
-	Microsoft.CSharp.RuntimeBinder.Binder::Convert: fix parameter
-	ordering to match .net 4.0
-
 2010-06-16  Marek Safar  <marek.safar@gmail.com>
 
 	* CSharpInvokeMemberBinder.cs: Construct MemberAccess for simple

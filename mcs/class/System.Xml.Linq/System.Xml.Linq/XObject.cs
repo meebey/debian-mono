@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml;
 
 namespace System.Xml.Linq
@@ -92,11 +93,7 @@ namespace System.Xml.Linq
 
 		public object Annotation (Type type)
 		{
-			if (annotations != null)
-				foreach (object o in annotations)
-					if (o.GetType () == type)
-						return o;
-			return null;
+			return Annotations (type).FirstOrDefault ();
 		}
 
 		public IEnumerable<T> Annotations<T> () where T : class
@@ -107,10 +104,12 @@ namespace System.Xml.Linq
 
 		public IEnumerable<object> Annotations (Type type)
 		{
+			if (type == null)
+				throw new ArgumentNullException ("type");
 			if (annotations == null)
 				yield break;
 			foreach (object o in annotations)
-				if (o.GetType () == type)
+				if (type.IsAssignableFrom (o.GetType ()))
 					yield return o;
 		}
 
@@ -124,7 +123,7 @@ namespace System.Xml.Linq
 			if (annotations == null)
 				return;
 			for (int i = 0; i < annotations.Count; i++)
-				if (annotations [i].GetType () == type)
+				if (type.IsAssignableFrom (annotations [i].GetType ()))
 					annotations.RemoveAt (i);
 		}
 
@@ -162,6 +161,63 @@ namespace System.Xml.Linq
 			}
 			if ((options & LoadOptions.SetBaseUri) != LoadOptions.None)
 				BaseUri = r.BaseURI;
+		}
+		
+		internal void OnAddingObject (object addedObject)
+		{
+			OnChanging (addedObject, new XObjectChangeEventArgs (XObjectChange.Add));
+		}
+
+		internal void OnAddedObject (object addedObject)
+		{
+			OnChanged (addedObject, new XObjectChangeEventArgs (XObjectChange.Add));
+		}
+
+		internal void OnNameChanging (object renamedObject)
+		{
+			OnChanging (renamedObject, new XObjectChangeEventArgs (System.Xml.Linq.XObjectChange.Name));
+		}
+
+		internal void OnNameChanged (object renamedObject)
+		{
+			OnChanged (renamedObject, new XObjectChangeEventArgs (System.Xml.Linq.XObjectChange.Name));
+		}
+		
+		internal void OnRemovingObject (object removedObject)
+		{
+			OnChanging (removedObject, new XObjectChangeEventArgs (XObjectChange.Remove));
+		}
+
+		internal void OnRemovedObject (object removedObject)
+		{
+			OnChanged (removedObject, new XObjectChangeEventArgs (XObjectChange.Remove));
+		}
+
+		internal void OnValueChanging (object changedObject)
+		{
+			OnChanging (changedObject, new XObjectChangeEventArgs (XObjectChange.Value));
+		}
+
+		internal void OnValueChanged (object changedObject)
+		{
+			OnChanged (changedObject, new XObjectChangeEventArgs (XObjectChange.Value));
+		}
+
+		
+		void OnChanging (object sender, XObjectChangeEventArgs args)
+		{
+			if (Changing != null)
+				Changing (sender, args);
+			if (Parent != null)
+				Parent.OnChanging (sender, args);
+		}
+
+		void OnChanged (object sender, XObjectChangeEventArgs args)
+		{
+			if (Changed != null)
+				Changed (sender, args);
+			if (Parent != null)
+				Parent.OnChanged (sender, args);
 		}
 	}
 }

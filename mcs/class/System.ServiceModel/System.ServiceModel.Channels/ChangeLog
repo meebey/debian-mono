@@ -1,31 +1,3 @@
-2010-09-29  Alan McGovern  <alan.mcgovern@gmail.com>
-
-	[System.ServiceModel] Fix a few potential exceptions in background
-	threads
-
-	Pass the listener as it's own async state so that we avoid
-	potential null derefs in the callback. Also wrap the BeginAccept
-	and EndAccept calls in their own try/catches in case they throw an
-	exception.
-
-2010-09-29  Atsushi Eno  <atsushi@ximian.com>
-
-	TCP channel listener: remove extra complication (threads) in the
-	previous change.
-
-2010-09-28  Atsushi Eno  <atsushi@ximian.com>
-
-	Rework TCP listening model, and fix AcceptTcpClient() to not drop
-	timed out requests that actually steals next requests in the air.
-
-2010-08-11  Atsushi Eno  <atsushi@ximian.com>
-
-	implement MessageEncodingBindingElement.GetProperty<T>().
-
-2010-08-10  Atsushi Eno  <atsushi@ximian.com>
-
-	Cosmetic corcompare fix.
-
 2010-07-28  Atsushi Enomoto  <atsushi@ximian.com>
 
 	* SecurityBindingElement.cs : implement ToString().

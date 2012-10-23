@@ -1,12 +1,3 @@
-2010-08-27  Jonathan Pryor  <jonpryor@vt.edu>
-
-	[mdoc-validate] Support & validate the ECMA XML dialect.
-
-	This required adding some elements from the ECMA DTD.
-
-	We also add trivial XSLT support for things like <leq/> to ≤,
-	etc.
-
 2010-06-11  Jonathan Pryor  <jpryor@novell.com>
 
 	* Monodoc/ecma-provider.cs: Reduce memory requirements when assembling

@@ -6,6 +6,7 @@
 //
 // (C) 2001 Ximian, Inc.  http://www.ximian.com
 // Copyright (C) 2004-2005 Novell, Inc (http://www.novell.com)
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -32,12 +33,10 @@ using System.Security.Policy;
 using System.Security.Permissions;
 using System.Runtime.Serialization;
 using System.Reflection;
-using System.Reflection.Emit;
 using System.IO;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Collections;
 using System.Collections.Generic;
 using System.Configuration.Assemblies;
 
@@ -45,13 +44,12 @@ using Mono.Security;
 
 namespace System.Reflection {
 
-#pragma warning disable 659 // overrides Equals but not GetHashCode
-
 	[ComVisible (true)]
 	[ComDefaultInterfaceAttribute (typeof (_Assembly))]
 	[Serializable]
 	[ClassInterface(ClassInterfaceType.None)]
-#if MONOTOUCH
+	[StructLayout (LayoutKind.Sequential)]
+#if MOBILE
 	public partial class Assembly : ICustomAttributeProvider, _Assembly {
 #elif MOONLIGHT
 	public abstract class Assembly : ICustomAttributeProvider, _Assembly {
@@ -79,7 +77,7 @@ namespace System.Reflection {
 		private bool fromByteArray;
 		private string assemblyName;
 
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		protected
 #else
 		internal
@@ -163,6 +161,9 @@ namespace System.Reflection {
 		// note: the security runtime requires evidences but may be unable to do so...
 		internal Evidence UnprotectedGetEvidence ()
 		{
+#if MOBILE
+			return null;
+#else
 			// if the host (runtime) hasn't provided it's own evidence...
 			if (_evidence == null) {
 				// ... we will provide our own
@@ -171,6 +172,7 @@ namespace System.Reflection {
 				}
 			}
 			return _evidence;
+#endif
 		}
 
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
@@ -284,8 +286,13 @@ namespace System.Reflection {
 					"name");
 
 			ManifestResourceInfo info = GetManifestResourceInfo (name);
-			if (info == null)
-				return null;
+			if (info == null) {
+				Assembly a = AppDomain.CurrentDomain.DoResourceResolve (name, this);
+				if (a != null && a != this)
+					return a.GetManifestResourceStream (name);
+				else
+					return null;
+			}
 
 			if (info.ReferencedAssembly != null)
 				return info.ReferencedAssembly.GetManifestResourceStream (name);
@@ -509,6 +516,13 @@ namespace System.Reflection {
 #endif
 
 #if NET_4_0
+		public static Assembly UnsafeLoadFrom (String assemblyFile)
+		{
+			return LoadFrom (assemblyFile);
+		}
+#endif
+
+#if NET_4_0
 		[Obsolete]
 #endif
 		public static Assembly LoadFile (String path, Evidence securityEvidence)
@@ -597,9 +611,7 @@ namespace System.Reflection {
 			return LoadFrom (assemblyFile, true);
 		}
 
-#if NET_4_0
 		[Obsolete]
-#endif
 		public static Assembly LoadWithPartialName (string partialName)
 		{
 			return LoadWithPartialName (partialName, null);
@@ -613,7 +625,7 @@ namespace System.Reflection {
 
 		[MonoTODO ("Not implemented")]
 		public
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		virtual
 #endif
 		Module LoadModule (string moduleName, byte [] rawModule, byte [] rawSymbolStore)
@@ -624,9 +636,7 @@ namespace System.Reflection {
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private static extern Assembly load_with_partial_name (string name, Evidence e);
 
-#if NET_4_0
 		[Obsolete]
-#endif
 		public static Assembly LoadWithPartialName (string partialName, Evidence securityEvidence)
 		{
 			return LoadWithPartialName (partialName, securityEvidence, true);
@@ -670,7 +680,7 @@ namespace System.Reflection {
 		}
 
 		public
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		virtual
 #endif
 		Object CreateInstance (String typeName, Boolean ignoreCase,
@@ -760,7 +770,7 @@ namespace System.Reflection {
 		[MonoTODO ("Currently it always returns zero")]
 		[ComVisible (false)]
 		public
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		virtual
 #endif
 		long HostContext {
@@ -780,6 +790,11 @@ namespace System.Reflection {
 			[MethodImplAttribute (MethodImplOptions.InternalCall)]
 			get;
 		}
+		
+		public override int GetHashCode ()
+		{
+			return base.GetHashCode ();
+		}
 
 		public override bool Equals (object o)
 		{
@@ -792,24 +807,8 @@ namespace System.Reflection {
 			Assembly other = (Assembly) o;
 			return other._mono_assembly == _mono_assembly;
 		}
-		
-#if NET_4_0
-#if MOONLIGHT
-		public virtual IList<CustomAttributeData> GetCustomAttributesData () {
-			return CustomAttributeData.GetCustomAttributes (this);
-		}
-#endif
-		public PermissionSet PermissionSet {
-			get { return this.GrantedPermissionSet; }
-		}
 
-		[MonoTODO]
-		public bool IsFullyTrusted {
-			get { return true; }
-		}
-#endif
-
-#if !MOONLIGHT
+#if !NET_2_1
 		// Code Access Security
 
 		internal void Resolve () 
@@ -891,11 +890,31 @@ namespace System.Reflection {
 			}
 		}
 #endif
+		
+#if NET_4_0
+		public virtual PermissionSet PermissionSet {
+			get { return this.GrantedPermissionSet; }
+		}
+		
+		public virtual SecurityRuleSet SecurityRuleSet {
+			get { throw CreateNIE (); }
+		}
+#endif
 
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		static Exception CreateNIE ()
 		{
 			return new NotImplementedException ("Derived classes must implement it");
+		}
+		
+		public virtual IList<CustomAttributeData> GetCustomAttributesData ()
+		{
+			return CustomAttributeData.GetCustomAttributes (this);
+		}
+
+		[MonoTODO]
+		public bool IsFullyTrusted {
+			get { return true; }
 		}
 
 		public virtual Type GetType (string name, bool throwOnError, bool ignoreCase)
@@ -946,11 +965,6 @@ namespace System.Reflection {
 			get { return false; }
 		}
 
-		public override int GetHashCode ()
-		{
-			return base.GetHashCode ();
-		}
-
 		public static bool operator == (Assembly left, Assembly right)
 		{
 			if ((object)left == (object)right)
@@ -971,5 +985,3 @@ namespace System.Reflection {
 #endif
 	}
 }
-
-#pragma warning restore 659

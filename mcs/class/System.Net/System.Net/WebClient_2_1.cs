@@ -44,6 +44,7 @@ namespace System.Net {
 
 		WebHeaderCollection headers;
 		WebHeaderCollection responseHeaders;
+		bool response_supports_headers = true;	// will be set to false, if needed, when we get a response
 		string baseAddress;
 		Uri base_address_uri;
 		bool is_busy;
@@ -98,7 +99,11 @@ namespace System.Net {
 		}
 
 		public WebHeaderCollection ResponseHeaders {
-			get { return responseHeaders; }
+			get {
+				if (!response_supports_headers)
+					throw new NotImplementedException ();
+				return responseHeaders;
+			}
 		}
 
 		public Encoding Encoding {
@@ -196,7 +201,10 @@ namespace System.Net {
 
 		Stream ProcessResponse (WebResponse response)
 		{
-			responseHeaders = response.Headers;
+			response_supports_headers = response.SupportsHeaders;
+			if (response_supports_headers)
+				responseHeaders =  response.Headers;
+
 			HttpWebResponse hwr = (response as HttpWebResponse);
 			if (hwr == null)
 				throw new NotSupportedException ();
@@ -209,11 +217,8 @@ namespace System.Net {
 					s = response.GetResponseStream ();
 			}
 			catch (Exception e) {
-				throw new WebException ("NotFound", e, WebExceptionStatus.UnknownError, response);
-			}
-			finally {
-				if (status_code != HttpStatusCode.OK)
-					throw new WebException ("NotFound", null, WebExceptionStatus.UnknownError, response);
+				throw new WebException ("NotFound", status_code == HttpStatusCode.OK ? e : null, 
+					WebExceptionStatus.UnknownError, response);
 			}
 			return s;
 		}
@@ -430,8 +435,10 @@ namespace System.Net {
 			finally {
 				// kind of dummy, 0% progress, that is always emitted
 				upload_length = length;
-				OnUploadProgressChanged (
-					new UploadProgressChangedEventArgs (0, -1, length, -1, 0, callback_data.user_token));
+				callback_data.sync_context.Post (delegate (object sender) {
+					OnUploadProgressChanged (
+						new UploadProgressChangedEventArgs (0, -1, length, -1, 0, callback_data.user_token));
+				}, null);
 			}
 		}
 
@@ -505,8 +512,10 @@ namespace System.Net {
 			finally {
 				// kind of dummy, 0% progress, that is always emitted
 				upload_length = callback_data.data.Length;
-				OnUploadProgressChanged (
-					new UploadProgressChangedEventArgs (0, -1, upload_length, -1, 0, callback_data.user_token));
+				callback_data.sync_context.Post (delegate (object sender) {
+					OnUploadProgressChanged (
+						new UploadProgressChangedEventArgs (0, -1, upload_length, -1, 0, callback_data.user_token));
+				}, "null");		
 			}
 		}
 
@@ -548,28 +557,28 @@ namespace System.Net {
 				handler (this, e);
 		}
 		
-		protected virtual void OnOpenReadCompleted (OpenReadCompletedEventArgs args)
+		protected virtual void OnOpenReadCompleted (OpenReadCompletedEventArgs e)
 		{
 			CompleteAsync ();
 			OpenReadCompletedEventHandler handler = OpenReadCompleted;
 			if (handler != null)
-				handler (this, args);
+				handler (this, e);
 		}
 
-		protected virtual void OnDownloadStringCompleted (DownloadStringCompletedEventArgs args)
+		protected virtual void OnDownloadStringCompleted (DownloadStringCompletedEventArgs e)
 		{
 			CompleteAsync ();
 			DownloadStringCompletedEventHandler handler = DownloadStringCompleted;
 			if (handler != null)
-				handler (this, args);
+				handler (this, e);
 		}
 
-		protected virtual void OnOpenWriteCompleted (OpenWriteCompletedEventArgs args)
+		protected virtual void OnOpenWriteCompleted (OpenWriteCompletedEventArgs e)
 		{
 			CompleteAsync ();
 			OpenWriteCompletedEventHandler handler = OpenWriteCompleted;
 			if (handler != null)
-				handler (this, args);
+				handler (this, e);
 		}
 
 		protected virtual void OnUploadProgressChanged (UploadProgressChangedEventArgs e)
@@ -579,12 +588,12 @@ namespace System.Net {
 				handler (this, e);
 		}
 
-		protected virtual void OnUploadStringCompleted (UploadStringCompletedEventArgs args)
+		protected virtual void OnUploadStringCompleted (UploadStringCompletedEventArgs e)
 		{
 			CompleteAsync ();
 			UploadStringCompletedEventHandler handler = UploadStringCompleted;
 			if (handler != null)
-				handler (this, args);
+				handler (this, e);
 		}
 
 		protected virtual void OnWriteStreamClosed (WriteStreamClosedEventArgs e)

@@ -82,6 +82,10 @@ namespace MonoTests.System
 			{
 			}
 		}
+
+		class MyDerivedClassNoAttribute : MyClass
+		{
+		}
 	}
 
 	[TestFixture]
@@ -100,6 +104,7 @@ namespace MonoTests.System
 			Assert.IsFalse (Attribute.IsDefined (typeof (MyDerivedClass), typeof (YourCustomAttribute), false), "#8");
 			Assert.IsFalse (Attribute.IsDefined (typeof (MyDerivedClass), typeof (UnusedAttribute), false), "#9");
 			Assert.IsTrue (Attribute.IsDefined (typeof (MyClass).GetMethod ("ParamsMethod").GetParameters () [0], typeof (ParamArrayAttribute), false), "#10");
+			Assert.IsFalse (Attribute.IsDefined (typeof (MyDerivedClassNoAttribute), typeof (MyCustomAttribute)), "#11");
 		}
 
 		[Test]
@@ -134,17 +139,9 @@ namespace MonoTests.System
 		public void IsDefined_PropertyInfo_Override ()
 		{
 			PropertyInfo pi = typeof (TestSub).GetProperty ("PropBase3");
-#if NET_2_0
 			Assert.IsTrue (Attribute.IsDefined (pi, typeof (PropTestAttribute)), "#B1");
-#else
-			Assert.IsFalse (Attribute.IsDefined (pi, typeof (PropTestAttribute)), "#B1");
-#endif
 			Assert.IsFalse (Attribute.IsDefined (pi, typeof (PropTestAttribute), false), "#B2");
-#if NET_2_0
 			Assert.IsTrue (Attribute.IsDefined (pi, typeof (PropTestAttribute), true), "#B3");
-#else
-			Assert.IsFalse (Attribute.IsDefined (pi, typeof (PropTestAttribute), true), "#B3");
-#endif
 			Assert.IsFalse (Attribute.IsDefined (pi, typeof (ComVisibleAttribute)), "#B4");
 			Assert.IsFalse (Attribute.IsDefined (pi, typeof (ComVisibleAttribute), false), "#B5");
 			Assert.IsFalse (Attribute.IsDefined (pi, typeof (ComVisibleAttribute), true), "#B6");
@@ -1118,6 +1115,49 @@ namespace MonoTests.System
 			var attributes = (ParamNamespace.DataAttribute []) Attribute.GetCustomAttributes (parameter, typeof (ParamNamespace.DataAttribute), true);
 			Assert.AreEqual (1, attributes.Length);
 			Assert.AreEqual ("Derived.baz", attributes [0].Data);
+		}
+
+		[AttributeUsage(AttributeTargets.Event | AttributeTargets.Method | AttributeTargets.Class)]
+		public class MyCAttr : Attribute {}
+
+		class Base {
+			[MyCAttr]
+			public override string ToString () { return null; }
+		}
+
+		class Derived : Base {
+			public override string ToString () { return null; }
+		}
+
+		[Test] //one ton of bugs
+		public void GetCustomAttributesOnMethodOverride ()
+		{
+			var m = typeof (Derived).GetMethod ("ToString");
+			var attrs = Attribute.GetCustomAttributes (m, true);
+			Assert.AreEqual (1, attrs.Length);	
+		}
+
+		class EvtBase
+		{
+			public virtual event EventHandler Event {add {} remove {}}
+		}
+
+		class EvtOverride : EvtBase
+		{
+			[MyCAttr]	
+			public override event EventHandler Event {add {} remove {}}
+		}
+
+		class EvtChild : EvtOverride
+		{
+			public override event EventHandler Event {add {} remove {}}
+		}
+
+		[Test] //Regression test for #662867
+		public void GetCustomAttributesOnEventOverride ()
+		{
+			var attrs = Attribute.GetCustomAttributes (typeof(EvtChild).GetEvent ("Event"), true);
+			Assert.AreEqual (1, attrs.Length);
 		}
 	}
 }

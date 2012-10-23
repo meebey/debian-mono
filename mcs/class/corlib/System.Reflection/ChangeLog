@@ -1,27 +1,3 @@
-2010-08-25  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* MonoProperty.cs: Don't share the same field with DeclaringType
-	and ReflectedType.
-
-	in mcs/class/corlib/System:
-
-2010-08-16  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* MonoField.cs: Don't access ::type directly since it might be
-	lazily loaded.
-
-2010-08-16  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* MonoField.cs (FieldType): Lazy load the field type if null.
-
-2010-08-11  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* CustomAttributeData.cs: This now receives only the information
-	required to later load argument data. This information is stored
-	in a new field that is later discarded.
-
-	in mono/mono/metadata:
-
 2010-07-28  Jb Evain  <jbevain@novell.com>
 
 	* Assembly.cs: add IsFullyTrusted stub.

@@ -34,6 +34,7 @@
 using System;
 using System.Collections;
 using System.Configuration;
+using System.Globalization;
 using System.IO;
 using System.Net.Cache;
 using System.Net.Sockets;
@@ -65,7 +66,7 @@ namespace System.Net
 		bool haveResponse;		
 		bool haveRequest;
 		bool requestSent;
-		WebHeaderCollection webHeaders = new WebHeaderCollection (true);
+		WebHeaderCollection webHeaders;
 		bool keepAlive = true;
 		int maxAutoRedirect = 50;
 		string mediaType = String.Empty;
@@ -75,6 +76,7 @@ namespace System.Net
 		bool preAuthenticate;
 		bool usedPreAuth;
 		Version version = HttpVersion.Version11;
+		bool force_version;
 		Version actualVersion;
 		IWebProxy proxy;
 		bool sendChunked;
@@ -109,6 +111,7 @@ namespace System.Net
 			Response
 		}
 		NtlmAuthState ntlm_auth_state;
+		string host;
 
 		// Constructors
 		static HttpWebRequest ()
@@ -136,7 +139,9 @@ namespace System.Net
 			this.requestUri = uri;
 			this.actualUri = uri;
 			this.proxy = GlobalProxySelection.Select;
-		}		
+			this.webHeaders = new WebHeaderCollection (WebHeaderCollection.HeaderInfo.Request);
+			ThrowOnError = true;
+		}
 		
 		[Obsolete ("Serialization is obsoleted for this type", false)]
 		protected HttpWebRequest (SerializationInfo serializationInfo, StreamingContext streamingContext) 
@@ -162,6 +167,7 @@ namespace System.Net
 			sendChunked = info.GetBoolean ("sendChunked");
 			timeout = info.GetInt32 ("timeout");
 			redirects = info.GetInt32 ("redirects");
+			host = info.GetString ("host");
 		}
 		
 		// Properties
@@ -176,6 +182,7 @@ namespace System.Net
 		
 		public Uri Address {
 			get { return actualUri; }
+			internal set { actualUri = value; } // Used by Ftp+proxy
 		}
 		
 		public bool AllowAutoRedirect {
@@ -229,19 +236,17 @@ namespace System.Net
 			get { return webHeaders ["Connection"]; }
 			set {
 				CheckRequestStarted ();
-				string val = value;
-				if (val != null) 
-					val = val.Trim ().ToLower ();
 
-				if (val == null || val.Length == 0) {
+				if (string.IsNullOrEmpty (value)) {
 					webHeaders.RemoveInternal ("Connection");
 					return;
 				}
 
-				if (val == "keep-alive" || val == "close") 
+				string val = value.ToLowerInvariant ();
+				if (val.Contains ("keep-alive") || val.Contains ("close"))
 					throw new ArgumentException ("Keep-Alive and Close may not be set with this property");
 
-				if (keepAlive && val.IndexOf ("keep-alive") == -1)
+				if (keepAlive)
 					value = value + ", Keep-Alive";
 				
 				webHeaders.RemoveAndAdd ("Connection", value);
@@ -267,6 +272,8 @@ namespace System.Net
 		internal long InternalContentLength {
 			set { contentLength = value; }
 		}
+			
+		internal bool ThrowOnError { get; set; }
 		
 		public override string ContentType { 
 			get { return webHeaders ["Content-Type"]; }
@@ -293,7 +300,22 @@ namespace System.Net
 			get { return credentials; }
 			set { credentials = value; }
 		}
-
+#if NET_4_0
+		public DateTime Date {
+			get {
+				string date = webHeaders ["Date"];
+				if (date == null)
+					return DateTime.MinValue;
+				return DateTime.ParseExact (date, "r", CultureInfo.InvariantCulture).ToLocalTime ();
+			}
+			set {
+				if (value.Equals (DateTime.MinValue))
+					webHeaders.RemoveInternal ("Date");
+				else
+					webHeaders.RemoveAndAdd ("Date", value.ToUniversalTime ().ToString ("r", CultureInfo.InvariantCulture));
+			}
+		}
+#endif
 		[MonoTODO]
 		public static new RequestCachePolicy DefaultCachePolicy
 		{
@@ -344,7 +366,7 @@ namespace System.Net
 			get { return webHeaders; }
 			set {
 				CheckRequestStarted ();
-				WebHeaderCollection newHeaders = new WebHeaderCollection (true);
+				WebHeaderCollection newHeaders = new WebHeaderCollection (WebHeaderCollection.HeaderInfo.Request);
 				int count = value.Count;
 				for (int i = 0; i < count; i++) 
 					newHeaders.Add (value.GetKey (i), value.Get (i));
@@ -353,6 +375,44 @@ namespace System.Net
 			}
 		}
 		
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		string Host {
+			get {
+				if (host == null)
+					return actualUri.Authority;
+				return host;
+			}
+			set {
+				if (value == null)
+					throw new ArgumentNullException ("value");
+
+				if (!CheckValidHost (actualUri.Scheme, value))
+					throw new ArgumentException ("Invalid host: " + value);
+
+				host = value;
+			}
+		}
+
+		static bool CheckValidHost (string scheme, string val)
+		{
+			if (val.Length == 0)
+				return false;
+
+			if (val [0] == '.')
+				return false;
+
+			int idx = val.IndexOf ('/');
+			if (idx >= 0)
+				return false;
+
+			string u = scheme + "://" + val + "/";
+			return Uri.IsWellFormedUriString (u, UriKind.Absolute);
+		}
+
 		public DateTime IfModifiedSince {
 			get { 
 				string str = webHeaders ["If-Modified-Since"];
@@ -430,7 +490,12 @@ namespace System.Net
 				if (value == null || value.Trim () == "")
 					throw new ArgumentException ("not a valid method");
 
-				method = value;
+				method = value.ToUpperInvariant ();
+				if (method != "HEAD" && method != "GET" && method != "POST" && method != "PUT" &&
+					method != "DELETE" && method != "CONNECT" && method != "TRACE" &&
+					method != "MKCOL") {
+					method = value;
+				}
 			}
 		}
 		
@@ -450,6 +515,7 @@ namespace System.Net
 				if (value != HttpVersion.Version10 && value != HttpVersion.Version11)
 					throw new ArgumentException ("value");
 
+				force_version = true;
 				version = value; 
 			}
 		}
@@ -490,7 +556,18 @@ namespace System.Net
 		public ServicePoint ServicePoint {
 			get { return GetServicePoint (); }
 		}
-		
+
+		internal ServicePoint ServicePointNoLock {
+			get { return servicePoint; }
+		}
+#if NET_4_5 || MOBILE
+		[MonoTODO ("for portable library support")]
+		public bool SupportsCookieContainer { 
+			get {
+				throw new NotImplementedException ();
+			}
+		}
+#endif
 		public override int Timeout { 
 			get { return timeout; }
 			set {
@@ -575,43 +652,99 @@ namespace System.Net
 		
 		public void AddRange (int range)
 		{
-			AddRange ("bytes", range);
+			AddRange ("bytes", (long) range);
 		}
 		
 		public void AddRange (int from, int to)
 		{
-			AddRange ("bytes", from, to);
+			AddRange ("bytes", (long) from, (long) to);
 		}
 		
 		public void AddRange (string rangeSpecifier, int range)
 		{
-			if (rangeSpecifier == null)
-				throw new ArgumentNullException ("rangeSpecifier");
-			string value = webHeaders ["Range"];
-			if (value == null || value.Length == 0) 
-				value = rangeSpecifier + "=";
-			else if (value.ToLower ().StartsWith (rangeSpecifier.ToLower () + "="))
-				value += ",";
-			else
-				throw new InvalidOperationException ("rangeSpecifier");
-			webHeaders.RemoveAndAdd ("Range", value + range + "-");	
+			AddRange (rangeSpecifier, (long) range);
 		}
 		
 		public void AddRange (string rangeSpecifier, int from, int to)
 		{
+			AddRange (rangeSpecifier, (long) from, (long) to);
+		}
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		void AddRange (long range)
+		{
+			AddRange ("bytes", (long) range);
+		}
+
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		void AddRange (long from, long to)
+		{
+			AddRange ("bytes", from, to);
+		}
+
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		void AddRange (string rangeSpecifier, long range)
+		{
 			if (rangeSpecifier == null)
 				throw new ArgumentNullException ("rangeSpecifier");
-			if (from < 0 || to < 0 || from > to)
-				throw new ArgumentOutOfRangeException ();			
-			string value = webHeaders ["Range"];
-			if (value == null || value.Length == 0) 
-				value = rangeSpecifier + "=";
-			else if (value.ToLower ().StartsWith (rangeSpecifier.ToLower () + "="))
-				value += ",";
+			if (!WebHeaderCollection.IsHeaderValue (rangeSpecifier))
+				throw new ArgumentException ("Invalid range specifier", "rangeSpecifier");
+
+			string r = webHeaders ["Range"];
+			if (r == null)
+				r = rangeSpecifier + "=";
+			else {
+				string old_specifier = r.Substring (0, r.IndexOf ('='));
+				if (String.Compare (old_specifier, rangeSpecifier, StringComparison.OrdinalIgnoreCase) != 0)
+					throw new InvalidOperationException ("A different range specifier is already in use");
+				r += ",";
+			}
+
+			string n = range.ToString (CultureInfo.InvariantCulture);
+			if (range < 0)
+				r = r + "0" + n;
 			else
-				throw new InvalidOperationException ("rangeSpecifier");
-			webHeaders.RemoveAndAdd ("Range", value + from + "-" + to);	
+				r = r + n + "-";
+			webHeaders.RemoveAndAdd ("Range", r);
 		}
+
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		void AddRange (string rangeSpecifier, long from, long to)
+		{
+			if (rangeSpecifier == null)
+				throw new ArgumentNullException ("rangeSpecifier");
+			if (!WebHeaderCollection.IsHeaderValue (rangeSpecifier))
+				throw new ArgumentException ("Invalid range specifier", "rangeSpecifier");
+			if (from > to || from < 0)
+				throw new ArgumentOutOfRangeException ("from");
+			if (to < 0)
+				throw new ArgumentOutOfRangeException ("to");
+
+			string r = webHeaders ["Range"];
+			if (r == null)
+				r = rangeSpecifier + "=";
+			else
+				r += ",";
+
+			r = String.Format ("{0}{1}-{2}", r, from, to);
+			webHeaders.RemoveAndAdd ("Range", r);
+		}
+
 		
 		public override IAsyncResult BeginGetRequestStream (AsyncCallback callback, object state) 
 		{
@@ -632,6 +765,9 @@ namespace System.Net
 
 			lock (locker)
 			{
+				if (getResponseCalled)
+					throw new InvalidOperationException ("The operation cannot be performed once the request has been submitted.");
+
 				if (asyncWrite != null) {
 					throw new InvalidOperationException ("Cannot re-call start of asynchronous " +
 								"method while a previous call is still in progress.");
@@ -686,7 +822,7 @@ namespace System.Net
 				asyncWrite = (WebAsyncResult) asyncResult;
 			}
 
-			if (!asyncResult.AsyncWaitHandle.WaitOne (timeout, false)) {
+			if (!asyncResult.IsCompleted && !asyncResult.AsyncWaitHandle.WaitOne (timeout, false)) {
 				Abort ();
 				throw new WebException ("The request timed out", WebExceptionStatus.Timeout);
 			}
@@ -696,12 +832,24 @@ namespace System.Net
 
 		void CheckIfForceWrite ()
 		{
-			if (writeStream == null || writeStream.RequestWritten|| contentLength < 0 || !InternalAllowBuffering)
+			if (writeStream == null || writeStream.RequestWritten || !InternalAllowBuffering)
+				return;
+#if NET_4_0
+			if (contentLength < 0 && writeStream.CanWrite == true && writeStream.WriteBufferLength <= 0)
 				return;
 
+			if (contentLength < 0 && writeStream.WriteBufferLength > 0)
+				InternalContentLength = writeStream.WriteBufferLength;
+#else
+			if (contentLength < 0 && writeStream.CanWrite == true)
+				return;
+#endif
+
 			// This will write the POST/PUT if the write stream already has the expected
-			// amount of bytes in it (ContentLength) (bug #77753).
-			if (writeStream.WriteBufferLength == contentLength)
+			// amount of bytes in it (ContentLength) (bug #77753) or if the write stream
+			// contains data and it has been closed already (xamarin bug #1512).
+
+			if (writeStream.WriteBufferLength == contentLength || (contentLength == -1 && writeStream.CanWrite == false))
 				writeStream.WriteRequest ();
 		}
 
@@ -879,6 +1027,7 @@ namespace System.Net
 			info.AddValue ("sendChunked", sendChunked);
 			info.AddValue ("timeout", timeout);
 			info.AddValue ("redirects", redirects);
+			info.AddValue ("host", host);
 		}
 		
 		void CheckRequestStarted () 
@@ -949,8 +1098,7 @@ namespace System.Net
 									WebExceptionStatus.ProtocolError);
 			}
 
-			hostChanged = (actualUri.Scheme != prev.Scheme || actualUri.Host != prev.Host ||
-					actualUri.Port != prev.Port);
+			hostChanged = (actualUri.Scheme != prev.Scheme || Host != prev.Authority);
 			return true;
 		}
 
@@ -996,11 +1144,13 @@ namespace System.Net
 				webHeaders.RemoveAndAdd (connectionHeader, "close");
 			}
 
-			webHeaders.SetInternal ("Host", actualUri.Authority);
+			webHeaders.SetInternal ("Host", Host);
 			if (cookieContainer != null) {
 				string cookieHeader = cookieContainer.GetCookieHeader (actualUri);
 				if (cookieHeader != "")
-					webHeaders.SetInternal ("Cookie", cookieHeader);
+					webHeaders.RemoveAndAdd ("Cookie", cookieHeader);
+				else
+					webHeaders.RemoveInternal ("Cookie");
 			}
 
 			string accept_encoding = null;
@@ -1062,18 +1212,13 @@ namespace System.Net
 			string query;
 			if (!ProxyQuery) {
 				query = actualUri.PathAndQuery;
-			} else if (actualUri.IsDefaultPort) {
-				query = String.Format ("{0}://{1}{2}",  actualUri.Scheme,
-									actualUri.Host,
-									actualUri.PathAndQuery);
 			} else {
-				query = String.Format ("{0}://{1}:{2}{3}", actualUri.Scheme,
-									   actualUri.Host,
-									   actualUri.Port,
-									   actualUri.PathAndQuery);
+				query = String.Format ("{0}://{1}{2}",  actualUri.Scheme,
+									Host,
+									actualUri.PathAndQuery);
 			}
 			
-			if (servicePoint.ProtocolVersion != null && servicePoint.ProtocolVersion < version) {
+			if (!force_version && servicePoint.ProtocolVersion != null && servicePoint.ProtocolVersion < version) {
 				actualVersion = servicePoint.ProtocolVersion;
 			} else {
 				actualVersion = version;
@@ -1178,7 +1323,11 @@ namespace System.Net
 				// The request has not been completely sent and we got here!
 				// We should probably just close and cause an error in any case,
 				saved_exc = new WebException (data.StatusDescription, null, WebExceptionStatus.ProtocolError, webResponse); 
-				webResponse.ReadAll ();
+				if (allowBuffering || sendChunked || writeStream.totalWritten >= contentLength) {
+					webResponse.ReadAll ();
+				} else {
+					writeStream.IgnoreIOErrors = true;
+				}
 			}
 		}
 
@@ -1221,11 +1370,9 @@ namespace System.Net
 			}
 
 			if (wexc == null && (method == "POST" || method == "PUT")) {
-				lock (locker) {
-					CheckSendError (data);
-					if (saved_exc != null)
-						wexc = (WebException) saved_exc;
-				}
+				CheckSendError (data);
+				if (saved_exc != null)
+					wexc = (WebException) saved_exc;
 			}
 
 			WebAsyncResult r = asyncRead;
@@ -1240,7 +1387,9 @@ namespace System.Net
 
 			if (r != null) {
 				if (wexc != null) {
-					r.SetCompleted (false, wexc);
+					haveResponse = true;
+					if (!r.IsCompleted)
+						r.SetCompleted (false, wexc);
 					r.DoCallback ();
 					return;
 				}
@@ -1367,13 +1516,16 @@ namespace System.Net
 							bodyBuffer = null;
 							return true;
 						}
-						
+
+						if (!ThrowOnError)
+							return false;
+							
 						writeStream.InternalClose ();
 						writeStream = null;
 						webResponse.Close ();
 						webResponse = null;
 						bodyBuffer = null;
-
+							
 						throw new WebException ("This request requires buffering " +
 									"of data for authentication or " +
 									"redirection to be sucessful.");
@@ -1407,6 +1559,8 @@ namespace System.Net
 						bodyBufferLength = writeStream.WriteBufferLength;
 					}
 					b = Redirect (result, code);
+					if (b && ntlm_auth_state != 0)
+						ntlm_auth_state = 0;
 				}
 
 				if (resp != null && c >= 300 && c != 304)
@@ -1414,6 +1568,9 @@ namespace System.Net
 
 				return b;
 			}
+				
+			if (!ThrowOnError)
+				return false;
 
 			if (writeStream != null) {
 				writeStream.InternalClose ();

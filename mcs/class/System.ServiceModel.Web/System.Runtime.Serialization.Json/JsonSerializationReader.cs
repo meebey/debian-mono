@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Xml;
@@ -71,6 +72,12 @@ namespace System.Runtime.Serialization.Json
 			if (serialized_object_count ++ == serializer.MaxItemsInObjectGraph)
 				throw SerializationError (String.Format ("The object graph exceeded the maximum object count '{0}' specified in the serializer", serializer.MaxItemsInObjectGraph));
 
+			bool nullable = false;
+			if (type.IsGenericType && type.GetGenericTypeDefinition () == typeof (Nullable<>)) {
+				nullable = true;
+				type = Nullable.GetUnderlyingType (type);
+			}
+
 			bool isNull = reader.GetAttribute ("type") == "null";
 
 			switch (Type.GetTypeCode (type)) {
@@ -102,27 +109,50 @@ namespace System.Runtime.Serialization.Json
 			case TypeCode.Int16:
 			case TypeCode.Int32:
 			case TypeCode.UInt16:
-			case TypeCode.UInt32:
-				int i = reader.ReadElementContentAsInt ();
 				if (type.IsEnum)
-					return Enum.ToObject (type, (object)i);
+					return Enum.ToObject (type, Convert.ChangeType (reader.ReadElementContentAsLong (), Enum.GetUnderlyingType (type), null));
 				else
-					return Convert.ChangeType (i, type, null);
+					return Convert.ChangeType (reader.ReadElementContentAsDecimal (), type, null);
+			case TypeCode.UInt32:
 			case TypeCode.Int64:
 			case TypeCode.UInt64:
-				long l = reader.ReadElementContentAsLong ();
 				if (type.IsEnum)
-					return Enum.ToObject (type, (object)l);
+					return Enum.ToObject (type, Convert.ChangeType (reader.ReadElementContentAsLong (), Enum.GetUnderlyingType (type), null));
 				else
-					return Convert.ChangeType (l, type, null);
+					return Convert.ChangeType (reader.ReadElementContentAsDecimal (), type, null);
 			case TypeCode.Boolean:
 				return reader.ReadElementContentAsBoolean ();
 			case TypeCode.DateTime:
 				// it does not use ReadElementContentAsDateTime(). Different string format.
 				var s = reader.ReadElementContentAsString ();
-				if (s.Length < 2 || !s.StartsWith ("/Date(", StringComparison.Ordinal) || !s.EndsWith (")/", StringComparison.Ordinal))
+				if (s.Length < 2 || !s.StartsWith ("/Date(", StringComparison.Ordinal) || !s.EndsWith (")/", StringComparison.Ordinal)) {
+					if (nullable)
+						return null;
 					throw new XmlException ("Invalid JSON DateTime format. The value format should be '/Date(UnixTime)/'");
-				return new DateTime (1970, 1, 1).AddMilliseconds (long.Parse (s.Substring (6, s.Length - 8)));
+				}
+
+				// The date can contain [SIGN]LONG, [SIGN]LONG+HOURSMINUTES or [SIGN]LONG-HOURSMINUTES
+				// the format for HOURSMINUTES is DDDD
+				int tidx = s.IndexOf ('-', 8);
+				if (tidx == -1)
+					tidx = s.IndexOf ('+', 8);
+				int minutes = 0;
+				if (tidx == -1){
+					s = s.Substring (6, s.Length - 8);
+				} else {
+					int offset;
+					int.TryParse (s.Substring (tidx+1, s.Length-3-tidx), out offset);
+
+					minutes = (offset % 100) + (offset / 100) * 60;
+					if (s [tidx] == '-')
+						minutes = -minutes;
+
+					s = s.Substring (6, tidx-6);
+				}
+				var date = new DateTime (1970, 1, 1).AddMilliseconds (long.Parse (s));
+				if (minutes != 0)
+					date = date.AddMinutes (minutes);
+				return date;
 			default:
 				if (type == typeof (Guid)) {
 					return new Guid (reader.ReadElementContentAsString ());
@@ -145,7 +175,7 @@ namespace System.Runtime.Serialization.Json
 						return null;
 					}
 
-					Type ct = GetCollectionType (type);
+					Type ct = GetCollectionElementType (type);
 					if (ct != null) {
 						return DeserializeGenericCollection (type, ct);
 					} else {
@@ -168,7 +198,7 @@ namespace System.Runtime.Serialization.Json
 			var ret = root_type.Assembly.GetType (name, false) ?? Type.GetType (name, false);
 			if (ret != null)
 				return ret;
-#if !NET_2_1 // how to do that in ML?
+
 			// We probably have to iterate all the existing
 			// assemblies that are loaded in current domain.
 			foreach (var ass in AppDomain.CurrentDomain.GetAssemblies ()) {
@@ -176,14 +206,18 @@ namespace System.Runtime.Serialization.Json
 				if (ret != null)
 					return ret;
 			}
-#endif
+
 			return null;
 		}
 
 		object ReadInstanceDrivenObject ()
 		{
 			string type = reader.GetAttribute ("type");
-			if (type == "object") {
+			switch (type) {
+			case "null":
+				reader.Skip ();
+				return null;
+			case "object":
 				string runtimeType = reader.GetAttribute ("__type");
 				if (runtimeType != null) {
 					Type t = GetRuntimeType (runtimeType);
@@ -191,6 +225,7 @@ namespace System.Runtime.Serialization.Json
 						throw SerializationError (String.Format ("Cannot load type '{0}'", runtimeType));
 					return ReadObject (t);
 				}
+				break;
 			}
 			string v = reader.ReadElementContentAsString ();
 			switch (type) {
@@ -205,10 +240,6 @@ namespace System.Runtime.Serialization.Json
 				}
 			case "string":
 				return v;
-			case "null":
-				if (v != "null")
-					throw SerializationError (String.Format ("Invalid JSON null value: {0}", v));
-				return null;
 			case "number":
 				int i;
 				if (int.TryParse (v, NumberStyles.None, CultureInfo.InvariantCulture, out i))
@@ -242,18 +273,25 @@ namespace System.Runtime.Serialization.Json
 			return idx < 0 ? s : String.Concat (s.Substring (idx + 2), ".", s.Substring (0, idx));
 		}
 
-		Type GetCollectionType (Type type)
+		IEnumerable<Type> GetInterfaces2 (Type type)
+		{
+			if (type.IsInterface)
+				yield return type;
+			foreach (var t in type.GetInterfaces ())
+				yield return t;
+		}
+
+		Type GetCollectionElementType (Type type)
 		{
 			if (type.IsArray)
 				return type.GetElementType ();
 			if (type.IsGenericType) {
-				// returns T for ICollection<T>
-				Type [] ifaces = type.GetInterfaces ();
-				foreach (Type i in ifaces)
-					if (i.IsGenericType && i.GetGenericTypeDefinition ().Equals (typeof (ICollection<>)))
+				// returns T for IEnumerable<T>
+				foreach (Type i in GetInterfaces2 (type))
+					if (i.IsGenericType && i.GetGenericTypeDefinition ().Equals (typeof (IEnumerable<>)))
 						return i.GetGenericArguments () [0];
 			}
-			if (typeof (IList).IsAssignableFrom (type))
+			if (typeof (IEnumerable).IsAssignableFrom (type))
 				// return typeof(object) for mere collection.
 				return typeof (object);
 			else
@@ -266,7 +304,27 @@ namespace System.Runtime.Serialization.Json
 			object ret;
 			if (collectionType.IsInterface)
 				collectionType = typeof (List<>).MakeGenericType (elementType);
-			if (typeof (IList).IsAssignableFrom (collectionType)) {
+			if (TypeMap.IsDictionary (collectionType)) {
+				object dic = Activator.CreateInstance (collectionType);
+				var itemSetter = dic.GetType ().GetProperty ("Item");
+				var keyarr = new object [1];
+
+				for (reader.MoveToContent (); reader.NodeType != XmlNodeType.EndElement; reader.MoveToContent ()) {
+					if (!reader.IsStartElement ("item"))
+						throw SerializationError (String.Format ("Expected element 'item', but found '{0}' in namespace '{1}'", reader.LocalName, reader.NamespaceURI));
+
+					// reading a KeyValuePair in the form of <Key .../><Value .../>
+					reader.Read ();
+					reader.MoveToContent ();
+					object key = ReadObject (elementType.GetGenericArguments () [0]);
+					reader.MoveToContent ();
+					object val = ReadObject (elementType.GetGenericArguments () [1]);
+					reader.Read ();
+					keyarr [0] = key;
+					itemSetter.SetValue (dic, val, keyarr);
+				}
+				ret = dic;
+			} else if (typeof (IList).IsAssignableFrom (collectionType)) {
 #if NET_2_1
 				Type listType = collectionType.IsArray ? typeof (List<>).MakeGenericType (elementType) : null;
 #else
@@ -291,23 +349,6 @@ namespace System.Runtime.Serialization.Json
 #else
 				ret = collectionType.IsArray ? ((ArrayList) c).ToArray (elementType) : c;
 #endif
-			} else if (typeof (IDictionary).IsAssignableFrom(collectionType)) {
-				IDictionary id = (IDictionary)Activator.CreateInstance (collectionType);
-
-				for (reader.MoveToContent (); reader.NodeType != XmlNodeType.EndElement; reader.MoveToContent ()) {
-					if (!reader.IsStartElement ("item"))
-						throw SerializationError (String.Format ("Expected element 'item', but found '{0}' in namespace '{1}'", reader.LocalName, reader.NamespaceURI));
-
-					// reading a KeyValuePair in the form of <Key .../><Value .../>
-					reader.Read ();
-					reader.MoveToContent ();
-					object key = ReadObject (elementType.GetGenericArguments ()[0]);
-					reader.MoveToContent ();
-					object val = ReadObject (elementType.GetGenericArguments ()[1]);
-					reader.Read ();
-					id[key] = val;
-				}
-				ret = id;
 			} else {
 				object c = Activator.CreateInstance (collectionType);
 				MethodInfo add = collectionType.GetMethod ("Add", new Type [] {elementType});

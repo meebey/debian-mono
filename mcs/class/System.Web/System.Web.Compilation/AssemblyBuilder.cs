@@ -4,10 +4,10 @@
 // Authors:
 //	Chris Toshok (toshok@ximian.com)
 //	Gonzalo Paniagua Javier (gonzalo@ximian.com)
-//      Marek Habersack (mhabersack@novell.com)
+//      Marek Habersack (grendel@twistedcode.net)
 //
 // (C) 2006-2008 Novell, Inc (http://www.novell.com)
-//
+// Copyright 2011 Xamarin Inc. (http://xamarin.com)
 
 //
 // Permission is hereby granted, free of charge, to any person obtaining
@@ -359,7 +359,7 @@ namespace System.Web.Compilation
 		{
 			if (a == null)
 				throw new ArgumentNullException ("a");
-
+			
 			List <Assembly> assemblies = ReferencedAssemblies;
 			
 			if (assemblies.Contains (a))
@@ -740,7 +740,6 @@ namespace System.Web.Compilation
 		{
 			if (options == null)
 				throw new ArgumentNullException ("options");
-
 			options.TempFiles = temp_files;
 			if (options.OutputAssembly == null)
 				options.OutputAssembly = OutputAssemblyName;
@@ -761,8 +760,8 @@ namespace System.Web.Compilation
 			if (units.Length == 0 && files.Count == 0 && resources.Count == 0 && options.EmbeddedResources.Count == 0)
 				return null;
 
+			string compilerOptions = options.CompilerOptions;
 			if (options.IncludeDebugInformation) {
-				string compilerOptions = options.CompilerOptions;
 				if (String.IsNullOrEmpty (compilerOptions))
 					compilerOptions = "/d:DEBUG";
 				else if (compilerOptions.IndexOf ("d:DEBUG", StringComparison.OrdinalIgnoreCase) == -1)
@@ -770,6 +769,12 @@ namespace System.Web.Compilation
 				
 				options.CompilerOptions = compilerOptions;
 			}
+
+			if (String.IsNullOrEmpty (compilerOptions))
+				compilerOptions = "/noconfig";
+			else if (compilerOptions.IndexOf ("noconfig", StringComparison.OrdinalIgnoreCase) == -1)
+				compilerOptions += " /noconfig";
+			options.CompilerOptions = compilerOptions;
 			
 			string filename;
 			StreamWriter sw = null;
@@ -795,37 +800,56 @@ namespace System.Web.Compilation
 
 			foreach (KeyValuePair <string, string> de in resources)
 				options.EmbeddedResources.Add (de.Value);
-
+			
 			AddAssemblyReference (BuildManager.GetReferencedAssemblies ());
-			foreach (Assembly refasm in ReferencedAssemblies) {
+			var assembliesToReference = new List <Assembly> ();
+			var moduleGuidCache = new Dictionary <Guid, bool> ();
+			StringCollection optRefAsm = options.ReferencedAssemblies;
+			ReferenceAssemblies (moduleGuidCache, assembliesToReference, ReferencedAssemblies);
+			ReferenceAssemblies (moduleGuidCache, assembliesToReference, optRefAsm);
+			Type appType = HttpApplicationFactory.AppType;
+			if (appType != null)
+				ReferenceAssembly (moduleGuidCache, assembliesToReference, appType.Assembly);
+
+			optRefAsm.Clear ();
+			foreach (Assembly refasm in assembliesToReference) {
 				string path = new Uri (refasm.CodeBase).LocalPath;
-				options.ReferencedAssemblies.Add (path);
+				string originalPath = refasm.Location;
+				if (!optRefAsm.Contains (path) && !optRefAsm.Contains (originalPath))
+					optRefAsm.Add (path);
 			}
 			
 			results = provider.CompileAssemblyFromFile (options, files.ToArray ());
 
 			if (results.NativeCompilerReturnValue != 0) {
 				string fileText = null;
+				CompilerErrorCollection errors = results.Errors;
 				try {
-					using (StreamReader sr = File.OpenText (results.Errors [0].FileName)) {
-						fileText = sr.ReadToEnd ();
+					if (errors != null && errors.Count > 0) {
+						using (StreamReader sr = File.OpenText (results.Errors [0].FileName))
+							fileText = sr.ReadToEnd ();
 					}
 				} catch (Exception) {}
 				
 #if DEBUG
-				Console.WriteLine ("********************************************************************");
-				Console.WriteLine ("Compilation failed.");
-				Console.WriteLine ("Output:");
+				Console.Error.WriteLine ("********************************************************************");
+				Console.Error.WriteLine ("Compilation failed.");
+				Console.Error.WriteLine ("Output:");
 				foreach (string s in results.Output)
-					Console.WriteLine ("  " + s);
-				Console.WriteLine ("\nErrors:");
+					Console.Error.WriteLine ("  " + s);
+				Console.Error.WriteLine ("\nErrors:");
 				foreach (CompilerError err in results.Errors)
-					Console.WriteLine (err);
-				Console.WriteLine ("File name: {0}", results.Errors [0].FileName);
-				Console.WriteLine ("File text:\n{0}\n", fileText);
-				Console.WriteLine ("********************************************************************");
+					Console.Error.WriteLine (err);
+				if (errors != null && errors.Count > 0)
+					Console.Error.WriteLine ("File name: {0}", results.Errors [0].FileName);
+				else
+					Console.Error.WriteLine ("File name not available");
+				if (!String.IsNullOrEmpty (fileText))
+					Console.Error.WriteLine ("File text:\n{0}\n", fileText);
+				else
+					Console.Error.WriteLine ("No file text available");
+				Console.Error.WriteLine ("********************************************************************");
 #endif
-				
 				throw new CompilationException (virtualPath != null ? virtualPath.Original : String.Empty, results, fileText);
 			}
 			
@@ -848,6 +872,42 @@ namespace System.Web.Compilation
 			if (!KeepFiles)
 				results.TempFiles.Delete ();
 			return results;
+		}
+
+		void ReferenceAssembly (Dictionary <Guid, bool> moduleGuidCache, List <Assembly> assemblies, Assembly asm)
+		{
+			Guid moduleId = asm.ManifestModule.ModuleVersionId;
+			if (moduleGuidCache.ContainsKey (moduleId))
+				return;
+			moduleGuidCache [moduleId] = true;
+			assemblies.Add (asm);
+		}
+
+		void ReferenceAssemblies (Dictionary <Guid, bool> moduleGuidCache, List <Assembly> assemblies, List <Assembly> references)
+		{
+			if (references == null || references.Count == 0)
+				return;
+
+			foreach (Assembly asm in references)
+				ReferenceAssembly (moduleGuidCache, assemblies, asm);
+		}
+
+		void ReferenceAssemblies (Dictionary <Guid, bool> moduleGuidCache, List <Assembly> assemblies, StringCollection references)
+		{
+			if (references == null || references.Count == 0)
+				return;
+
+			foreach (string asmPath in references)
+				ReferenceAssembly (moduleGuidCache, assemblies, asmPath);
+		}
+		
+		void ReferenceAssembly (Dictionary <Guid, bool> moduleGuidCache, List <Assembly> assemblies, string asmLocation)
+		{
+			Assembly asm = Assembly.LoadFrom (asmLocation);
+			if (asm == null)
+				return;
+
+			ReferenceAssembly (moduleGuidCache, assemblies, asm);
 		}
 	}
 }

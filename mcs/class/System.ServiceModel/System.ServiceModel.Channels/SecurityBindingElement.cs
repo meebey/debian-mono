@@ -135,10 +135,43 @@ namespace System.ServiceModel.Channels
 		}
 #endif
 
-		[MonoTODO ("It supports only IRequestSessionChannel")]
+		[MonoTODO ("Implement for TransportSecurityBindingElement")]
 		public override bool CanBuildChannelFactory<TChannel> (BindingContext context)
 		{
+#if NET_2_1
+			// not sure this should be like this, but there isn't Symmetric/Asymmetric elements in 2.1 anyways.
 			return context.CanBuildInnerChannelFactory<TChannel> ();
+#else
+			if (this is TransportSecurityBindingElement)
+				throw new NotImplementedException ();
+
+			var symm = this as SymmetricSecurityBindingElement;
+			var asymm = this as AsymmetricSecurityBindingElement;
+			var pt = symm != null ? symm.ProtectionTokenParameters : asymm != null ? asymm.InitiatorTokenParameters : null;
+			if (pt == null)
+				return false;
+
+			var t = typeof (TChannel);
+			var req = new InitiatorServiceModelSecurityTokenRequirement ();
+			pt.InitializeSecurityTokenRequirement (req);
+			object dummy;
+			if (req.Properties.TryGetValue (ServiceModelSecurityTokenRequirement.IssuedSecurityTokenParametersProperty, out dummy) && dummy != null) {
+				if (t == typeof (IRequestSessionChannel))
+					return context.CanBuildInnerChannelFactory<IRequestChannel> () ||
+						context.CanBuildInnerChannelFactory<IRequestSessionChannel> ();
+				else if (t == typeof (IDuplexSessionChannel))
+					return context.CanBuildInnerChannelFactory<IDuplexChannel> () ||
+						context.CanBuildInnerChannelFactory<IDuplexSessionChannel> ();
+			} else {
+				if (t == typeof (IRequestChannel))
+					return context.CanBuildInnerChannelFactory<IRequestChannel> () ||
+						context.CanBuildInnerChannelFactory<IRequestSessionChannel> ();
+				else if (t == typeof (IDuplexChannel))
+					return context.CanBuildInnerChannelFactory<IDuplexChannel> () ||
+						context.CanBuildInnerChannelFactory<IDuplexSessionChannel> ();
+			}
+			return false;
+#endif
 		}
 
 		public override IChannelFactory<TChannel> BuildChannelFactory<TChannel> (
@@ -151,10 +184,38 @@ namespace System.ServiceModel.Channels
 			BuildChannelFactoryCore<TChannel> (BindingContext context);
 
 #if !NET_2_1
-		[MonoTODO ("It probably supports only IReplySessionChannel")]
+		[MonoTODO ("Implement for TransportSecurityBindingElement")]
 		public override bool CanBuildChannelListener<TChannel> (BindingContext context)
 		{
-			return context.CanBuildInnerChannelListener<TChannel> ();
+			if (this is TransportSecurityBindingElement)
+				throw new NotImplementedException ();
+
+			var symm = this as SymmetricSecurityBindingElement;
+			var asymm = this as AsymmetricSecurityBindingElement;
+			var pt = symm != null ? symm.ProtectionTokenParameters : asymm != null ? asymm.RecipientTokenParameters : null;
+			if (pt == null)
+				return false;
+
+			var t = typeof (TChannel);
+			var req = new InitiatorServiceModelSecurityTokenRequirement ();
+			pt.InitializeSecurityTokenRequirement (req);
+			object dummy;
+			if (req.Properties.TryGetValue (ServiceModelSecurityTokenRequirement.IssuedSecurityTokenParametersProperty, out dummy) && dummy != null) {
+				if (t == typeof (IReplySessionChannel))
+					return context.CanBuildInnerChannelListener<IReplyChannel> () ||
+						context.CanBuildInnerChannelListener<IReplySessionChannel> ();
+				else if (t == typeof (IDuplexSessionChannel))
+					return context.CanBuildInnerChannelListener<IDuplexChannel> () ||
+						context.CanBuildInnerChannelListener<IDuplexSessionChannel> ();
+			} else {
+				if (t == typeof (IReplyChannel))
+					return context.CanBuildInnerChannelListener<IReplyChannel> () ||
+						context.CanBuildInnerChannelListener<IReplySessionChannel> ();
+				else if (t == typeof (IDuplexChannel))
+					return context.CanBuildInnerChannelListener<IDuplexChannel> () ||
+						context.CanBuildInnerChannelListener<IDuplexSessionChannel> ();
+			}
+			return false;
 		}
 
 		public override IChannelListener<TChannel> BuildChannelListener<TChannel> (
@@ -311,28 +372,63 @@ namespace System.ServiceModel.Channels
 			throw new NotImplementedException ();
 		}
 
-		[MonoTODO]
 		public static SecurityBindingElement 
 			CreateMutualCertificateBindingElement ()
 		{
-			throw new NotImplementedException ();
+			return CreateMutualCertificateBindingElement (MessageSecurityVersion.Default, false);
 		}
 
-		[MonoTODO]
 		public static SecurityBindingElement 
 			CreateMutualCertificateBindingElement (MessageSecurityVersion version)
 		{
-			throw new NotImplementedException ();
+			return CreateMutualCertificateBindingElement (version, false);
 		}
 
-		[MonoTODO]
+		[MonoTODO("Does not support allowSerializedSigningTokenOnReply.")]
 		public static SecurityBindingElement 
 			CreateMutualCertificateBindingElement (
 			MessageSecurityVersion version,
 			bool allowSerializedSigningTokenOnReply)
 		{
-			throw new NotImplementedException ();
-		}
+			if (version == null)
+				throw new ArgumentNullException ("version");
+			
+			if (allowSerializedSigningTokenOnReply)
+				throw new NotSupportedException ("allowSerializedSigningTokenOnReply is not supported");
+			
+			if (version.SecurityVersion == SecurityVersion.WSSecurity10) {
+			
+				var recipient = new X509SecurityTokenParameters (
+					X509KeyIdentifierClauseType.Any,	
+				    SecurityTokenInclusionMode.Never);
+				recipient.RequireDerivedKeys = false;
+				
+				var initiator = new X509SecurityTokenParameters (
+				    X509KeyIdentifierClauseType.Any, 
+				    SecurityTokenInclusionMode.AlwaysToRecipient);
+				initiator.RequireDerivedKeys = false;                                          
+				                                                 
+				return new AsymmetricSecurityBindingElement (recipient, initiator) {
+					MessageSecurityVersion = version
+				};
+			} else {
+				X509SecurityTokenParameters p =
+					new X509SecurityTokenParameters (X509KeyIdentifierClauseType.Thumbprint);
+				p.RequireDerivedKeys = false;
+					
+				var sym = new SymmetricSecurityBindingElement () {
+					MessageSecurityVersion = version,
+					RequireSignatureConfirmation = true
+			};
+				
+				X509SecurityTokenParameters p2 = new X509SecurityTokenParameters (X509KeyIdentifierClauseType.Thumbprint);
+				p2.ReferenceStyle = SecurityTokenReferenceStyle.External;
+				sym.ProtectionTokenParameters = p2;
+				sym.EndpointSupportingTokenParameters.Endorsing.Add (p);
+				return sym;
+			}
+			
+		}		
 
 		[MonoTODO]
 		public static AsymmetricSecurityBindingElement 

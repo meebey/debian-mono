@@ -27,14 +27,13 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Text;
 using System.Xml;
 
 using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
+using Mono.XBuild.Utilities;
 
 namespace Microsoft.Build.BuildEngine {
 	public class BuildProperty {
@@ -80,7 +79,7 @@ namespace Microsoft.Build.BuildEngine {
 			this.propertyType = PropertyType.Normal;
 			this.parentProject = parentProject;
 			this.name = propertyElement.Name;
-			this.value = Utilities.UnescapeFromXml (propertyElement.InnerXml);
+			this.value = MSBuildUtils.UnescapeFromXml (propertyElement.InnerXml);
 			this.isImported = false;
 		}
 
@@ -251,5 +250,3 @@ namespace Microsoft.Build.BuildEngine {
 		Environment
 	}
 }
-
-#endif

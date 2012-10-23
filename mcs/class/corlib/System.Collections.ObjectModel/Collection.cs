@@ -2,9 +2,10 @@
 //
 // System.Collections.ObjectModel.Collection
 //
-// Author:
+// Authors:
 //    Zoltan Varga (vargaz@gmail.com)
 //    David Waite (mass@akuma.org)
+//    Marek Safar (marek.safar@gmail.com)
 //
 // (C) 2005 Novell, Inc.
 // (C) 2005 David Waite
@@ -13,6 +14,7 @@
 //
 // Copyright (C) 2005 Novell, Inc (http://www.novell.com)
 // Copyright (C) 2005 David Waite
+// Copyright (C) 2011 Xamarin, Inc (http://www.xamarin.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -38,12 +40,18 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace System.Collections.ObjectModel
 {
 	[ComVisible (false)]
 	[Serializable]
-	public class Collection <T> : IList <T>, ICollection <T>, IEnumerable <T>, IList, ICollection, IEnumerable
+	[DebuggerDisplay ("Count={Count}")]
+	[DebuggerTypeProxy (typeof (CollectionDebuggerView<>))]
+	public class Collection<T> : IList<T>, IList
+#if NET_4_5
+		, IReadOnlyList<T>
+#endif
 	{
 		IList <T> list;
 		object syncRoot;

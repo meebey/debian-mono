@@ -1,5 +1,6 @@
 <Type Name="Widget" FullName="Mono.DocTest.Widget">
   <TypeSignature Language="C#" Value="public class Widget : Mono.DocTest.IProcess" />
+  <TypeSignature Language="ILAsm" Value=".class public auto ansi beforefieldinit Widget extends System.Object implements class Mono.DocTest.IProcess" />
   <AssemblyInfo>
     <AssemblyName>DocTest</AssemblyName>
     <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -19,6 +20,7 @@
   <Members>
     <Member MemberName=".ctor">
       <MemberSignature Language="C#" Value="public Widget ();" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig specialname rtspecialname instance void .ctor() cil managed" />
       <MemberType>Constructor</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -31,6 +33,7 @@
     </Member>
     <Member MemberName=".ctor">
       <MemberSignature Language="C#" Value="public Widget (Converter&lt;string,string&gt; c);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig specialname rtspecialname instance void .ctor(class System.Converter`2&lt;string, string&gt; c) cil managed" />
       <MemberType>Constructor</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -46,6 +49,7 @@
     </Member>
     <Member MemberName=".ctor">
       <MemberSignature Language="C#" Value="public Widget (string s);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig specialname rtspecialname instance void .ctor(string s) cil managed" />
       <MemberType>Constructor</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -61,6 +65,7 @@
     </Member>
     <Member MemberName="AnEvent">
       <MemberSignature Language="C#" Value="public event Mono.DocTest.Widget.Del AnEvent;" />
+      <MemberSignature Language="ILAsm" Value=".event class Mono.DocTest.Widget/Del AnEvent" />
       <MemberType>Event</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -86,6 +91,7 @@
     </Member>
     <Member MemberName="AnotherEvent">
       <MemberSignature Language="C#" Value="protected event Mono.DocTest.Widget.Del AnotherEvent;" />
+      <MemberSignature Language="ILAsm" Value=".event class Mono.DocTest.Widget/Del AnotherEvent" />
       <MemberType>Event</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -102,6 +108,7 @@
     </Member>
     <Member MemberName="array1">
       <MemberSignature Language="C#" Value="public long[] array1;" />
+      <MemberSignature Language="ILAsm" Value=".field public int64[] array1" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -116,6 +123,7 @@
     </Member>
     <Member MemberName="array2">
       <MemberSignature Language="C#" Value="public Mono.DocTest.Widget[,] array2;" />
+      <MemberSignature Language="ILAsm" Value=".field public class Mono.DocTest.Widget[,] array2" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -130,6 +138,7 @@
     </Member>
     <Member MemberName="classCtorError">
       <MemberSignature Language="C#" Value="public static readonly string[] classCtorError;" />
+      <MemberSignature Language="ILAsm" Value=".field public static initonly string[] classCtorError" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -142,8 +151,51 @@
         <remarks>To be added.</remarks>
       </Docs>
     </Member>
+    <Member MemberName="Default">
+      <MemberSignature Language="C#" Value="public void Default (int a = 1, int b = 2);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance void Default(int32 a, int32 b) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Void</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="a" Type="System.Int32" />
+        <Parameter Name="b" Type="System.Int32" />
+      </Parameters>
+      <Docs>
+        <param name="a">To be added.</param>
+        <param name="b">To be added.</param>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="Default">
+      <MemberSignature Language="C#" Value="public void Default (string a = &quot;a&quot;, char b = 'b');" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance void Default(string a, char b) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Void</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="a" Type="System.String" />
+        <Parameter Name="b" Type="System.Char" />
+      </Parameters>
+      <Docs>
+        <param name="a">To be added.</param>
+        <param name="b">To be added.</param>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
     <Member MemberName="defaultColor">
       <MemberSignature Language="C#" Value="protected static Mono.DocTest.Color defaultColor;" />
+      <MemberSignature Language="ILAsm" Value=".field family static valuetype Mono.DocTest.Color defaultColor" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -156,8 +208,160 @@
         <remarks>To be added.</remarks>
       </Docs>
     </Member>
+    <Member MemberName="Dynamic0">
+      <MemberSignature Language="C#" Value="public dynamic Dynamic0 (dynamic a, dynamic b);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance object Dynamic0(object a, object b) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Object</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="a" Type="System.Object" />
+        <Parameter Name="b" Type="System.Object" />
+      </Parameters>
+      <Docs>
+        <param name="a">To be added.</param>
+        <param name="b">To be added.</param>
+        <summary>To be added.</summary>
+        <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+        <exception cref="T:System.ArgumentException">To be added; from: <see cref="M:System.Linq.Expressions.Error.TypeMustBeDerivedFromSystemDelegate" /></exception>
+      </Docs>
+    </Member>
+    <Member MemberName="Dynamic1">
+      <MemberSignature Language="C#" Value="public System.Collections.Generic.Dictionary&lt;dynamic,string&gt; Dynamic1 (System.Collections.Generic.Dictionary&lt;dynamic,string&gt; value);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance class System.Collections.Generic.Dictionary`2&lt;object, string&gt; Dynamic1(class System.Collections.Generic.Dictionary`2&lt;object, string&gt; value) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Collections.Generic.Dictionary&lt;System.Object,System.String&gt;</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="value" Type="System.Collections.Generic.Dictionary&lt;System.Object,System.String&gt;" />
+      </Parameters>
+      <Docs>
+        <param name="value">To be added.</param>
+        <summary>To be added.</summary>
+        <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="Dynamic2">
+      <MemberSignature Language="C#" Value="public Func&lt;string,dynamic&gt; Dynamic2 (Func&lt;string,dynamic&gt; value);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance class System.Func`2&lt;string, object&gt; Dynamic2(class System.Func`2&lt;string, object&gt; value) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Func&lt;System.String,System.Object&gt;</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="value" Type="System.Func&lt;System.String,System.Object&gt;" />
+      </Parameters>
+      <Docs>
+        <param name="value">To be added.</param>
+        <summary>To be added.</summary>
+        <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="Dynamic3">
+      <MemberSignature Language="C#" Value="public Func&lt;Func&lt;string,dynamic&gt;,Func&lt;dynamic,string&gt;&gt; Dynamic3 (Func&lt;Func&lt;string,dynamic&gt;,Func&lt;dynamic,string&gt;&gt; value);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance class System.Func`2&lt;class System.Func`2&lt;string, object&gt;, class System.Func`2&lt;object, string&gt;&gt; Dynamic3(class System.Func`2&lt;class System.Func`2&lt;string, object&gt;, class System.Func`2&lt;object, string&gt;&gt; value) cil managed" />
+      <MemberType>Method</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Func&lt;System.Func&lt;System.String,System.Object&gt;,System.Func&lt;System.Object,System.String&gt;&gt;</ReturnType>
+      </ReturnValue>
+      <Parameters>
+        <Parameter Name="value" Type="System.Func&lt;System.Func&lt;System.String,System.Object&gt;,System.Func&lt;System.Object,System.String&gt;&gt;" />
+      </Parameters>
+      <Docs>
+        <param name="value">To be added.</param>
+        <summary>To be added.</summary>
+        <returns>To be added.</returns>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="DynamicE1">
+      <MemberSignature Language="C#" Value="public event Func&lt;dynamic&gt; DynamicE1;" />
+      <MemberSignature Language="ILAsm" Value=".event class System.Func`1&lt;object&gt; DynamicE1" />
+      <MemberType>Event</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <Attributes>
+        <Attribute>
+          <AttributeName>System.Obsolete("why not")</AttributeName>
+        </Attribute>
+      </Attributes>
+      <ReturnValue>
+        <ReturnType>System.Func&lt;System.Object&gt;</ReturnType>
+      </ReturnValue>
+      <Docs>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+        <exception cref="T:System.ArgumentException">To be added; from: <see cref="M:System.Delegate.Combine(System.Delegate,System.Delegate)" />, <see cref="M:System.Delegate.CombineImpl(System.Delegate)" />, <see cref="M:System.Delegate.Remove(System.Delegate,System.Delegate)" /></exception>
+        <exception cref="T:System.MulticastNotSupportedException">To be added; from: <see cref="M:System.Delegate.Combine(System.Delegate,System.Delegate)" />, <see cref="M:System.Delegate.CombineImpl(System.Delegate)" /></exception>
+      </Docs>
+    </Member>
+    <Member MemberName="DynamicE2">
+      <MemberSignature Language="C#" Value="public event Func&lt;dynamic&gt; DynamicE2;" />
+      <MemberSignature Language="ILAsm" Value=".event class System.Func`1&lt;object&gt; DynamicE2" />
+      <MemberType>Event</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Func&lt;System.Object&gt;</ReturnType>
+      </ReturnValue>
+      <Docs>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="DynamicF">
+      <MemberSignature Language="C#" Value="public Func&lt;Func&lt;string,dynamic,string&gt;,Func&lt;dynamic,Func&lt;dynamic&gt;,string&gt;&gt; DynamicF;" />
+      <MemberSignature Language="ILAsm" Value=".field public class System.Func`2&lt;class System.Func`3&lt;string, object, string&gt;, class System.Func`3&lt;object, class System.Func`1&lt;object&gt;, string&gt;&gt; DynamicF" />
+      <MemberType>Field</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Func&lt;System.Func&lt;System.String,System.Object,System.String&gt;,System.Func&lt;System.Object,System.Func&lt;System.Object&gt;,System.String&gt;&gt;</ReturnType>
+      </ReturnValue>
+      <Docs>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
+    <Member MemberName="DynamicP">
+      <MemberSignature Language="C#" Value="public Func&lt;Func&lt;string,dynamic,string&gt;,Func&lt;dynamic,Func&lt;dynamic&gt;,string&gt;&gt; DynamicP { get; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance class System.Func`2&lt;class System.Func`3&lt;string, object, string&gt;, class System.Func`3&lt;object, class System.Func`1&lt;object&gt;, string&gt;&gt; DynamicP" />
+      <MemberType>Property</MemberType>
+      <AssemblyInfo>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <ReturnValue>
+        <ReturnType>System.Func&lt;System.Func&lt;System.String,System.Object,System.String&gt;,System.Func&lt;System.Object,System.Func&lt;System.Object&gt;,System.String&gt;&gt;</ReturnType>
+      </ReturnValue>
+      <Docs>
+        <summary>To be added.</summary>
+        <value>To be added.</value>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Member>
     <Member MemberName="Height">
       <MemberSignature Language="C#" Value="protected long Height { get; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance int64 Height" />
       <MemberType>Property</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -177,7 +381,8 @@
       </Docs>
     </Member>
     <Member MemberName="Item">
-      <MemberSignature Language="C#" Value="public int this[int i] { set; get; }" />
+      <MemberSignature Language="C#" Value="public int this[int i] { get; set; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance int32 Item(int32)" />
       <MemberType>Property</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -204,7 +409,8 @@
       </Docs>
     </Member>
     <Member MemberName="Item">
-      <MemberSignature Language="C#" Value="public int this[string s, int i] { set; get; }" />
+      <MemberSignature Language="C#" Value="public int this[string s, int i] { get; set; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance int32 Item(string, int32)" />
       <MemberType>Property</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -226,6 +432,7 @@
     </Member>
     <Member MemberName="M0">
       <MemberSignature Language="C#" Value="public static void M0 ();" />
+      <MemberSignature Language="ILAsm" Value=".method public static hidebysig void M0() cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -241,6 +448,7 @@
     </Member>
     <Member MemberName="M1">
       <MemberSignature Language="C#" Value="public void M1 (char c, out float f, ref Mono.DocTest.DocValueType v);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance void M1(char c, float32 f, valuetype Mono.DocTest.DocValueType v) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -291,6 +499,7 @@
     </Member>
     <Member MemberName="M2">
       <MemberSignature Language="C#" Value="public void M2 (short[] x1, int[,] x2, long[][] x3);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance void M2(int16[] x1, int32[,] x2, int64[][] x3) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -313,6 +522,7 @@
     </Member>
     <Member MemberName="M3">
       <MemberSignature Language="C#" Value="protected void M3 (long[][] x3, Mono.DocTest.Widget[,,][] x4);" />
+      <MemberSignature Language="ILAsm" Value=".method familyhidebysig instance void M3(int64[][] x3, class Mono.DocTest.Widget[,,][] x4) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -333,6 +543,7 @@
     </Member>
     <Member MemberName="M4">
       <MemberSignature Language="C#" Value="protected void M4 (char* pc, Mono.DocTest.Color** ppf);" />
+      <MemberSignature Language="ILAsm" Value=".method familyhidebysig instance void M4(char* pc, valuetype Mono.DocTest.Color** ppf) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -353,6 +564,7 @@
     </Member>
     <Member MemberName="M5">
       <MemberSignature Language="C#" Value="protected void M5 (void* pv, double*[,][] pd);" />
+      <MemberSignature Language="ILAsm" Value=".method familyhidebysig instance void M5(void* pv, float64*[,][] pd) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -373,6 +585,7 @@
     </Member>
     <Member MemberName="M6">
       <MemberSignature Language="C#" Value="protected void M6 (int i, object[] args);" />
+      <MemberSignature Language="ILAsm" Value=".method familyhidebysig instance void M6(int32 i, object[] args) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -399,6 +612,7 @@
     </Member>
     <Member MemberName="M7">
       <MemberSignature Language="C#" Value="public void M7 (Mono.DocTest.Widget.NestedClass.Double.Triple.Quadruple a);" />
+      <MemberSignature Language="ILAsm" Value=".method public hidebysig instance void M7(class Mono.DocTest.Widget/NestedClass/Double/Triple/Quadruple a) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -417,6 +631,7 @@
     </Member>
     <Member MemberName="message">
       <MemberSignature Language="C#" Value="public string message;" />
+      <MemberSignature Language="ILAsm" Value=".field public string message" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -431,6 +646,7 @@
     </Member>
     <Member MemberName="monthlyAverage">
       <MemberSignature Language="C#" Value="protected readonly double monthlyAverage;" />
+      <MemberSignature Language="ILAsm" Value=".field familyorassembly initonly float64 monthlyAverage" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -445,6 +661,7 @@
     </Member>
     <Member MemberName="op_Addition">
       <MemberSignature Language="C#" Value="public static Mono.DocTest.Widget op_Addition (Mono.DocTest.Widget x1, Mono.DocTest.Widget x2);" />
+      <MemberSignature Language="ILAsm" Value=".method public static hidebysig specialname class Mono.DocTest.Widget op_Addition(class Mono.DocTest.Widget x1, class Mono.DocTest.Widget x2) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -466,6 +683,7 @@
     </Member>
     <Member MemberName="op_Explicit">
       <MemberSignature Language="C#" Value="public static int op_Explicit (Mono.DocTest.Widget x);" />
+      <MemberSignature Language="ILAsm" Value=".method public static hidebysig specialname int32 op_Explicit(class Mono.DocTest.Widget x) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -485,6 +703,7 @@
     </Member>
     <Member MemberName="op_Implicit">
       <MemberSignature Language="C#" Value="public static long op_Implicit (Mono.DocTest.Widget x);" />
+      <MemberSignature Language="ILAsm" Value=".method public static hidebysig specialname int64 op_Implicit(class Mono.DocTest.Widget x) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -504,6 +723,7 @@
     </Member>
     <Member MemberName="op_UnaryPlus">
       <MemberSignature Language="C#" Value="public static Mono.DocTest.Widget op_UnaryPlus (Mono.DocTest.Widget x);" />
+      <MemberSignature Language="ILAsm" Value=".method public static hidebysig specialname class Mono.DocTest.Widget op_UnaryPlus(class Mono.DocTest.Widget x) cil managed" />
       <MemberType>Method</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -523,6 +743,7 @@
     </Member>
     <Member MemberName="pCount">
       <MemberSignature Language="C#" Value="public int* pCount;" />
+      <MemberSignature Language="ILAsm" Value=".field public int32* pCount" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -537,6 +758,7 @@
     </Member>
     <Member MemberName="PI">
       <MemberSignature Language="C#" Value="protected const double PI = 3.14159;" />
+      <MemberSignature Language="ILAsm" Value=".field familyorassembly static literal float64 PI = (3.14159)" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -552,6 +774,7 @@
     </Member>
     <Member MemberName="ppValues">
       <MemberSignature Language="C#" Value="public float** ppValues;" />
+      <MemberSignature Language="ILAsm" Value=".field public float32** ppValues" />
       <MemberType>Field</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -565,7 +788,8 @@
       </Docs>
     </Member>
     <Member MemberName="Width">
-      <MemberSignature Language="C#" Value="public int Width { protected set; get; }" />
+      <MemberSignature Language="C#" Value="public int Width { get; protected set; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance int32 Width" />
       <MemberType>Property</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -592,6 +816,7 @@
     </Member>
     <Member MemberName="X">
       <MemberSignature Language="C#" Value="protected short X { set; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance int16 X" />
       <MemberType>Property</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>
@@ -606,7 +831,8 @@
       </Docs>
     </Member>
     <Member MemberName="Y">
-      <MemberSignature Language="C#" Value="protected double Y { set; get; }" />
+      <MemberSignature Language="C#" Value="protected double Y { get; set; }" />
+      <MemberSignature Language="ILAsm" Value=".property instance float64 Y" />
       <MemberType>Property</MemberType>
       <AssemblyInfo>
         <AssemblyVersion>0.0.0.0</AssemblyVersion>

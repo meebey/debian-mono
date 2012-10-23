@@ -1,12 +1,12 @@
-/* ****************************************************************************
+﻿/* ****************************************************************************
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -22,11 +22,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
 #else
 namespace System.Linq.Expressions {
@@ -34,9 +30,7 @@ namespace System.Linq.Expressions {
     /// <summary>
     /// Represents indexing a property or array.
     /// </summary>
-#if !SILVERLIGHT
     [DebuggerTypeProxy(typeof(Expression.IndexExpressionProxy))]
-#endif
     public sealed class IndexExpression : Expression, IArgumentProvider {
         private readonly Expression _instance;
         private readonly PropertyInfo _indexer;
@@ -429,9 +423,7 @@ namespace System.Linq.Expressions {
                     TypeUtils.ValidateType(pType);
 
                     if (!TypeUtils.AreReferenceAssignable(pType, arg.Type)) {
-                        if (TypeUtils.IsSameOrSubclass(typeof(LambdaExpression), pType) && pType.IsAssignableFrom(arg.GetType())) {
-                            arg = Expression.Quote(arg);
-                        } else {
+                        if (!TryQuote(pType, ref arg)) {
                             throw Error.ExpressionTypeDoesNotMatchMethodParameter(arg.Type, pType, method);
                         }
                     }

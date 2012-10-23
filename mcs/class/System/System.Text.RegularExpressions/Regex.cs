@@ -177,7 +177,6 @@ namespace System.Text.RegularExpressions {
 			return re.Split (input);
 		}
 
-#if NET_2_0
 		static FactoryCache cache = new FactoryCache (15);
 		public static int CacheSize {
 			get { return cache.Capacity; }
@@ -188,9 +187,6 @@ namespace System.Text.RegularExpressions {
 				cache.Capacity = value;	
 			}
 		}
-#else
-		static FactoryCache cache = new FactoryCache (200);
-#endif
 
 		// private
 
@@ -224,7 +220,7 @@ namespace System.Text.RegularExpressions {
 				RegexOptions.IgnoreCase |
 				RegexOptions.Multiline |
 				RegexOptions.ExplicitCapture |
-#if !NET_2_1
+#if MOBILE || !NET_2_1
 				RegexOptions.Compiled |
 #endif
 				RegexOptions.Singleline |
@@ -236,7 +232,7 @@ namespace System.Text.RegularExpressions {
 			const RegexOptions ecmaopts =
 				RegexOptions.IgnoreCase |
 				RegexOptions.Multiline |
-#if !NET_2_1
+#if MOBILE || !NET_2_1
 				RegexOptions.Compiled |
 #endif
 				RegexOptions.ECMAScript;
@@ -311,23 +307,12 @@ namespace System.Text.RegularExpressions {
 			return machineFactory;
 		}
 
-#if NET_2_0
-		protected
-#else
-		private
-#endif
-		Regex (SerializationInfo info, StreamingContext context) :
+		protected Regex (SerializationInfo info, StreamingContext context) :
 			this (info.GetString ("pattern"), 
 			      (RegexOptions) info.GetValue ("options", typeof (RegexOptions)))
 		{
 		}
 
-#if ONLY_1_1 && !TARGET_JVM
-		// fixes public API signature
-		~Regex ()
-		{
-		}
-#endif
 		// public instance properties
 		
 		public RegexOptions Options {
@@ -413,15 +398,15 @@ namespace System.Text.RegularExpressions {
 			return CreateMachine ().Scan (this, input, startat, input.Length);
 		}
 
-		public Match Match (string input, int startat, int length)
+		public Match Match (string input, int beginning, int length)
 		{
 			if (input == null)
 				throw new ArgumentNullException ("input");
-			if (startat < 0 || startat > input.Length)
-				throw new ArgumentOutOfRangeException ("startat");
-			if (length < 0 || length > input.Length - startat)
+			if (beginning < 0 || beginning > input.Length)
+				throw new ArgumentOutOfRangeException ("beginning");
+			if (length < 0 || length > input.Length - beginning)
 				throw new ArgumentOutOfRangeException ("length");
-			return CreateMachine ().Scan (this, input, startat, startat + length);
+			return CreateMachine ().Scan (this, input, beginning, beginning + length);
 		}
 
 		public MatchCollection Matches (string input)

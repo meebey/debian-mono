@@ -5,6 +5,7 @@
 //	Atsushi Enomoto <atsushi@ximian.com>
 //
 // Copyright (C) 2005 Novell, Inc.  http://www.novell.com
+// Copyright (C) 2011 Xamarin, Inc. http://xamarin.com
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,11 +28,13 @@
 //
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Net.Security;
 using System.Reflection;
 using System.ServiceModel;
 using System.ServiceModel.Channels;
 using System.ServiceModel.Description;
+using System.ServiceModel.Dispatcher;
 using NUnit.Framework;
 
 namespace MonoTests.System.ServiceModel.Description
@@ -420,6 +423,157 @@ namespace MonoTests.System.ServiceModel.Description
 			Assert.AreEqual (typeof (IFoo3), cd.ContractType, "#3");
 			Assert.AreEqual (3, cd.Operations.Count, "#4");
 		}
+		
+		[Test]
+		public void MultipleContractsInTypeHierarchy ()
+		{
+			ContractDescription.GetContract (typeof (DuplicateCheckClassWrapper.ServiceInterface));
+
+			var host = new ServiceHost (typeof (DuplicateCheckClassWrapper.DummyService)); // fine in MS, fails in Mono with "A contract cannot have two operations that have the identical names and different set of parameters"
+		}
+
+		[Test]
+		public void GetInheritedContracts ()
+		{
+			var cd = ContractDescription.GetContract (typeof (IService));
+			var ccd = cd.GetInheritedContracts ();
+			Assert.AreEqual (1, ccd.Count, "#1");
+			Assert.AreEqual (typeof (IServiceBase), ccd [0].ContractType, "#2");
+		}
+
+		[Test]
+		public void InheritedContractAndNamespaces ()
+		{
+			var cd = ContractDescription.GetContract (typeof (IService));
+			Assert.IsTrue (cd.Operations.Any (od => od.Messages.Any (md => md.Action == "http://tempuri.org/IServiceBase/Say")), "#1"); // inherited
+			Assert.IsTrue (cd.Operations.Any (od => od.SyncMethod == typeof (IService).GetMethod ("Join") && od.Messages.Any (md => md.Action == "http://tempuri.org/IService/Join")), "#2"); // self
+			Assert.IsTrue (cd.Operations.Any (od => od.SyncMethod == typeof (IService2).GetMethod ("Join") && od.Messages.Any (md => md.Action == "http://tempuri.org/IService/Join")), "#3"); // callback
+		}
+		
+		[Test]
+		public void AsyncContractWithSymmetricCallbackContract ()
+		{
+			var cd = ContractDescription.GetContract (typeof(IAsyncContractWithSymmetricCallbackContract));
+			Assert.AreEqual (2, cd.Operations.Count, "#1");
+			Assert.AreSame (typeof (IAsyncContractWithSymmetricCallbackContract), cd.ContractType, "#2");
+			Assert.AreSame (typeof (IAsyncContractWithSymmetricCallbackContract), cd.CallbackContractType, "#3");
+		}
+		
+		[Test]
+		public void InheritingDuplexContract ()
+		{
+			var cd = ContractDescription.GetContract (typeof (IDerivedDuplexContract));
+			Assert.AreEqual (4, cd.Operations.Count, "#1");
+			Assert.AreSame (typeof (IDerivedDuplexContract), cd.ContractType, "#2");
+			Assert.AreSame (typeof (IDerivedDuplexCallback), cd.CallbackContractType, "#3");
+			Assert.IsTrue (cd.Operations.Any (od => od.SyncMethod == typeof (IBaseDuplexCallback).GetMethod ("CallbackMethod")), "#4");
+			Assert.IsTrue (cd.Operations.Any (od => od.SyncMethod == typeof (IDerivedDuplexCallback).GetMethod ("CallbackSomething")), "#5");
+			Assert.IsTrue (cd.Operations.Any (od => od.SyncMethod == typeof (IBaseDuplexContract).GetMethod ("ContractMethod")), "#6");
+			Assert.IsTrue (cd.Operations.Any (od => od.SyncMethod == typeof (IDerivedDuplexContract).GetMethod ("Something")), "#7");
+		}
+		
+		[Test]
+		public void SymmetricInheritingContract ()
+		{
+			var cd = ContractDescription.GetContract (typeof(ISymmetricInheritance));
+			Assert.AreEqual (4, cd.Operations.Count, "#1");
+			Assert.AreSame (typeof (ISymmetricInheritance), cd.ContractType, "#2");
+			Assert.AreSame (typeof (ISymmetricInheritance), cd.CallbackContractType, "#3");
+			Assert.AreEqual (2, cd.Operations.Count(od => od.SyncMethod == typeof (IAsyncContractWithSymmetricCallbackContract).GetMethod ("Foo")), "#4");
+			Assert.AreEqual (2, cd.Operations.Count(od => od.SyncMethod == typeof (ISymmetricInheritance).GetMethod ("Bar")), "#5");
+		}
+		
+		[Test]
+		public void DeepContractHierarchyTest ()
+		{
+			var cd = ContractDescription.GetContract (typeof(IDeepContractHierarchy));
+			Assert.AreEqual (6, cd.Operations.Count, "#1");
+			Assert.AreSame (typeof (IDeepContractHierarchy), cd.ContractType, "#2");
+			Assert.AreSame (typeof (IDeepContractHierarchy), cd.CallbackContractType, "#3");
+		}
+
+		[Test]
+		public void MessageContractAttributes ()
+		{
+			var cd = ContractDescription.GetContract (typeof (IFoo2));
+			var od = cd.Operations.First (o => o.Name == "Nanoda");
+			var md = od.Messages.First (m => m.Direction == MessageDirection.Input);
+			Assert.AreEqual (typeof (OregoMessage), md.MessageType, "message type");
+			Assert.AreEqual ("http://tempuri.org/IFoo2/Nanoda", md.Action, "action");
+			Assert.AreEqual (1, md.Headers.Count, "headers");
+			Assert.AreEqual (3, md.Body.Parts.Count, "body parts");
+			Assert.AreEqual (0, md.Properties.Count, "properties");
+		}
+
+		// .NET complains: The operation Nanoda2 either has a parameter or a return type that is attributed with MessageContractAttribute.  In order to represent the request message using a Message Contract, the operation must have a single parameter attributed with MessageContractAttribute.  In order to represent the response message using a Message Contract, the operation's return value must be a type that is attributed with MessageContractAttribute and the operation may not have any out or ref parameters.
+		[Test]
+		[ExpectedException (typeof (InvalidOperationException))]
+		public void MessageContractAttributes2 ()
+		{
+			ContractDescription.GetContract (typeof (IFoo2_2));
+		}
+
+		[Test]
+		public void MessageContractAttributes3 ()
+		{
+			ContractDescription.GetContract (typeof (IFoo2_3));
+		}
+
+		[Test]
+		public void MessageContractAttributes4 ()
+		{
+			ContractDescription.GetContract (typeof (IFoo2_4));
+		}
+
+		[Test]
+		public void MessageContractAttributes5 ()
+		{
+			ContractDescription.GetContract (typeof (IFoo2_5));
+		}
+
+		[Test]
+		public void MessageContractAttributes6 ()
+		{
+			ContractDescription.GetContract (typeof (IFoo2_6));
+		}
+
+		[Test]
+		public void XmlSerializedOperation ()
+		{
+			var cd = ContractDescription.GetContract (typeof (XmlSerializedService));
+			var od = cd.Operations.First ();
+			var xb = od.Behaviors.Find<XmlSerializerOperationBehavior> ();
+			Assert.IsNotNull (xb, "#1");
+		}
+
+		[Test]
+		public void MessageParameterDescriptionInUse ()
+		{
+			// bug #41
+			var cd = ContractDescription.GetContract (typeof (Dealerinfo.wsvDealerinfo.WSVDealerInfoServices));
+			foreach (var od in cd.Operations)
+				foreach (var md in od.Messages)
+					if (md.Action == "*") // return
+						Assert.IsNotNull (md.Body.ReturnValue, od.Name);
+		}
+
+		[Test]
+		public void BugX206Contract ()
+		{
+			var cd = ContractDescription.GetContract (typeof (BugX206Service));
+			bool examined = false;
+			foreach (var md in cd.Operations.First ().Messages) {
+				if (md.Direction == MessageDirection.Input)
+					continue;
+				var pd = md.Body.ReturnValue;
+				Assert.IsNotNull (pd, "#1");
+				Assert.AreEqual ("DoWorkResult", pd.Name, "#2");
+				Assert.IsNull (pd.MemberInfo, "#3");
+				Assert.AreEqual (typeof (void), pd.Type, "#4");
+				examined = true;
+			}
+			Assert.IsTrue (examined, "end");
+		}
 
 		// It is for testing attribute search in interfaces.
 		public class Foo : IFoo
@@ -471,11 +625,42 @@ namespace MonoTests.System.ServiceModel.Description
 
 			// FIXME: it does not pass yet
 			[OperationContract]
-			OregoMessage Nanoda2 (OregoMessage msg1, OregoMessage msg2);
-
-			// FIXME: it does not pass yet
-			[OperationContract]
 			Mona NewMona (Mona source);
+		}
+
+		[ServiceContract]
+		public interface IFoo2_2
+		{
+			[OperationContract] // wrong operation contract, must have only one parameter with MessageContractAttribute
+			OregoMessage Nanoda2 (OregoMessage msg1, OregoMessage msg2);
+		}
+
+		[ServiceContract]
+		public interface IFoo2_3
+		{
+			[OperationContract]
+			string Nanoda2 (OregoMessage msg1);
+		}
+
+		[ServiceContract]
+		public interface IFoo2_4
+		{
+			[OperationContract]
+			OregoMessage Nanoda2 (string s, string s2);
+		}
+
+		[ServiceContract]
+		public interface IFoo2_5
+		{
+			[OperationContract]
+			Message Nanoda2 (OregoMessage msg1);
+		}
+
+		[ServiceContract]
+		public interface IFoo2_6
+		{
+			[OperationContract]
+			OregoMessage Nanoda2 (Message msg1);
 		}
 
 		[ServiceContract]
@@ -503,6 +688,8 @@ namespace MonoTests.System.ServiceModel.Description
 		[MessageContract]
 		public class OregoMessage
 		{
+			[MessageHeader]
+			public string Head;
 			[MessageBodyMember]
 			public string Neutral;
 			[MessageBodyMember]
@@ -627,6 +814,200 @@ namespace MonoTests.System.ServiceModel.Description
 				get { return foo; }
 				set { foo = value; }
 			}
+		}
+
+		public class DuplicateCheckClassWrapper
+		{
+
+			[ServiceContract]
+			internal interface ServiceInterface : Foo
+			{
+			}
+
+			[ServiceContract]
+			internal interface Foo : Bar
+			{
+				[OperationContract] void Foo();
+			}
+
+			[ServiceContract]
+			internal interface Bar
+			{
+				[OperationContract] void FooBar();
+			}
+
+			internal class DummyService : ServiceInterface
+			{
+				public void FooBar() { }
+
+				public void Foo() { }
+			}
+		}
+
+		[ServiceContract]
+		public interface IServiceBase
+		{
+			[OperationContract (IsOneWay = true)]
+			void Say (string word);
+		}
+
+		[ServiceContract (CallbackContract = typeof (IService2))]
+		public interface IService : IServiceBase
+		{
+			[OperationContract]
+			void Join ();
+		}
+
+		[ServiceContract]
+		public interface IServiceBase2
+		{
+			[OperationContract (IsOneWay = true)]
+			void Say (string word);
+		}
+
+		[ServiceContract]
+		public interface IService2 : IServiceBase2
+		{
+			[OperationContract]
+			void Join ();
+		}
+		
+		[ServiceContract (CallbackContract = typeof (IAsyncContractWithSymmetricCallbackContract))]
+		public interface IAsyncContractWithSymmetricCallbackContract
+		{
+			[OperationContract]
+			void Foo();
+
+			[OperationContract (AsyncPattern = true)]
+			IAsyncResult BeginFoo (AsyncCallback callback, object asyncState);
+
+			 void EndFoo (IAsyncResult result);
+		}
+		
+		[ServiceContract (CallbackContract = typeof (ISymmetricInheritance))]
+		public interface ISymmetricInheritance : IAsyncContractWithSymmetricCallbackContract
+		{
+			[OperationContract]
+			void Bar ();
+
+			[OperationContract (AsyncPattern = true)]
+			IAsyncResult BeginBar (AsyncCallback callback, object asyncState);
+
+			 void EndBar (IAsyncResult result);
+		}
+		
+		[ServiceContract (CallbackContract = typeof (IDeepContractHierarchy))]
+		public interface IDeepContractHierarchy : ISymmetricInheritance
+		{
+			[OperationContract]
+			void Foobar();
+		}
+		
+		public interface IBaseDuplexCallback
+		{
+			[OperationContract]
+			void CallbackMethod ();
+		}
+		
+		[ServiceContract (CallbackContract = typeof (IBaseDuplexCallback))]
+		public interface IBaseDuplexContract
+		{
+			[OperationContract]
+			void ContractMethod ();
+		}
+		
+		public interface IDerivedDuplexCallback : IBaseDuplexCallback
+		{
+			[OperationContract]
+			void CallbackSomething ();
+		}
+		
+		[ServiceContract (CallbackContract = typeof(IDerivedDuplexCallback))]
+		public interface IDerivedDuplexContract : IBaseDuplexContract
+		{
+			[OperationContract]
+			void Something ();
+		}
+
+		[ServiceContract]
+		public interface XmlSerializedService
+		{
+			[OperationContract]
+			[XmlSerializerFormat]
+			string Echo (string input);
+		}
+
+		[ServiceContract]
+		public interface BugX206Service
+		{
+			[OperationContract]
+			BugX206Response DoWork ();
+		}
+
+		[MessageContract (IsWrapped = true)]
+		public partial class BugX206Response
+		{
+		}
+
+		[Test]
+		public void TestInterfaceInheritance ()
+		{
+			var cd = ContractDescription.GetContract (typeof (InterfaceInheritance));
+			var inherited = cd.GetInheritedContracts ();
+			Assert.AreEqual (1, inherited.Count, "#1");
+		}
+
+		public class MyWebGetAttribute : Attribute, IOperationBehavior
+		{
+			void IOperationBehavior.AddBindingParameters (OperationDescription operation, BindingParameterCollection parameters)
+			{
+				;
+			}
+			
+			void IOperationBehavior.ApplyClientBehavior (OperationDescription operation, ClientOperation client)
+			{
+				;
+			}
+			
+			void IOperationBehavior.ApplyDispatchBehavior (OperationDescription operation, DispatchOperation service)
+			{
+				;
+			}
+			
+			void IOperationBehavior.Validate (OperationDescription operation)
+			{
+				;
+			}
+		}
+
+		[ServiceBehavior(InstanceContextMode = InstanceContextMode.Single)]
+		public class InterfaceInheritance : IInterfaceInheritance
+		{
+			public string Get ()
+			{
+				throw new NotImplementedException ();
+			}
+			
+			public string Test ()
+			{
+				throw new NotImplementedException ();
+			}
+		}
+		
+		[ServiceContract]
+		public interface IInterfaceInheritance: IBaseInterface
+		{
+			[OperationContract]
+			[MyWebGet]
+			string Test ();
+		}
+		
+		[ServiceContract]
+		public interface IBaseInterface
+		{
+			[OperationContract]
+			[MyWebGet]
+			string Get ();
 		}
 	}
 }

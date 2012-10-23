@@ -26,7 +26,6 @@
 //	Jonathan Pobst (monkey@jpobst.com)
 //
 
-#if NET_2_0
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
@@ -449,20 +448,20 @@ namespace System.Windows.Forms
 							direction = ToolStripDropDownDirection.BelowRight;
 						break;
 					case ToolStripDropDownDirection.BelowLeft:
-						if (show_point.Y + this.Height > max_screen.Y)
+						if (show_point.Y + this.Height > max_screen.Y && show_point.Y - this.Height > 0)
 							direction = ToolStripDropDownDirection.AboveLeft;
 						break;
 					case ToolStripDropDownDirection.BelowRight:
 					case ToolStripDropDownDirection.Default:
-						if (show_point.Y + this.Height > max_screen.Y)
+						if (show_point.Y + this.Height > max_screen.Y && show_point.Y - this.Height > 0)
 							direction = ToolStripDropDownDirection.AboveRight;
 						break;
 					case ToolStripDropDownDirection.Left:
-						if (show_point.Y + this.Height > max_screen.Y)
+						if (show_point.Y + this.Height > max_screen.Y && show_point.Y - this.Height > 0)
 							direction = ToolStripDropDownDirection.AboveLeft;
 						break;
 					case ToolStripDropDownDirection.Right:
-						if (show_point.Y + this.Height > max_screen.Y)
+						if (show_point.Y + this.Height > max_screen.Y && show_point.Y - this.Height > 0)
 							direction = ToolStripDropDownDirection.AboveRight;
 						break;
 				}
@@ -486,12 +485,18 @@ namespace System.Windows.Forms
 					break;
 			}
 
-			// Fix offscreen positions
+			// Fix offscreen horizontal positions
 			if ((show_point.X + this.Width) > max_screen.X)
 				show_point.X = max_screen.X - this.Width;
 			if (show_point.X < 0)
 				show_point.X = 0;
-			
+
+			// Fix offscreen vertical positions
+			if ((show_point.Y + this.Height) > max_screen.Y)
+				show_point.Y = max_screen.Y - this.Height;
+			if (show_point.Y < 0)
+				show_point.Y = 0;
+
 			if (this.Location != show_point)
 				this.Location = show_point;
 
@@ -928,6 +933,13 @@ namespace System.Windows.Forms
 		{
 			this.Close (reason);
 			base.Dismiss (reason);
+
+			// ContextMenuStrip won't have a parent
+			if (this.OwnerItem == null)
+				return;
+			
+			// Ensure Submenu loes keyboard capture when closing.
+			ToolStripManager.SetActiveToolStrip (null, false);			
 		}
 
 		internal override ToolStrip GetTopLevelToolStrip ()
@@ -1043,4 +1055,3 @@ namespace System.Windows.Forms
 		#endregion
 	}
 }
-#endif

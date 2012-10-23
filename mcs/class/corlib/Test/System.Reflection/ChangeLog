@@ -1,12 +1,3 @@
-2010-08-25  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	Add test for #633671
-
-2010-08-04  Jb Evain  <jbevain@gmail.com>
-
-	Add test ensuring that parameters of constructed array methods
-	define no custom attribute
-
 2010-06-08 Rodrigo Kumpera  <rkumpera@novell.com>
 
 	* MethodInfoTest.cs: Fix test for variant iface.

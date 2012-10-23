@@ -61,13 +61,12 @@ namespace System.Windows.Forms {
 		#endregion	// Private Methods
 
 		#region Public Static Methods
-#if NET_2_0
 		public static void Clear ()
 		{
 			IntPtr clipboard_handle;
 
 			clipboard_handle = XplatUI.ClipboardOpen (false);
-			XplatUI.ClipboardStore (clipboard_handle, null, 0, null);
+			XplatUI.ClipboardStore (clipboard_handle, null, 0, null, false);
 		}
 
 		public static bool ContainsAudio ()
@@ -132,14 +131,12 @@ namespace System.Windows.Forms {
 
 			return data.GetData (format, true);
 		}
-#endif
 
 		public static IDataObject GetDataObject ()
 		{
 			return GetDataObject (false);
 		}
 
-#if NET_2_0
 		public static StringCollection GetFileDropList ()
 		{
 			IDataObject data = GetDataObject ();
@@ -225,7 +222,6 @@ namespace System.Windows.Forms {
 			DataObject data_object = new DataObject (format, data);
 			SetDataObject (data_object);
 		}
-#endif
 
 		public static void SetDataObject(object data) {
 			SetDataObject(data, false);  // MSDN says default behavior is to place non-persistent data to clipboard
@@ -244,7 +240,7 @@ namespace System.Windows.Forms {
 			converter = new XplatUI.ObjectToClipboard(ConvertToClipboardData);
 
 			clipboard_handle = XplatUI.ClipboardOpen(false);
-			XplatUI.ClipboardStore(clipboard_handle, null, 0, null);	// Empty clipboard
+			XplatUI.ClipboardStore(clipboard_handle, null, 0, null, copy);	// Empty clipboard
 
 			native_format = -1;
 
@@ -265,7 +261,7 @@ namespace System.Windows.Forms {
 					if (IsDataSerializable (obj))
 						item_format.is_serializable = true;
 
-					XplatUI.ClipboardStore(clipboard_handle, obj, native_format, converter);
+					XplatUI.ClipboardStore(clipboard_handle, obj, native_format, converter, copy);
 				}
 			} else {
 				item_format = DataFormats.Format.Find(data.GetType().FullName);
@@ -273,7 +269,7 @@ namespace System.Windows.Forms {
 					native_format = item_format.Id;
 				}
 
-				XplatUI.ClipboardStore(clipboard_handle, data, native_format, converter);
+				XplatUI.ClipboardStore(clipboard_handle, data, native_format, converter, copy);
 			}
 			XplatUI.ClipboardClose(clipboard_handle);
 		}
@@ -287,12 +283,7 @@ namespace System.Windows.Forms {
 			return attrs [typeof (SerializableAttribute)] != null;
 		}
 
-#if NET_2_0
-		public 
-#else
-		internal 
-#endif
-		static void SetDataObject(object data, bool copy, int retryTimes, int retryDelay)
+		public static void SetDataObject(object data, bool copy, int retryTimes, int retryDelay)
 		{
 			if (data == null)
 				throw new ArgumentNullException("data");
@@ -319,7 +310,6 @@ namespace System.Windows.Forms {
 			} while (retry && retryTimes > 0);
 		}
 
-#if NET_2_0
 		[MonoInternalNote ("Needs additional checks for valid paths, see MSDN")]
 		public static void SetFileDropList (StringCollection filePaths)
 		{
@@ -370,7 +360,6 @@ namespace System.Windows.Forms {
 					break;
 			}
 		}
-#endif
 		#endregion	// Public Static Methods
 
 		#region Internal Static Methods

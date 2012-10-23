@@ -76,7 +76,7 @@ namespace System.Linq.Parallel
 
 		internal static int GetBestWorkerNumber (bool blocking)
 		{
-			return blocking ? Environment.ProcessorCount + 1 : Environment.ProcessorCount;
+			return blocking && Task.CurrentId == null ? Environment.ProcessorCount + 1 : Environment.ProcessorCount;
 		}
 
 		internal static Task[] Process<TSource, TElement> (QueryBaseNode<TSource> node,
@@ -93,44 +93,63 @@ namespace System.Linq.Parallel
 		                                                   Action endAction,
 		                                                   QueryOptions options)
 		{
+			CancellationTokenSource src
+				= CancellationTokenSource.CreateLinkedTokenSource (options.ImplementerToken, options.Token);
+
 			IList<IEnumerable<TElement>> enumerables = acquisitionFunc (node, options);
 
 			Task[] tasks = new Task[enumerables.Count];
-			CancellationTokenSource src
-				= CancellationTokenSource.CreateLinkedTokenSource (options.ImplementerToken, options.Token);
 
 			for (int i = 0; i < tasks.Length; i++) {
 				int index = i;
 				tasks[i] = Task.Factory.StartNew (() => {
-					foreach (TElement item in enumerables[index]) {
-						// This is from specific operators
-						if (options.ImplementerToken.IsCancellationRequested)
-							break;
-						if (options.Token.IsCancellationRequested)
-							throw new OperationCanceledException (options.Token);
+					try {
+						foreach (TElement item in enumerables[index]) {
+							if (!CheckTokens (options))
+								break;
 
-						call (item, src.Token);
+							try {
+								call (item, src.Token);
+							} catch (OperationCanceledException canceledException) {
+								if (canceledException.CancellationToken != src.Token)
+									throw canceledException;
+							}
+
+							if (!CheckTokens (options))
+								break;
+						}
+					} finally {
+						if (endAction != null)
+							endAction ();
 					}
-					if (endAction != null)
-						endAction ();
-				  }, options.Token);
+				}, options.Token, TaskCreationOptions.AttachedToParent | TaskCreationOptions.LongRunning, TaskScheduler.Default);
 			}
 
 			return tasks;
+		}
+
+		static bool CheckTokens (QueryOptions options)
+		{
+			// This is from specific operators
+			if (options.ImplementerToken.IsCancellationRequested)
+				return false;
+			if (options.Token.IsCancellationRequested)
+				throw new OperationCanceledException (options.Token);
+			return true;
 		}
 
 		internal static void ProcessAndBlock<T> (QueryBaseNode<T> node, Action<T, CancellationToken> call)
 		{
 			QueryOptions options = CheckQuery (node, true);
 
-			Task[] tasks = Process (node, call, (n, o) => n.GetEnumerables (o), options);
+			Task[] tasks = Process (node, call, new QueryBaseNodeHelper<T> ().GetEnumerables, options);
 			Task.WaitAll (tasks, options.Token);
 		}
 
 		internal static Action ProcessAndCallback<T> (QueryBaseNode<T> node, Action<T, CancellationToken> call,
 		                                              Action callback, QueryOptions options)
 		{
-			Task[] tasks = Process (node, call, (n, o) => n.GetEnumerables (o), options);
+			Task[] tasks = Process (node, call, new QueryBaseNodeHelper<T> ().GetEnumerables, options);
 			if (callback != null)
 				Task.Factory.ContinueWhenAll (tasks,  (_) => callback ());
 
@@ -141,7 +160,7 @@ namespace System.Linq.Parallel
 		                                              Action endAction,
 		                                              Action callback, QueryOptions options)
 		{
-			Task[] tasks = Process (node, call, (n, o) => n.GetOrderedEnumerables (o), endAction, options);
+			Task[] tasks = Process (node, call, new QueryBaseNodeHelper<T> ().GetOrderedEnumerables, endAction, options);
 			if (callback != null)
 				Task.Factory.ContinueWhenAll (tasks,  (_) => callback ());
 
@@ -165,34 +184,81 @@ namespace System.Linq.Parallel
 			}
 
 			for (int i = 0; i < tasks.Length; i++) {
-				int index = i;
-				bool firstRun = true;
+				var procSlot = new AggregateProcessSlot<T, U> (options,
+				                                               i,
+				                                               enumerables[i].GetEnumerator (),
+				                                               locals,
+				                                               localCall,
+				                                               seedFunc);
 
-				tasks[i] = Task.Factory.StartNew (() => {
-					foreach (T item in enumerables[index]) {
-						// This is from specific operators
-						if (options.ImplementerToken.IsCancellationRequested)
-							break;
-						if (options.Token.IsCancellationRequested)
-							throw new OperationCanceledException (options.Token);
-
-						if (firstRun && seedFunc == null) {
-							firstRun = false;
-							// HACK: TODO: omgwtfitsuckssomuch
-							locals[index] = (U)(object)item;
-							continue;
-						}
-						
-						U acc = locals[index];
-						locals[index] = localCall (acc, item);
-					}
-				}, options.Token);
+				tasks[i] = Task.Factory.StartNew (procSlot.Process, options.Token);
 			}
 
 			Task.WaitAll (tasks, options.Token);
 
 			if (call != null)
 				call (locals);
+		}
+
+		class AggregateProcessSlot<T, U>
+		{
+			readonly QueryOptions options;
+			readonly int index;
+			readonly IEnumerator<T> enumerator;
+			readonly U[] locals;
+			readonly Func<U, T, U> localCall;
+			readonly Func<U> seedFunc;
+
+			public AggregateProcessSlot (QueryOptions options,
+			                             int index,
+			                             IEnumerator<T> enumerator,
+			                             U[] locals,
+			                             Func<U, T, U> localCall,
+			                             Func<U> seedFunc)
+			{
+				this.options = options;
+				this.index = index;
+				this.enumerator = enumerator;
+				this.locals = locals;
+				this.localCall = localCall;
+				this.seedFunc = seedFunc;
+			}
+
+			public void Process ()
+			{
+				var token = options.Token;
+				var implementerToken = options.ImplementerToken;
+
+				try {
+					if (seedFunc == null) {
+						if (!enumerator.MoveNext ())
+							return;
+						locals[index] = (U)(object)enumerator.Current;
+					}
+
+					while (enumerator.MoveNext ()) {
+						if (implementerToken.IsCancellationRequested)
+							break;
+						token.ThrowIfCancellationRequested ();
+						locals[index] = localCall (locals[index], enumerator.Current);
+					}
+				} finally {
+					enumerator.Dispose ();
+				}
+			}
+		}
+
+		class QueryBaseNodeHelper<T>
+		{
+			internal IList<IEnumerable<T>> GetEnumerables (QueryBaseNode<T> source, QueryOptions options)
+			{
+				return source.GetEnumerables (options);
+			}
+
+			internal IList<IEnumerable<KeyValuePair<long,T>>> GetOrderedEnumerables (QueryBaseNode<T> source, QueryOptions options)
+			{
+				return source.GetOrderedEnumerables (options);
+			}
 		}
 	}
 }

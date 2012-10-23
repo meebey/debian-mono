@@ -8,6 +8,7 @@
 //
 // (C) 2005 Marek Sieradzki
 // Copyright 2009 Novell, Inc (http://www.novell.com)
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -76,7 +77,7 @@ namespace Mono.XBuild.CommandLine {
 				show_stacktrace = (parameters.LoggerVerbosity == LoggerVerbosity.Detailed ||
 					parameters.LoggerVerbosity == LoggerVerbosity.Diagnostic);
 				
-				if (parameters.DisplayVersion)
+				if (!parameters.NoLogo)
 					ErrorUtilities.ShowVersion (false);
 				
 				engine  = Engine.GlobalEngine;
@@ -97,6 +98,21 @@ namespace Mono.XBuild.CommandLine {
 					cl.Parameters = parameters.ConsoleLoggerParameters;
 					cl.Verbosity = parameters.LoggerVerbosity; 
 					engine.RegisterLogger (cl);
+				}
+
+				if (parameters.FileLoggerParameters != null) {
+					for (int i = 0; i < parameters.FileLoggerParameters.Length; i ++) {
+						string fl_params = parameters.FileLoggerParameters [i];
+						if (fl_params == null)
+							continue;
+
+						var fl = new FileLogger ();
+						if (fl_params.Length == 0 && i > 0)
+							fl.Parameters = String.Format ("LogFile=msbuild{0}.log", i);
+						else
+							fl.Parameters = fl_params;
+						engine.RegisterLogger (fl);
+					}
 				}
 				
 				foreach (LoggerInfo li in parameters.Loggers) {
@@ -139,11 +155,6 @@ namespace Mono.XBuild.CommandLine {
 			catch (CommandLineException cle) {
 				ErrorUtilities.ReportError(cle.ErrorCode, show_stacktrace ? cle.ToString() : cle.Message);
 			}
-
-			catch (Exception) {
-				throw;
-			}
-			
 			finally {
 				if (engine != null)
 					engine.UnregisterAllLoggers ();
@@ -185,6 +196,7 @@ namespace Mono.XBuild.CommandLine {
 				break;
 
 			case "xterm-color":
+			case "xterm-256color":
 				xterm_colors = true;
 				break;
 			}

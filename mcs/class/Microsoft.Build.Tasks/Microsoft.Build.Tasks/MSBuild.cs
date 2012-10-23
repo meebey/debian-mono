@@ -5,6 +5,7 @@
 //   Marek Sieradzki (marek.sieradzki@gmail.com)
 //
 // (C) 2005 Marek Sieradzki
+// Copyright 2011 Xamarin Inc
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -60,13 +61,13 @@ namespace Microsoft.Build.Tasks {
 
 			string filename;
 			bool result = true;
+			bool all_result = true;
 			stopOnFirstFailure = false;
 			List <ITaskItem > outputItems = new List <ITaskItem> ();
 			string currentDirectory = Environment.CurrentDirectory;
 			Hashtable outputs;
 		
 			var global_properties = SplitPropertiesToDictionary ();
-			Dictionary<string, ITaskItem> projectsByFileName = new Dictionary<string, ITaskItem> ();
 
 			Log.LogMessage (MessageImportance.Low, "Global Properties:");
 			if (global_properties != null)
@@ -103,12 +104,10 @@ namespace Microsoft.Build.Tasks {
 					result = false;
 				}
 
-				if (result) {
-					// Metadata from the first item for the project file is copied
-					ITaskItem first_item;
-					if (!projectsByFileName.TryGetValue (filename, out first_item))
-						projectsByFileName [filename] = first_item = project;
+				if (!result)
+					all_result = false;
 
+				if (result) {
 					foreach (DictionaryEntry de in outputs) {
 						ITaskItem [] array = (ITaskItem []) de.Value;
 						foreach (ITaskItem item in array) {
@@ -117,7 +116,7 @@ namespace Microsoft.Build.Tasks {
 
 							// copy the metadata from original @project to here
 							// CopyMetadataTo does _not_ overwrite
-							first_item.CopyMetadataTo (new_item);
+							project.CopyMetadataTo (new_item);
 
 							outputItems.Add (new_item);
 
@@ -135,11 +134,11 @@ namespace Microsoft.Build.Tasks {
 				Directory.SetCurrentDirectory (currentDirectory);
 			}
 
-			if (result)
+			if (all_result)
 				targetOutputs = outputItems.ToArray ();
 
 			Directory.SetCurrentDirectory (currentDirectory);
-			return result;
+			return all_result;
 		}
 
 		void ThrowIfInvalidToolsVersion (string toolsVersion)

@@ -31,6 +31,7 @@
 	<!-- TEMPLATE PARAMETERS -->
 	<xsl:param name="language" select="'C#'"/>
 	<xsl:param name="index" />
+	<xsl:param name="source-id"/>
 	
 	<xsl:variable name="ThisType" select="/Type"/>
 
@@ -126,16 +127,16 @@
 	</xsl:template>
 
 	<xsl:template name="CreateTypeSignature">
-			<xsl:attribute name="id">
-				<xsl:text>T:</xsl:text>
-				<xsl:call-template name="GetEscapedTypeName">
-					<xsl:with-param name="typename" select="@FullName" />
-				</xsl:call-template>
-				<xsl:text>:Signature</xsl:text>
-			</xsl:attribute>
-			<!-- signature -->
 			<xsl:call-template name="CreateSignature">
+			    <xsl:with-param name="id">
+				  <xsl:text>T:</xsl:text>
+				  <xsl:call-template name="GetEscapedTypeName">
+					<xsl:with-param name="typename" select="@FullName" />
+				  </xsl:call-template>
+				  <xsl:text>:Signature</xsl:text>
+				</xsl:with-param>
 				<xsl:with-param name="content">
+			<!-- signature -->
 					<xsl:choose>
 					<xsl:when test="$language='C#'">
 
@@ -310,7 +311,8 @@
 		<xsl:param name="TypeParameters" />
 
 		<xsl:for-each select="$TypeParameters/TypeParameter">
-			<xsl:if test="count(Constraints/*) > 0">
+			<xsl:variable name="constraintsCount" select="count(Constraints/*)" />
+			<xsl:if test="$constraintsCount > 0 and count(Constraints/*[.='Contravariant' or .='Covariant']) != $constraintsCount">
 				<xsl:call-template name="CreateGenericParameterConstraints">
 					<xsl:with-param name="constraints" select="Constraints" />
 				</xsl:call-template>
@@ -376,6 +378,39 @@
 		</p>
 		</xsl:if>
 
+	</xsl:template>
+
+	<xsl:template name="CreateRelatedSection">
+	  <xsl:param name="section" />
+	  <xsl:param name="type" />
+	  <xsl:if test="count(Docs/related[@type=$type])">
+		<h3 class="{$type}"><xsl:value-of select="$section" /></h3>
+		<ul class="{$type}">
+		  <xsl:for-each select="Docs/related[@type=$type]">
+			<li><a href="{@href}" target="_blank"><xsl:value-of select="." /></a></li>
+		  </xsl:for-each>
+		</ul>
+	  </xsl:if>
+	</xsl:template>
+
+	<xsl:template name="CreatePlatformRequirements">
+	  <!-- For now we only have that information in MonoTouch so only process that -->
+	  <xsl:if test="starts-with(/Type/@FullName, 'MonoTouch')">
+		<xsl:choose>
+		  <!-- We first check if we have a [Since] at the member level -->
+		  <xsl:when test="count(Attributes/Attribute/AttributeName[starts-with(text(), 'MonoTouch.ObjCRuntime.Since')])">
+			<b>Minimum iOS version: </b>
+			<xsl:value-of select="translate(substring-before (substring-after (Attributes/Attribute/AttributeName[starts-with(text(), 'MonoTouch.ObjCRuntime.Since')], 'MonoTouch.ObjCRuntime.Since('), ')'), ', ', '.')" />
+			<br />
+		  </xsl:when>
+		  <!-- If not, we then check at the type level -->
+		  <xsl:when test="count(/Type/Attributes/Attribute/AttributeName[starts-with(text(), 'MonoTouch.ObjCRuntime.Since')])">
+			<b>Minimum iOS version: </b> 
+			<xsl:value-of select="translate(substring-before (substring-after (/Type/Attributes/Attribute/AttributeName[starts-with(text(), 'MonoTouch.ObjCRuntime.Since')], 'MonoTouch.ObjCRuntime.Since('), ')'), ', ', '.')" />
+			<br />
+		  </xsl:when>
+		</xsl:choose>
+	  </xsl:if>
 	</xsl:template>
 
 	<xsl:template name="CreateMemberSignature">
@@ -663,47 +698,6 @@
 			</xsl:call-template>
 		</xsl:if>
 
-		<!-- thread safety -->
-
-		<xsl:if test="count(ThreadingSafetyStatement)">
-			<xsl:call-template name="CreateH4Section">
-				<xsl:with-param name="name" select="'Thread Safety'"/>
-				<xsl:with-param name="child-id" select="concat ($linkid, ':Thread Safety')" />
-				<xsl:with-param name="content">
-					<xsl:apply-templates select="ThreadingSafetyStatement" mode="notoppara"/>
-				</xsl:with-param>
-			</xsl:call-template>
-		</xsl:if>
-
-
-		<!-- permissions -->
-
-		<xsl:if test="count(Docs/permission)">
-			<xsl:call-template name="CreateH4Section">
-				<xsl:with-param name="name" select="'Permissions'"/>
-				<xsl:with-param name="child-id" select="concat ($linkid, ':Permissions')" />
-				<xsl:with-param name="content">
-					<xsl:call-template name="CreateTypeDocumentationTable">
-					<xsl:with-param name="content">
-					<xsl:for-each select="Docs/permission">
-						<tr valign="top">
-						<td>
-							<xsl:apply-templates select="@cref" mode="typelink">
-								<xsl:with-param name="wrt" select="$TypeNamespace"/>
-							</xsl:apply-templates>
-							<xsl:apply-templates select="." mode="editlink"/>
-						</td>
-						<td>
-							<xsl:apply-templates select="." mode="notoppara"/>
-						</td>
-						</tr>
-					</xsl:for-each>
-					</xsl:with-param>
-					</xsl:call-template>
-				</xsl:with-param>
-			</xsl:call-template>
-		</xsl:if>
-
 		<!-- method/property/constructor exceptions -->
 
 		<xsl:if test="count(Docs/exception)">
@@ -735,7 +729,7 @@
 		<!-- remarks -->
 
 		<xsl:if test="count(Docs/remarks)">
-			<xsl:call-template name="CreateH4Section">
+			<xsl:call-template name="CreateH2Section">
 				<xsl:with-param name="name" select="'Remarks'"/>
 				<xsl:with-param name="child-id" select="concat ($linkid, ':Remarks')" />
 				<xsl:with-param name="content">
@@ -745,10 +739,51 @@
 			</xsl:call-template>
 		</xsl:if>
 
+		<!-- thread safety -->
+
+		<xsl:if test="count(ThreadingSafetyStatement)">
+			<xsl:call-template name="CreateH2Section">
+				<xsl:with-param name="name" select="'Thread Safety'"/>
+				<xsl:with-param name="child-id" select="concat ($linkid, ':Thread Safety')" />
+				<xsl:with-param name="content">
+					<xsl:apply-templates select="ThreadingSafetyStatement" mode="notoppara"/>
+				</xsl:with-param>
+			</xsl:call-template>
+		</xsl:if>
+
+
+		<!-- permissions -->
+
+		<xsl:if test="count(Docs/permission)">
+			<xsl:call-template name="CreateH2Section">
+				<xsl:with-param name="name" select="'Permissions'"/>
+				<xsl:with-param name="child-id" select="concat ($linkid, ':Permissions')" />
+				<xsl:with-param name="content">
+					<xsl:call-template name="CreateTypeDocumentationTable">
+					<xsl:with-param name="content">
+					<xsl:for-each select="Docs/permission">
+						<tr valign="top">
+						<td>
+							<xsl:apply-templates select="@cref" mode="typelink">
+								<xsl:with-param name="wrt" select="$TypeNamespace"/>
+							</xsl:apply-templates>
+							<xsl:apply-templates select="." mode="editlink"/>
+						</td>
+						<td>
+							<xsl:apply-templates select="." mode="notoppara"/>
+						</td>
+						</tr>
+					</xsl:for-each>
+					</xsl:with-param>
+					</xsl:call-template>
+				</xsl:with-param>
+			</xsl:call-template>
+		</xsl:if>
+
 		<!-- enumeration values -->
 
 		<xsl:if test="Base/BaseTypeName = 'System.Enum'">
-			<xsl:call-template name="CreateH4Section">
+			<xsl:call-template name="CreateH2Section">
 				<xsl:with-param name="name" select="'Members'"/>
 				<xsl:with-param name="child-id" select="concat ($linkid, ':Members')" />
 				<xsl:with-param name="content">
@@ -785,7 +820,7 @@
 
 		<xsl:if test="count(Docs/example)">
 			<xsl:for-each select="Docs/example">
-				<xsl:call-template name="CreateH4Section">
+				<xsl:call-template name="CreateH2Section">
 					<xsl:with-param name="name" select="'Example'"/>
 					<xsl:with-param name="child-id" select="concat ($linkid, ':Example:', position())" />
 					<xsl:with-param name="content">
@@ -795,10 +830,43 @@
 			</xsl:for-each>
 		</xsl:if>
 
-		<xsl:call-template name="CreateH4Section">
+		<!-- related content -->
+		<xsl:if test="count(Docs/related)">
+		  <xsl:call-template name="CreateH2Section">
+			<xsl:with-param name="name" select="'Related content'" />
+			<xsl:with-param name="child-id" select="concat ($linkid, ':Related:')" />
+			<xsl:with-param name="content">
+			  <div class="related">
+				<xsl:call-template name="CreateRelatedSection">
+				  <xsl:with-param name="section" select="'Articles'" />
+				  <xsl:with-param name="type" select="'article'" />
+				</xsl:call-template>
+				<xsl:call-template name="CreateRelatedSection">
+				  <xsl:with-param name="section" select="'Recipes'" />
+				  <xsl:with-param name="type" select="'recipe'" />
+				</xsl:call-template>
+				<xsl:call-template name="CreateRelatedSection">
+				  <xsl:with-param name="section" select="'Samples'" />
+				  <xsl:with-param name="type" select="'sample'" />
+				</xsl:call-template>
+				<xsl:call-template name="CreateRelatedSection">
+				  <xsl:with-param name="section" select="'Related specifications'" />
+				  <xsl:with-param name="type" select="'specification'" />
+				</xsl:call-template>
+				<xsl:call-template name="CreateRelatedSection">
+				  <xsl:with-param name="section" select="'External Documentation'" />
+				  <xsl:with-param name="type" select="'externalDocumentation'" />
+				</xsl:call-template>
+			  </div>
+			</xsl:with-param>
+		  </xsl:call-template>
+		</xsl:if>
+
+		<xsl:call-template name="CreateH2Section">
 			<xsl:with-param name="name" select="'Requirements'"/>
 			<xsl:with-param name="child-id" select="concat ($linkid, ':Version Information')" />
 			<xsl:with-param name="content">
+				<xsl:call-template name="CreatePlatformRequirements" />
 				<b>Namespace: </b><xsl:value-of select="substring(/Type/@FullName, 1, string-length(/Type/@FullName) - string-length(/Type/@Name) - 1)" />
 				<xsl:if test="count(/Type/AssemblyInfo/AssemblyName) &gt; 0">
 					<br />
@@ -1446,6 +1514,34 @@
 			<xsl:with-param name="content" select="string(descendant-or-self::text())" />
 		</xsl:call-template>
 	</xsl:template>
+	<xsl:template match="img">
+	  <p>
+		<img>
+		  <xsl:attribute name="src">
+			<!-- we recognize two types of images:
+				   - those with src attribute that reference directly an external image
+				   - those with a href attributes which are internally available as part of the doc bundle
+			-->
+			<xsl:choose>
+			  <xsl:when test="count(@src)&gt;0">
+				<xsl:value-of select="@src" />
+			  </xsl:when>
+			  <xsl:when test="count(@href)&gt;0">
+				<xsl:value-of select="concat('source-id:', $source-id, ':', @href)" />
+			  </xsl:when>
+			</xsl:choose>
+		  </xsl:attribute>
+		  <xsl:attribute name="class">
+			<xsl:choose>
+			  <xsl:when test="count(@class)&gt;0">
+				<xsl:value-of select="@class" />
+			  </xsl:when>
+			  <xsl:otherwise>picture</xsl:otherwise>
+			</xsl:choose>
+		  </xsl:attribute>
+		</img>
+	  </p>
+	</xsl:template>
 
 	<xsl:template match="onequarter">¼</xsl:template>
 	<xsl:template match="pi">π</xsl:template>
@@ -1855,7 +1951,7 @@
 		</xsl:variable>
 
 		<!-- header -->
-		<xsl:call-template name="CreateH3Section">
+		<xsl:call-template name="CreateH2Section">
 			<xsl:with-param name="name" select="$SectionName" />
 			<xsl:with-param name="child-id" select="$SectionName" />
 			<xsl:with-param name="content">
@@ -2318,7 +2414,19 @@ SkipTypeArgument: invalid type substring '<xsl:value-of select="$s" />'
 						<xsl:with-param name="s" select="substring-after ($s, '&lt;')" />
 					</xsl:call-template>
 				</xsl:variable>
-				<xsl:value-of select="substring-after ($r, '&gt;')" />
+				<xsl:choose>
+					<xsl:when test="starts-with ($r, '>') or starts-with ($r, '+')">
+						<xsl:value-of select="substring-after ($r, '&gt;')" />
+					</xsl:when>
+					<xsl:when test="starts-with ($r, ',')">
+						<xsl:value-of select="$r" />
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:message>
+! WTF3: s=<xsl:value-of select="$s" />; r=<xsl:value-of select="$r" />
+						</xsl:message>
+					</xsl:otherwise>
+				</xsl:choose>
 			</xsl:when>
 			<xsl:when test="$p/Gt/@Length > 0">
 				<xsl:text>&gt;</xsl:text>
@@ -2443,7 +2551,7 @@ SkipGenericArgument: invalid type substring '<xsl:value-of select="$s" />'
 			<xsl:with-param name="type" select="$type" />
 			<xsl:with-param name="member" select="$member" />
 		</xsl:call-template>
-		<xsl:if test="count($member/Parameters/Parameter) &gt; 0">
+		<xsl:if test="count($member/Parameters/Parameter) &gt; 0 or $member/MemberType='Method' or $member/MemberType='Constructor'">
 			<xsl:text>(</xsl:text>
 			<xsl:for-each select="Parameters/Parameter">
 				<xsl:if test="not(position()=1)">,</xsl:if>

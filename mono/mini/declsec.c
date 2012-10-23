@@ -17,7 +17,7 @@
 MonoBoolean
 mono_method_has_declsec (MonoMethod *method)
 {
-	mono_jit_stats.cas_declsec_check++;
+	InterlockedIncrement (&mono_jit_stats.cas_declsec_check);
 
 	if (method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE || method->wrapper_type == MONO_WRAPPER_MANAGED_TO_MANAGED) {
 		method = mono_marshal_method_from_wrapper (method);
@@ -43,17 +43,23 @@ mono_method_has_declsec (MonoMethod *method)
 void
 mono_declsec_cache_stack_modifiers (MonoJitInfo *jinfo)
 {
+	MonoMethodCasInfo *info = mono_jit_info_get_cas_info (jinfo);
+	guint32 flags;
+
+	if (!info)
+		return;
+
 	/* first find the stack modifiers applied to the method */
-	guint32 flags = mono_declsec_flags_from_method (jinfo->method);
-	jinfo->cas_method_assert = (flags & MONO_DECLSEC_FLAG_ASSERT) != 0;
-	jinfo->cas_method_deny = (flags & MONO_DECLSEC_FLAG_DENY) != 0;
-	jinfo->cas_method_permitonly = (flags & MONO_DECLSEC_FLAG_PERMITONLY) != 0;
+	flags = mono_declsec_flags_from_method (jinfo->method);
+	info->cas_method_assert = (flags & MONO_DECLSEC_FLAG_ASSERT) != 0;
+	info->cas_method_deny = (flags & MONO_DECLSEC_FLAG_DENY) != 0;
+	info->cas_method_permitonly = (flags & MONO_DECLSEC_FLAG_PERMITONLY) != 0;
 
 	/* then find the stack modifiers applied to the class */
 	flags = mono_declsec_flags_from_class (jinfo->method->klass);
-	jinfo->cas_class_assert = (flags & MONO_DECLSEC_FLAG_ASSERT) != 0;
-	jinfo->cas_class_deny = (flags & MONO_DECLSEC_FLAG_DENY) != 0;
-	jinfo->cas_class_permitonly = (flags & MONO_DECLSEC_FLAG_PERMITONLY) != 0;
+	info->cas_class_assert = (flags & MONO_DECLSEC_FLAG_ASSERT) != 0;
+	info->cas_class_deny = (flags & MONO_DECLSEC_FLAG_DENY) != 0;
+	info->cas_class_permitonly = (flags & MONO_DECLSEC_FLAG_PERMITONLY) != 0;
 }
 
 
@@ -61,13 +67,15 @@ MonoSecurityFrame*
 mono_declsec_create_frame (MonoDomain *domain, MonoJitInfo *jinfo)
 {
 	MonoSecurityFrame *frame = (MonoSecurityFrame*) mono_object_new (domain, mono_defaults.runtimesecurityframe_class);
+	MonoMethodCasInfo *info;
 
-	if (!jinfo->cas_inited) {
+	info = mono_jit_info_get_cas_info (jinfo);
+	if (info && !info->cas_inited) {
 		if (mono_method_has_declsec (jinfo->method)) {
 			/* Cache the stack modifiers into the MonoJitInfo structure to speed up future stack walks */
 			mono_declsec_cache_stack_modifiers (jinfo);
 		}
-		jinfo->cas_inited = TRUE;
+		info->cas_inited = TRUE;
 	}
 
 	MONO_OBJECT_SETREF (frame, method, mono_method_get_object (domain, jinfo->method, NULL));
@@ -75,21 +83,21 @@ mono_declsec_create_frame (MonoDomain *domain, MonoJitInfo *jinfo)
 
 	/* stack modifiers on methods have priority on (i.e. replaces) modifiers on class */
 
-	if (jinfo->cas_method_assert) {
+	if (info && info->cas_method_assert) {
 		mono_declsec_get_method_action (jinfo->method, SECURITY_ACTION_ASSERT, &frame->assert);
-	} else if (jinfo->cas_class_assert) {
+	} else if (info && info->cas_class_assert) {
 		mono_declsec_get_class_action (jinfo->method->klass, SECURITY_ACTION_ASSERT, &frame->assert);
 	}
 
-	if (jinfo->cas_method_deny) {
+	if (info && info->cas_method_deny) {
 		mono_declsec_get_method_action (jinfo->method, SECURITY_ACTION_DENY, &frame->deny);
-	} else if (jinfo->cas_class_deny) {
+	} else if (info && info->cas_class_deny) {
 		mono_declsec_get_class_action (jinfo->method->klass, SECURITY_ACTION_DENY, &frame->deny);
 	}
 
-	if (jinfo->cas_method_permitonly) {
+	if (info && info->cas_method_permitonly) {
 		mono_declsec_get_method_action (jinfo->method, SECURITY_ACTION_PERMITONLY, &frame->permitonly);
-	} else if (jinfo->cas_class_permitonly) {
+	} else if (info && info->cas_class_permitonly) {
 		mono_declsec_get_class_action (jinfo->method->klass, SECURITY_ACTION_PERMITONLY, &frame->permitonly);
 	}
 
@@ -116,7 +124,7 @@ mono_declsec_linkdemand_standard (MonoDomain *domain, MonoMethod *caller, MonoMe
 {
 	MonoDeclSecurityActions linkclass, linkmethod;
 
-	mono_jit_stats.cas_linkdemand++;
+	InterlockedIncrement (&mono_jit_stats.cas_linkdemand);
 
 	if (mono_declsec_get_linkdemands (callee, &linkclass, &linkmethod)) {
 		MonoAssembly *assembly = mono_image_get_assembly (caller->klass->image);
@@ -190,7 +198,7 @@ mono_declsec_linkdemand_aptc (MonoDomain *domain, MonoMethod *caller, MonoMethod
 	MonoAssembly *assembly;
 	guint32 size = 0;
 
-	mono_jit_stats.cas_linkdemand_aptc++;
+	InterlockedIncrement (&mono_jit_stats.cas_linkdemand_aptc);
 
 	/* A - Applicable only if we're calling into *another* assembly */
 	if (caller->klass->image == callee->klass->image)
@@ -262,7 +270,7 @@ mono_declsec_linkdemand_pinvoke (MonoDomain *domain, MonoMethod *caller, MonoMet
 {
 	MonoAssembly *assembly = mono_image_get_assembly (caller->klass->image);
 
-	mono_jit_stats.cas_linkdemand_pinvoke++;
+	InterlockedIncrement (&mono_jit_stats.cas_linkdemand_pinvoke);
 
 	/* Check for P/Invoke flag for the assembly */
 	if (!MONO_SECMAN_FLAG_INIT (assembly->unmanaged)) {
@@ -321,7 +329,7 @@ mono_declsec_linkdemand_icall (MonoDomain *domain, MonoMethod *caller, MonoMetho
 {
 	MonoAssembly *assembly;
 
-	mono_jit_stats.cas_linkdemand_icall++;
+	InterlockedIncrement (&mono_jit_stats.cas_linkdemand_icall);
 
 	/* check if the _icall_ is defined inside an ECMA signed assembly */
 	assembly = mono_image_get_assembly (icall->klass->image);

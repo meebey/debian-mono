@@ -29,7 +29,6 @@ using System;
 using System.Threading;
 
 using NUnit;
-using NUnit.Core;
 using NUnit.Framework;
 
 namespace MonoTests.System.Threading
@@ -99,11 +98,70 @@ namespace MonoTests.System.Threading
 		}
 
 		[Test, ExpectedException (typeof (InvalidOperationException))]
+		[Category ("NotDotNet")] // nunit results in stack overflow
 		public void MultipleReferenceToValueTest ()
 		{
 			threadLocal = new ThreadLocal<int> (() => threadLocal.Value + 1);
 
 			var value = threadLocal.Value;
+		}
+
+		[Test]
+		public void DefaultThreadLocalInitTest ()
+		{
+			var local = new ThreadLocal<DateTime> ();
+			var local2 = new ThreadLocal<object> ();
+
+			Assert.AreEqual (default (DateTime), local.Value);
+			Assert.AreEqual (default (object), local2.Value);
+		}
+
+		[Test, ExpectedException (typeof (ObjectDisposedException))]
+		public void DisposedOnValueTest ()
+		{
+			var tl = new ThreadLocal<int> ();
+			tl.Dispose ();
+			var value = tl.Value;
+		}
+
+		[Test, ExpectedException (typeof (ObjectDisposedException))]
+		public void DisposedOnIsValueCreatedTest ()
+		{
+			var tl = new ThreadLocal<int> ();
+			tl.Dispose ();
+			var value = tl.IsValueCreated;
+		}
+
+		[Test]
+		public void PerThreadException ()
+		{
+			int callTime = 0;
+			threadLocal = new ThreadLocal<int> (() => {
+					if (callTime == 1)
+						throw new ApplicationException ("foo");
+					Interlocked.Increment (ref callTime);
+					return 43;
+				});
+
+			Exception exception = null;
+
+			var foo = threadLocal.Value;
+			bool thread_value_created = false;
+			Assert.AreEqual (43, foo, "#3");
+			Thread t = new Thread ((object o) => {
+				try {
+					var foo2 = threadLocal.Value;
+				} catch (Exception e) {
+					exception = e;
+				}
+				// should be false and not throw
+				thread_value_created = threadLocal.IsValueCreated;
+			});
+			t.Start ();
+			t.Join ();
+			Assert.AreEqual (false, thread_value_created, "#4");
+			Assert.IsNotNull (exception, "#5");
+			Assert.IsInstanceOfType (typeof (ApplicationException), exception, "#6");
 		}
 
 		void AssertThreadLocal ()

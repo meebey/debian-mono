@@ -28,6 +28,7 @@
 
 using System;
 using System.Collections;
+using System.Diagnostics;
 
 using Mono.Linker.Steps;
 
@@ -55,11 +56,13 @@ namespace Mono.Linker {
 		public void AddStepBefore (Type target, IStep step)
 		{
 			for (int i = 0; i < _steps.Count; i++) {
-				if (_steps [i].GetType () == target) {
+				if (target.IsInstanceOfType (_steps [i])) {
 					_steps.Insert (i, step);
 					return;
 				}
 			}
+			string msg = String.Format ("Step {0} could not be inserted before (not found) {1}", step, target);
+			throw new InvalidOperationException (msg);
 		}
 
 		public void ReplaceStep (Type target, IStep step)
@@ -71,7 +74,22 @@ namespace Mono.Linker {
 		public void AddStepAfter (Type target, IStep step)
 		{
 			for (int i = 0; i < _steps.Count; i++) {
-				if (_steps [i].GetType () == target) {
+				if (target.IsInstanceOfType (_steps [i])) {
+					if (i == _steps.Count - 1)
+						_steps.Add (step);
+					else
+						_steps.Insert (i + 1, step);
+					return;
+				}
+			}
+			string msg = String.Format ("Step {0} could not be inserted after (not found) {1}", step, target);
+			throw new InvalidOperationException (msg);
+		}
+
+		public void AddStepAfter (IStep target, IStep step)
+		{
+			for (int i = 0; i < _steps.Count; i++) {
+				if (_steps [i] == target) {
 					if (i == _steps.Count - 1)
 						_steps.Add (step);
 					else

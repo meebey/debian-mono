@@ -4,7 +4,7 @@
  * Author:
  *	Jonathan Pryor
  *
- * (C) 2010 Ximian, Inc.
+ * (C) 2010 Novell, Inc.
  */
 
 #ifndef _MONO_METADATA_RUNTIME_H_
@@ -14,6 +14,7 @@
 
 MONO_BEGIN_DECLS
 
+gboolean mono_runtime_is_critical_method (MonoMethod *method) MONO_INTERNAL;
 void mono_runtime_shutdown (void) MONO_INTERNAL;
 
 MONO_END_DECLS

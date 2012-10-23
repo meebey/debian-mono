@@ -1,14 +1,3 @@
-2010-08-10  Marek Habersack  <grendel@twistedcode.net>
-
-	[asp.net] Fix for bug #629990 In-Proc session state must remove
-	cache prefix from item key
-
-	When the in-proc session handler puts items in the internal cache,
-	it prefixes them with the @@@InProc@ prefix to make sure they
-	don't conflict with other values stored there. The handler has
-	been failing so far to remove that prefix when triggering the
-	session end event. This commit fixes the issue.
-
 2010-02-24  Marek Habersack  <mhabersack@novell.com>
 
 	* SessionStateServerHandler.cs, SessionSQLServerHandler.cs: added

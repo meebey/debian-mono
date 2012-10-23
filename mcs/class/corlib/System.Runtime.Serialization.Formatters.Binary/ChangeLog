@@ -1,17 +1,3 @@
-2010-08-30  Carlos Alberto Cortez  <calberto.cortez@gmail.com>
-
-	* ObjectWriter.cs: Actually take SerializationBinder.BindToName
-	into account when serializing data.
-
-2010-08-23  Carlos Alberto Cortez  <calberto.cortez@gmail.com>
-
-	* ObjectWriter.cs: Make the .ctor take a single BinaryFormatter
-	parameter and get the information from there. This should make it
-	easier to do some 4.0 new assignations, instead of adding yet
-	another parameter (also, ObjectReader is doing exactly what we are
-	doing here now). * BinaryFormatter.cs: * MessageFormatter.cs:
-	Update call sites.
-
 2010-03-16  Jb Evain  <jbevain@novell.com>
 
 	* BinaryCommon.cs: use MOONLIGHT symbol to disambiguate

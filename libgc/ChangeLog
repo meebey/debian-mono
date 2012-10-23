@@ -1,11 +1,3 @@
-2010-08-26  Zoltan Varga  <vargaz@gmail.com>
-
-	Avoid warnings on machines with cpus > 16.
-
-2010-08-25  Gonzalo Paniagua Javier  <gonzalo.mono@gmail.com>
-
-	Add --quiet-build (on by default)
-
 2010-07-27  Geoff Norton  <gnorton@novell.com>
 
 	* darwin_stop_world.c: Dont track unneeded registers for amd64.

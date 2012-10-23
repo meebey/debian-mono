@@ -1,4 +1,8 @@
-
+/*
+ * Copyright 2003 Ximian, Inc
+ * Copyright 2003-2011 Novell Inc
+ * Copyright 2011 Xamarin Inc
+ */
 MINI_OP(OP_LOAD,	"load", NONE, NONE, NONE)
 MINI_OP(OP_LDADDR,	"ldaddr", IREG, NONE, NONE)
 MINI_OP(OP_STORE,	"store", NONE, NONE, NONE)
@@ -17,6 +21,10 @@ MINI_OP(OP_ICOMPARE_IMM,	"icompare_imm", NONE, IREG, NONE)
 MINI_OP(OP_LCOMPARE_IMM,	"lcompare_imm", NONE, LREG, NONE)
 MINI_OP(OP_LOCAL,	"local", NONE, NONE, NONE)
 MINI_OP(OP_ARG,		"arg", NONE, NONE, NONE)
+/*
+ * Represents passing a valuetype argument which has not been decomposed yet.
+ * inst_p0 points to the call.
+ */
 MINI_OP(OP_OUTARG_VT,	"outarg_vt", NONE, VREG, NONE)
 MINI_OP(OP_OUTARG_VTRETADDR, "outarg_vtretaddr", IREG, NONE, NONE)
 MINI_OP(OP_SETRET,	"setret", NONE, IREG, NONE)
@@ -92,7 +100,7 @@ MINI_OP(OP_STOREI8_MEMBASE_REG, "storei8_membase_reg", IREG, LREG, NONE)
 MINI_OP(OP_STORER4_MEMBASE_REG, "storer4_membase_reg", IREG, FREG, NONE)
 MINI_OP(OP_STORER8_MEMBASE_REG, "storer8_membase_reg", IREG, FREG, NONE)
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#ifdef MONO_ARCH_SIMD_INTRINSICS
 MINI_OP(OP_STOREX_MEMBASE_REG, "storex_membase_reg", IREG, XREG, NONE)
 MINI_OP(OP_STOREX_ALIGNED_MEMBASE_REG,     "storex_aligned_membase_reg", IREG, XREG, NONE)
 MINI_OP(OP_STOREX_NTA_MEMBASE_REG,     "storex_nta_membase_reg", IREG, XREG, NONE)
@@ -120,7 +128,7 @@ MINI_OP(OP_LOADR8_MEMBASE,"loadr8_membase", FREG, IREG, NONE)
 
 MINI_OP(OP_LOADX_MEMBASE, 			"loadx_membase", XREG, IREG, NONE)
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#ifdef MONO_ARCH_SIMD_INTRINSICS
 MINI_OP(OP_LOADX_ALIGNED_MEMBASE,  "loadx_aligned_membase", XREG, IREG, NONE)
 #endif
 
@@ -239,13 +247,13 @@ MINI_OP(OP_LSHR_UN, "long_shr_un", LREG, LREG, IREG)
 /* 64 bit opcodes: must be in the same order as the matching CEE_ opcodes: unops_op_map */
 MINI_OP(OP_LNEG,       "long_neg", LREG, LREG, NONE)
 MINI_OP(OP_LNOT,       "long_not", LREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_I1,"long_conv_to_i1", LREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_I2,"long_conv_to_i2", LREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_I4,"long_conv_to_i4", LREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_I1,"long_conv_to_i1", IREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_I2,"long_conv_to_i2", IREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_I4,"long_conv_to_i4", IREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_I8,"long_conv_to_i8", LREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_R4,"long_conv_to_r4", FREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_R8,"long_conv_to_r8", FREG, LREG, NONE)
-MINI_OP(OP_LCONV_TO_U4,"long_conv_to_u4", LREG, LREG, NONE)
+MINI_OP(OP_LCONV_TO_U4,"long_conv_to_u4", IREG, LREG, NONE)
 MINI_OP(OP_LCONV_TO_U8,"long_conv_to_u8", LREG, LREG, NONE)
 
 MINI_OP(OP_LCONV_TO_U2,   "long_conv_to_u2", IREG, LREG, NONE)
@@ -601,7 +609,7 @@ MINI_OP(OP_NOT_NULL, "not_null", NONE, IREG, NONE)
 
 /* SIMD opcodes. */
 
-#if defined(TARGET_X86) || defined(TARGET_AMD64)
+#ifdef MONO_ARCH_SIMD_INTRINSICS
 
 MINI_OP(OP_ADDPS, "addps", XREG, XREG, XREG)
 MINI_OP(OP_DIVPS, "divps", XREG, XREG, XREG)
@@ -627,6 +635,8 @@ MINI_OP(OP_RCPPS, "rcpps", XREG, XREG, NONE)
 MINI_OP(OP_PSHUFLEW_HIGH, "pshufflew_high", XREG, XREG, NONE)
 MINI_OP(OP_PSHUFLEW_LOW, "pshufflew_low", XREG, XREG, NONE)
 MINI_OP(OP_PSHUFLED, "pshuffled", XREG, XREG, NONE)
+MINI_OP(OP_SHUFPS, "shufps", XREG, XREG, XREG)
+MINI_OP(OP_SHUFPD, "shufpd", XREG, XREG, XREG)
 
 MINI_OP(OP_ADDPD, "addpd", XREG, XREG, XREG)
 MINI_OP(OP_DIVPD, "divpd", XREG, XREG, XREG)
@@ -767,6 +777,13 @@ MINI_OP(OP_EXTRACT_U1, "extract_u1", IREG, XREG, NONE)
 MINI_OP(OP_EXTRACT_R8, "extract_r8", FREG, XREG, NONE)
 MINI_OP(OP_EXTRACT_I8, "extract_i8", LREG, XREG, NONE)
 
+/* Used by LLVM */
+MINI_OP(OP_INSERT_I1, "insert_i1", XREG, XREG, IREG)
+MINI_OP(OP_INSERT_I4, "insert_i4", XREG, XREG, IREG)
+MINI_OP(OP_INSERT_I8, "insert_i8", XREG, XREG, LREG)
+MINI_OP(OP_INSERT_R4, "insert_r4", XREG, XREG, FREG)
+MINI_OP(OP_INSERT_R8, "insert_r8", XREG, XREG, FREG)
+
 MINI_OP(OP_INSERT_I2, "insert_i2", XREG, XREG, IREG)
 
 MINI_OP(OP_EXTRACTX_U2, "extractx_u2", IREG, XREG, NONE)
@@ -793,6 +810,15 @@ MINI_OP(OP_EXPAND_I8, "expand_i8", XREG, IREG, NONE)
 MINI_OP(OP_EXPAND_R8, "expand_r8", XREG, FREG, NONE)
 
 MINI_OP(OP_PREFETCH_MEMBASE, "prefetch_membase", NONE, IREG, NONE)
+
+MINI_OP(OP_CVTDQ2PD, "cvtdq2pd", XREG, XREG, NONE)
+MINI_OP(OP_CVTDQ2PS, "cvtdq2ps", XREG, XREG, NONE)
+MINI_OP(OP_CVTPD2DQ, "cvtpd2dq", XREG, XREG, NONE)
+MINI_OP(OP_CVTPD2PS, "cvtpd2ps", XREG, XREG, NONE)
+MINI_OP(OP_CVTPS2DQ, "cvtps2dq", XREG, XREG, NONE)
+MINI_OP(OP_CVTPS2PD, "cvtps2pd", XREG, XREG, NONE)
+MINI_OP(OP_CVTTPD2DQ, "cvttpd2dq", XREG, XREG, NONE)
+MINI_OP(OP_CVTTPS2DQ, "cvttps2dq", XREG, XREG, NONE)
 
 #endif
 
@@ -870,7 +896,34 @@ MINI_OP(OP_LIVERANGE_START, "liverange_start", NONE, NONE, NONE)
  */
 MINI_OP(OP_LIVERANGE_END, "liverange_end", NONE, NONE, NONE)
 
+/* GC support */
+/*
+ * mono_arch_output_basic_block () will set the backend.pc_offset field to the current pc
+ * offset.
+ */
+MINI_OP(OP_GC_LIVENESS_DEF, "gc_liveness_def", NONE, NONE, NONE)
+MINI_OP(OP_GC_LIVENESS_USE, "gc_liveness_use", NONE, NONE, NONE)
+
+/*
+ * This marks the location inside a basic block where a GC tracked spill slot has been
+ * defined. The spill slot is assumed to be alive until the end of the bblock.
+ */
+MINI_OP(OP_GC_SPILL_SLOT_LIVENESS_DEF, "gc_spill_slot_liveness_def", NONE, NONE, NONE)
+
+/*
+ * This marks the location inside a basic block where a GC tracked param area slot has
+ * been defined. The slot is assumed to be alive until the next call.
+ */
+MINI_OP(OP_GC_PARAM_SLOT_LIVENESS_DEF, "gc_param_slot_liveness_def", NONE, NONE, NONE)
+
 /* Arch specific opcodes */
+/* #if defined(__native_client_codegen__) || defined(__native_client__) */
+/* We have to define these in terms of the TARGET defines, not NaCl defines */
+/* because genmdesc.pl doesn't have multiple defines per platform.          */
+#if defined(TARGET_AMD64) || defined(TARGET_X86)
+MINI_OP(OP_NACL_GC_SAFE_POINT,     "nacl_gc_safe_point", IREG, NONE, NONE)
+#endif
+
 #if defined(TARGET_X86) || defined(TARGET_AMD64)
 MINI_OP(OP_X86_TEST_NULL,          "x86_test_null", NONE, IREG, NONE)
 MINI_OP(OP_X86_COMPARE_MEMBASE_REG,"x86_compare_membase_reg", NONE, IREG, IREG)

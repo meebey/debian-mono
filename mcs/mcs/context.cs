@@ -7,19 +7,28 @@
 //
 // Copyright 2001, 2002, 2003 Ximian, Inc.
 // Copyright 2004-2009 Novell, Inc.
+// Copyright 2011 Xamarin Inc.
 //
 
 using System;
 using System.Collections.Generic;
-using System.Reflection.Emit;
+using System.IO;
+using System.Security.Cryptography;
 
 namespace Mono.CSharp
 {
+	public enum LookupMode
+	{
+		Normal = 0,
+		Probing = 1,
+		IgnoreAccessibility = 2
+	}
+
 	//
 	// Implemented by elements which can act as independent contexts
 	// during resolve phase. Used mostly for lookups.
 	//
-	public interface IMemberContext
+	public interface IMemberContext : IModuleContext
 	{
 		//
 		// A scope type context, it can be inflated for generic types
@@ -29,26 +38,30 @@ namespace Mono.CSharp
 		//
 		// A scope type parameters either VAR or MVAR
 		//
-		TypeParameter[] CurrentTypeParameters { get; }
+		TypeParameters CurrentTypeParameters { get; }
 
 		//
 		// A member definition of the context. For partial types definition use
 		// CurrentTypeDefinition.PartialContainer otherwise the context is local
+		//
+		// TODO: Obsolete it in this context, dynamic context cannot guarantee sensible value
 		//
 		MemberCore CurrentMemberDefinition { get; }
 
 		bool IsObsolete { get; }
 		bool IsUnsafe { get; }
 		bool IsStatic { get; }
-		bool HasUnresolvedConstraints { get; }
 
 		string GetSignatureForError ();
 
-		IList<MethodSpec> LookupExtensionMethod (TypeSpec extensionType, string name, int arity, ref NamespaceEntry scope);
-		FullNamedExpression LookupNamespaceOrType (string name, int arity, Location loc, bool ignore_cs0104);
+		ExtensionMethodCandidates LookupExtensionMethod (TypeSpec extensionType, string name, int arity);
+		FullNamedExpression LookupNamespaceOrType (string name, int arity, LookupMode mode, Location loc);
 		FullNamedExpression LookupNamespaceAlias (string name);
+	}
 
-		CompilerContext Compiler { get; }
+	public interface IModuleContext
+	{
+		ModuleContainer Module { get; }
 	}
 
 	//
@@ -58,18 +71,9 @@ namespace Mono.CSharp
 	{
 		FlowBranching current_flow_branching;
 
-		TypeSpec return_type;
+		readonly TypeSpec return_type;
 
-		/// <summary>
-		///   The location where return has to jump to return the
-		///   value
-		/// </summary>
-		public Label ReturnLabel;	// TODO: It's emit dependant
-
-		/// <summary>
-		///   If we already defined the ReturnLabel
-		/// </summary>
-		public bool HasReturnLabel;
+		public int FlowOffset;
 
 		public BlockContext (IMemberContext mc, ExplicitBlock block, TypeSpec returnType)
 			: base (mc)
@@ -83,8 +87,52 @@ namespace Mono.CSharp
 			CurrentBlock = block;
 		}
 
+		public BlockContext (ResolveContext rc, ExplicitBlock block, TypeSpec returnType)
+			: this (rc.MemberContext, block, returnType)
+		{
+			if (rc.IsUnsafe)
+				flags |= ResolveContext.Options.UnsafeScope;
+
+			if (rc.HasSet (ResolveContext.Options.CheckedScope))
+				flags |= ResolveContext.Options.CheckedScope;
+
+			if (rc.IsInProbingMode)
+				flags |= ResolveContext.Options.ProbingMode;
+
+			if (rc.HasSet (ResolveContext.Options.FieldInitializerScope))
+				flags |= ResolveContext.Options.FieldInitializerScope;
+
+			if (rc.HasSet (ResolveContext.Options.ExpressionTreeConversion))
+				flags |= ResolveContext.Options.ExpressionTreeConversion;
+
+			if (rc.HasSet (ResolveContext.Options.BaseInitializer))
+				flags |= ResolveContext.Options.BaseInitializer;
+		}
+
 		public override FlowBranching CurrentBranching {
 			get { return current_flow_branching; }
+		}
+
+		public TypeSpec ReturnType {
+			get { return return_type; }
+		}
+
+		public bool IsUnreachable {
+			get {
+				return HasSet (Options.UnreachableScope);
+			}
+			set {
+				flags = value ? flags | Options.UnreachableScope : flags & ~Options.UnreachableScope;
+			}
+		}
+
+		public bool UnreachableReported {
+			get {
+				return HasSet (Options.UnreachableReported);
+			}
+			set {
+				flags = value ? flags | Options.UnreachableReported : flags & ~Options.UnreachableScope;
+			}
 		}
 
 		// <summary>
@@ -116,9 +164,9 @@ namespace Mono.CSharp
 			return branching;
 		}
 
-		public FlowBranchingException StartFlowBranching (ExceptionStatement stmt)
+		public FlowBranchingTryFinally StartFlowBranching (TryFinallyBlock stmt)
 		{
-			FlowBranchingException branching = new FlowBranchingException (CurrentBranching, stmt);
+			FlowBranchingTryFinally branching = new FlowBranchingTryFinally (CurrentBranching, stmt);
 			current_flow_branching = branching;
 			return branching;
 		}
@@ -130,14 +178,21 @@ namespace Mono.CSharp
 			return branching;
 		}
 
-		public FlowBranchingIterator StartFlowBranching (Iterator iterator)
+		public FlowBranchingIterator StartFlowBranching (Iterator iterator, FlowBranching parent)
 		{
-			FlowBranchingIterator branching = new FlowBranchingIterator (CurrentBranching, iterator);
+			FlowBranchingIterator branching = new FlowBranchingIterator (parent, iterator);
 			current_flow_branching = branching;
 			return branching;
 		}
 
-		public FlowBranchingToplevel StartFlowBranching (ToplevelBlock stmt, FlowBranching parent)
+		public FlowBranchingAsync StartFlowBranching (AsyncInitializer asyncBody, FlowBranching parent)
+		{
+			var branching = new FlowBranchingAsync (parent, asyncBody);
+			current_flow_branching = branching;
+			return branching;
+		}
+
+		public FlowBranchingToplevel StartFlowBranching (ParametersBlock stmt, FlowBranching parent)
 		{
 			FlowBranchingToplevel branching = new FlowBranchingToplevel (parent, stmt);
 			current_flow_branching = branching;
@@ -167,19 +222,11 @@ namespace Mono.CSharp
 			current_flow_branching = current_flow_branching.Parent;
 		}
 
-		//
-		// This method is used during the Resolution phase to flag the
-		// need to define the ReturnLabel
-		//
+#if !STATIC
 		public void NeedReturnLabel ()
 		{
-			if (!HasReturnLabel)
-				HasReturnLabel = true;
 		}
-
-		public TypeSpec ReturnType {
-			get { return return_type; }
-		}
+#endif
 	}
 
 	//
@@ -235,6 +282,14 @@ namespace Mono.CSharp
 			ConstantScope = 1 << 10,
 
 			ConstructorScope = 1 << 11,
+
+			UsingInitializerScope = 1 << 12,
+
+			LockScope = 1 << 13,
+
+			UnreachableScope = 1 << 14,
+
+			UnreachableReported = 1 << 15,
 
 			/// <summary>
 			///   Whether control flow analysis is enabled
@@ -298,7 +353,7 @@ namespace Mono.CSharp
 			}
 		}
 
-		Options flags;
+		protected Options flags;
 
 		//
 		// Whether we are inside an anonymous method.
@@ -312,7 +367,7 @@ namespace Mono.CSharp
 
 		public Block CurrentBlock;
 
-		public IMemberContext MemberContext;
+		public readonly IMemberContext MemberContext;
 
 		/// <summary>
 		///   If this is non-null, points to the current switch statement
@@ -329,7 +384,7 @@ namespace Mono.CSharp
 			//
 			// The default setting comes from the command line option
 			//
-			if (RootContext.Checked)
+			if (mc.Module.Compiler.Settings.Checked)
 				flags |= Options.CheckedScope;
 
 			//
@@ -344,8 +399,18 @@ namespace Mono.CSharp
 			flags |= options;
 		}
 
-		public CompilerContext Compiler {
-			get { return MemberContext.Compiler; }
+		#region Properties
+
+		public BuiltinTypes BuiltinTypes {
+			get {
+				return MemberContext.Module.Compiler.BuiltinTypes;
+			}
+		}
+
+		public virtual ExplicitBlock ConstructorBlock {
+			get {
+				return CurrentBlock.Explicit;
+			}
 		}
 
 		public virtual FlowBranching CurrentBranching {
@@ -363,7 +428,7 @@ namespace Mono.CSharp
 			get { return MemberContext.CurrentType; }
 		}
 
-		public TypeParameter[] CurrentTypeParameters {
+		public TypeParameters CurrentTypeParameters {
 			get { return MemberContext.CurrentTypeParameters; }
 		}
 
@@ -379,12 +444,35 @@ namespace Mono.CSharp
 			get { return (flags & Options.DoFlowAnalysis) != 0; }
 		}
 
-		public bool HasUnresolvedConstraints {
-			get { return false; }
+		public bool IsInProbingMode {
+			get {
+				return (flags & Options.ProbingMode) != 0;
+			}
 		}
 
-		public bool IsInProbingMode {
-			get { return (flags & Options.ProbingMode) != 0; }
+		public bool IsObsolete {
+			get {
+				// Disables obsolete checks when probing is on
+				return MemberContext.IsObsolete;
+			}
+		}
+
+		public bool IsStatic {
+			get {
+				return MemberContext.IsStatic;
+			}
+		}
+
+		public bool IsUnsafe {
+			get {
+				return HasSet (Options.UnsafeScope) || MemberContext.IsUnsafe;
+			}
+		}
+
+		public bool IsRuntimeBinder {
+			get {
+				return Module.Compiler.IsRuntimeBinder;
+			}
 		}
 
 		public bool IsVariableCapturingRequired {
@@ -393,29 +481,44 @@ namespace Mono.CSharp
 			}
 		}
 
+		public ModuleContainer Module {
+			get {
+				return MemberContext.Module;
+			}
+		}
+
 		public bool OmitStructFlowAnalysis {
 			get { return (flags & Options.OmitStructFlowAnalysis) != 0; }
 		}
 
-		// TODO: Merge with CompilerGeneratedThis
-		public Expression GetThis (Location loc)
-		{
-			This my_this = new This (loc);
-			my_this.ResolveBase (this);
-			return my_this;
+		public Report Report {
+			get {
+				return Module.Compiler.Report;
+			}
 		}
 
-		public bool MustCaptureVariable (LocalInfo local)
+		#endregion
+
+		public bool MustCaptureVariable (INamedBlockVariable local)
 		{
 			if (CurrentAnonymousMethod == null)
 				return false;
 
-			// FIXME: IsIterator is too aggressive, we should capture only if child
-			// block contains yield
+			//
+			// Capture only if this or any of child blocks contain yield
+			// or it's a parameter
+			//
 			if (CurrentAnonymousMethod.IsIterator)
-				return true;
+				return local.IsParameter || local.Block.Explicit.HasYield;
 
-			return local.Block.Toplevel != CurrentBlock.Toplevel;
+			//
+			// Capture only if this or any of child blocks contain await
+			// or it's a parameter
+			//
+			if (CurrentAnonymousMethod is AsyncInitializer)
+				return local.IsParameter || local.Block.Explicit.HasAwait || CurrentBlock.Explicit.HasAwait;
+
+			return local.Block.ParametersBlock != CurrentBlock.ParametersBlock.Original;
 		}
 
 		public bool HasSet (Options options)
@@ -428,11 +531,6 @@ namespace Mono.CSharp
 			return (this.flags & options) != 0;
 		}
 
-		public Report Report {
-			get {
-				return Compiler.Report;
-			}
-		}
 
 		// Temporarily set all the given flags to the given value.  Should be used in an 'using' statement
 		public FlagsHandle Set (Options options)
@@ -452,29 +550,14 @@ namespace Mono.CSharp
 			return MemberContext.GetSignatureForError ();
 		}
 
-		public bool IsObsolete {
-			get {
-				// Disables obsolete checks when probing is on
-				return MemberContext.IsObsolete;
-			}
-		}
-
-		public bool IsStatic {
-			get { return MemberContext.IsStatic; }
-		}
-
-		public bool IsUnsafe {
-			get { return HasSet (Options.UnsafeScope) || MemberContext.IsUnsafe; }
-		}
-
-		public IList<MethodSpec> LookupExtensionMethod (TypeSpec extensionType, string name, int arity, ref NamespaceEntry scope)
+		public ExtensionMethodCandidates LookupExtensionMethod (TypeSpec extensionType, string name, int arity)
 		{
-			return MemberContext.LookupExtensionMethod (extensionType, name, arity, ref scope);
+			return MemberContext.LookupExtensionMethod (extensionType, name, arity);
 		}
 
-		public FullNamedExpression LookupNamespaceOrType (string name, int arity, Location loc, bool ignore_cs0104)
+		public FullNamedExpression LookupNamespaceOrType (string name, int arity, LookupMode mode, Location loc)
 		{
-			return MemberContext.LookupNamespaceOrType (name, arity, loc, ignore_cs0104);
+			return MemberContext.LookupNamespaceOrType (name, arity, mode, loc);
 		}
 
 		public FullNamedExpression LookupNamespaceAlias (string name)
@@ -496,7 +579,6 @@ namespace Mono.CSharp
 	public class CloneContext
 	{
 		Dictionary<Block, Block> block_map = new Dictionary<Block, Block> ();
-		Dictionary<LocalInfo, LocalInfo> variable_map;
 
 		public void AddBlockMap (Block from, Block to)
 		{
@@ -524,25 +606,6 @@ namespace Mono.CSharp
 
 			return mapped_to;
 		}
-
-		public void AddVariableMap (LocalInfo from, LocalInfo to)
-		{
-			if (variable_map == null)
-				variable_map = new Dictionary<LocalInfo, LocalInfo> ();
-			else if (variable_map.ContainsKey (from))
-				return;
-
-			variable_map[from] = to;
-		}
-
-		public LocalInfo LookupVariable (LocalInfo from)
-		{
-			try {
-				return variable_map[from];
-			} catch (KeyNotFoundException) {
-				throw new Exception ("LookupVariable: looking up a variable that has not been registered yet");
-			}
-		}
 	}
 
 	//
@@ -550,44 +613,87 @@ namespace Mono.CSharp
 	//
 	public class CompilerContext
 	{
+		static readonly TimeReporter DisabledTimeReporter = new TimeReporter (false);
+
 		readonly Report report;
-		readonly ReflectionMetaImporter meta_importer;
-		readonly PredefinedAttributes attributes;
-		readonly GlobalRootNamespace root;
+		readonly BuiltinTypes builtin_types;
+		readonly CompilerSettings settings;
 
-		public CompilerContext (ReflectionMetaImporter metaImporter, Report report)
+		Dictionary<string, SourceFile> all_source_files;
+
+		public CompilerContext (CompilerSettings settings, ReportPrinter reportPrinter)
 		{
-			this.meta_importer = metaImporter;
-			this.report = report;
-
-			this.attributes = new PredefinedAttributes ();
-			this.root = new GlobalRootNamespace ();
+			this.settings = settings;
+			this.report = new Report (this, reportPrinter);
+			this.builtin_types = new BuiltinTypes ();
+			this.TimeReporter = DisabledTimeReporter;
 		}
 
-		public GlobalRootNamespace GlobalRootNamespace {
+		#region Properties
+
+		public BuiltinTypes BuiltinTypes {
 			get {
-				return root;
+				return builtin_types;
 			}
 		}
 
-		public bool IsRuntimeBinder { get; set; }
-
-		public ReflectionMetaImporter MetaImporter {
-			get {
-				return meta_importer;
-			}
-		}
-
-		public PredefinedAttributes PredefinedAttributes {
-			get {
-				return attributes;
-			}
+		// Used for special handling of runtime dynamic context mostly
+		// by error reporting but also by member accessibility checks
+		public bool IsRuntimeBinder {
+			get; set;
 		}
 
 		public Report Report {
 			get {
 				return report;
 			}
+		}
+
+		public CompilerSettings Settings {
+			get {
+				return settings;
+			}
+		}
+
+		public List<SourceFile> SourceFiles {
+			get {
+				return settings.SourceFiles;
+			}
+		}
+
+		internal TimeReporter TimeReporter {
+			get; set;
+		}
+
+		#endregion
+
+		//
+		// This is used when we encounter a #line preprocessing directive during parsing
+		// to register additional source file names
+		//
+		public SourceFile LookupFile (CompilationSourceFile comp_unit, string name)
+		{
+			if (all_source_files == null) {
+				all_source_files = new Dictionary<string, SourceFile> ();
+				foreach (var source in SourceFiles)
+					all_source_files[source.FullPathName] = source;
+			}
+
+			string path;
+			if (!Path.IsPathRooted (name)) {
+				string root = Path.GetDirectoryName (comp_unit.SourceFile.FullPathName);
+				path = Path.Combine (root, name);
+			} else
+				path = name;
+
+			SourceFile retval;
+			if (all_source_files.TryGetValue (path, out retval))
+				return retval;
+
+			retval = new SourceFile (name, path, all_source_files.Count + 1);
+			Location.AddFile (retval);
+			all_source_files.Add (path, retval);
+			return retval;
 		}
 	}
 
@@ -611,18 +717,13 @@ namespace Mono.CSharp
 			/// </summary>
 			CheckedScope = 1 << 0,
 
-			/// <summary>
-			///   The constant check state is always set to `true' and cant be changed
-			///   from the command line.  The source code can change this setting with
-			///   the `checked' and `unchecked' statements and expressions. 
-			/// </summary>
-			ConstantCheckState = 1 << 1,
-
-			AllCheckStateFlags = CheckedScope | ConstantCheckState,
+			AccurateDebugInfo = 1 << 1,
 
 			OmitDebugInfo = 1 << 2,
 
-			ConstructorScope = 1 << 3
+			ConstructorScope = 1 << 3,
+
+			AsyncBody = 1 << 4
 		}
 
 		// utility helper for CheckExpr, UnCheckExpr, Checked and Unchecked statements
@@ -651,7 +752,7 @@ namespace Mono.CSharp
 			}
 		}
 
-		Options flags;
+		protected Options flags;
 
 		public bool HasSet (Options options)
 		{
@@ -662,6 +763,30 @@ namespace Mono.CSharp
 		public FlagsHandle With (Options options, bool enable)
 		{
 			return new FlagsHandle (this, options, enable ? options : 0);
+		}
+	}
+
+	//
+	// Parser session objects. We could recreate all these objects for each parser
+	// instance but the best parser performance the session object can be reused
+	//
+	public class ParserSession
+	{
+		MD5 md5;
+
+		public readonly char[] StreamReaderBuffer = new char[SeekableStreamReader.DefaultReadAheadSize * 2];
+		public readonly Dictionary<char[], string>[] Identifiers = new Dictionary<char[], string>[Tokenizer.MaxIdentifierLength + 1];
+		public readonly List<Parameter> ParametersStack = new List<Parameter> (4);
+		public readonly char[] IDBuilder = new char[Tokenizer.MaxIdentifierLength];
+		public readonly char[] NumberBuilder = new char[Tokenizer.MaxNumberLength];
+
+		public LocationsBag LocationsBag { get; set; }
+		public bool UseJayGlobalArrays { get; set; }
+		public Tokenizer.LocatedToken[] LocatedTokens { get; set; }
+
+		public MD5 GetChecksumAlgorithm ()
+		{
+			return md5 ?? (md5 = MD5.Create ());
 		}
 	}
 }

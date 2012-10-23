@@ -30,6 +30,7 @@ using System;
 using System.IO;
 
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 
 namespace Mono.Linker.Steps {
 
@@ -61,29 +62,46 @@ namespace Mono.Linker.Steps {
 
 			switch (Annotations.GetAction (assembly)) {
 			case AssemblyAction.Link:
-				SaveSymbols (assembly);
-				AssemblyFactory.SaveAssembly (assembly, GetAssemblyFileName (assembly, directory));
+				assembly.Write (GetAssemblyFileName (assembly, directory), SaveSymbols (assembly));
 				break;
 			case AssemblyAction.Copy:
-				CopyAssembly (GetOriginalAssemblyFileInfo (assembly), directory);
+				CloseSymbols (assembly);
+				CopyAssembly (GetOriginalAssemblyFileInfo (assembly), directory, Context.LinkSymbols);
 				break;
 			case AssemblyAction.Delete:
+				CloseSymbols (assembly);
 				var target = GetAssemblyFileName (assembly, directory);
-				if (File.Exists (target))
+				if (File.Exists (target)) {
 					File.Delete (target);
+					File.Delete (target + ".mdb");
+					File.Delete (GetConfigFile (target));
+				}
+				break;
+			default:
+				CloseSymbols (assembly);
 				break;
 			}
 		}
 
-		void SaveSymbols (AssemblyDefinition assembly)
+		void CloseSymbols (AssemblyDefinition assembly)
 		{
+			Annotations.CloseSymbolReader (assembly);
+		}
+
+		WriterParameters SaveSymbols (AssemblyDefinition assembly)
+		{
+			var parameters = new WriterParameters ();
 			if (!Context.LinkSymbols)
-				return;
+				return parameters;
 
-			if (!Annotations.HasSymbols (assembly))
-				return;
+			if (!assembly.MainModule.HasSymbols)
+				return parameters;
 
-			assembly.MainModule.SaveSymbols();
+			if (Context.SymbolWriterProvider != null)
+				parameters.SymbolWriterProvider = Context.SymbolWriterProvider;
+			else
+				parameters.WriteSymbols = true;
+			return parameters;
 		}
 
 		static void CopyConfigFileIfNeeded (AssemblyDefinition assembly, string directory)
@@ -107,21 +125,30 @@ namespace Mono.Linker.Steps {
 
 		static FileInfo GetOriginalAssemblyFileInfo (AssemblyDefinition assembly)
 		{
-			return assembly.MainModule.Image.FileInformation;
+			return new FileInfo (assembly.MainModule.FullyQualifiedName);
 		}
 
-		static void CopyAssembly (FileInfo fi, string directory)
+		static void CopyAssembly (FileInfo fi, string directory, bool symbols)
 		{
 			string target = Path.GetFullPath (Path.Combine (directory, fi.Name));
-			if (fi.FullName == target)
+			string source = fi.FullName;
+			if (source == target)
 				return;
 
-			File.Copy (fi.FullName, target, true);
+			File.Copy (source, target, true);
+
+			if (!symbols)
+				return;
+
+			source += ".mdb";
+			if (!File.Exists (source))
+				return;
+			File.Copy (source, target + ".mdb", true);
 		}
 
 		static string GetAssemblyFileName (AssemblyDefinition assembly, string directory)
 		{
-			string file = assembly.Name.Name + (assembly.Kind == AssemblyKind.Dll ? ".dll" : ".exe");
+			string file = assembly.Name.Name + (assembly.MainModule.Kind == ModuleKind.Dll ? ".dll" : ".exe");
 			return Path.Combine (directory, file);
 		}
 	}

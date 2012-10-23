@@ -34,6 +34,7 @@
 //
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -1361,6 +1362,40 @@ namespace MonoTests.System.Runtime.Serialization.Json
 			Assert.AreEqual (query.StartDate, q.StartDate, "#2");
 			Assert.AreEqual (query.EndDate, q.EndDate, "#3");
 		}
+
+		[DataContract(Name = "DateTest")]
+		public class DateTest
+		{
+			[DataMember(Name = "should_have_value")]
+			public DateTime? ShouldHaveValue { get; set; }
+		}
+
+		//
+		// This tests both the extended format "number-0500" as well
+		// as the nullable field in the structure
+		[Test]
+		public void BugXamarin163 ()
+		{
+			string json = @"{""should_have_value"":""\/Date(1277355600000-0500)\/""}";
+
+			byte[] bytes = global::System.Text.Encoding.UTF8.GetBytes(json);
+			Stream inputStream = new MemoryStream(bytes);
+			
+			DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(DateTest));
+			DateTest t = serializer.ReadObject(inputStream) as DateTest;
+			Assert.AreEqual (634129344000000000, t.ShouldHaveValue.Value.Ticks, "#1");
+		}
+
+		[Test]
+		public void NullableFieldsShouldSupportNullValue ()
+		{
+			string json = @"{""should_have_value"":null}";
+			var inputStream = new MemoryStream (Encoding.UTF8.GetBytes (json));
+			DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(DateTest));
+			Console.WriteLine ("# serializer assembly: {0}", serializer.GetType ().Assembly.Location);
+			DateTest t = serializer.ReadObject (inputStream) as DateTest;
+			Assert.AreEqual (false, t.ShouldHaveValue.HasValue, "#2");
+		}
 		
 		[Test]
 		public void DeserializeNullMember ()
@@ -1387,6 +1422,41 @@ namespace MonoTests.System.Runtime.Serialization.Json
 			Assert.IsTrue (GSPlayerListErg.B, "B");
 			Assert.IsTrue (GSPlayerListErg.C, "C");
 		}
+		
+		[Test]
+		public void WriteChar ()
+		{
+			DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof (CharTest));
+			using (MemoryStream ms = new MemoryStream()) {
+				serializer.WriteObject(ms, new CharTest ());
+				ms.Position = 0L;
+				using (StreamReader reader = new StreamReader(ms)) {
+					reader.ReadToEnd();
+				}
+			}
+		}
+
+		[Test]
+		public void DictionarySerialization ()
+		{
+			var dict = new MyDictionary<string,string> ();
+			dict.Add ("key", "value");
+			var serializer = new DataContractJsonSerializer (dict.GetType ());
+			var stream = new MemoryStream ();
+			serializer.WriteObject (stream, dict);
+			stream.Position = 0;
+
+			Assert.AreEqual ("[{\"Key\":\"key\",\"Value\":\"value\"}]", new StreamReader (stream).ReadToEnd (), "#1");
+			stream.Position = 0;
+			dict = (MyDictionary<string,string>) serializer.ReadObject (stream);
+			Assert.AreEqual (1, dict.Count, "#2");
+			Assert.AreEqual ("value", dict ["key"], "#3");
+		}
+	}
+	
+	public class CharTest
+	{
+		public char Foo;
 	}
 
 	public class TestData
@@ -1604,5 +1674,91 @@ namespace MonoTests.System.Runtime.Serialization.Json
 [DataContract]
 class GlobalSample1
 {
+}
+
+
+public class MyDictionary<K, V> : System.Collections.Generic.IDictionary<K, V>
+{
+	Dictionary<K,V> dic = new Dictionary<K,V> ();
+
+	public void Add (K key, V value)
+	{
+		dic.Add (key,  value);
+	}
+
+	public bool ContainsKey (K key)
+	{
+		return dic.ContainsKey (key);
+	}
+
+	public ICollection<K> Keys {
+		get { return dic.Keys; }
+	}
+
+	public bool Remove (K key)
+	{
+		return dic.Remove (key);
+	}
+
+	public bool TryGetValue (K key, out V value)
+	{
+		return dic.TryGetValue (key, out value);
+	}
+
+	public ICollection<V> Values {
+		get { return dic.Values; }
+	}
+
+	public V this [K key] {
+		get { return dic [key]; }
+		set { dic [key] = value; }
+	}
+
+	IEnumerator IEnumerable.GetEnumerator ()
+	{
+		return dic.GetEnumerator ();
+	}
+
+	ICollection<KeyValuePair<K,V>> Coll {
+		get { return (ICollection<KeyValuePair<K,V>>) dic; }
+	}
+
+	public void Add (KeyValuePair<K, V> item)
+	{
+		Coll.Add (item);
+	}
+
+	public void Clear ()
+	{
+		dic.Clear ();
+	}
+
+	public bool Contains (KeyValuePair<K, V> item)
+	{
+		return Coll.Contains (item);
+	}
+
+	public void CopyTo (KeyValuePair<K, V> [] array, int arrayIndex)
+	{
+		Coll.CopyTo (array, arrayIndex);
+	}
+
+	public int Count {
+		get { return dic.Count; }
+	}
+
+	public bool IsReadOnly {
+		get { return Coll.IsReadOnly; }
+	}
+
+	public bool Remove (KeyValuePair<K, V> item)
+	{
+		return Coll.Remove (item);
+	}
+
+	public IEnumerator<KeyValuePair<K, V>> GetEnumerator ()
+	{
+		return Coll.GetEnumerator ();
+	}
 }
 

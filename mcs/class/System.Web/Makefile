@@ -68,10 +68,21 @@ RESOURCE_FILES_2 = \
 	resources/transparent.gif \
 	resources/webform.js \
 	resources/WebUIValidation_2.0.js \
+	resources/ErrorTemplateCommon_Top.html \
+	resources/DefaultErrorTemplate_CustomErrorDefault.html \
+	resources/ErrorTemplateCommon_Bottom.html \
+	resources/DefaultErrorTemplate_StandardPage.html \
+	resources/HtmlizedExceptionPage_Top.html \
+	resources/HtmlizedExceptionPage_FileLongSource.html \
+	resources/HtmlizedExceptionPage_FileShortSource.html \
+	resources/HtmlizedExceptionPage_CompilerOutput.html \
 	System.Web.UI.WebControls/GridView.js \
 	System.Web.UI.WebControls/DetailsView.js \
 	System.Web.UI.WebControls/TreeView.js \
 	System.Web.UI.WebControls/Menu.js
+
+RESOURCE_FILES_4 = \
+	System.Web.UI.WebControls/MenuModern.js
 
 OTHER_RES = $(RESOURCE_FILES_1)
 TEST_APP_CODE_FILES = \
@@ -92,7 +103,7 @@ TEST_RESOURCE_FILES = \
 	Test/mainsoft/NunitWeb/NunitWeb/Resources/MyPage.aspx.cs \
 	Test/mainsoft/NunitWeb/NunitWeb/Resources/MyPageWithMaster.aspx \
 	Test/mainsoft/NunitWeb/NunitWeb/Resources/Web.mono.config \
-	Test/mainsoft/NunitWeb/NunitWeb/Resources/Web.mono.config.1.1 \
+	Test/mainsoft/NunitWeb/NunitWeb/Resources/Web.mono.config.4.0 \
 	Test/mainsoft/NunitWeb/NunitWeb/Resources/sub_map_01.sitemap \
 	Test/mainsoft/NunitWeb/NunitWeb/Resources/test_map_01.sitemap \
 	Test/mainsoft/NunitWeb/NunitWeb/Resources/test_map_02.sitemap \
@@ -229,7 +240,10 @@ TEST_RESOURCE_FILES = \
 	Test/mainsoft/NunitWebResources/CheckBoxField_Bug595568_6.aspx \
 	Test/mainsoft/NunitWebResources/CheckBoxField_Bug595568_7.aspx \
 	Test/mainsoft/NunitWebResources/GridView_Bug595567.aspx \
-	Test/mainsoft/NunitWebResources/CheckBoxList_Bug600415.aspx
+	Test/mainsoft/NunitWebResources/CheckBoxList_Bug600415.aspx \
+	Test/mainsoft/NunitWebResources/BoundField_Bug646505.aspx \
+	Test/mainsoft/NunitWebResources/BoundField_Bug646505.aspx.cs \
+	Test/mainsoft/NunitWebResources/HtmlTitleCodeRender_Bug662918.aspx
 
 RESX_DIST =  resources/TranslationResources.resx
 ifneq (1, $(FRAMEWORK_VERSION_MAJOR))
@@ -247,6 +261,7 @@ endif
 
 ifeq (4, $(FRAMEWORK_VERSION_MAJOR))
 OTHER_LIB_MCS_FLAGS += -r:System.Web.ApplicationServices.dll
+OTHER_RES += $(RESOURCE_FILES_4)
 endif
 
 LIB_MCS_FLAGS = \
@@ -258,6 +273,7 @@ LIB_MCS_FLAGS = \
 	-r:System.Data.dll		\
 	-r:System.Xml.dll		\
 	-r:System.EnterpriseServices.dll \
+	-r:System.Runtime.Serialization.Formatters.Soap \
 	$(OTHER_LIB_MCS_FLAGS) \
 	$(RESX_RES:%=/resource:%) \
 	$(OTHER_RES:%=/resource:%)
@@ -287,10 +303,11 @@ TEST_MCS_FLAGS = $(LIB_MCS_FLAGS) -doc:$(test_lib:.dll=.xml) -nowarn:219,169,159
 	$(foreach file,$(NUNIT_APP_GLOBALRESOURCES_FILES),$(shell echo $(file) | sed -e 's;\(.*\)/\(.*\);/resource:\1/\2,App_GlobalResources/\2 ;g'))
 
 ifeq (net_2_0, $(PROFILE))
-TEST_MCS_FLAGS += -r:System.Web.Extensions.dll
+TEST_MCS_FLAGS += -r:System.Web.Extensions.dll -d:TEST
 endif
 
 EXTRA_DISTFILES = \
+	$(RESOURCE_FILES_4) \
 	$(RESOURCE_FILES_2) \
 	$(RESOURCE_FILES_1) \
 	$(TEST_RESOURCE_FILES) \
@@ -305,6 +322,7 @@ EXTRA_DISTFILES = \
 	$(shell find Test/tools/ -path '*/.svn' -prune -o -type f -printf "'%p' ") \
 	System.Web_standalone_test.dll.sources \
 	standalone-runner-support.dll.sources \
+	$(shell find Test/System.Web.Caching/CacheItemPriorityQueueTestData/ -name "Sequence*.*" -type f -printf "'%p' ") \
 	ASPState.sql
 
 BUILT_SOURCES = System.Web/UplevelHelper.cs 
@@ -366,14 +384,29 @@ STANDALONE_TEST_COMPILABLE_TESTS = \
 	ApplicationPreStartMethods/test_06 \
 	ApplicationPreStartMethods/test_07 \
 	ApplicationPreStartMethods/test_08 \
+	EnableFormsAuthentication/Test_01 \
+	EnableFormsAuthentication/Test_02 \
+	EnableFormsAuthentication/Test_03 \
+	EnableFormsAuthentication/Test_04 \
+	EnableFormsAuthentication/Test_05 \
+	EnableFormsAuthentication/Test_06 \
+	EnableFormsAuthentication/Test_07 \
+	EnableFormsAuthentication/Test_08 \
+	EnableFormsAuthentication/Test_09 \
 	RegisterBuildProvider \
 	PageParserDefaultTypeProperties
 endif
 
 STANDALONE_TEST_RUNNER = Test/tools/standalone-runner.exe
-RUN_STANDALONE = $(TEST_RUNTIME) $(STANDALONE_TEST_RUNNER) --output=StandaloneTestResult-$(PROFILE).log 
+ifeq (2, $(FRAMEWORK_VERSION_MAJOR))
+RUN_STANDALONE = MONO_TESTS_IN_PROGRESS=yes
+endif
+RUN_STANDALONE += $(TEST_RUNTIME) $(STANDALONE_TEST_RUNNER) --output=StandaloneTestResult-$(PROFILE).log 
 ifdef TESTNAME
 RUN_STANDALONE += --test=$(TESTNAME)
+endif
+ifdef STANDALONE_VERBOSE
+RUN_STANDALONE += --verbose
 endif
 
 $(build_lib): $(RESX_RES) $(RESOURCE_FILES_2) $(RESOURCE_FILES_1)
@@ -382,7 +415,7 @@ $(RESX_RES): %.resources: %.resx
 	$(RESGEN) `echo $< | $(PLATFORM_CHANGE_SEPARATOR_CMD)`
 
 System.Web/UplevelHelper.cs: UplevelHelperDefinitions.xml
-	$(TEST_RUNTIME) $(topdir)/class/lib/$(BUILD_TOOLS_PROFILE)/culevel.exe -o $@ $^
+	MONO_PATH="$(topdir)/class/lib/$(BOOTSTRAP_PROFILE)$(PLATFORM_PATH_SEPARATOR)$$MONO_PATH" $(RUNTIME) $(RUNTIME_FLAGS) $(topdir)/class/lib/$(BUILD_TOOLS_PROFILE)/culevel.exe -o $@ $^
 
 run-aaa: test
 	$(TEST_RUNTIME) $(TEST_HARNESS) $(TEST_HARNESS_FLAGS) $(LOCAL_TEST_HARNESS_FLAGS) \

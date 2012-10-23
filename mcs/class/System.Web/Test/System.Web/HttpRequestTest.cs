@@ -45,7 +45,6 @@ namespace MonoTests.System.Web {
 	[TestFixture]
 	public class HttpRequestTest {
 
-#if NET_1_1
 		[Test]
 		[ExpectedException (typeof (HttpRequestValidationException))]
 		public void ValidateInput_XSS ()
@@ -95,7 +94,6 @@ namespace MonoTests.System.Web {
 			// the next statement throws
 			Assert.AreEqual ("<SCRIPT>alert(document.cookie)</SCRIPT>", request.QueryString ["test"], "QueryString");
 		}
-#endif
 		//
 		// Tests the properties from the simple constructor.
 		[Test]
@@ -205,6 +203,26 @@ namespace MonoTests.System.Web {
 				r.MapPath ("Web.config", "~", false), "test10");
 			Assert.AreEqual (Path.Combine (appBase, "DIR" + Path.DirectorySeparatorChar + "Web.config"),
 				r.MapPath ("Web.config", "~/DIR", false), "test11");
+
+			AssertExtensions.Throws<InvalidOperationException> (() => {
+				// Throws because the test's virtual dir is /NunitWeb and / is above it
+				r.MapPath ("/test.txt");
+			}, "test12");
+
+			AssertExtensions.Throws<InvalidOperationException> (() => {
+				// Throws because the test's virtual dir is /NunitWeb and /NunitWeb1 does not match it
+				r.MapPath ("/NunitWeb1/test.txt");
+			}, "test13");
+
+			AssertExtensions.Throws<ArgumentException> (() => {
+				r.MapPath ("/test.txt", "/", false);
+			}, "test14");
+
+			AssertExtensions.Throws<ArgumentException> (() => {
+				r.MapPath ("/test.txt", "/NunitWeb", false);
+			}, "test15");
+
+			Assert.AreEqual (Path.Combine (appBase, "test.txt"), r.MapPath ("/NunitWeb/test.txt", "/NunitWeb", true), "test16");
 		}
 	
 		[Test]

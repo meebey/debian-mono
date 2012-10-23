@@ -352,7 +352,6 @@ namespace System.Web.Script.Serialization
 		{
 			StringBuilderExtensions.AppendCount (output, maxJsonLength, "{");
 			bool first = true;
-			string key;
 			
 			foreach (DictionaryEntry entry in dict) {
 				WriteDictionaryEntry (output, first, entry.Key as string, entry.Value);
@@ -367,7 +366,6 @@ namespace System.Web.Script.Serialization
 		{
 			StringBuilderExtensions.AppendCount (output, maxJsonLength, "{");
 			bool first = true;
-			string key;
 			
 			foreach (KeyValuePair <TKey, TValue> kvp in dict) {
 				WriteDictionaryEntry (output, first, kvp.Key as string, kvp.Value);
@@ -448,7 +446,7 @@ namespace System.Web.Script.Serialization
 		
 		void WriteValue (StringBuilder output, Uri value)
 		{
-			WriteValue (output, value.GetComponents (UriComponents.AbsoluteUri, UriFormat.UriEscaped));
+			WriteValue (output, value.OriginalString);
 		}
 		
 		void WriteValue (StringBuilder output, DateTime value)

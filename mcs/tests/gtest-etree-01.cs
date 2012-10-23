@@ -239,6 +239,8 @@ class MemberAccessData
 			return "alo";
 		}
 	}
+	
+	public object SetOnly { set { } }
 }
 
 enum MyEnum : byte
@@ -292,6 +294,8 @@ class Indexer
 	public string this [params string[] i] { get { return string.Concat (i); } }
 }
 
+class A { }
+class B : A { }
 
 // TODO: Add more nullable tests, follow AddTest pattern.
 
@@ -861,7 +865,7 @@ class Tester
 		
 	}
 	
-	unsafe void ConstantTest_14 ()
+	void ConstantTest_14 ()
 	{
 		Expression<Func<Type>> e14 = () => typeof (bool*);
 		AssertNodeType (e14, ExpressionType.Constant);
@@ -1070,7 +1074,15 @@ class Tester
 		Assert (50, e6.Compile ().Invoke (100, new MyType (2)));
 		Assert (null, e6.Compile ().Invoke (20, null));
 	}
-
+	
+	void DivideTest_7 ()
+	{
+		Expression<Func<float, uint?, float?>> e = (a, b) => a / b;
+		AssertNodeType (e, ExpressionType.Divide);
+		Assert (50, e.Compile () (100, 2));
+		Assert (null, e.Compile () (20, null));
+	}
+	
 	void EqualTest ()
 	{
 		Expression<Func<int, int, bool>> e = (int a, int b) => a == b;
@@ -1545,6 +1557,15 @@ class Tester
 		Assert (false, e8.Compile ().Invoke (MyEnum.Value_2, MyEnum.Value_2));
 	}
 
+	void LessThanTest_9 ()
+	{
+		Expression<Func<object, int?, bool>> e = (a, b) => (int) a < b;
+		AssertNodeType (e, ExpressionType.LessThan);
+		Assert (false, e.Compile ().Invoke (1, null));
+		Assert (false, e.Compile ().Invoke (3, 3));
+		Assert (true, e.Compile ().Invoke (1, 3));
+	}
+
 	void LessThanOrEqualTest ()
 	{
 		Expression<Func<int, int, bool>> e = (int a, int b) => a <= b;
@@ -1744,6 +1765,14 @@ class Tester
 		Assert (0, r);
 	}	
 
+	void MemberInitTest_5 ()
+	{
+		Expression<Func<MemberAccessData>> e = () => new MemberAccessData { SetOnly = new object { } };
+
+		AssertNodeType (e, ExpressionType.MemberInit);
+		e.Compile () ();
+	}
+
 	void ModuloTest ()
 	{
 		Expression<Func<int, int, int>> e = (int a, int b) => a % b;
@@ -1847,6 +1876,14 @@ class Tester
 		Expression<Func<ushort, int?>> e7 = (ushort a) => a * null;
 		AssertNodeType (e7, ExpressionType.Multiply);
 		Assert (null, e7.Compile ().Invoke (60));
+	}
+	
+	void MultiplyTest_8 ()
+	{
+		Expression<Func<double, ulong?, double?>> e = (a, b) => a * b;
+		AssertNodeType (e, ExpressionType.Multiply);
+		Assert (180, e.Compile () (60, 3));
+		Assert (null, e.Compile () (60, null));
 	}
 	
 	void MultiplyCheckedTest ()
@@ -2492,6 +2529,13 @@ class Tester
 		Assert (31, e.Compile ().Invoke (0xFE, new MyTypeImplicitOnly (3)));
 	}
 	
+	void RightShiftTest_6 ()
+	{
+		Expression<Func<ulong, byte?, ulong?>> e = (a, b) => a >> b;
+		AssertNodeType (e, ExpressionType.RightShift);
+		Assert (null, e.Compile () (2, null));
+	}
+	
 	void SubtractTest ()
 	{
 		Expression<Func<int, int, int>> e = (int a, int b) => a - b;
@@ -2635,6 +2679,14 @@ class Tester
 		Assert (null, e3.Compile ().Invoke (null));
 	}
 
+	void TypeAsTest_4 ()
+	{
+		Expression<Func<int, IConvertible>> e = a => a as IConvertible;
+		AssertNodeType (e, ExpressionType.TypeAs);
+		Assert (ExpressionType.Parameter, ((UnaryExpression) e.Body).Operand.NodeType);
+		Assert (5, e.Compile ().Invoke (5));
+	}
+	
 	void TypeIsTest ()
 	{
 		Expression<Func<object, bool>> e = (object a) => a is Tester;
@@ -2656,6 +2708,13 @@ class Tester
 		Expression<Func<object, bool>> e3 = (object a) => null is object;
 		AssertNodeType (e3, ExpressionType.TypeIs);
 		Assert (false, e3.Compile ().Invoke (null));
+	}
+	
+	void TypeIsTest_4 ()
+	{
+		Expression<Func<B, bool>> e = l => l is A;
+		AssertNodeType (e, ExpressionType.TypeIs);
+		Assert (false, e.Compile ().Invoke (null));
 	}
 	
 	void TypeIsTest_5 ()

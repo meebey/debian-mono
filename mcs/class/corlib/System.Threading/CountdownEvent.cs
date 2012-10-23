@@ -1,6 +1,10 @@
 // CountdownEvent.cs
 //
+// Authors:
+//    Marek Safar  <marek.safar@gmail.com>
+//
 // Copyright (c) 2008 Jérémie "Garuma" Laval
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +26,48 @@
 //
 //
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
-
-using System;
+#if NET_4_0 || MOBILE
 
 namespace System.Threading
-{	
+{
+	[System.Diagnostics.DebuggerDisplayAttribute ("Initial Count={InitialCount}, Current Count={CurrentCount}")]
 	public class CountdownEvent : IDisposable
 	{
-		int count;
-		readonly int initial;
-		ManualResetEventSlim evt = new ManualResetEventSlim (false);
+		int initialCount;
+		int initial;
+		ManualResetEventSlim evt;
 		
-		public CountdownEvent (int count)
+		public CountdownEvent (int initialCount)
 		{
-			if (count < 0)
-				throw new ArgumentOutOfRangeException ("count is negative");
-			this.initial = this.count = count;
+			if (initialCount < 0)
+				throw new ArgumentOutOfRangeException ("initialCount");
+
+			evt = new ManualResetEventSlim (initialCount == 0);
+			this.initial = this.initialCount = initialCount;
+		}
+
+		public int CurrentCount {
+			get {
+				return initialCount;
+			}
+		}
+		
+		public int InitialCount {
+			get {
+				return initial;
+			}
+		}
+			
+		public bool IsSet {
+			get {
+				return initialCount == 0;
+			}
+		}
+		
+		public WaitHandle WaitHandle {
+			get {
+				return evt.WaitHandle;
+			}
 		}
 		
 		public bool Signal ()
@@ -46,18 +75,15 @@ namespace System.Threading
 			return Signal (1);
 		}
 		
-		public bool Signal (int num)
+		public bool Signal (int signalCount)
 		{
-			if (num <= 0)
-				throw new ArgumentOutOfRangeException ("num");
-			
-			Action<int> check = delegate (int value) {
-				if (value < 0)
-				throw new InvalidOperationException ("the specified count is larger that CurrentCount");
-			};
-			
+			if (signalCount <= 0)
+				throw new ArgumentOutOfRangeException ("signalCount");
+
+			CheckDisposed ();
+
 			int newValue;
-			if (!ApplyOperation (-num, check, out newValue))
+			if (!ApplyOperation (-signalCount, out newValue))
 				throw new InvalidOperationException ("The event is already set");
 			
 			if (newValue == 0) {
@@ -73,13 +99,10 @@ namespace System.Threading
 			AddCount (1);
 		}
 		
-		public void AddCount (int num)
+		public void AddCount (int signalCount)
 		{
-			if (num < 0)
-				throw new ArgumentOutOfRangeException ("num");
-			
-			if (!TryAddCount (num))
-				throw new InvalidOperationException ("The event is already set");
+			if (!TryAddCount (signalCount))
+				throw new InvalidOperationException ("The event is already signaled and cannot be incremented");
 		}
 		
 		public bool TryAddCount ()
@@ -87,35 +110,33 @@ namespace System.Threading
 			return TryAddCount (1);
 		}
 		
-		public bool TryAddCount (int num)
+		public bool TryAddCount (int signalCount)
 		{	
-			if (num < 0)
-				throw new ArgumentOutOfRangeException ("num");
-			
-			return ApplyOperation (num, null);
+			if (signalCount <= 0)
+				throw new ArgumentOutOfRangeException ("signalCount");
+
+			CheckDisposed ();
+
+			int temp;
+			return ApplyOperation (signalCount, out temp);
 		}
 		
-		bool ApplyOperation (int num, Action<int> doCheck)
-		{
-			int temp;
-			return ApplyOperation (num, doCheck, out temp);
-		}
-			
-		bool ApplyOperation (int num, Action<int> doCheck, out int newValue)
+		bool ApplyOperation (int num, out int newValue)
 		{
 			int oldCount;
-			newValue = 0;
 			
 			do {
-				oldCount = count;
-				if (oldCount == 0)
+				oldCount = initialCount;
+				if (oldCount == 0) {
+					newValue = 0;
 					return false;
+				}
 				
 				newValue = oldCount + num;
-				
-				if (doCheck != null)
-					doCheck (newValue);
-			} while (Interlocked.CompareExchange (ref count, newValue, oldCount) != oldCount);
+
+				if (newValue < 0)
+					return false;
+			} while (Interlocked.CompareExchange (ref initialCount, newValue, oldCount) != oldCount);
 			
 			return true;
 		}
@@ -125,29 +146,29 @@ namespace System.Threading
 			evt.Wait ();
 		}
 		
-		public void Wait (CancellationToken token)
+		public void Wait (CancellationToken cancellationToken)
 		{
-			evt.Wait (token);
+			evt.Wait (cancellationToken);
 		}
 		
-		public bool Wait (int timeoutMilli)
+		public bool Wait (int millisecondsTimeout)
 		{
-			return evt.Wait (timeoutMilli);
+			return evt.Wait (millisecondsTimeout);
 		}
 		
-		public bool Wait(TimeSpan span)
+		public bool Wait(TimeSpan timeout)
 		{
-			return evt.Wait (span);
+			return evt.Wait (timeout);
 		}
 		
-		public bool Wait (int timeoutMilli, CancellationToken token)
+		public bool Wait (int millisecondsTimeout, CancellationToken cancellationToken)
 		{
-			return evt.Wait (timeoutMilli, token);
+			return evt.Wait (millisecondsTimeout, cancellationToken);
 		}
 		
-		public bool Wait(TimeSpan span, CancellationToken token)
+		public bool Wait(TimeSpan timeout, CancellationToken cancellationToken)
 		{
-			return evt.Wait (span, token);
+			return evt.Wait (timeout, cancellationToken);
 		}
 
 		public void Reset ()
@@ -155,48 +176,36 @@ namespace System.Threading
 			Reset (initial);
 		}
 		
-		public void Reset (int value)
+		public void Reset (int count)
 		{
-			evt.Reset ();
-			Interlocked.Exchange (ref count, value);
-		}
-		
-		public int CurrentCount {
-			get {
-				return count;
-			}
-		}
-		
-		public int InitialCount {
-			get {
-				return initial;
-			}
-		}
-			
-		public bool IsSet {
-			get {
-				return count == 0;
-			}
-		}
-		
-		public WaitHandle WaitHandle {
-			get {
-				return evt.WaitHandle;
-			}
-		}
+			if (count < 0)
+				throw new ArgumentOutOfRangeException ("count");
 
-		#region IDisposable implementation 
+			CheckDisposed ();
+
+			initialCount = initial = count;
+			if (count == 0)
+				evt.Set ();
+			else
+				evt.Reset ();
+		}
 		
 		public void Dispose ()
 		{
-			
+			Dispose (true);
 		}
 		
-		protected virtual void Dispose (bool managedRes)
+		protected virtual void Dispose (bool disposing)
 		{
-			
+			if (disposing)
+				evt.Dispose ();
 		}
-		#endregion 	
+
+		void CheckDisposed ()
+		{
+			if (evt.disposed.Value)
+				throw new ObjectDisposedException ("CountdownEvent");
+		}
 	}
 }
 #endif

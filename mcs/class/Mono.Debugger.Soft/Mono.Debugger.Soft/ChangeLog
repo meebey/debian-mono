@@ -1,7 +1,3 @@
-2010-09-13  Zoltan Varga  <vargaz@gmail.com>
-
-	Bump minor version to 2 to be compatible with the runtime.
-
 2010-06-17  Zoltan Varga  <vargaz@gmail.com>
 
 	* VirtualMachine.cs Connection.cs: Group events received together into an EventSet,

@@ -3,11 +3,12 @@
 //
 // Authors:
 //     Robert Jordan <robertj@gmx.net>
-//
+//     Gary Barnett <gary.barnett.mono@gmail.com>
 
 using System;
 using System.Collections;
 using System.ComponentModel;
+using System.ComponentModel.Design;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -101,6 +102,39 @@ namespace MonoTests.System.Resources
 		}
 
 		[Test]
+		public void AddResource_WithComment ()
+		{
+			ResXResourceWriter w = new ResXResourceWriter (fileName);
+			ResXDataNode node = new ResXDataNode ("key", "value");
+    			node.Comment = "comment is preserved";
+			w.AddResource (node);
+			w.Generate ();
+			w.Close ();
+
+			ResXResourceReader r = new ResXResourceReader (fileName);
+			ITypeResolutionService typeres = null;
+			r.UseResXDataNodes = true;
+			
+			int count = 0;
+			foreach (DictionaryEntry o in r)
+			{
+				string key = o.Key.ToString();
+				node = (ResXDataNode)o.Value;
+				string value = node.GetValue (typeres).ToString ();
+				string comment = node.Comment;
+
+				Assert.AreEqual ("key", key, "key");
+				Assert.AreEqual ("value", value, "value");
+				Assert.AreEqual ("comment is preserved", comment, "comment");
+				Assert.AreEqual (0, count, "too many nodes");
+				count++;
+			}
+			r.Close ();
+
+			File.Delete (fileName);
+		}
+
+		[Test]
 		public void TestWriter ()
 		{
 			ResXResourceWriter w = new ResXResourceWriter (fileName);
@@ -149,6 +183,126 @@ namespace MonoTests.System.Resources
 			Assert.AreEqual ("world", ((MyBinType) h ["BinType"]).Value, "#13");
 
 			File.Delete (fileName);
+		}
+
+		ResXDataNode GetNodeFromResXWithBasePath (ResXDataNode node, string basePath)
+		{
+			StringWriter sw = new StringWriter ();
+			using (ResXResourceWriter writer = new ResXResourceWriter (sw)) {
+				writer.BasePath = basePath;
+				writer.AddResource (node);
+			}
+			
+			StringReader sr = new StringReader (sw.ToString ());
+			
+			using (ResXResourceReader reader = new ResXResourceReader (sr)) {
+				reader.UseResXDataNodes = true;
+				IDictionaryEnumerator enumerator = reader.GetEnumerator ();
+				enumerator.MoveNext ();
+				return ((DictionaryEntry) enumerator.Current).Value as ResXDataNode;
+			}
+		}
+		
+		[Test]
+		public void BasePath_ChangesAbsoluteFileRef_Node ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/dir/dir/filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"/dir");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"dir/filename.ext", returnedNode.FileRef.FileName, "#A2");
+		}
+
+		[Test]
+		public void BasePath_ChangesAbsoluteFileRef_Object ()
+		{
+			var fileref = new ResXFileRef (@"/dir/dir/filename.ext", "System.String");
+			
+			string basePath = @"/dir";
+			
+			StringWriter sw = new StringWriter ();
+			using (ResXResourceWriter writer = new ResXResourceWriter (sw)) {
+				writer.BasePath = basePath;
+				writer.AddResource ("name", fileref);
+			}
+			
+			StringReader sr = new StringReader (sw.ToString ());
+			
+			using (ResXResourceReader reader = new ResXResourceReader (sr)) {
+				reader.UseResXDataNodes = true;
+				IDictionaryEnumerator enumerator = reader.GetEnumerator ();
+				enumerator.MoveNext ();
+				var returnedNode = ((DictionaryEntry) enumerator.Current).Value as ResXDataNode;
+				Assert.AreEqual (@"dir/filename.ext", returnedNode.FileRef.FileName);
+			}
+		}
+
+		[Test]
+		public void BasePath_ChangesAbsoluteFileRef_Deeper ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/adir/filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"/dir1/dir2");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"../../adir/filename.ext", returnedNode.FileRef.FileName, "#A2");
+		}
+		
+		[Test]
+		public void BasePath_ComplexPath ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/dir/dir/../filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"/dir");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"dir/../filename.ext", returnedNode.FileRef.FileName, "#A2");
+		}
+		
+		[Test]
+		public void BasePath_IgnoresTrailingSeparator ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/dir/filename.ext", "System.String"));
+			var nonTrailNode = GetNodeFromResXWithBasePath (node, @"/dir");
+			Assert.IsNotNull (nonTrailNode, "#A1");
+			Assert.AreEqual (@"filename.ext", nonTrailNode.FileRef.FileName, "#A2");
+			
+			var trailingNode = GetNodeFromResXWithBasePath (node, @"/dir/");
+			Assert.IsNotNull (trailingNode, "#A3");
+			Assert.AreEqual (@"filename.ext", trailingNode.FileRef.FileName, "#A4");
+		}
+		
+		[Test]
+		public void BasePath_IgnoredIfNotPartOfPath () // not really a valid test on linux systems
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/dir/filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"D/");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"/dir/filename.ext", returnedNode.FileRef.FileName, "#A2");
+		}
+
+		[Test] // FIXME: this fails on mono ("/dir/filename.ext" is returned) but passes on .net
+		[NUnit.Framework.Category ("NotWorking")]
+		public void BasePath_Root ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/dir/filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"/");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"dir/filename.ext", returnedNode.FileRef.FileName, "#A2");
+		}
+		
+		[Test]
+		public void BasePath_RelativeFileRef ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"../../filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"../");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"../filename.ext", returnedNode.FileRef.FileName, "#A2");	
+		}
+		
+		[Test]
+		public void BasePath_DoesntAffectOriginalNode ()
+		{
+			var node = new ResXDataNode ("name", new ResXFileRef (@"/dir/dir/filename.ext", "System.String"));
+			var returnedNode = GetNodeFromResXWithBasePath (node, @"/dir");
+			Assert.IsNotNull (returnedNode, "#A1");
+			Assert.AreEqual (@"dir/filename.ext", returnedNode.FileRef.FileName, "#A2");
+			Assert.AreEqual (@"/dir/dir/filename.ext", node.FileRef.FileName, "#A3");
 		}
 	}
 

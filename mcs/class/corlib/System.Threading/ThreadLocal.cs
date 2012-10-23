@@ -3,6 +3,7 @@
 //  
 // Author:
 //       Jérémie "Garuma" Laval <jeremie.laval@gmail.com>
+//       Rewritten by Paolo Molaro (lupus@ximian.com)
 // 
 // Copyright (c) 2009 Jérémie "Garuma" Laval
 // 
@@ -24,7 +25,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#if NET_4_0
+#if NET_4_0 || MOBILE
 using System;
 using System.Runtime.Serialization;
 using System.Runtime.InteropServices;
@@ -32,62 +33,110 @@ using System.Security.Permissions;
 
 namespace System.Threading
 {
-	[HostProtectionAttribute(SecurityAction.LinkDemand, Synchronization = true, 
-	                         ExternalThreading = true)]
+	[HostProtection (SecurityAction.LinkDemand, Synchronization = true, ExternalThreading = true)]
+	[System.Diagnostics.DebuggerDisplay ("IsValueCreated={IsValueCreated}, Value={ValueForDebugDisplay}")]
+	[System.Diagnostics.DebuggerTypeProxy ("System.Threading.SystemThreading_ThreadLocalDebugView`1")]
 	public class ThreadLocal<T> : IDisposable
 	{
-		readonly Func<T> initializer;
-		LocalDataStoreSlot localStore;
-		Exception cachedException;
-		
-		class DataSlotWrapper
-		{
-			public bool Creating;
-			public bool Init;
-			public Func<T> Getter;
-		}
-		
-		public ThreadLocal () : this (LazyInitializer.GetDefaultCtorValue<T>)
-		{
+		struct TlsDatum {
+			internal sbyte state; /* 0 uninitialized, < 0 initializing, > 0 inited */
+			internal Exception cachedException; /* this is per-thread */
+			internal T data;
 		}
 
-		public ThreadLocal (Func<T> initializer)
-		{
-			if (initializer == null)
-				throw new ArgumentNullException ("initializer");
-			
-			localStore = Thread.AllocateDataSlot ();
-			this.initializer = initializer;
-		}
+		Func<T> valueFactory;
+		/* The tlsdata field is handled magically by the JIT
+		 * It must be a struct and it is always accessed by ldflda: the JIT, instead of
+		 * computing the address inside the instance, will return the address of the variable
+		 * for the current thread (based on tls_offset). This magic wouldn't be needed if C#
+		 * let us declare an icall with a TlsDatum& return type...
+		 * For this same reason, we must check tls_offset for != 0 to make sure it's valid before accessing tlsdata
+		 * The address of the tls var is cached per method at the first IL ldflda instruction, so care must be taken
+		 * not to cause it to be conditionally executed.
+		 */
+		uint tls_offset;
+		TlsDatum tlsdata;
 		
+		public ThreadLocal ()
+		{
+			tls_offset = Thread.AllocTlsData (typeof (TlsDatum));
+		}
+
+		public ThreadLocal (Func<T> valueFactory) : this ()
+		{
+			if (valueFactory == null)
+				throw new ArgumentNullException ("valueFactory");
+			this.valueFactory = valueFactory;
+		}
+
 		public void Dispose ()
 		{
 			Dispose (true);
 		}
 		
-		protected virtual void Dispose (bool dispManagedRes)
+		protected virtual void Dispose (bool disposing)
 		{
-			
+			if (tls_offset != 0) {
+				uint o = tls_offset;
+				tls_offset = 0;
+				if (disposing)
+					valueFactory = null;
+				Thread.DestroyTlsData (o);
+				GC.SuppressFinalize (this);
+			}
+		}
+
+		~ThreadLocal ()
+		{
+			Dispose (false);
 		}
 		
 		public bool IsValueCreated {
 			get {
-				ThrowIfNeeded ();
-				return IsInitializedThreadLocal ();
+				if (tls_offset == 0)
+					throw new ObjectDisposedException ("ThreadLocal object");
+				/* ALERT! magic tlsdata JIT access redirects to TLS value instead of instance field */
+				return tlsdata.state > 0;
 			}
 		}
-		
+
+		T GetSlowPath () {
+			/* ALERT! magic tlsdata JIT access redirects to TLS value instead of instance field */
+			if (tlsdata.cachedException != null)
+				throw tlsdata.cachedException;
+			if (tlsdata.state < 0)
+				throw new InvalidOperationException ("The initialization function attempted to reference Value recursively");
+			tlsdata.state = -1;
+			if (valueFactory != null) {
+				try {
+					tlsdata.data = valueFactory ();
+				} catch (Exception ex) {
+					tlsdata.cachedException = ex;
+					throw ex;
+				}
+			} else {
+				tlsdata.data = default (T);
+			}
+			tlsdata.state = 1;
+			return tlsdata.data;
+		}
+
+		[System.Diagnostics.DebuggerBrowsableAttribute (System.Diagnostics.DebuggerBrowsableState.Never)]
 		public T Value {
 			get {
-				ThrowIfNeeded ();
-				return GetValueThreadLocal ();
+				if (tls_offset == 0)
+					throw new ObjectDisposedException ("ThreadLocal object");
+				/* ALERT! magic tlsdata JIT access redirects to TLS value instead of instance field */
+				if (tlsdata.state > 0)
+					return tlsdata.data;
+				return GetSlowPath ();
 			}
 			set {
-				ThrowIfNeeded ();
-
-				DataSlotWrapper w = GetWrapper ();
-				w.Init = true;
-				w.Getter = () => value;
+				if (tls_offset == 0)
+					throw new ObjectDisposedException ("ThreadLocal object");
+				/* ALERT! magic tlsdata JIT access redirects to TLS value instead of instance field */
+				tlsdata.state = 1;
+				tlsdata.data = value;
 			}
 		}
 		
@@ -95,62 +144,7 @@ namespace System.Threading
 		{
 			return string.Format ("[ThreadLocal: IsValueCreated={0}, Value={1}]", IsValueCreated, Value);
 		}
-
 		
-		T GetValueThreadLocal ()
-		{
-			DataSlotWrapper myWrapper = GetWrapper ();
-			if (myWrapper.Creating)
-				throw new InvalidOperationException ("The initialization function attempted to reference Value recursively");
-
-			return myWrapper.Getter ();
-		}
-		
-		bool IsInitializedThreadLocal ()
-		{
-			DataSlotWrapper myWrapper = GetWrapper ();
-
-			return myWrapper.Init;
-		}
-
-		DataSlotWrapper GetWrapper ()
-		{
-			DataSlotWrapper myWrapper = (DataSlotWrapper)Thread.GetData (localStore);
-			if (myWrapper == null) {
-				myWrapper = DataSlotCreator ();
-				Thread.SetData (localStore, myWrapper);
-			}
-
-			return myWrapper;
-		}
-
-		void ThrowIfNeeded ()
-		{
-			if (cachedException != null)
-				throw cachedException;
-		}
-
-		DataSlotWrapper DataSlotCreator ()
-		{
-			DataSlotWrapper wrapper = new DataSlotWrapper ();
-			Func<T> valSelector = initializer;
-	
-			wrapper.Getter = delegate {
-				wrapper.Creating = true;
-				try {
-					T val = valSelector ();
-					wrapper.Creating = false;
-					wrapper.Init = true;
-					wrapper.Getter = () => val;
-					return val;
-				} catch (Exception e) {
-					cachedException = e;
-					throw e;
-				}
-			};
-			
-			return wrapper;
-		}
 	}
 }
 #endif

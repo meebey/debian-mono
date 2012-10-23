@@ -13,10 +13,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -51,7 +51,9 @@ namespace System.Runtime.Serialization
 		StreamingContext context;
 		ReadOnlyCollection<Type> returned_known_types;
 		KnownTypeCollection known_types;
+		List<Type> specified_known_types;
 		IDataContractSurrogate surrogate;
+		DataContractResolver resolver, default_resolver;
 
 		int max_items = 0x10000; // FIXME: could be from config.
 
@@ -70,13 +72,12 @@ namespace System.Runtime.Serialization
 			if (type == null)
 				throw new ArgumentNullException ("type");
 			this.type = type;
-			known_types = new KnownTypeCollection ();
 			PopulateTypes (knownTypes);
-			known_types.TryRegister (type);
+			known_types.Add (type);
 			QName qname = known_types.GetQName (type);
 
 			FillDictionaryString (qname.Name, qname.Namespace);
-			
+
 		}
 
 		public DataContractSerializer (Type type, string rootName,
@@ -171,25 +172,83 @@ namespace System.Runtime.Serialization
 				dataContractSurrogate);
 		}
 
+#if NET_4_0
+		public DataContractSerializer (Type type,
+			IEnumerable<Type> knownTypes,
+			int maxObjectsInGraph,
+			bool ignoreExtensionDataObject,
+			bool preserveObjectReferences,
+			IDataContractSurrogate dataContractSurrogate,
+			DataContractResolver dataContractResolver)
+			: this (type, knownTypes, maxObjectsInGraph, ignoreExtensionDataObject, preserveObjectReferences, dataContractSurrogate)
+		{
+			DataContractResolver = dataContractResolver;
+		}
+
+		public DataContractSerializer (Type type,
+			string rootName,
+			string rootNamespace,
+			IEnumerable<Type> knownTypes,
+			int maxObjectsInGraph,
+			bool ignoreExtensionDataObject,
+			bool preserveObjectReferences,
+			IDataContractSurrogate dataContractSurrogate,
+			DataContractResolver dataContractResolver)
+			: this (type, rootName, rootNamespace, knownTypes, maxObjectsInGraph, ignoreExtensionDataObject, preserveObjectReferences, dataContractSurrogate)
+		{
+			DataContractResolver = dataContractResolver;
+		}
+
+		public DataContractSerializer (Type type,
+			XmlDictionaryString rootName,
+			XmlDictionaryString rootNamespace,
+			IEnumerable<Type> knownTypes,
+			int maxObjectsInGraph,
+			bool ignoreExtensionDataObject,
+			bool preserveObjectReferences,
+			IDataContractSurrogate dataContractSurrogate,
+			DataContractResolver dataContractResolver)
+			: this (type, rootName, rootNamespace, knownTypes, maxObjectsInGraph, ignoreExtensionDataObject, preserveObjectReferences, dataContractSurrogate)
+		{
+			DataContractResolver = dataContractResolver;
+		}
+#endif
+
 		void PopulateTypes (IEnumerable<Type> knownTypes)
 		{
 			if (known_types == null)
-				known_types= new KnownTypeCollection ();
+				known_types = new KnownTypeCollection ();
+
+			if (specified_known_types == null)
+				specified_known_types = new List<Type> ();
 
 			if (knownTypes != null) {
-				foreach (Type t in knownTypes)
-					known_types.TryRegister (t);
+				foreach (Type t in knownTypes) {
+					known_types.Add (t);
+					specified_known_types.Add (t);
+				}
 			}
+
+			RegisterTypeAsKnown (type);
+		}
+
+		void RegisterTypeAsKnown (Type type)
+		{
+			if (known_types.Contains (type))
+				return;
 
 			Type elementType = type;
 			if (type.HasElementType)
 				elementType = type.GetElementType ();
 
+			known_types.Add (elementType);
+
 			/* Get all KnownTypeAttribute-s, including inherited ones */
 			object [] attrs = elementType.GetCustomAttributes (typeof (KnownTypeAttribute), true);
 			for (int i = 0; i < attrs.Length; i ++) {
 				KnownTypeAttribute kt = (KnownTypeAttribute) attrs [i];
-				known_types.TryRegister (kt.Type);
+				foreach (var t in kt.GetTypes (elementType))
+					RegisterTypeAsKnown (t);
 			}
 		}
 
@@ -213,8 +272,19 @@ namespace System.Runtime.Serialization
 			ignore_ext = ignoreExtensionDataObject;
 			preserve_refs = preserveObjectReferences;
 			surrogate = dataContractSurrogate;
+		}
 
-			PopulateTypes (Type.EmptyTypes);
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		DataContractResolver DataContractResolver {
+			get { return resolver; }
+			private set {
+				resolver = value;
+				default_resolver = default_resolver ?? new DefaultDataContractResolver (this);
+			}
 		}
 
 		public bool IgnoreExtensionDataObject {
@@ -224,9 +294,13 @@ namespace System.Runtime.Serialization
 		public ReadOnlyCollection<Type> KnownTypes {
 			get {
 				if (returned_known_types == null)
-					returned_known_types = new ReadOnlyCollection<Type> (known_types);
+					returned_known_types = new ReadOnlyCollection<Type> (specified_known_types);
 				return returned_known_types;
 			}
+		}
+
+		internal KnownTypeCollection InternalKnownTypes {
+			get { return known_types; }
 		}
 
 		public IDataContractSurrogate DataContractSurrogate {
@@ -266,7 +340,6 @@ namespace System.Runtime.Serialization
 			return ReadObject (XmlDictionaryReader.CreateDictionaryReader (reader), verifyObjectName);
 		}
 
-		[MonoTODO]
 		public override object ReadObject (XmlDictionaryReader reader, bool verifyObjectName)
 		{
 			int startTypeCount = known_types.Count;
@@ -275,7 +348,7 @@ namespace System.Runtime.Serialization
 			bool isEmpty = reader.IsEmptyElement;
 
 			object ret = XmlFormatterDeserializer.Deserialize (reader, type,
-				known_types, surrogate, root_name.Value, root_ns.Value, verifyObjectName);
+				known_types, surrogate, DataContractResolver, default_resolver, root_name.Value, root_ns.Value, verifyObjectName);
 
 			// remove temporarily-added known types for
 			// rootType and object graph type.
@@ -285,17 +358,18 @@ namespace System.Runtime.Serialization
 			return ret;
 		}
 
-		private void ReadRootStartElement (XmlReader reader, Type type)
- 		{
-			SerializationMap map =
-				known_types.FindUserMap (type);
-			QName name = map != null ? map.XmlName :
-				KnownTypeCollection.GetPredefinedTypeName (type);
-			reader.MoveToContent ();
-			reader.ReadStartElement (name.Name, name.Namespace);
-			// FIXME: could there be any attributes to handle here?
-			reader.Read ();
+#if NET_4_0
+		public object ReadObject (XmlDictionaryReader reader, bool verifyObjectName, DataContractResolver resolver)
+		{
+			var bak = DataContractResolver;
+			try {
+				DataContractResolver = resolver;
+				return ReadObject (reader, verifyObjectName);
+			} finally {
+				DataContractResolver = bak;
+			}
 		}
+#endif
 
 		// SP1
 		public override void WriteObject (XmlWriter writer, object graph)
@@ -304,7 +378,20 @@ namespace System.Runtime.Serialization
 			WriteObject (w, graph);
 		}
 
-		[MonoTODO ("support arrays; support Serializable; support SharedType; use DataContractSurrogate")]
+#if NET_4_0
+		public void WriteObject (XmlDictionaryWriter writer, object graph, DataContractResolver resolver)
+		{
+			var bak = DataContractResolver;
+			try {
+				DataContractResolver = resolver;
+				WriteObject (writer, graph);
+			} finally {
+				DataContractResolver = bak;
+			}
+		}
+#endif
+
+		[MonoTODO ("use DataContractSurrogate")]
 		/*
 			when writeContentOnly is true, then the input XmlWriter
 			must be at element state. This is to write possible
@@ -325,8 +412,8 @@ namespace System.Runtime.Serialization
 			int startTypeCount = known_types.Count;
 
 			XmlFormatterSerializer.Serialize (writer, graph,
-				known_types,
-				ignore_ext, max_items, root_ns.Value, preserve_refs);
+				type, known_types,
+				ignore_ext, max_items, root_ns.Value, preserve_refs, DataContractResolver, default_resolver);
 
 			// remove temporarily-added known types for
 			// rootType and object graph type.
@@ -351,7 +438,7 @@ namespace System.Runtime.Serialization
 			XmlDictionaryWriter writer, object graph)
 		{
 			Type rootType = type;
-			
+
 			if (root_name.Value == "")
 				throw new InvalidDataContractException ("Type '" + type.ToString () +
 					"' cannot have a DataContract attribute Name set to null or empty string.");
@@ -366,34 +453,48 @@ namespace System.Runtime.Serialization
 				return;
 			}
 
-			QName instName = null;
-			QName root_qname = known_types.GetQName (rootType);
-			QName graph_qname = known_types.GetQName (graph.GetType ());
+			QName rootQName = null;
+			XmlDictionaryString name, ns;
+			var graphType = graph.GetType ();
+			if (DataContractResolver != null && DataContractResolver.TryResolveType (graphType, type, default_resolver, out name, out ns))
+				rootQName = new QName (name.Value, ns.Value);
 
-			known_types.Add (graph.GetType ());
+			// It is error unless 1) TypeResolver resolved the type name, 2) the object is the exact type, 3) the object is known or 4) the type is primitive.
+
+			QName collectionQName;
+			if (KnownTypeCollection.IsInterchangeableCollectionType (type, graphType, out collectionQName)) {
+				graphType = type;
+				rootQName = collectionQName;
+			} else if (graphType != type && rootQName == null && IsUnknownType (type, graphType))
+				throw new SerializationException (String.Format ("Type '{0}' is unexpected. The type should either be registered as a known type, or DataContractResolver should be used.", graphType));
+
+			QName instName = rootQName;
+			rootQName = rootQName ?? known_types.GetQName (rootType);
+			QName graph_qname = known_types.GetQName (graphType);
+
+			known_types.Add (graphType);
 
 			if (names_filled)
 				writer.WriteStartElement (root_name.Value, root_ns.Value);
 			else
 				writer.WriteStartElement (root_name, root_ns);
-			if (root_ns.Value != root_qname.Namespace)
-				if (root_qname.Namespace != KnownTypeCollection.MSSimpleNamespace)
-					writer.WriteXmlnsAttribute (null, root_qname.Namespace);
 
-			if (root_qname == graph_qname) {
-				if (root_qname.Namespace != KnownTypeCollection.MSSimpleNamespace &&
-					!rootType.IsEnum)
-					//FIXME: Hack, when should the "i:type" be written?
-					//Not used in case of enums
-					writer.WriteXmlnsAttribute ("i", XmlSchema.InstanceNamespace);
+			if (rootQName != graph_qname || rootQName.Namespace != KnownTypeCollection.MSSimpleNamespace && !rootType.IsEnum)
+				//FIXME: Hack, when should the "i:type" be written?
+				//Not used in case of enums
+				writer.WriteXmlnsAttribute ("i", XmlSchema.InstanceNamespace);
 
+			if (root_ns.Value != rootQName.Namespace)
+				if (rootQName.Namespace != KnownTypeCollection.MSSimpleNamespace)
+					writer.WriteXmlnsAttribute (null, rootQName.Namespace);
+
+			if (rootQName == graph_qname)
 				return;
-			}
 
 			/* Different names */
 			known_types.Add (rootType);
-			
-			instName = KnownTypeCollection.GetPredefinedTypeName (graph.GetType ());
+
+			instName = instName ?? KnownTypeCollection.GetPredefinedTypeName (graphType);
 			if (instName == QName.Empty)
 				/* Not a primitive type */
 				instName = graph_qname;
@@ -401,10 +502,32 @@ namespace System.Runtime.Serialization
 				/* FIXME: Hack, .. see test WriteObject7 () */
 				instName = new QName (instName.Name, XmlSchema.Namespace);
 
+/* // disabled as it now generates extraneous i:type output.
 			// output xsi:type as rootType is not equivalent to the graph's type.
 			writer.WriteStartAttribute ("i", "type", XmlSchema.InstanceNamespace);
 			writer.WriteQualifiedName (instName.Name, instName.Namespace);
 			writer.WriteEndAttribute ();
+*/
+		}
+
+		bool IsUnknownType (Type contractType, Type type)
+		{
+			if (type.IsArray) {
+				if (KnownTypeCollection.GetAttribute<CollectionDataContractAttribute> (contractType) != null ||
+				    KnownTypeCollection.GetAttribute<DataContractAttribute> (contractType) != null)
+					return true;
+			}
+			return IsUnknownType (type);
+		}
+
+		bool IsUnknownType (Type type)
+		{
+			if (known_types.Contains (type) ||
+			    KnownTypeCollection.GetPrimitiveTypeName (type) != QName.Empty)
+				return false;
+			if (type.IsArray)
+				return IsUnknownType (type.GetElementType ());
+			return true;
 		}
 
 		public override void WriteEndObject (XmlDictionaryWriter writer)

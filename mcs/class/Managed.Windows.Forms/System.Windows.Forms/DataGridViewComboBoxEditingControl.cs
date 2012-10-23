@@ -23,9 +23,6 @@
 //	Pedro Martínez Juliá <pedromj@gmail.com>
 //
 
-
-#if NET_2_0
-
 using System.Runtime.InteropServices;
 
 namespace System.Windows.Forms {
@@ -94,8 +91,13 @@ namespace System.Windows.Forms {
 			base.OnSelectedIndexChanged (e);
 		}
 
+		// This internal method is needed by DataGridViewComboBoxCell
+		// to pass along user interaction with the cell.
+		internal void OnMouseDownInternal (DataGridViewCellMouseEventArgs e)
+		{
+			OnMouseDown (e);
+		}
 	}
 
 }
 
-#endif

@@ -317,13 +317,9 @@ namespace System.Web.Configuration
 			AppDomain domain = AppDomain.CurrentDomain;
 			bool hosted = (domain.GetData (ApplicationHost.MonoHostedDataKey) as string) == "yes";
 
-			if (hosted) {
-				foreach (string fn in ApplicationHost.WebConfigFileNames) {
-					string file = Path.Combine (dir, fn);
-					if (File.Exists (file))
-						return file;
-				}
-			} else {
+			if (hosted)
+				return ApplicationHost.FindWebConfig (dir);
+			else {
 				Assembly asm = Assembly.GetEntryAssembly () ?? Assembly.GetCallingAssembly ();
 				string name = Path.GetFileName (asm.Location);
 				string[] fileNames = new string[] {name + ".config", name + ".Config"};
@@ -364,7 +360,7 @@ namespace System.Web.Configuration
 #endif
 		public virtual bool IsAboveApplication (string configPath)
 		{
-			throw new NotImplementedException ();
+			return !configPath.Contains (HttpRuntime.AppDomainAppPath);
 		}
 		
 		public virtual bool IsConfigRecordRequired (string configPath)
@@ -389,14 +385,23 @@ namespace System.Web.Configuration
 					else
 						normalized = configPath;
 					
-					return (String.Compare (normalized, MachinePath, StringComparison.Ordinal) == 0) ||
-						(String.Compare (normalized, MachineWebPath, StringComparison.Ordinal) == 0) ||
-						(String.Compare (normalized, "/", StringComparison.Ordinal) == 0) ||
-						(String.Compare (normalized, "~", StringComparison.Ordinal) == 0) ||
-						(String.Compare (normalized, appVirtualPath) == 0);
+					if ((String.Compare (normalized, MachinePath, StringComparison.Ordinal) == 0) ||
+						(String.Compare (normalized, MachineWebPath, StringComparison.Ordinal) == 0))
+							return true;
+				
+					if ((String.Compare (normalized, appVirtualPath) != 0))
+						return IsApplication (normalized);
+				
+					return true;
 				default:
 					return true;
 			}
+		}
+		
+		[MonoTODO("Should return false in case strPath points to the root of an application.")]
+		internal bool IsApplication(string strPath)
+		{
+			return true;
 		}
 		
 		public virtual bool IsFile (string streamName)
@@ -438,9 +443,9 @@ namespace System.Web.Configuration
 
 		public virtual Stream OpenStreamForWrite (string streamName, string templateStreamName, ref object writeContext)
 		{
-			string rootConfigPath = GetWebConfigFileName (HttpRuntime.AppDomainAppPath);
-			if (String.Compare (streamName, rootConfigPath, StringComparison.OrdinalIgnoreCase) == 0)
+			if (!IsAboveApplication (streamName))
 				WebConfigurationManager.SuppressAppReload (true);
+
 			return new FileStream (streamName, FileMode.Create, FileAccess.Write);
 		}
 
@@ -498,8 +503,8 @@ namespace System.Web.Configuration
 			// FileSystemWatcher monitor might have already delivered the
 			// notification. If the stream has been open using OpenStreamForWrite then
 			// we're safe, though.
-			string rootConfigPath = GetWebConfigFileName (HttpRuntime.AppDomainAppPath);
-			if (String.Compare (streamName, rootConfigPath, StringComparison.OrdinalIgnoreCase) == 0)
+
+			if (!IsAboveApplication (streamName))
 				WebConfigurationManager.SuppressAppReload (true);
 		}
 

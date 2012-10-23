@@ -1,7 +1,3 @@
-2010-08-30  Andrew Jorgensen  <ajorgensen@novell.com>
-
-	Remove obsolete Microsoft.Vsa and Microsoft.JScript
-
 2010-05-17  Zoltan Varga  <vargaz@gmail.com>
 
 	* mono-2.pc.in (Libs): Remove glib dependencies.

@@ -3,184 +3,978 @@
 //
 // Author: Miguel de Icaza (miguel@gnu.org)
 //         Ravi Pratap     (ravi@ximian.com)
-//         Marek Safar     (marek.safar@seznam.cz)
+//         Marek Safar     (marek.safar@gmail.com)
 //
 // Dual licensed under the terms of the MIT X11 or GNU GPL
 //
 // Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
-// Copyright 2003-2008 Novell, Inc.
+// Copyright 2003-2011 Novell, Inc.
+// Copyright 2011 Xamarin Inc
 //
 
 using System;
-using System.IO;
 using System.Globalization;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Reflection.Emit;
 using System.Text;
-using System.Runtime.CompilerServices;
-using System.Diagnostics;
-using System.Linq;
+using System.IO;
 
-namespace Mono.CSharp {
+namespace Mono.CSharp
+{
+	//
+	// All compiler built-in types (they have to exist otherwise the compiler will not work)
+	//
+	public class BuiltinTypes
+	{
+		public readonly BuiltinTypeSpec Object;
+		public readonly BuiltinTypeSpec ValueType;
+		public readonly BuiltinTypeSpec Attribute;
+
+		public readonly BuiltinTypeSpec Int;
+		public readonly BuiltinTypeSpec UInt;
+		public readonly BuiltinTypeSpec Long;
+		public readonly BuiltinTypeSpec ULong;
+		public readonly BuiltinTypeSpec Float;
+		public readonly BuiltinTypeSpec Double;
+		public readonly BuiltinTypeSpec Char;
+		public readonly BuiltinTypeSpec Short;
+		public readonly BuiltinTypeSpec Decimal;
+		public readonly BuiltinTypeSpec Bool;
+		public readonly BuiltinTypeSpec SByte;
+		public readonly BuiltinTypeSpec Byte;
+		public readonly BuiltinTypeSpec UShort;
+		public readonly BuiltinTypeSpec String;
+
+		public readonly BuiltinTypeSpec Enum;
+		public readonly BuiltinTypeSpec Delegate;
+		public readonly BuiltinTypeSpec MulticastDelegate;
+		public readonly BuiltinTypeSpec Void;
+		public readonly BuiltinTypeSpec Array;
+		public readonly BuiltinTypeSpec Type;
+		public readonly BuiltinTypeSpec IEnumerator;
+		public readonly BuiltinTypeSpec IEnumerable;
+		public readonly BuiltinTypeSpec IDisposable;
+		public readonly BuiltinTypeSpec IntPtr;
+		public readonly BuiltinTypeSpec UIntPtr;
+		public readonly BuiltinTypeSpec RuntimeFieldHandle;
+		public readonly BuiltinTypeSpec RuntimeTypeHandle;
+		public readonly BuiltinTypeSpec Exception;
+
+		//
+		// These are internal buil-in types which depend on other
+		// build-in type (mostly object)
+		//
+		public readonly BuiltinTypeSpec Dynamic;
+
+		// Predefined operators tables
+		public readonly Binary.PredefinedOperator[] OperatorsBinaryStandard;
+		public readonly Binary.PredefinedOperator[] OperatorsBinaryEquality;
+		public readonly Binary.PredefinedOperator[] OperatorsBinaryUnsafe;
+		public readonly TypeSpec[][] OperatorsUnary;
+		public readonly TypeSpec[] OperatorsUnaryMutator;
+
+		public readonly TypeSpec[] BinaryPromotionsTypes;
+		public readonly TypeSpec[] SwitchUserTypes;
+
+		readonly BuiltinTypeSpec[] types;
+
+		public BuiltinTypes ()
+		{
+			Object = new BuiltinTypeSpec (MemberKind.Class, "System", "Object", BuiltinTypeSpec.Type.Object);
+			ValueType = new BuiltinTypeSpec (MemberKind.Class, "System", "ValueType", BuiltinTypeSpec.Type.ValueType);
+			Attribute = new BuiltinTypeSpec (MemberKind.Class, "System", "Attribute", BuiltinTypeSpec.Type.Attribute);
+
+			Int = new BuiltinTypeSpec (MemberKind.Struct, "System", "Int32", BuiltinTypeSpec.Type.Int);
+			Long = new BuiltinTypeSpec (MemberKind.Struct, "System", "Int64", BuiltinTypeSpec.Type.Long);
+			UInt = new BuiltinTypeSpec (MemberKind.Struct, "System", "UInt32", BuiltinTypeSpec.Type.UInt);
+			ULong = new BuiltinTypeSpec (MemberKind.Struct, "System", "UInt64", BuiltinTypeSpec.Type.ULong);
+			Byte = new BuiltinTypeSpec (MemberKind.Struct, "System", "Byte", BuiltinTypeSpec.Type.Byte);
+			SByte = new BuiltinTypeSpec (MemberKind.Struct, "System", "SByte", BuiltinTypeSpec.Type.SByte);
+			Short = new BuiltinTypeSpec (MemberKind.Struct, "System", "Int16", BuiltinTypeSpec.Type.Short);
+			UShort = new BuiltinTypeSpec (MemberKind.Struct, "System", "UInt16", BuiltinTypeSpec.Type.UShort);
+
+			IEnumerator = new BuiltinTypeSpec (MemberKind.Interface, "System.Collections", "IEnumerator", BuiltinTypeSpec.Type.IEnumerator);
+			IEnumerable = new BuiltinTypeSpec (MemberKind.Interface, "System.Collections", "IEnumerable", BuiltinTypeSpec.Type.IEnumerable);
+			IDisposable = new BuiltinTypeSpec (MemberKind.Interface, "System", "IDisposable", BuiltinTypeSpec.Type.IDisposable);
+
+			Char = new BuiltinTypeSpec (MemberKind.Struct, "System", "Char", BuiltinTypeSpec.Type.Char);
+			String = new BuiltinTypeSpec (MemberKind.Class, "System", "String", BuiltinTypeSpec.Type.String);
+			Float = new BuiltinTypeSpec (MemberKind.Struct, "System", "Single", BuiltinTypeSpec.Type.Float);
+			Double = new BuiltinTypeSpec (MemberKind.Struct, "System", "Double", BuiltinTypeSpec.Type.Double);
+			Decimal = new BuiltinTypeSpec (MemberKind.Struct, "System", "Decimal", BuiltinTypeSpec.Type.Decimal);
+			Bool = new BuiltinTypeSpec (MemberKind.Struct, "System", "Boolean", BuiltinTypeSpec.Type.Bool);
+			IntPtr = new BuiltinTypeSpec (MemberKind.Struct, "System", "IntPtr", BuiltinTypeSpec.Type.IntPtr);
+			UIntPtr = new BuiltinTypeSpec (MemberKind.Struct, "System", "UIntPtr", BuiltinTypeSpec.Type.UIntPtr);
+
+			MulticastDelegate = new BuiltinTypeSpec (MemberKind.Class, "System", "MulticastDelegate", BuiltinTypeSpec.Type.MulticastDelegate);
+			Delegate = new BuiltinTypeSpec (MemberKind.Class, "System", "Delegate", BuiltinTypeSpec.Type.Delegate);
+			Enum = new BuiltinTypeSpec (MemberKind.Class, "System", "Enum", BuiltinTypeSpec.Type.Enum);
+			Array = new BuiltinTypeSpec (MemberKind.Class, "System", "Array", BuiltinTypeSpec.Type.Array);
+			Void = new BuiltinTypeSpec (MemberKind.Void, "System", "Void", BuiltinTypeSpec.Type.Other);
+			Type = new BuiltinTypeSpec (MemberKind.Class, "System", "Type", BuiltinTypeSpec.Type.Type);
+			Exception = new BuiltinTypeSpec (MemberKind.Class, "System", "Exception", BuiltinTypeSpec.Type.Exception);
+			RuntimeFieldHandle = new BuiltinTypeSpec (MemberKind.Struct, "System", "RuntimeFieldHandle", BuiltinTypeSpec.Type.Other);
+			RuntimeTypeHandle = new BuiltinTypeSpec (MemberKind.Struct, "System", "RuntimeTypeHandle", BuiltinTypeSpec.Type.Other);
+
+			// TODO: Maybe I should promote it to different kind for faster compares
+			Dynamic = new BuiltinTypeSpec ("dynamic", BuiltinTypeSpec.Type.Dynamic);
+
+			OperatorsBinaryStandard = Binary.CreateStandardOperatorsTable (this);
+			OperatorsBinaryEquality = Binary.CreateEqualityOperatorsTable (this);
+			OperatorsBinaryUnsafe = Binary.CreatePointerOperatorsTable (this);
+			OperatorsUnary = Unary.CreatePredefinedOperatorsTable (this);
+			OperatorsUnaryMutator = UnaryMutator.CreatePredefinedOperatorsTable (this);
+
+			BinaryPromotionsTypes = ConstantFold.CreateBinaryPromotionsTypes (this);
+			SwitchUserTypes = Switch.CreateSwitchUserTypes (this);
+
+			types = new BuiltinTypeSpec[] {
+				Object, ValueType, Attribute,
+				Int, UInt, Long, ULong, Float, Double, Char, Short, Decimal, Bool, SByte, Byte, UShort, String,
+				Enum, Delegate, MulticastDelegate, Void, Array, Type, IEnumerator, IEnumerable, IDisposable,
+				IntPtr, UIntPtr, RuntimeFieldHandle, RuntimeTypeHandle, Exception };
+		}
+
+		public BuiltinTypeSpec[] AllTypes {
+			get {
+				return types;
+			}
+		}
+
+		public bool CheckDefinitions (ModuleContainer module)
+		{
+			var ctx = module.Compiler;
+			foreach (var p in types) {
+				var found = PredefinedType.Resolve (module, p.Kind, p.Namespace, p.Name, p.Arity, true, true);
+				if (found == null || found == p)
+					continue;
+
+				var tc = found.MemberDefinition as TypeDefinition;
+				if (tc != null) {
+					var ns = module.GlobalRootNamespace.GetNamespace (p.Namespace, false);
+					ns.SetBuiltinType (p);
+
+					tc.SetPredefinedSpec (p);
+					p.SetDefinition (found);
+				}
+			}
+
+			if (ctx.Report.Errors != 0)
+				return false;
+
+			// Set internal build-in types
+			Dynamic.SetDefinition (Object);
+
+			return true;
+		}
+	}
+
+	//
+	// Compiler predefined types. Usually used for compiler generated
+	// code or for comparison against well known framework type. They
+	// may not exist as they are optional
+	//
+	class PredefinedTypes
+	{
+		public readonly PredefinedType ArgIterator;
+		public readonly PredefinedType TypedReference;
+		public readonly PredefinedType MarshalByRefObject;
+		public readonly PredefinedType RuntimeHelpers;
+		public readonly PredefinedType IAsyncResult;
+		public readonly PredefinedType AsyncCallback;
+		public readonly PredefinedType RuntimeArgumentHandle;
+		public readonly PredefinedType CharSet;
+		public readonly PredefinedType IsVolatile;
+		public readonly PredefinedType IEnumeratorGeneric;
+		public readonly PredefinedType IListGeneric;
+		public readonly PredefinedType ICollectionGeneric;
+		public readonly PredefinedType IEnumerableGeneric;
+		public readonly PredefinedType Nullable;
+		public readonly PredefinedType Activator;
+		public readonly PredefinedType Interlocked;
+		public readonly PredefinedType Monitor;
+		public readonly PredefinedType NotSupportedException;
+		public readonly PredefinedType RuntimeFieldHandle;
+		public readonly PredefinedType RuntimeMethodHandle;
+		public readonly PredefinedType SecurityAction;
+		public readonly PredefinedType Dictionary;
+		public readonly PredefinedType Hashtable;
+
+		//
+		// C# 3.0
+		//
+		public readonly PredefinedType Expression;
+		public readonly PredefinedType ExpressionGeneric;
+		public readonly PredefinedType ParameterExpression;
+		public readonly PredefinedType FieldInfo;
+		public readonly PredefinedType MethodBase;
+		public readonly PredefinedType MethodInfo;
+		public readonly PredefinedType ConstructorInfo;
+		public readonly PredefinedType MemberBinding;
+
+		//
+		// C# 4.0
+		//
+		public readonly PredefinedType Binder;
+		public readonly PredefinedType CallSite;
+		public readonly PredefinedType CallSiteGeneric;
+		public readonly PredefinedType BinderFlags;
+
+		//
+		// C# 5.0
+		//
+		public readonly PredefinedType AsyncVoidMethodBuilder;
+		public readonly PredefinedType AsyncTaskMethodBuilder;
+		public readonly PredefinedType AsyncTaskMethodBuilderGeneric;
+		public readonly PredefinedType Action;
+		public readonly PredefinedType Task;
+		public readonly PredefinedType TaskGeneric;
+		public readonly PredefinedType IAsyncStateMachine;
+		public readonly PredefinedType INotifyCompletion;
+		public readonly PredefinedType ICriticalNotifyCompletion;
+
+		public PredefinedTypes (ModuleContainer module)
+		{
+			TypedReference = new PredefinedType (module, MemberKind.Struct, "System", "TypedReference");
+			ArgIterator = new PredefinedType (module, MemberKind.Struct, "System", "ArgIterator");
+
+			MarshalByRefObject = new PredefinedType (module, MemberKind.Class, "System", "MarshalByRefObject");
+			RuntimeHelpers = new PredefinedType (module, MemberKind.Class, "System.Runtime.CompilerServices", "RuntimeHelpers");
+			IAsyncResult = new PredefinedType (module, MemberKind.Interface, "System", "IAsyncResult");
+			AsyncCallback = new PredefinedType (module, MemberKind.Delegate, "System", "AsyncCallback");
+			RuntimeArgumentHandle = new PredefinedType (module, MemberKind.Struct, "System", "RuntimeArgumentHandle");
+			CharSet = new PredefinedType (module, MemberKind.Enum, "System.Runtime.InteropServices", "CharSet");
+			IsVolatile = new PredefinedType (module, MemberKind.Class, "System.Runtime.CompilerServices", "IsVolatile");
+			IEnumeratorGeneric = new PredefinedType (module, MemberKind.Interface, "System.Collections.Generic", "IEnumerator", 1);
+			IListGeneric = new PredefinedType (module, MemberKind.Interface, "System.Collections.Generic", "IList", 1);
+			ICollectionGeneric = new PredefinedType (module, MemberKind.Interface, "System.Collections.Generic", "ICollection", 1);
+			IEnumerableGeneric = new PredefinedType (module, MemberKind.Interface, "System.Collections.Generic", "IEnumerable", 1);
+			Nullable = new PredefinedType (module, MemberKind.Struct, "System", "Nullable", 1);
+			Activator = new PredefinedType (module, MemberKind.Class, "System", "Activator");
+			Interlocked = new PredefinedType (module, MemberKind.Class, "System.Threading", "Interlocked");
+			Monitor = new PredefinedType (module, MemberKind.Class, "System.Threading", "Monitor");
+			NotSupportedException = new PredefinedType (module, MemberKind.Class, "System", "NotSupportedException");
+			RuntimeFieldHandle = new PredefinedType (module, MemberKind.Struct, "System", "RuntimeFieldHandle");
+			RuntimeMethodHandle = new PredefinedType (module, MemberKind.Struct, "System", "RuntimeMethodHandle");
+			SecurityAction = new PredefinedType (module, MemberKind.Enum, "System.Security.Permissions", "SecurityAction");
+			Dictionary = new PredefinedType (module, MemberKind.Class, "System.Collections.Generic", "Dictionary", 2);
+			Hashtable = new PredefinedType (module, MemberKind.Class, "System.Collections", "Hashtable");
+
+			Expression = new PredefinedType (module, MemberKind.Class, "System.Linq.Expressions", "Expression");
+			ExpressionGeneric = new PredefinedType (module, MemberKind.Class, "System.Linq.Expressions", "Expression", 1);
+			MemberBinding = new PredefinedType (module, MemberKind.Class, "System.Linq.Expressions", "MemberBinding");
+			ParameterExpression = new PredefinedType (module, MemberKind.Class, "System.Linq.Expressions", "ParameterExpression");
+			FieldInfo = new PredefinedType (module, MemberKind.Class, "System.Reflection", "FieldInfo");
+			MethodBase = new PredefinedType (module, MemberKind.Class, "System.Reflection", "MethodBase");
+			MethodInfo = new PredefinedType (module, MemberKind.Class, "System.Reflection", "MethodInfo");
+			ConstructorInfo = new PredefinedType (module, MemberKind.Class, "System.Reflection", "ConstructorInfo");
+
+			CallSite = new PredefinedType (module, MemberKind.Class, "System.Runtime.CompilerServices", "CallSite");
+			CallSiteGeneric = new PredefinedType (module, MemberKind.Class, "System.Runtime.CompilerServices", "CallSite", 1);
+			Binder = new PredefinedType (module, MemberKind.Class, "Microsoft.CSharp.RuntimeBinder", "Binder");
+			BinderFlags = new PredefinedType (module, MemberKind.Enum, "Microsoft.CSharp.RuntimeBinder", "CSharpBinderFlags");
+
+			Action = new PredefinedType (module, MemberKind.Delegate, "System", "Action");
+			AsyncVoidMethodBuilder = new PredefinedType (module, MemberKind.Struct, "System.Runtime.CompilerServices", "AsyncVoidMethodBuilder");
+			AsyncTaskMethodBuilder = new PredefinedType (module, MemberKind.Struct, "System.Runtime.CompilerServices", "AsyncTaskMethodBuilder");
+			AsyncTaskMethodBuilderGeneric = new PredefinedType (module, MemberKind.Struct, "System.Runtime.CompilerServices", "AsyncTaskMethodBuilder", 1);
+			Task = new PredefinedType (module, MemberKind.Class, "System.Threading.Tasks", "Task");
+			TaskGeneric = new PredefinedType (module, MemberKind.Class, "System.Threading.Tasks", "Task", 1);
+			IAsyncStateMachine = new PredefinedType (module, MemberKind.Interface, "System.Runtime.CompilerServices", "IAsyncStateMachine");
+			INotifyCompletion = new PredefinedType (module, MemberKind.Interface, "System.Runtime.CompilerServices", "INotifyCompletion");
+			ICriticalNotifyCompletion = new PredefinedType (module, MemberKind.Interface, "System.Runtime.CompilerServices", "ICriticalNotifyCompletion");
+
+			//
+			// Define types which are used for comparison. It does not matter
+			// if they don't exist as no error report is needed
+			//
+			if (TypedReference.Define ())
+				TypedReference.TypeSpec.IsSpecialRuntimeType = true;
+
+			if (ArgIterator.Define ())
+				ArgIterator.TypeSpec.IsSpecialRuntimeType = true;
+
+			if (IEnumerableGeneric.Define ())
+				IEnumerableGeneric.TypeSpec.IsGenericIterateInterface = true;
+
+			if (IListGeneric.Define ())
+				IListGeneric.TypeSpec.IsGenericIterateInterface = true;
+
+			if (ICollectionGeneric.Define ())
+				ICollectionGeneric.TypeSpec.IsGenericIterateInterface = true;
+
+			if (Nullable.Define ())
+				Nullable.TypeSpec.IsNullableType = true;
+
+			if (ExpressionGeneric.Define ())
+				ExpressionGeneric.TypeSpec.IsExpressionTreeType = true;
+
+			Task.Define ();
+			if (TaskGeneric.Define ())
+				TaskGeneric.TypeSpec.IsGenericTask = true;
+		}
+	}
+
+	class PredefinedMembers
+	{
+		public readonly PredefinedMember<MethodSpec> ActivatorCreateInstance;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderCreate;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderStart;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderSetResult;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderSetException;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderSetStateMachine;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderOnCompleted;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderOnCompletedUnsafe;
+		public readonly PredefinedMember<PropertySpec> AsyncTaskMethodBuilderTask;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericCreate;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericStart;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericSetResult;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericSetException;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericSetStateMachine;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericOnCompleted;
+		public readonly PredefinedMember<MethodSpec> AsyncTaskMethodBuilderGenericOnCompletedUnsafe;
+		public readonly PredefinedMember<PropertySpec> AsyncTaskMethodBuilderGenericTask;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderCreate;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderStart;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderSetException;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderSetResult;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderSetStateMachine;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderOnCompleted;
+		public readonly PredefinedMember<MethodSpec> AsyncVoidMethodBuilderOnCompletedUnsafe;
+		public readonly PredefinedMember<MethodSpec> AsyncStateMachineAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> DebuggerBrowsableAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> DecimalCtor;
+		public readonly PredefinedMember<MethodSpec> DecimalCtorInt;
+		public readonly PredefinedMember<MethodSpec> DecimalCtorLong;
+		public readonly PredefinedMember<MethodSpec> DecimalConstantAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> DefaultMemberAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> DelegateCombine;
+		public readonly PredefinedMember<MethodSpec> DelegateEqual;
+		public readonly PredefinedMember<MethodSpec> DelegateInequal;
+		public readonly PredefinedMember<MethodSpec> DelegateRemove;
+		public readonly PredefinedMember<MethodSpec> DynamicAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> FieldInfoGetFieldFromHandle;
+		public readonly PredefinedMember<MethodSpec> FieldInfoGetFieldFromHandle2;
+		public readonly PredefinedMember<MethodSpec> IDisposableDispose;
+		public readonly PredefinedMember<MethodSpec> IEnumerableGetEnumerator;
+		public readonly PredefinedMember<MethodSpec> InterlockedCompareExchange;
+		public readonly PredefinedMember<MethodSpec> InterlockedCompareExchange_T;
+		public readonly PredefinedMember<MethodSpec> IteratorStateMachineAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> FixedBufferAttributeCtor;
+		public readonly PredefinedMember<MethodSpec> MethodInfoGetMethodFromHandle;
+		public readonly PredefinedMember<MethodSpec> MethodInfoGetMethodFromHandle2;
+		public readonly PredefinedMember<MethodSpec> MonitorEnter;
+		public readonly PredefinedMember<MethodSpec> MonitorEnter_v4;
+		public readonly PredefinedMember<MethodSpec> MonitorExit;
+		public readonly PredefinedMember<PropertySpec> RuntimeCompatibilityWrapNonExceptionThrows;
+		public readonly PredefinedMember<MethodSpec> RuntimeHelpersInitializeArray;
+		public readonly PredefinedMember<PropertySpec> RuntimeHelpersOffsetToStringData;
+		public readonly PredefinedMember<ConstSpec> SecurityActionRequestMinimum;
+		public readonly PredefinedMember<FieldSpec> StringEmpty;
+		public readonly PredefinedMember<MethodSpec> StringEqual;
+		public readonly PredefinedMember<MethodSpec> StringInequal;
+		public readonly PredefinedMember<MethodSpec> StructLayoutAttributeCtor;
+		public readonly PredefinedMember<FieldSpec> StructLayoutCharSet;
+		public readonly PredefinedMember<FieldSpec> StructLayoutSize;
+		public readonly PredefinedMember<MethodSpec> TypeGetTypeFromHandle;
+
+		public PredefinedMembers (ModuleContainer module)
+		{
+			var types = module.PredefinedTypes;
+			var atypes = module.PredefinedAttributes;
+			var btypes = module.Compiler.BuiltinTypes;
+
+			var tp = new TypeParameter (0, new MemberName ("T"), null, null, Variance.None);
+
+			ActivatorCreateInstance = new PredefinedMember<MethodSpec> (module, types.Activator,
+				MemberFilter.Method ("CreateInstance", 1, ParametersCompiled.EmptyReadOnlyParameters, null));
+
+			AsyncTaskMethodBuilderCreate = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Method ("Create", 0, ParametersCompiled.EmptyReadOnlyParameters, types.AsyncTaskMethodBuilder.TypeSpec));
+
+			AsyncTaskMethodBuilderSetResult = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Method ("SetResult", 0, ParametersCompiled.EmptyReadOnlyParameters, btypes.Void));
+
+			AsyncTaskMethodBuilderSetStateMachine = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				"SetStateMachine", MemberKind.Method, () => new[] {
+						types.IAsyncStateMachine.TypeSpec
+				}, btypes.Void);
+
+			AsyncTaskMethodBuilderSetException = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Method ("SetException", 0,
+				ParametersCompiled.CreateFullyResolved (btypes.Exception), btypes.Void));
+
+			AsyncTaskMethodBuilderOnCompleted = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Method ("AwaitOnCompleted", 2,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.REF)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (1, tp, SpecialConstraint.None, Variance.None, null)
+							}, false),
+					btypes.Void));
+
+			AsyncTaskMethodBuilderOnCompletedUnsafe = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Method ("AwaitUnsafeOnCompleted", 2,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.REF)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (1, tp, SpecialConstraint.None, Variance.None, null)
+							}, false),
+					btypes.Void));
+
+			AsyncTaskMethodBuilderStart = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Method ("Start", 1,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+							}, false),
+					btypes.Void));
+
+			AsyncTaskMethodBuilderTask = new PredefinedMember<PropertySpec> (module, types.AsyncTaskMethodBuilder,
+				MemberFilter.Property ("Task", null));
+
+			AsyncTaskMethodBuilderGenericCreate = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				MemberFilter.Method ("Create", 0, ParametersCompiled.EmptyReadOnlyParameters, types.AsyncVoidMethodBuilder.TypeSpec));
+
+			AsyncTaskMethodBuilderGenericSetResult = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				"SetResult", MemberKind.Method, () => new TypeSpec[] {
+						types.AsyncTaskMethodBuilderGeneric.TypeSpec.MemberDefinition.TypeParameters[0]
+				}, btypes.Void);
+
+			AsyncTaskMethodBuilderGenericSetStateMachine = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				"SetStateMachine", MemberKind.Method, () => new[] {
+						types.IAsyncStateMachine.TypeSpec
+				}, btypes.Void);
+
+			AsyncTaskMethodBuilderGenericSetException = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				MemberFilter.Method ("SetException", 0,
+				ParametersCompiled.CreateFullyResolved (btypes.Exception), btypes.Void));
+
+			AsyncTaskMethodBuilderGenericOnCompleted = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				MemberFilter.Method ("AwaitOnCompleted", 2,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.REF)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (1, tp, SpecialConstraint.None, Variance.None, null)
+							}, false),
+					btypes.Void));
+
+			AsyncTaskMethodBuilderGenericOnCompletedUnsafe = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				MemberFilter.Method ("AwaitUnsafeOnCompleted", 2,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.REF)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (1, tp, SpecialConstraint.None, Variance.None, null)
+							}, false),
+					btypes.Void));
+
+			AsyncTaskMethodBuilderGenericStart = new PredefinedMember<MethodSpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				MemberFilter.Method ("Start", 1,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+							}, false),
+					btypes.Void));
+
+			AsyncTaskMethodBuilderGenericTask = new PredefinedMember<PropertySpec> (module, types.AsyncTaskMethodBuilderGeneric,
+				MemberFilter.Property ("Task", null));
+
+			AsyncVoidMethodBuilderCreate = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				MemberFilter.Method ("Create", 0, ParametersCompiled.EmptyReadOnlyParameters, types.AsyncVoidMethodBuilder.TypeSpec));
+
+			AsyncVoidMethodBuilderSetException = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				MemberFilter.Method ("SetException", 0, null, btypes.Void));
+
+			AsyncVoidMethodBuilderSetResult = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				MemberFilter.Method ("SetResult", 0, ParametersCompiled.EmptyReadOnlyParameters, btypes.Void));
+
+			AsyncVoidMethodBuilderSetStateMachine = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				"SetStateMachine", MemberKind.Method, () => new[] {
+						types.IAsyncStateMachine.TypeSpec
+				}, btypes.Void);
+
+			AsyncVoidMethodBuilderOnCompleted = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				MemberFilter.Method ("AwaitOnCompleted", 2,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.REF)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (1, tp, SpecialConstraint.None, Variance.None, null)
+							}, false),
+					btypes.Void));
+
+			AsyncVoidMethodBuilderOnCompletedUnsafe = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				MemberFilter.Method ("AwaitUnsafeOnCompleted", 2,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.REF)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (1, tp, SpecialConstraint.None, Variance.None, null)
+							}, false),
+					btypes.Void));
+
+			AsyncVoidMethodBuilderStart = new PredefinedMember<MethodSpec> (module, types.AsyncVoidMethodBuilder,
+				MemberFilter.Method ("Start", 1,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+							}, false),
+					btypes.Void));
+
+			AsyncStateMachineAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.AsyncStateMachine,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (
+					btypes.Type)));
+
+			DebuggerBrowsableAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.DebuggerBrowsable,
+				MemberFilter.Constructor (null));
+
+			DecimalCtor = new PredefinedMember<MethodSpec> (module, btypes.Decimal,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (
+					btypes.Int, btypes.Int, btypes.Int, btypes.Bool, btypes.Byte)));
+
+			DecimalCtorInt = new PredefinedMember<MethodSpec> (module, btypes.Decimal,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (btypes.Int)));
+
+			DecimalCtorLong = new PredefinedMember<MethodSpec> (module, btypes.Decimal,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (btypes.Long)));
+
+			DecimalConstantAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.DecimalConstant,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (
+					btypes.Byte, btypes.Byte, btypes.UInt, btypes.UInt, btypes.UInt)));
+
+			DefaultMemberAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.DefaultMember,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (btypes.String)));
+
+			DelegateCombine = new PredefinedMember<MethodSpec> (module, btypes.Delegate, "Combine", btypes.Delegate, btypes.Delegate);
+			DelegateRemove = new PredefinedMember<MethodSpec> (module, btypes.Delegate, "Remove", btypes.Delegate, btypes.Delegate);
+
+			DelegateEqual = new PredefinedMember<MethodSpec> (module, btypes.Delegate,
+				new MemberFilter (Operator.GetMetadataName (Operator.OpType.Equality), 0, MemberKind.Operator, null, btypes.Bool));
+
+			DelegateInequal = new PredefinedMember<MethodSpec> (module, btypes.Delegate,
+				new MemberFilter (Operator.GetMetadataName (Operator.OpType.Inequality), 0, MemberKind.Operator, null, btypes.Bool));
+
+			DynamicAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.Dynamic,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (
+					ArrayContainer.MakeType (module, btypes.Bool))));
+
+			FieldInfoGetFieldFromHandle = new PredefinedMember<MethodSpec> (module, types.FieldInfo,
+				"GetFieldFromHandle", MemberKind.Method, types.RuntimeFieldHandle);
+
+			FieldInfoGetFieldFromHandle2 = new PredefinedMember<MethodSpec> (module, types.FieldInfo,
+				"GetFieldFromHandle", MemberKind.Method, types.RuntimeFieldHandle, new PredefinedType (btypes.RuntimeTypeHandle));
+
+			FixedBufferAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.FixedBuffer,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (btypes.Type, btypes.Int)));
+
+			IDisposableDispose = new PredefinedMember<MethodSpec> (module, btypes.IDisposable, "Dispose", TypeSpec.EmptyTypes);
+
+			IEnumerableGetEnumerator = new PredefinedMember<MethodSpec> (module, btypes.IEnumerable,
+				"GetEnumerator", TypeSpec.EmptyTypes);
+
+			InterlockedCompareExchange = new PredefinedMember<MethodSpec> (module, types.Interlocked,
+				MemberFilter.Method ("CompareExchange", 0,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.NONE),
+								new ParameterData (null, Parameter.Modifier.NONE)
+							},
+						new[] {
+								btypes.Int, btypes.Int, btypes.Int
+							},
+						false),
+				btypes.Int));
+
+			InterlockedCompareExchange_T = new PredefinedMember<MethodSpec> (module, types.Interlocked,
+				MemberFilter.Method ("CompareExchange", 1,
+					new ParametersImported (
+						new[] {
+								new ParameterData (null, Parameter.Modifier.REF),
+								new ParameterData (null, Parameter.Modifier.NONE),
+								new ParameterData (null, Parameter.Modifier.NONE)
+							},
+						new[] {
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+								new TypeParameterSpec (0, tp, SpecialConstraint.None, Variance.None, null),
+							}, false),
+					null));
+
+			IteratorStateMachineAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.IteratorStateMachine,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (
+					btypes.Type)));
+
+			MethodInfoGetMethodFromHandle = new PredefinedMember<MethodSpec> (module, types.MethodBase,
+				"GetMethodFromHandle", MemberKind.Method, types.RuntimeMethodHandle);
+
+			MethodInfoGetMethodFromHandle2 = new PredefinedMember<MethodSpec> (module, types.MethodBase,
+				"GetMethodFromHandle", MemberKind.Method, types.RuntimeMethodHandle, new PredefinedType (btypes.RuntimeTypeHandle));
+
+			MonitorEnter = new PredefinedMember<MethodSpec> (module, types.Monitor, "Enter", btypes.Object);
+
+			MonitorEnter_v4 = new PredefinedMember<MethodSpec> (module, types.Monitor,
+				MemberFilter.Method ("Enter", 0,
+					new ParametersImported (new[] {
+							new ParameterData (null, Parameter.Modifier.NONE),
+							new ParameterData (null, Parameter.Modifier.REF)
+						},
+					new[] {
+							btypes.Object, btypes.Bool
+						}, false), null));
+
+			MonitorExit = new PredefinedMember<MethodSpec> (module, types.Monitor, "Exit", btypes.Object);
+
+			RuntimeCompatibilityWrapNonExceptionThrows = new PredefinedMember<PropertySpec> (module, atypes.RuntimeCompatibility,
+				MemberFilter.Property ("WrapNonExceptionThrows", btypes.Bool));
+
+			RuntimeHelpersInitializeArray = new PredefinedMember<MethodSpec> (module, types.RuntimeHelpers,
+				"InitializeArray", btypes.Array, btypes.RuntimeFieldHandle);
+
+			RuntimeHelpersOffsetToStringData = new PredefinedMember<PropertySpec> (module, types.RuntimeHelpers,
+				MemberFilter.Property ("OffsetToStringData", btypes.Int));
+
+			SecurityActionRequestMinimum = new PredefinedMember<ConstSpec> (module, types.SecurityAction, "RequestMinimum",
+				MemberKind.Field, types.SecurityAction);
+
+			StringEmpty = new PredefinedMember<FieldSpec> (module, btypes.String, MemberFilter.Field ("Empty", btypes.String));
+
+			StringEqual = new PredefinedMember<MethodSpec> (module, btypes.String,
+				new MemberFilter (Operator.GetMetadataName (Operator.OpType.Equality), 0, MemberKind.Operator, null, btypes.Bool));
+
+			StringInequal = new PredefinedMember<MethodSpec> (module, btypes.String,
+				new MemberFilter (Operator.GetMetadataName (Operator.OpType.Inequality), 0, MemberKind.Operator, null, btypes.Bool));
+
+			StructLayoutAttributeCtor = new PredefinedMember<MethodSpec> (module, atypes.StructLayout,
+				MemberFilter.Constructor (ParametersCompiled.CreateFullyResolved (btypes.Short)));
+
+			StructLayoutCharSet = new PredefinedMember<FieldSpec> (module, atypes.StructLayout, "CharSet",
+				MemberKind.Field, types.CharSet);
+
+			StructLayoutSize = new PredefinedMember<FieldSpec> (module, atypes.StructLayout,
+				MemberFilter.Field ("Size", btypes.Int));
+
+			TypeGetTypeFromHandle = new PredefinedMember<MethodSpec> (module, btypes.Type, "GetTypeFromHandle", btypes.RuntimeTypeHandle);
+		}
+	}
+
+	public class PredefinedType
+	{
+		readonly string name;
+		readonly string ns;
+		readonly int arity;
+		readonly MemberKind kind;
+		protected readonly ModuleContainer module;
+		protected TypeSpec type;
+
+		public PredefinedType (ModuleContainer module, MemberKind kind, string ns, string name, int arity)
+			: this (module, kind, ns, name)
+		{
+			this.arity = arity;
+		}
+
+		public PredefinedType (ModuleContainer module, MemberKind kind, string ns, string name)
+		{
+			this.module = module;
+			this.kind = kind;
+			this.name = name;
+			this.ns = ns;
+		}
+
+		public PredefinedType (BuiltinTypeSpec type)
+		{
+			this.kind = type.Kind;
+			this.name = type.Name;
+			this.ns = type.Namespace;
+			this.type = type;
+		}
+
+		#region Properties
+
+		public int Arity {
+			get {
+				return arity;
+			}
+		}
+
+		public bool IsDefined {
+			get {
+				return type != null;
+			}
+		}
+
+		public string Name {
+			get {
+				return name;
+			}
+		}
+
+		public string Namespace {
+			get {
+				return ns;
+			}
+		}
+
+		public TypeSpec TypeSpec {
+			get {
+				return type;
+			}
+		}
+
+		#endregion
+
+		public bool Define ()
+		{
+			if (type != null)
+				return true;
+
+			type = Resolve (module, kind, ns, name, arity, false, false);
+			return type != null;
+		}
+
+		public string GetSignatureForError ()
+		{
+			return ns + "." + name;
+		}
+
+		public static TypeSpec Resolve (ModuleContainer module, MemberKind kind, string ns, string name, int arity, bool required, bool reportErrors)
+		{
+			//
+			// Cannot call it with true because it could create non-existent namespaces for
+			// predefined types. It's set to true only for build-in types which all must
+			// exist therefore it does not matter, for predefined types we don't want to create
+			// fake namespaces when type is optional and does not exist (e.g. System.Linq).
+			//
+			Namespace type_ns = module.GlobalRootNamespace.GetNamespace (ns, required);
+			IList<TypeSpec> found = null;
+			if (type_ns != null)
+				found = type_ns.GetAllTypes (name);
+
+			if (found == null) {
+				if (reportErrors )
+					module.Compiler.Report.Error (518, "The predefined type `{0}.{1}' is not defined or imported", ns, name);
+
+				return null;
+			}
+
+			TypeSpec best_match = null;
+			foreach (var candidate in found) {
+				if (candidate.Kind != kind) {
+					if (candidate.Kind == MemberKind.Struct && kind == MemberKind.Void && candidate.MemberDefinition is TypeContainer) {
+						// Void is declared as struct but we keep it internally as
+						// special kind, the swap will be done by caller
+					} else {
+						continue;
+					}
+				}
+
+				if (candidate.Arity != arity)
+					continue;
+
+				if ((candidate.Modifiers & Modifiers.INTERNAL) != 0 && !candidate.MemberDefinition.IsInternalAsPublic (module.DeclaringAssembly))
+					continue;
+
+				if (best_match == null) {
+					best_match = candidate;
+					continue;
+				}
+
+				var other_match = best_match;
+				if (!best_match.MemberDefinition.IsImported &&
+					module.Compiler.BuiltinTypes.Object.MemberDefinition.DeclaringAssembly == candidate.MemberDefinition.DeclaringAssembly) {
+					best_match = candidate;
+				}
+
+				string location;
+				if (best_match.MemberDefinition is MemberCore) {
+					location = ((MemberCore) best_match.MemberDefinition).Location.Name;
+				} else {
+					var assembly = (ImportedAssemblyDefinition) best_match.MemberDefinition.DeclaringAssembly;
+					location = Path.GetFileName (assembly.Location);
+				}
+
+				module.Compiler.Report.SymbolRelatedToPreviousError (other_match);
+				module.Compiler.Report.SymbolRelatedToPreviousError (candidate);
+
+				module.Compiler.Report.Warning (1685, 1,
+					"The predefined type `{0}.{1}' is defined multiple times. Using definition from `{2}'",
+					ns, name, location);
+
+				break;
+			}
+
+			if (best_match == null && reportErrors) {
+				Location loc;
+				if (found[0].MemberDefinition is MemberCore) {
+					loc = ((MemberCore) found[0].MemberDefinition).Location;
+				} else {
+					loc = Location.Null;
+					module.Compiler.Report.SymbolRelatedToPreviousError (found[0]);
+				}
+
+				module.Compiler.Report.Error (520, loc, "The predefined type `{0}.{1}' is not declared correctly", ns, name);
+			}
+
+			return best_match;
+		}
+
+		public TypeSpec Resolve ()
+		{
+			if (type == null)
+				type = Resolve (module, kind, ns, name, arity, false, true);
+
+			return type;
+		}
+	}
+
+	public class PredefinedMember<T> where T : MemberSpec
+	{
+		readonly ModuleContainer module;
+		T member;
+		TypeSpec declaring_type;
+		readonly PredefinedType declaring_type_predefined;
+		MemberFilter filter;
+		readonly Func<TypeSpec[]> filter_builder;
+
+		public PredefinedMember (ModuleContainer module, PredefinedType type, MemberFilter filter)
+		{
+			this.module = module;
+			this.declaring_type_predefined = type;
+			this.filter = filter;
+		}
+
+		public PredefinedMember (ModuleContainer module, TypeSpec type, MemberFilter filter)
+		{
+			this.module = module;
+			this.declaring_type = type;
+			this.filter = filter;
+		}
+
+		public PredefinedMember (ModuleContainer module, PredefinedType type, string name, params TypeSpec[] types)
+			: this (module, type, MemberFilter.Method (name, 0, ParametersCompiled.CreateFullyResolved (types), null))
+		{
+		}
+
+		public PredefinedMember (ModuleContainer module, PredefinedType type, string name, MemberKind kind, params PredefinedType[] types)
+			: this (module, type, new MemberFilter (name, 0, kind, null, null))
+		{
+			filter_builder = () => {
+				var ptypes = new TypeSpec[types.Length];
+				for (int i = 0; i < ptypes.Length; ++i) {
+					var p = types[i];
+					if (!p.Define ())
+						return null;
+
+					ptypes[i] = p.TypeSpec;
+				}
+
+				return ptypes;
+			};
+		}
+
+		public PredefinedMember (ModuleContainer module, PredefinedType type, string name, MemberKind kind, Func<TypeSpec[]> typesBuilder, TypeSpec returnType)
+			: this (module, type, new MemberFilter (name, 0, kind, null, returnType))
+		{
+			filter_builder = typesBuilder;
+		}
+
+		public PredefinedMember (ModuleContainer module, BuiltinTypeSpec type, string name, params TypeSpec[] types)
+			: this (module, type, MemberFilter.Method (name, 0, ParametersCompiled.CreateFullyResolved (types), null))
+		{
+		}
+
+		public T Get ()
+		{
+			if (member != null)
+				return member;
+
+			if (declaring_type == null) {
+				if (!declaring_type_predefined.Define ())
+					return null;
+
+				declaring_type = declaring_type_predefined.TypeSpec;
+			}
+
+			if (filter_builder != null) {
+				var types = filter_builder ();
+
+				if (filter.Kind == MemberKind.Field)
+					filter = new MemberFilter (filter.Name, filter.Arity, filter.Kind, null, types [0]);
+				else
+					filter = new MemberFilter (filter.Name, filter.Arity, filter.Kind,
+						ParametersCompiled.CreateFullyResolved (types), filter.MemberType);
+			}
+
+			member = MemberCache.FindMember (declaring_type, filter, BindingRestriction.DeclaredOnly) as T;
+			if (member == null)
+				return null;
+
+			if (!member.IsAccessible (module))
+				return null;
+
+			return member;
+		}
+
+		public T Resolve (Location loc)
+		{
+			if (member != null)
+				return member;
+
+			if (Get () != null)
+				return member;
+
+			if (declaring_type == null) {
+				if (declaring_type_predefined.Resolve () == null)
+					return null;
+			}
+
+			if (filter_builder != null) {
+				filter = new MemberFilter (filter.Name, filter.Arity, filter.Kind,
+					ParametersCompiled.CreateFullyResolved (filter_builder ()), filter.MemberType);
+			}
+
+			string method_args = null;
+			if (filter.Parameters != null)
+				method_args = filter.Parameters.GetSignatureForError ();
+
+			module.Compiler.Report.Error (656, loc, "The compiler required member `{0}.{1}{2}' could not be found or is inaccessible",
+				declaring_type.GetSignatureForError (), filter.Name, method_args);
+
+			return null;
+		}
+	}
 
 	partial class TypeManager {
-	//
-	// A list of core types that the compiler requires or uses
-	//
-	static public PredefinedTypeSpec object_type;
-	static public PredefinedTypeSpec value_type;
-	static public PredefinedTypeSpec string_type;
-	static public PredefinedTypeSpec int32_type;
-	static public PredefinedTypeSpec uint32_type;
-	static public PredefinedTypeSpec int64_type;
-	static public PredefinedTypeSpec uint64_type;
-	static public PredefinedTypeSpec float_type;
-	static public PredefinedTypeSpec double_type;
-	static public PredefinedTypeSpec char_type;
-	static public PredefinedTypeSpec short_type;
-	static public PredefinedTypeSpec decimal_type;
-	static public PredefinedTypeSpec bool_type;
-	static public PredefinedTypeSpec sbyte_type;
-	static public PredefinedTypeSpec byte_type;
-	static public PredefinedTypeSpec ushort_type;
-	static public PredefinedTypeSpec enum_type;
-	static public PredefinedTypeSpec delegate_type;
-	static public PredefinedTypeSpec multicast_delegate_type;
-	static public PredefinedTypeSpec void_type;
-	static public PredefinedTypeSpec array_type;
-	static public PredefinedTypeSpec runtime_handle_type;
-	static public PredefinedTypeSpec type_type;
-	static public PredefinedTypeSpec ienumerator_type;
-	static public PredefinedTypeSpec ienumerable_type;
-	static public PredefinedTypeSpec idisposable_type;
-	static public PredefinedTypeSpec intptr_type;
-	static public PredefinedTypeSpec uintptr_type;
-	static public PredefinedTypeSpec runtime_field_handle_type;
-	static public PredefinedTypeSpec attribute_type;
-	static public PredefinedTypeSpec exception_type;
-
-
-	static public TypeSpec typed_reference_type;
-	static public TypeSpec arg_iterator_type;
-	static public TypeSpec mbr_type;
-	public static TypeSpec runtime_helpers_type;
-	static public TypeSpec iasyncresult_type;
-	static public TypeSpec asynccallback_type;
-	static public TypeSpec runtime_argument_handle_type;
-	static public TypeSpec void_ptr_type;
-
-	// 
-	// C# 2.0
-	//
-	static internal TypeSpec isvolatile_type;
-	static public TypeSpec generic_ilist_type;
-	static public TypeSpec generic_icollection_type;
-	static public TypeSpec generic_ienumerator_type;
-	static public TypeSpec generic_ienumerable_type;
-	static public TypeSpec generic_nullable_type;
-
-	//
-	// C# 3.0
-	//
-	static internal TypeSpec expression_type;
-	public static TypeSpec parameter_expression_type;
-	public static TypeSpec fieldinfo_type;
-	public static TypeSpec methodinfo_type;
-	public static TypeSpec ctorinfo_type;
-
-	//
-	// C# 4.0
-	//
-	public static TypeSpec call_site_type;
-	public static TypeSpec generic_call_site_type;
-	public static TypeExpr binder_type;
-	public static TypeSpec binder_flags;
-
-	public static TypeExpr expression_type_expr;
-
-
-	//
-	// These methods are called by code generated by the compiler
-	//
-	static public FieldSpec string_empty;
-	static public MethodSpec system_type_get_type_from_handle;
-	static public MethodSpec bool_movenext_void;
-	static public MethodSpec void_dispose_void;
-	static public MethodSpec void_monitor_enter_object;
-	static public MethodSpec void_monitor_exit_object;
-	static public MethodSpec void_initializearray_array_fieldhandle;
-	static public MethodSpec delegate_combine_delegate_delegate;
-	static public MethodSpec delegate_remove_delegate_delegate;
-	static public PropertySpec int_get_offset_to_string_data;
-	static public MethodSpec int_interlocked_compare_exchange;
-	static public PropertySpec ienumerator_getcurrent;
-	public static MethodSpec methodbase_get_type_from_handle;
-	public static MethodSpec methodbase_get_type_from_handle_generic;
-	public static MethodSpec fieldinfo_get_field_from_handle;
-	public static MethodSpec fieldinfo_get_field_from_handle_generic;
-	public static MethodSpec activator_create_instance;
-
-	//
-	// The constructors.
-	//
-	static public MethodSpec void_decimal_ctor_five_args;
-	static public MethodSpec void_decimal_ctor_int_arg;
-	public static MethodSpec void_decimal_ctor_long_arg;
-
-	static Dictionary<Assembly, bool> assembly_internals_vis_attrs;
-
-	static TypeManager ()
-	{
-		Reset ();
-	}
-
-	static public void Reset ()
-	{
-//		object_type = null;
-	
-		assembly_internals_vis_attrs = new Dictionary<Assembly, bool> ();
-		
-		// TODO: I am really bored by all this static stuff
-		system_type_get_type_from_handle =
-		bool_movenext_void =
-		void_dispose_void =
-		void_monitor_enter_object =
-		void_monitor_exit_object =
-		void_initializearray_array_fieldhandle =
-		int_interlocked_compare_exchange =
-		methodbase_get_type_from_handle =
-		methodbase_get_type_from_handle_generic =
-		fieldinfo_get_field_from_handle =
-		fieldinfo_get_field_from_handle_generic =
-		activator_create_instance =
-		delegate_combine_delegate_delegate =
-		delegate_remove_delegate_delegate = null;
-
-		int_get_offset_to_string_data =
-		ienumerator_getcurrent = null;
-
-		void_decimal_ctor_five_args =
-		void_decimal_ctor_int_arg =
-		void_decimal_ctor_long_arg = null;
-
-		string_empty = null;
-
-		call_site_type =
-		generic_call_site_type =
-		binder_flags = null;
-
-		binder_type = null;
-
-		typed_reference_type = arg_iterator_type = mbr_type =
-		runtime_helpers_type = iasyncresult_type = asynccallback_type =
-		runtime_argument_handle_type = void_ptr_type = isvolatile_type =
-		generic_ilist_type = generic_icollection_type = generic_ienumerator_type =
-		generic_ienumerable_type = generic_nullable_type = expression_type =
-		parameter_expression_type = fieldinfo_type = methodinfo_type = ctorinfo_type = null;
-
-		expression_type_expr = null;
-	}
 
 	/// <summary>
 	///   Returns the C# name of a type if possible, or the full type name otherwise
@@ -214,360 +1008,7 @@ namespace Mono.CSharp {
 	{
 		return mb.GetSignatureForError ();
 	}
-
-	//
-	// Looks up a type, and aborts if it is not found.  This is used
-	// by predefined types required by the compiler
-	//
-	public static TypeSpec CoreLookupType (CompilerContext ctx, string ns_name, string name, MemberKind kind, bool required)
-	{
-		return CoreLookupType (ctx, ns_name, name, 0, kind, required);
-	}
-
-	public static TypeSpec CoreLookupType (CompilerContext ctx, string ns_name, string name, int arity, MemberKind kind, bool required)
-	{
-		Namespace ns = ctx.GlobalRootNamespace.GetNamespace (ns_name, true);
-		var te = ns.LookupType (ctx, name, arity, !required, Location.Null);
-		var ts = te == null ? null : te.Type;
-
-		if (!required)
-			return ts;
-
-		if (ts == null) {
-			ctx.Report.Error (518, "The predefined type `{0}.{1}' is not defined or imported",
-				ns_name, name);
-			return null;
-		}
-
-		if (ts.Kind != kind) {
-			ctx.Report.Error (520, "The predefined type `{0}.{1}' is not declared correctly",
-				ns_name, name);
-			return null;
-		}
-
-		return ts;
-	}
-
-	static MemberSpec GetPredefinedMember (TypeSpec t, MemberFilter filter, Location loc)
-	{
-		var member = MemberCache.FindMember (t, filter, BindingRestriction.DeclaredOnly);
-
-		if (member != null && member.IsAccessible (InternalType.FakeInternalType))
-			return member;
-
-		string method_args = null;
-		if (filter.Parameters != null)
-			method_args = filter.Parameters.GetSignatureForError ();
-
-		RootContext.ToplevelTypes.Compiler.Report.Error (656, loc, "The compiler required member `{0}.{1}{2}' could not be found or is inaccessible",
-			TypeManager.CSharpName (t), filter.Name, method_args);
-
-		return null;
-	}
-
-	//
-	// Returns the ConstructorInfo for "args"
-	//
-	public static MethodSpec GetPredefinedConstructor (TypeSpec t, Location loc, params TypeSpec [] args)
-	{
-		var pc = ParametersCompiled.CreateFullyResolved (args);
-		return GetPredefinedMember (t, MemberFilter.Constructor (pc), loc) as MethodSpec;
-	}
-
-	//
-	// Returns the method specification for a method named `name' defined
-	// in type `t' which takes arguments of types `args'
-	//
-	public static MethodSpec GetPredefinedMethod (TypeSpec t, string name, Location loc, params TypeSpec [] args)
-	{
-		var pc = ParametersCompiled.CreateFullyResolved (args);
-		return GetPredefinedMethod (t, MemberFilter.Method (name, 0, pc, null), loc);
-	}
-
-	public static MethodSpec GetPredefinedMethod (TypeSpec t, MemberFilter filter, Location loc)
-	{
-		return GetPredefinedMember (t, filter, loc) as MethodSpec;
-	}
-
-	public static FieldSpec GetPredefinedField (TypeSpec t, string name, Location loc, TypeSpec type)
-	{
-		return GetPredefinedMember (t, MemberFilter.Field (name, type), loc) as FieldSpec;
-	}
-
-	public static PropertySpec GetPredefinedProperty (TypeSpec t, string name, Location loc, TypeSpec type)
-	{
-		return GetPredefinedMember (t, MemberFilter.Property (name, type), loc) as PropertySpec;
-	}
-
-	public static IList<PredefinedTypeSpec> InitCoreTypes ()
-	{
-		var core_types = new PredefinedTypeSpec[] {
-			object_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Object"),
-			value_type = new PredefinedTypeSpec (MemberKind.Class, "System", "ValueType"),
-			attribute_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Attribute"),
-
-			int32_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Int32"),
-			int64_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Int64"),
-			uint32_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "UInt32"),
-			uint64_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "UInt64"),
-			byte_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Byte"),
-			sbyte_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "SByte"),
-			short_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Int16"),
-			ushort_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "UInt16"),
-
-			ienumerator_type = new PredefinedTypeSpec (MemberKind.Interface, "System.Collections", "IEnumerator"),
-			ienumerable_type = new PredefinedTypeSpec (MemberKind.Interface, "System.Collections", "IEnumerable"),
-			idisposable_type = new PredefinedTypeSpec (MemberKind.Interface, "System", "IDisposable"),
-
-			char_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Char"),
-			string_type = new PredefinedTypeSpec (MemberKind.Class, "System", "String"),
-			float_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Single"),
-			double_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Double"),
-			decimal_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Decimal"),
-			bool_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Boolean"),
-			intptr_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "IntPtr"),
-			uintptr_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "UIntPtr"),
-
-			multicast_delegate_type = new PredefinedTypeSpec (MemberKind.Class, "System", "MulticastDelegate"),
-			delegate_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Delegate"),
-			enum_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Enum"),
-			array_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Array"),
-			void_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "Void"),
-			type_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Type"),
-			exception_type = new PredefinedTypeSpec (MemberKind.Class, "System", "Exception"),
-			runtime_field_handle_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "RuntimeFieldHandle"),
-			runtime_handle_type = new PredefinedTypeSpec (MemberKind.Struct, "System", "RuntimeTypeHandle"),
-		};
-
-		return core_types;
-	}
-
-	/// <remarks>
-	///   The types have to be initialized after the initial
-	///   population of the type has happened (for example, to
-	///   bootstrap the corlib.dll
-	/// </remarks>
-	public static bool InitCoreTypes (CompilerContext ctx, IList<PredefinedTypeSpec> predefined)
-	{
-		foreach (var p in predefined) {
-			var found = CoreLookupType (ctx, p.Namespace, p.Name, p.Kind, true);
-			if (found == null || found == p)
-				continue;
-
-			if (!RootContext.StdLib) {
-				var ns = ctx.GlobalRootNamespace.GetNamespace (p.Namespace, false);
-				ns.ReplaceTypeWithPredefined (found, p);
-
-				var tc = found.MemberDefinition as TypeContainer;
-				tc.SetPredefinedSpec (p);
-				p.SetDefinition (found);
-			}
-		}
-
-		ctx.PredefinedAttributes.ParamArray.Initialize (ctx, false);
-		ctx.PredefinedAttributes.Out.Initialize (ctx, false);
-
-		if (InternalType.Dynamic.GetMetaInfo () == null) {
-			InternalType.Dynamic.SetMetaInfo (object_type.GetMetaInfo ());
-
-			if (object_type.MemberDefinition.IsImported)
-				InternalType.Dynamic.MemberCache = object_type.MemberCache;
-
-			InternalType.Null.SetMetaInfo (object_type.GetMetaInfo ());
-		}
-
-		return ctx.Report.Errors == 0;
-	}
-
-	//
-	// Initializes optional core types
-	//
-	public static void InitOptionalCoreTypes (CompilerContext ctx)
-	{
-		void_ptr_type = PointerContainer.MakeType (void_type);
-
-		//
-		// Initialize InternalsVisibleTo as the very first optional type. Otherwise we would populate
-		// types cache with incorrect accessiblity when any of optional types is internal.
-		//
-		ctx.PredefinedAttributes.Initialize (ctx);
-
-		runtime_argument_handle_type = CoreLookupType (ctx, "System", "RuntimeArgumentHandle", MemberKind.Struct, false);
-		asynccallback_type = CoreLookupType (ctx, "System", "AsyncCallback", MemberKind.Delegate, false);
-		iasyncresult_type = CoreLookupType (ctx, "System", "IAsyncResult", MemberKind.Interface, false);
-		typed_reference_type = CoreLookupType (ctx, "System", "TypedReference", MemberKind.Struct, false);
-		arg_iterator_type = CoreLookupType (ctx, "System", "ArgIterator", MemberKind.Struct, false);
-		mbr_type = CoreLookupType (ctx, "System", "MarshalByRefObject", MemberKind.Class, false);
-
-		generic_ienumerator_type = CoreLookupType (ctx, "System.Collections.Generic", "IEnumerator", 1, MemberKind.Interface, false);
-		generic_ilist_type = CoreLookupType (ctx, "System.Collections.Generic", "IList", 1, MemberKind.Interface, false);
-		generic_icollection_type = CoreLookupType (ctx, "System.Collections.Generic", "ICollection", 1, MemberKind.Interface, false);
-		generic_ienumerable_type = CoreLookupType (ctx, "System.Collections.Generic", "IEnumerable", 1, MemberKind.Interface, false);
-		generic_nullable_type = CoreLookupType (ctx, "System", "Nullable", 1, MemberKind.Struct, false);
-
-		//
-		// Optional types which are used as types and for member lookup
-		//
-		runtime_helpers_type = CoreLookupType (ctx, "System.Runtime.CompilerServices", "RuntimeHelpers", MemberKind.Class, false);
-
-		// New in .NET 3.5
-		// Note: extension_attribute_type is already loaded
-		expression_type = CoreLookupType (ctx, "System.Linq.Expressions", "Expression", 1, MemberKind.Class, false);
-	}
-
-	public static bool IsBuiltinType (TypeSpec t)
-	{
-		if (t == object_type || t == string_type || t == int32_type || t == uint32_type ||
-		    t == int64_type || t == uint64_type || t == float_type || t == double_type ||
-		    t == char_type || t == short_type || t == decimal_type || t == bool_type ||
-		    t == sbyte_type || t == byte_type || t == ushort_type || t == void_type)
-			return true;
-		else
-			return false;
-	}
-
-	//
-	// This is like IsBuiltinType, but lacks decimal_type, we should also clean up
-	// the pieces in the code where we use IsBuiltinType and special case decimal_type.
-	// 
-	public static bool IsPrimitiveType (TypeSpec t)
-	{
-		return (t == int32_type || t == uint32_type ||
-		    t == int64_type || t == uint64_type || t == float_type || t == double_type ||
-		    t == char_type || t == short_type || t == bool_type ||
-		    t == sbyte_type || t == byte_type || t == ushort_type);
-	}
-
-	// Obsolete
-	public static bool IsDelegateType (TypeSpec t)
-	{
-		return t.IsDelegate;
-	}
-
-	//
-	// When any element of the type is a dynamic type
-	//
-	// This method builds a transformation array for dynamic types
-	// used in places where DynamicAttribute cannot be applied to.
-	// It uses bool flag when type is of dynamic type and each
-	// section always starts with "false" for some reason.
-	//
-	// LAMESPEC: This should be part of C# specification !
-	// 
-	// Example: Func<dynamic, int, dynamic[]>
-	// Transformation: { false, true, false, false, true }
-	//
-	public static bool[] HasDynamicTypeUsed (TypeSpec t)
-	{
-		var ac = t as ArrayContainer;
-		if (ac != null) {
-			if (HasDynamicTypeUsed (ac.Element) != null)
-				return new bool[] { false, true };
-
-			return null;
-		}
-
-		if (t == null)
-			return null;
-
-		if (IsGenericType (t)) {
-			List<bool> transform = null;
-			var targs = GetTypeArguments (t);
-			for (int i = 0; i < targs.Length; ++i) {
-				var element = HasDynamicTypeUsed (targs [i]);
-				if (element != null) {
-					if (transform == null) {
-						transform = new List<bool> ();
-						for (int ii = 0; ii <= i; ++ii)
-							transform.Add (false);
-					}
-
-					transform.AddRange (element);
-				} else if (transform != null) {
-					transform.Add (false);
-				}
-			}
-
-			if (transform != null)
-				return transform.ToArray ();
-		}
-
-		if (object.ReferenceEquals (InternalType.Dynamic, t))
-			return new bool [] { true };
-
-		return null;
-	}
-	
-	// Obsolete
-	public static bool IsEnumType (TypeSpec t)
-	{
-		return t.IsEnum;
-	}
-
-	public static bool IsBuiltinOrEnum (TypeSpec t)
-	{
-		if (IsBuiltinType (t))
-			return true;
 		
-		if (IsEnumType (t))
-			return true;
-
-		return false;
-	}
-
-	//
-	// Whether a type is unmanaged.  This is used by the unsafe code (25.2)
-	//
-	public static bool IsUnmanagedType (TypeSpec t)
-	{
-		var ds = t.MemberDefinition as DeclSpace;
-		if (ds != null)
-			return ds.IsUnmanagedType ();
-
-		// some builtins that are not unmanaged types
-		if (t == TypeManager.object_type || t == TypeManager.string_type)
-			return false;
-
-		if (IsBuiltinOrEnum (t))
-			return true;
-
-		// Someone did the work of checking if the ElementType of t is unmanaged.  Let's not repeat it.
-		if (t.IsPointer)
-			return IsUnmanagedType (GetElementType (t));
-
-		if (!IsValueType (t))
-			return false;
-
-		if (t.IsNested && t.DeclaringType.IsGenericOrParentIsGeneric)
-			return false;
-
-		return true;
-	}
-
-	//
-	// Null is considered to be a reference type
-	//			
-	public static bool IsReferenceType (TypeSpec t)
-	{
-		if (t.IsGenericParameter)
-			return ((TypeParameterSpec) t).IsReferenceType;
-
-		return !t.IsStruct && !IsEnumType (t);
-	}			
-		
-	public static bool IsValueType (TypeSpec t)
-	{
-		if (t.IsGenericParameter)
-			return ((TypeParameterSpec) t).IsValueType;
-
-		return t.IsStruct || IsEnumType (t);
-	}
-
-	public static bool IsStruct (TypeSpec t)
-	{
-		return t.IsStruct;
-	}
-
 	public static bool IsFamilyAccessible (TypeSpec type, TypeSpec parent)
 	{
 //		TypeParameter tparam = LookupTypeParameter (type);
@@ -592,134 +1033,25 @@ namespace Mono.CSharp {
 	}
 
 	//
-	// Checks whether `type' is a subclass or nested child of `base_type'.
-	//
-	public static bool IsNestedFamilyAccessible (TypeSpec type, TypeSpec base_type)
-	{
-		do {
-			if (IsFamilyAccessible (type, base_type))
-				return true;
-
-			// Handle nested types.
-			type = type.DeclaringType;
-		} while (type != null);
-
-		return false;
-	}
-
-	//
 	// Checks whether `type' is a nested child of `parent'.
 	//
-	public static bool IsNestedChildOf (TypeSpec type, TypeSpec parent)
+	public static bool IsNestedChildOf (TypeSpec type, ITypeDefinition parent)
 	{
 		if (type == null)
 			return false;
 
-		type = type.GetDefinition (); // DropGenericTypeArguments (type);
-		parent = parent.GetDefinition (); // DropGenericTypeArguments (parent);
-
-		if (type == parent)
+		if (type.MemberDefinition == parent)
 			return false;
 
 		type = type.DeclaringType;
 		while (type != null) {
-			if (type.GetDefinition () == parent)
+			if (type.MemberDefinition == parent)
 				return true;
 
 			type = type.DeclaringType;
 		}
 
 		return false;
-	}
-
-	public static bool IsSpecialType (TypeSpec t)
-	{
-		return t == arg_iterator_type || t == typed_reference_type;
-	}
-
-	//
-	// Checks whether `invocationAssembly' is same or a friend of the assembly
-	//
-	public static bool IsThisOrFriendAssembly (Assembly invocationAssembly, Assembly assembly)
-	{
-		if (assembly == null)
-			throw new ArgumentNullException ("assembly");
-
-		// TODO: This can happen for constants used at assembly level and
-		// predefined members
-		// But there is no way to test for it for now, so it could be abused
-		// elsewhere too.
-		if (invocationAssembly == null)
-			invocationAssembly = CodeGen.Assembly.Builder;
-
-		if (invocationAssembly == assembly)
-			return true;
-
-		bool value;
-		if (assembly_internals_vis_attrs.TryGetValue (assembly, out value))
-			return value;
-
-		object[] attrs = assembly.GetCustomAttributes (typeof (InternalsVisibleToAttribute), false);
-		if (attrs.Length == 0) {
-			assembly_internals_vis_attrs.Add (assembly, false);
-			return false;
-		}
-
-		bool is_friend = false;
-
-		AssemblyName this_name = CodeGen.Assembly.Name;
-		if (this_name == null)
-			return false;
-
-		byte [] this_token = this_name.GetPublicKeyToken ();
-		foreach (InternalsVisibleToAttribute attr in attrs) {
-			if (attr.AssemblyName == null || attr.AssemblyName.Length == 0)
-				continue;
-			
-			AssemblyName aname = null;
-			try {
-				aname = new AssemblyName (attr.AssemblyName);
-			} catch (FileLoadException) {
-			} catch (ArgumentException) {
-			}
-
-			if (aname == null || aname.Name != this_name.Name)
-				continue;
-			
-			byte [] key_token = aname.GetPublicKeyToken ();
-			if (key_token != null) {
-				if (this_token.Length == 0) {
-					// Same name, but assembly is not strongnamed
-					Error_FriendAccessNameNotMatching (aname.FullName, RootContext.ToplevelTypes.Compiler.Report);
-					break;
-				}
-				
-				if (!CompareKeyTokens (this_token, key_token))
-					continue;
-			}
-
-			is_friend = true;
-			break;
-		}
-
-		assembly_internals_vis_attrs.Add (assembly, is_friend);
-		return is_friend;
-	}
-
-	static bool CompareKeyTokens (byte [] token1, byte [] token2)
-	{
-		for (int i = 0; i < token1.Length; i++)
-			if (token1 [i] != token2 [i])
-				return false;
-
-		return true;
-	}
-
-	static void Error_FriendAccessNameNotMatching (string other_name, Report Report)
-	{
-		Report.Error (281,
-			"Friend access was granted to `{0}', but the output assembly is named `{1}'. Try adding a reference to `{0}' or change the output assembly name to match it",
-			other_name, CodeGen.Assembly.Name.FullName);
 	}
 
 	public static TypeSpec GetElementType (TypeSpec t)
@@ -735,91 +1067,20 @@ namespace Mono.CSharp {
 		return t is ElementTypeSpec;
 	}
 
-	static NumberFormatInfo nf_provider = CultureInfo.CurrentCulture.NumberFormat;
-
-	// This is a custom version of Convert.ChangeType() which works
-	// with the TypeBuilder defined types when compiling corlib.
-	public static object ChangeType (object value, TypeSpec targetType, out bool error)
-	{
-		IConvertible convert_value = value as IConvertible;
-		
-		if (convert_value == null){
-			error = true;
-			return null;
-		}
-		
-		//
-		// We cannot rely on build-in type conversions as they are
-		// more limited than what C# supports.
-		// See char -> float/decimal/double conversion
-		//
-		error = false;
-		try {
-			if (targetType == TypeManager.bool_type)
-				return convert_value.ToBoolean (nf_provider);
-			if (targetType == TypeManager.byte_type)
-				return convert_value.ToByte (nf_provider);
-			if (targetType == TypeManager.char_type)
-				return convert_value.ToChar (nf_provider);
-			if (targetType == TypeManager.short_type)
-				return convert_value.ToInt16 (nf_provider);
-			if (targetType == TypeManager.int32_type)
-				return convert_value.ToInt32 (nf_provider);
-			if (targetType == TypeManager.int64_type)
-				return convert_value.ToInt64 (nf_provider);
-			if (targetType == TypeManager.sbyte_type)
-				return convert_value.ToSByte (nf_provider);
-
-			if (targetType == TypeManager.decimal_type) {
-				if (convert_value.GetType () == typeof (char))
-					return (decimal) convert_value.ToInt32 (nf_provider);
-				return convert_value.ToDecimal (nf_provider);
-			}
-
-			if (targetType == TypeManager.double_type) {
-				if (convert_value.GetType () == typeof (char))
-					return (double) convert_value.ToInt32 (nf_provider);
-				return convert_value.ToDouble (nf_provider);
-			}
-
-			if (targetType == TypeManager.float_type) {
-				if (convert_value.GetType () == typeof (char))
-					return (float)convert_value.ToInt32 (nf_provider);
-				return convert_value.ToSingle (nf_provider);
-			}
-
-			if (targetType == TypeManager.string_type)
-				return convert_value.ToString (nf_provider);
-			if (targetType == TypeManager.ushort_type)
-				return convert_value.ToUInt16 (nf_provider);
-			if (targetType == TypeManager.uint32_type)
-				return convert_value.ToUInt32 (nf_provider);
-			if (targetType == TypeManager.uint64_type)
-				return convert_value.ToUInt64 (nf_provider);
-			if (targetType == TypeManager.object_type)
-				return value;
-
-			error = true;
-		} catch {
-			error = true;
-		}
-		return null;
-	}
-
 	/// <summary>
 	///   Utility function that can be used to probe whether a type
 	///   is managed or not.  
 	/// </summary>
-	public static bool VerifyUnmanaged (CompilerContext ctx, TypeSpec t, Location loc)
+	public static bool VerifyUnmanaged (ModuleContainer rc, TypeSpec t, Location loc)
 	{
-		while (t.IsPointer)
-			t = GetElementType (t);
-
-		if (IsUnmanagedType (t))
+		if (t.IsUnmanaged)
 			return true;
 
-		ctx.Report.SymbolRelatedToPreviousError (t);
-		ctx.Report.Error (208, loc,
+		while (t.IsPointer)
+			t = ((ElementTypeSpec) t).Element;
+
+		rc.Compiler.Report.SymbolRelatedToPreviousError (t);
+		rc.Compiler.Report.Error (208, loc,
 			"Cannot take the address of, get the size of, or declare a pointer to a managed type `{0}'",
 			CSharpName (t));
 
@@ -838,12 +1099,6 @@ namespace Mono.CSharp {
 		return type.IsGeneric;
 	}
 
-	// TODO: Implement correctly
-	public static bool ContainsGenericParameters (TypeSpec type)
-	{
-		return type.GetMetaInfo ().ContainsGenericParameters;
-	}
-
 	public static TypeSpec[] GetTypeArguments (TypeSpec t)
 	{
 		// TODO: return empty array !!
@@ -857,11 +1112,6 @@ namespace Mono.CSharp {
 	public static bool IsInstantiationOfSameGenericType (TypeSpec type, TypeSpec parent)
 	{
 		return type == parent || type.MemberDefinition == parent.MemberDefinition;
-	}
-
-	public static bool IsNullableType (TypeSpec t)
-	{
-		return generic_nullable_type == t.GetDefinition ();
 	}
 #endregion
 }

@@ -1,12 +1,12 @@
-/* ****************************************************************************
+﻿/* ****************************************************************************
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -22,8 +22,9 @@ using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Microsoft.Scripting.Utils;
 
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
 #else
 namespace System.Linq.Expressions {
@@ -162,12 +163,7 @@ namespace System.Linq.Expressions {
             GetMemberBinder getMember;
             SetMemberBinder setMember;
             DeleteMemberBinder deleteMember;
-            GetIndexBinder getIndex;
-            SetIndexBinder setIndex;
-            DeleteIndexBinder deleteIndex;
             InvokeMemberBinder call;
-            InvokeBinder invoke;
-            CreateInstanceBinder create;
             UnaryOperationBinder unary;
             BinaryOperationBinder binary;
 
@@ -179,17 +175,17 @@ namespace System.Linq.Expressions {
                 return "SetMember " + setMember.Name;
             } else if ((deleteMember = binder as DeleteMemberBinder) != null) {
                 return "DeleteMember " + deleteMember.Name;
-            } else if ((getIndex = binder as GetIndexBinder) != null) {
+            } else if (binder is GetIndexBinder) {
                 return "GetIndex";
-            } else if ((setIndex = binder as SetIndexBinder) != null) {
+            } else if (binder is SetIndexBinder) {
                 return "SetIndex";
-            } else if ((deleteIndex = binder as DeleteIndexBinder) != null) {
+            } else if (binder is DeleteIndexBinder) {
                 return "DeleteIndex";
             } else if ((call = binder as InvokeMemberBinder) != null) {
                 return "Call " + call.Name;
-            } else if ((invoke = binder as InvokeBinder) != null) {
+            } else if (binder is InvokeBinder) {
                 return "Invoke";
-            } else if ((create = binder as CreateInstanceBinder) != null) {
+            } else if (binder is CreateInstanceBinder) {
                 return "Create";
             } else if ((unary = binder as UnaryOperationBinder) != null) {
                 return unary.Operation.ToString();
@@ -201,6 +197,10 @@ namespace System.Linq.Expressions {
         }
 
         private void VisitExpressions<T>(char open, IList<T> expressions, char close) where T : Expression {
+            VisitExpressions(open, expressions, close, ", ");
+        }
+
+        private void VisitExpressions<T>(char open, IList<T> expressions, char close, string seperator) where T : Expression {
             Out(open);
             if (expressions != null) {
                 bool isFirst = true;
@@ -208,7 +208,7 @@ namespace System.Linq.Expressions {
                     if (isFirst) {
                         isFirst = false;
                     } else {
-                        Out(", ");
+                        Out(seperator);
                     }
                     Visit(e);
                 }
@@ -232,11 +232,21 @@ namespace System.Linq.Expressions {
             } else {
                 string op;
                 switch (node.NodeType) {
+                    // AndAlso and OrElse were unintentionally changed in
+                    // CLR 4. We changed them to "AndAlso" and "OrElse" to
+                    // be 3.5 compatible, but it turns out 3.5 shipped with
+                    // "&&" and "||". Oops.
+                    case ExpressionType.AndAlso:
+                        op = "AndAlso";
+                        break;
+                    case ExpressionType.OrElse:
+                        op = "OrElse";
+                        break;
                     case ExpressionType.Assign: op = "="; break;
-                    case ExpressionType.Equal: op = "=="; break;
+                    case ExpressionType.Equal:
+						op = "==";
+						break;
                     case ExpressionType.NotEqual: op = "!="; break;
-                    case ExpressionType.AndAlso: op = "AndAlso"; break;
-                    case ExpressionType.OrElse: op = "OrElse"; break;
                     case ExpressionType.GreaterThan: op = ">"; break;
                     case ExpressionType.LessThan: op = "<"; break;
                     case ExpressionType.GreaterThanOrEqual: op = ">="; break;
@@ -311,11 +321,11 @@ namespace System.Linq.Expressions {
             if (node.IsByRef) {
                 Out("ref ");
             }
-            if (String.IsNullOrEmpty(node.Name)) {
-                int id = GetParamId(node);
-                Out("Param_" + id);
+            string name = node.Name;
+            if (String.IsNullOrEmpty(name)) {
+                Out("Param_" + GetParamId(node));
             } else {
-                Out(node.Name);
+                Out(name);
             }
             return node;
         }
@@ -467,15 +477,17 @@ namespace System.Linq.Expressions {
 
         protected override ElementInit VisitElementInit(ElementInit initializer) {
             Out(initializer.AddMethod.ToString());
-            VisitExpressions('(', initializer.Arguments, ')');
+            string sep = ", ";
+            VisitExpressions('(', initializer.Arguments, ')', sep);
             return initializer;
         }
 
         protected internal override Expression VisitInvocation(InvocationExpression node) {
             Out("Invoke(");
             Visit(node.Expression);
+            string sep = ", ";
             for (int i = 0, n = node.Arguments.Count; i < n; i++) {
-                Out(", ");
+                Out(sep);
                 Visit(node.Arguments[i]);
             }
             Out(")");
@@ -525,12 +537,14 @@ namespace System.Linq.Expressions {
         protected internal override Expression VisitNew(NewExpression node) {
             Out("new " + node.Type.Name);
             Out("(");
+            var members = node.Members;
             for (int i = 0; i < node.Arguments.Count; i++) {
                 if (i > 0) {
                     Out(", ");
                 }
-                if (node.Members != null) {
-                    Out(node.Members[i].Name);
+                if (members != null) {
+                    string name = members[i].Name;                    
+                    Out(name);
                     Out(" = ");
                 }
                 Visit(node.Arguments[i]);
@@ -714,7 +728,7 @@ namespace System.Linq.Expressions {
         protected internal override Expression VisitExtension(Expression node) {
             // Prefer an overriden ToString, if available.
             var flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.ExactBinding;
-            var toString = node.GetType().GetMethod("ToString", flags, null, Type.EmptyTypes, null);
+            var toString = node.GetType().GetMethod("ToString", flags, null, ReflectionUtils.EmptyTypes, null);
             if (toString.DeclaringType != typeof(Expression)) {
                 Out(node.ToString());
                 return node;

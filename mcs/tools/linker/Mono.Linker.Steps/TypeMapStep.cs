@@ -28,6 +28,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 using Mono.Cecil;
 
@@ -41,12 +42,42 @@ namespace Mono.Linker.Steps {
 				MapType (type);
 		}
 
-		static void MapType (TypeDefinition type)
+		void MapType (TypeDefinition type)
 		{
 			MapVirtualMethods (type);
+			MapInterfaceMethodsInTypeHierarchy (type);
+
+			if (!type.HasNestedTypes)
+				return;
+
+			foreach (var nested in type.NestedTypes)
+				MapType (nested);
 		}
 
-		static void MapVirtualMethods (TypeDefinition type)
+		void MapInterfaceMethodsInTypeHierarchy (TypeDefinition type)
+		{
+			if (!type.HasInterfaces)
+				return;
+
+			foreach (TypeReference @interface in type.Interfaces) {
+				var iface = @interface.Resolve ();
+				if (iface == null || !iface.HasMethods)
+					continue;
+
+				foreach (MethodDefinition method in iface.Methods) {
+					if (TryMatchMethod (type, method) != null)
+						continue;
+
+					var @base = GetBaseMethodInTypeHierarchy (type, method);
+					if (@base == null)
+						continue;
+
+					Annotations.AddPreservedMethod (type, @base);
+				}
+			}
+		}
+
+		void MapVirtualMethods (TypeDefinition type)
 		{
 			if (!type.HasMethods)
 				return;
@@ -62,13 +93,13 @@ namespace Mono.Linker.Steps {
 			}
 		}
 
-		static void MapVirtualMethod (MethodDefinition method)
+		void MapVirtualMethod (MethodDefinition method)
 		{
 			MapVirtualBaseMethod (method);
 			MapVirtualInterfaceMethod (method);
 		}
 
-		static void MapVirtualBaseMethod (MethodDefinition method)
+		void MapVirtualBaseMethod (MethodDefinition method)
 		{
 			MethodDefinition @base = GetBaseMethodInTypeHierarchy (method);
 			if (@base == null)
@@ -77,16 +108,13 @@ namespace Mono.Linker.Steps {
 			AnnotateMethods (@base, method);
 		}
 
-		static void MapVirtualInterfaceMethod (MethodDefinition method)
+		void MapVirtualInterfaceMethod (MethodDefinition method)
 		{
-			MethodDefinition @base = GetBaseMethodInInterfaceHierarchy (method);
-			if (@base == null)
-				return;
-
-			AnnotateMethods (@base, method);
+			foreach (MethodDefinition @base in GetBaseMethodsInInterfaceHierarchy (method))
+				AnnotateMethods (@base, method);
 		}
 
-		static void MapOverrides (MethodDefinition method)
+		void MapOverrides (MethodDefinition method)
 		{
 			foreach (MethodReference override_ref in method.Overrides) {
 				MethodDefinition @override = override_ref.Resolve ();
@@ -97,7 +125,7 @@ namespace Mono.Linker.Steps {
 			}
 		}
 
-		static void AnnotateMethods (MethodDefinition @base, MethodDefinition @override)
+		void AnnotateMethods (MethodDefinition @base, MethodDefinition @override)
 		{
 			Annotations.AddBaseMethod (@override, @base);
 			Annotations.AddOverride (@base, @override);
@@ -105,7 +133,12 @@ namespace Mono.Linker.Steps {
 
 		static MethodDefinition GetBaseMethodInTypeHierarchy (MethodDefinition method)
 		{
-			TypeDefinition @base = GetBaseType (method.DeclaringType);
+			return GetBaseMethodInTypeHierarchy (method.DeclaringType, method);
+		}
+
+		static MethodDefinition GetBaseMethodInTypeHierarchy (TypeDefinition type, MethodDefinition method)
+		{
+			TypeDefinition @base = GetBaseType (type);
 			while (@base != null) {
 				MethodDefinition base_method = TryMatchMethod (@base, method);
 				if (base_method != null)
@@ -117,15 +150,15 @@ namespace Mono.Linker.Steps {
 			return null;
 		}
 
-		static MethodDefinition GetBaseMethodInInterfaceHierarchy (MethodDefinition method)
+		static IEnumerable<MethodDefinition> GetBaseMethodsInInterfaceHierarchy (MethodDefinition method)
 		{
-			return GetBaseMethodInInterfaceHierarchy (method.DeclaringType, method);
+			return GetBaseMethodsInInterfaceHierarchy (method.DeclaringType, method);
 		}
 
-		static MethodDefinition GetBaseMethodInInterfaceHierarchy (TypeDefinition type, MethodDefinition method)
+		static IEnumerable<MethodDefinition> GetBaseMethodsInInterfaceHierarchy (TypeDefinition type, MethodDefinition method)
 		{
 			if (!type.HasInterfaces)
-				return null;
+				yield break;
 
 			foreach (TypeReference interface_ref in type.Interfaces) {
 				TypeDefinition @interface = interface_ref.Resolve ();
@@ -134,14 +167,11 @@ namespace Mono.Linker.Steps {
 
 				MethodDefinition base_method = TryMatchMethod (@interface, method);
 				if (base_method != null)
-					return base_method;
+					yield return base_method;
 
-				base_method = GetBaseMethodInInterfaceHierarchy (@interface, method);
-				if (base_method != null)
-					return base_method;
+				foreach (MethodDefinition @base in GetBaseMethodsInInterfaceHierarchy (@interface, method))
+					yield return @base;
 			}
-
-			return null;
 		}
 
 		static MethodDefinition TryMatchMethod (TypeDefinition type, MethodDefinition method)
@@ -164,7 +194,7 @@ namespace Mono.Linker.Steps {
 			if (candidate.Name != method.Name)
 				return false;
 
-			if (!TypeMatch (candidate.ReturnType.ReturnType, method.ReturnType.ReturnType))
+			if (!TypeMatch (candidate.ReturnType, method.ReturnType))
 				return false;
 
 			if (candidate.Parameters.Count != method.Parameters.Count)
@@ -177,7 +207,7 @@ namespace Mono.Linker.Steps {
 			return true;
 		}
 
-		static bool TypeMatch (ModType a, ModType b)
+		static bool TypeMatch (IModifierType a, IModifierType b)
 		{
 			if (!TypeMatch (a.ModifierType, b.ModifierType))
 				return false;
@@ -190,8 +220,8 @@ namespace Mono.Linker.Steps {
 			if (a is GenericInstanceType)
 				return TypeMatch ((GenericInstanceType) a, (GenericInstanceType) b);
 
-			if (a is ModType)
-				return TypeMatch ((ModType) a, (ModType) b);
+			if (a is IModifierType)
+				return TypeMatch ((IModifierType) a, (IModifierType) b);
 
 			return TypeMatch (a.ElementType, b.ElementType);
 		}

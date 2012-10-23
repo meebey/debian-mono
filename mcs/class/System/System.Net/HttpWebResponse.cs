@@ -123,7 +123,7 @@ namespace System.Net
 				if (contentType == null)
 					return "ISO-8859-1";
 				string val = contentType.ToLower (); 					
-				int pos = val.IndexOf ("charset=");
+				int pos = val.IndexOf ("charset=", StringComparison.Ordinal);
 				if (pos == -1)
 					return "ISO-8859-1";
 				pos += 8;
@@ -300,7 +300,12 @@ namespace System.Net
 
 		public override void Close ()
 		{
-			((IDisposable) this).Dispose ();
+			if (stream != null) {
+				Stream st = stream;
+				stream = null;
+				if (st != null)
+					st.Close ();
+			}
 		}
 		
 		void IDisposable.Dispose ()
@@ -311,24 +316,9 @@ namespace System.Net
 
 		void Dispose (bool disposing) 
 		{
-			if (this.disposed)
-				return;
 			this.disposed = true;
-			
-			if (disposing) {
-				// release managed resources
-				uri = null;
-				cookieCollection = null;
-				method = null;
-				version = null;
-				statusDescription = null;
-			}
-			
-			// release unmanaged resources
-			Stream st = stream;
-			stream = null;
-			if (st != null)
-				st.Close ();
+			if (disposing)
+				Close ();
 		}
 		
 		private void CheckDisposed () 
@@ -342,209 +332,38 @@ namespace System.Net
 			if (webHeaders == null)
 				return;
 
-			string [] values = webHeaders.GetValues ("Set-Cookie");
-			if (values != null) {
-				foreach (string va in values)
-					SetCookie (va);
+			string value = webHeaders.Get ("Set-Cookie");
+			if (value != null) {
+				SetCookie (value);
 			}
 
-			values = webHeaders.GetValues ("Set-Cookie2");
-			if (values != null) {
-				foreach (string va in values)
-					SetCookie2 (va);
+			value = webHeaders.Get ("Set-Cookie2");
+			if (value != null) {
+				SetCookie (value);
 			}
 		}
 
 		void SetCookie (string header)
 		{
-			string name, val;
-			Cookie cookie = null;
-			CookieParser parser = new CookieParser (header);
-
-			while (parser.GetNextNameValue (out name, out val)) {
-				if ((name == null || name == "") && cookie == null)
-					continue;
-
-				if (cookie == null) {
-					cookie = new Cookie (name, val);
-					continue;
-				}
-
-				name = name.ToUpper ();
-				switch (name) {
-				case "COMMENT":
-					if (cookie.Comment == null)
-						cookie.Comment = val;
-					break;
-				case "COMMENTURL":
-					if (cookie.CommentUri == null)
-						cookie.CommentUri = new Uri (val);
-					break;
-				case "DISCARD":
-					cookie.Discard = true;
-					break;
-				case "DOMAIN":
-					if (cookie.Domain == "")
-						cookie.Domain = val;
-					break;
-				case "HTTPONLY":
-					cookie.HttpOnly = true;
-					break;
-				case "MAX-AGE": // RFC Style Set-Cookie2
-					if (cookie.Expires == DateTime.MinValue) {
-						try {
-						cookie.Expires = cookie.TimeStamp.AddSeconds (UInt32.Parse (val));
-						} catch {}
-					}
-					break;
-				case "EXPIRES": // Netscape Style Set-Cookie
-					if (cookie.Expires != DateTime.MinValue)
-						break;
-
-					cookie.Expires = TryParseCookieExpires (val);
-					break;
-				case "PATH":
-					cookie.Path = val;
-					break;
-				case "PORT":
-					if (cookie.Port == null)
-						cookie.Port = val;
-					break;
-				case "SECURE":
-					cookie.Secure = true;
-					break;
-				case "VERSION":
-					try {
-						cookie.Version = (int) UInt32.Parse (val);
-					} catch {}
-					break;
-				}
-			}
-
 			if (cookieCollection == null)
 				cookieCollection = new CookieCollection ();
 
-			if (cookie.Domain == "")
-				cookie.Domain = uri.Host;
+			var parser = new CookieParser (header);
+			foreach (var cookie in parser.Parse ()) {
+				if (cookie.Domain == "") {
+					cookie.Domain = uri.Host;
+					cookie.HasDomain = false;
+				}
 
-			cookieCollection.Add (cookie);
-			if (cookie_container != null)
-				cookie_container.Add (uri, cookie);
-		}
+				if (cookie.HasDomain &&
+				    !CookieContainer.CheckSameOrigin (uri, cookie.Domain))
+					continue;
 
-		void SetCookie2 (string cookies_str)
-		{
-			string [] cookies = cookies_str.Split (',');
-	
-			foreach (string cookie_str in cookies)
-				SetCookie (cookie_str);
-		}
-
-		string[] cookieExpiresFormats =
-			new string[] { "r",
-					"ddd, dd'-'MMM'-'yyyy HH':'mm':'ss 'GMT'",
-					"ddd, dd'-'MMM'-'yy HH':'mm':'ss 'GMT'" };
-
-		DateTime TryParseCookieExpires (string value)
-		{
-			if (value == null || value.Length == 0)
-				return DateTime.MinValue;
-
-			for (int i = 0; i < cookieExpiresFormats.Length; i++)
-			{
-				try {
-					DateTime cookieExpiresUtc = DateTime.ParseExact (value, cookieExpiresFormats [i], CultureInfo.InvariantCulture);
-
-					//convert UTC/GMT time to local time
-					cookieExpiresUtc = DateTime.SpecifyKind (cookieExpiresUtc, DateTimeKind.Utc);
-					return TimeZone.CurrentTimeZone.ToLocalTime (cookieExpiresUtc);
-				} catch {}
+				cookieCollection.Add (cookie);
+				if (cookie_container != null)
+					cookie_container.Add (uri, cookie);
 			}
-
-			//If we can't parse Expires, use cookie as session cookie (expires is DateTime.MinValue)
-			return DateTime.MinValue;
 		}
 	}	
-
-	class CookieParser {
-		string header;
-		int pos;
-		int length;
-
-		public CookieParser (string header) : this (header, 0)
-		{
-		}
-
-		public CookieParser (string header, int position)
-		{
-			this.header = header;
-			this.pos = position;
-			this.length = header.Length;
-		}
-
-		public bool GetNextNameValue (out string name, out string val)
-		{
-			name = null;
-			val = null;
-
-			if (pos >= length)
-				return false;
-
-			name = GetCookieName ();
-			if (pos < header.Length && header [pos] == '=') {
-				pos++;
-				val = GetCookieValue ();
-			}
-
-			if (pos < length && header [pos] == ';')
-				pos++;
-
-			return true;
-		}
-
-		string GetCookieName ()
-		{
-			int k = pos;
-			while (k < length && Char.IsWhiteSpace (header [k]))
-				k++;
-
-			int begin = k;
-			while (k < length && header [k] != ';' &&  header [k] != '=')
-				k++;
-
-			pos = k;
-			return header.Substring (begin, k - begin).Trim ();
-		}
-
-		string GetCookieValue ()
-		{
-			if (pos >= length)
-				return null;
-
-			int k = pos;
-			while (k < length && Char.IsWhiteSpace (header [k]))
-				k++;
-
-			int begin;
-			if (header [k] == '"'){
-				int j;
-				begin = ++k;
-
-				while (k < length && header [k] != '"')
-					k++;
-
-				for (j = k; j < length && header [j] != ';'; j++)
-					;
-				pos = j;
-			} else {
-				begin = k;
-				while (k < length && header [k] != ';')
-					k++;
-				pos = k;
-			}
-				
-			return header.Substring (begin, k - begin).Trim ();
-		}
-	}
 }
 

@@ -41,6 +41,8 @@ namespace System.Security.Cryptography {
 	[ComVisible (true)]
 	public sealed class RSACryptoServiceProvider : RSA, ICspAsymmetricAlgorithm {
 		private const int PROV_RSA_FULL = 1;	// from WinCrypt.h
+		private const int AT_KEYEXCHANGE = 1;
+		private const int AT_SIGNATURE = 2;
 
 		private KeyPairPersistence store;
 		private bool persistKey;
@@ -96,16 +98,19 @@ namespace System.Security.Cryptography {
 			persistKey = (p != null);
 			if (p == null) {
 				p = new CspParameters (PROV_RSA_FULL);
-#if NET_1_1
 				if (useMachineKeyStore)
 					p.Flags |= CspProviderFlags.UseMachineKeyStore;
-#endif
 				store = new KeyPairPersistence (p);
 				// no need to load - it cannot exists
 			}
 			else {
 				store = new KeyPairPersistence (p);
-				store.Load ();
+				bool exists = store.Load ();
+				bool required = (p.Flags & CspProviderFlags.UseExistingKey) != 0;
+
+				if (required && !exists)
+					throw new CryptographicException ("Keyset does not exist");
+
 				if (store.KeyValue != null) {
 					persisted = true;
 					this.FromXmlString (store.KeyValue);
@@ -113,14 +118,12 @@ namespace System.Security.Cryptography {
 			}
 		}
 
-#if NET_1_1
-		private static bool useMachineKeyStore = false;
+		private static bool useMachineKeyStore;
 
 		public static bool UseMachineKeyStore {
 			get { return useMachineKeyStore; }
 			set { useMachineKeyStore = value; }
 		}
-#endif
 	
 		~RSACryptoServiceProvider () 
 		{
@@ -161,10 +164,8 @@ namespace System.Security.Cryptography {
 	
 		public byte[] Decrypt (byte[] rgb, bool fOAEP) 
 		{
-#if NET_1_1
 			if (m_disposed)
 				throw new ObjectDisposedException ("rsa");
-#endif
 			// choose between OAEP or PKCS#1 v.1.5 padding
 			AsymmetricKeyExchangeDeformatter def = null;
 			if (fOAEP)
@@ -245,10 +246,8 @@ namespace System.Security.Cryptography {
 		// HashAlgorithm descendant
 		public byte[] SignData (byte[] buffer, object halg) 
 		{
-#if NET_1_1
 			if (buffer == null)
 				throw new ArgumentNullException ("buffer");
-#endif
 			return SignData (buffer, 0, buffer.Length, halg);
 		}
 	
@@ -273,19 +272,21 @@ namespace System.Security.Cryptography {
 		private string GetHashNameFromOID (string oid) 
 		{
 			switch (oid) {
-				case "1.3.14.3.2.26":
-					return "SHA1";
-				case "1.2.840.113549.2.5":
-					return "MD5";
-				default:
-					throw new NotSupportedException (oid + " is an unsupported hash algorithm for RSA signing");
+			case "1.3.14.3.2.26":
+				return "SHA1";
+			case "1.2.840.113549.2.5":
+				return "MD5";
+			case "2.16.840.1.101.3.4.2.1":
+				return "SHA256";
+			case "2.16.840.1.101.3.4.2.2":
+				return "SHA384";
+			case "2.16.840.1.101.3.4.2.3":
+				return "SHA512";
+			default:
+				throw new CryptographicException (oid + " is an unsupported hash algorithm for RSA signing");
 			}
 		}
 
-		// LAMESPEC: str is not the hash name but an OID
-		// NOTE: this method is LIMITED to SHA1 and MD5 like the MS framework 1.0 
-		// and 1.1 because there's no method to get a hash algorithm from an OID. 
-		// However there's no such limit when using the [De]Formatter class.
 		public byte[] SignHash (byte[] rgbHash, string str) 
 		{
 			if (rgbHash == null)
@@ -310,10 +311,6 @@ namespace System.Security.Cryptography {
 			return PKCS1.Verify_v15 (this, hash, toBeVerified, signature);
 		}
 	
-		// LAMESPEC: str is not the hash name but an OID
-		// NOTE: this method is LIMITED to SHA1 and MD5 like the MS framework 1.0 
-		// and 1.1 because there's no method to get a hash algorithm from an OID. 
-		// However there's no such limit when using the [De]Formatter class.
 		public bool VerifyHash (byte[] rgbHash, string str, byte[] rgbSignature) 
 		{
 			if (rgbHash == null) 
@@ -355,11 +352,11 @@ namespace System.Security.Cryptography {
 		}
 		// ICspAsymmetricAlgorithm
 
-		[MonoTODO ("Always return null")]
-		// FIXME: call into KeyPairPersistence to get details
 		[ComVisible (false)]
 		public CspKeyContainerInfo CspKeyContainerInfo {
-			get { return null; }
+			get {
+				return new CspKeyContainerInfo(store.Parameters);
+			}
 		}
 
 		[ComVisible (false)]
@@ -374,7 +371,7 @@ namespace System.Security.Cryptography {
 			// ALGID (bytes 4-7) - default is KEYX
 			// 00 24 00 00 (for CALG_RSA_SIGN)
 			// 00 A4 00 00 (for CALG_RSA_KEYX)
-			blob [5] = 0xA4;
+			blob [5] = (byte) (((store != null) && (store.Parameters.KeyNumber == AT_SIGNATURE)) ? 0x24 : 0xA4);
 			return blob;
 		}
 
@@ -402,6 +399,12 @@ namespace System.Security.Cryptography {
 					ImportParameters (rsap);
 				}
 			}
+
+			var p = new CspParameters (PROV_RSA_FULL);
+			p.KeyNumber = keyBlob [5] == 0x24 ? AT_SIGNATURE : AT_KEYEXCHANGE;
+			if (useMachineKeyStore)
+				p.Flags |= CspProviderFlags.UseMachineKeyStore;
+			store = new KeyPairPersistence (p);
 		}
 	}
 }

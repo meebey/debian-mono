@@ -12,6 +12,7 @@
 
 #include <mono/utils/mono-counters.h>
 #include <mono/utils/freebsd-dwarf.h>
+#include <mono/utils/hazard-pointer.h>
 #include <mono/metadata/threads-types.h>
 #include <mono/metadata/mono-endian.h>
 
@@ -34,6 +35,7 @@ static CRITICAL_SECTION unwind_mutex;
 
 static MonoUnwindInfo **cached_info;
 static int cached_info_next, cached_info_size;
+static GSList *cached_info_list;
 /* Statistics */
 static int unwind_info_size;
 
@@ -52,7 +54,16 @@ static int map_hw_reg_to_dwarf_reg [] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 
 #define DWARF_DATA_ALIGN (-4)
 #define DWARF_PC_REG (mono_hw_reg_to_dwarf_reg (ARMREG_LR))
 #elif defined (TARGET_X86)
+#ifdef __APPLE__
+/*
+ * LLVM seems to generate unwind info where esp is encoded as 5, and ebp as 4, ie see this line:
+ *   def ESP : RegisterWithSubRegs<"esp", [SP]>, DwarfRegNum<[-2, 5, 4]>;
+ * in lib/Target/X86/X86RegisterInfo.td in the llvm sources.
+ */
+static int map_hw_reg_to_dwarf_reg [] = { 0, 1, 2, 3, 5, 4, 6, 7, 8 };
+#else
 static int map_hw_reg_to_dwarf_reg [] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+#endif
 /* + 1 is for IP */
 #define NUM_REGS X86_NREG + 1
 #define DWARF_DATA_ALIGN (-4)
@@ -66,6 +77,22 @@ static int map_hw_reg_to_dwarf_reg [] = { 0, 1, 2, 3, 4, 5, 6, 7, 8,
 #define NUM_REGS 110
 #define DWARF_DATA_ALIGN (-(gint32)sizeof (mgreg_t))
 #define DWARF_PC_REG 108
+#elif defined (TARGET_S390X)
+static int map_hw_reg_to_dwarf_reg [] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+#define NUM_REGS 16
+#define DWARF_DATA_ALIGN (-8)
+#define DWARF_PC_REG (mono_hw_reg_to_dwarf_reg (14))
+#elif defined (TARGET_MIPS)
+/* FIXME: */
+static int map_hw_reg_to_dwarf_reg [32] = {
+	0, 1, 2, 3, 4, 5, 6, 7,
+	8, 9, 10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20, 21, 22, 23,
+	24, 25, 26, 27, 28, 29, 30, 31
+};
+#define NUM_REGS 32
+#define DWARF_DATA_ALIGN (-(gint32)sizeof (mgreg_t))
+#define DWARF_PC_REG (mono_hw_reg_to_dwarf_reg (mips_ra))
 #else
 static int map_hw_reg_to_dwarf_reg [16];
 #define NUM_REGS 16
@@ -319,12 +346,16 @@ print_dwarf_state (int cfa_reg, int cfa_offset, int ip, int nregs, Loc *location
  * Given the state of the current frame as stored in REGS, execute the unwind 
  * operations in unwind_info until the location counter reaches POS. The result is 
  * stored back into REGS. OUT_CFA will receive the value of the CFA.
+ * If SAVE_LOCATIONS is non-NULL, it should point to an array of size SAVE_LOCATIONS_LEN.
+ * On return, the nth entry will point to the address of the stack slot where register
+ * N was saved, or NULL, if it was not saved by this frame.
  * This function is signal safe.
  */
 void
 mono_unwind_frame (guint8 *unwind_info, guint32 unwind_info_len, 
-				   guint8 *start_ip, guint8 *end_ip, guint8 *ip, mgreg_t *regs, 
-				   int nregs, guint8 **out_cfa)
+				   guint8 *start_ip, guint8 *end_ip, guint8 *ip, mgreg_t *regs, int nregs,
+				   mgreg_t **save_locations, int save_locations_len,
+				   guint8 **out_cfa)
 {
 	Loc locations [NUM_REGS];
 	int i, pos, reg, cfa_reg, cfa_offset;
@@ -386,12 +417,17 @@ mono_unwind_frame (guint8 *unwind_info, guint32 unwind_info_len,
 		}
 	}
 
+	if (save_locations)
+		memset (save_locations, 0, save_locations_len * sizeof (mgreg_t*));
+
 	cfa_val = (guint8*)regs [mono_dwarf_reg_to_hw_reg (cfa_reg)] + cfa_offset;
 	for (i = 0; i < NUM_REGS; ++i) {
 		if (locations [i].loc_type == LOC_OFFSET) {
 			int hreg = mono_dwarf_reg_to_hw_reg (i);
 			g_assert (hreg < nregs);
 			regs [hreg] = *(mgreg_t*)(cfa_val + locations [i].offset);
+			if (save_locations && hreg < save_locations_len)
+				save_locations [hreg] = (mgreg_t*)(cfa_val + locations [i].offset);
 		}
 	}
 
@@ -467,8 +503,8 @@ mono_cache_unwind_info (guint8 *unwind_info, guint32 unwind_info_len)
 		MonoUnwindInfo **old_table, **new_table;
 
 		/*
-		 * Have to resize the table, while synchronizing with 
-		 * mono_get_cached_unwind_info () using hazard pointers.
+		 * Avoid freeing the old table so mono_get_cached_unwind_info ()
+		 * doesn't need locks/hazard pointers.
 		 */
 
 		old_table = cached_info;
@@ -480,9 +516,7 @@ mono_cache_unwind_info (guint8 *unwind_info, guint32 unwind_info_len)
 
 		cached_info = new_table;
 
-		mono_memory_barrier ();
-
-		mono_thread_hazardous_free_or_queue (old_table, g_free);
+		cached_info_list = g_slist_prepend (cached_info_list, cached_info);
 
 		cached_info_size *= 2;
 	}
@@ -495,32 +529,6 @@ mono_cache_unwind_info (guint8 *unwind_info, guint32 unwind_info_len)
 	return i;
 }
 
-static gpointer
-get_hazardous_pointer (gpointer volatile *pp, MonoThreadHazardPointers *hp, int hazard_index)
-{
-	gpointer p;
-
-	for (;;) {
-		/* Get the pointer */
-		p = *pp;
-		/* If we don't have hazard pointers just return the
-		   pointer. */
-		if (!hp)
-			return p;
-		/* Make it hazardous */
-		mono_hazard_pointer_set (hp, hazard_index, p);
-		/* Check that it's still the same.  If not, try
-		   again. */
-		if (*pp != p) {
-			mono_hazard_pointer_clear (hp, hazard_index);
-			continue;
-		}
-		break;
-	}
-
-	return p;
-}
-
 /*
  * This function is signal safe.
  */
@@ -530,16 +538,17 @@ mono_get_cached_unwind_info (guint32 index, guint32 *unwind_info_len)
 	MonoUnwindInfo **table;
 	MonoUnwindInfo *info;
 	guint8 *data;
-	MonoThreadHazardPointers *hp = mono_hazard_pointer_get ();
 
-	table = get_hazardous_pointer ((gpointer volatile*)&cached_info, hp, 0);
+	/*
+	 * This doesn't need any locks/hazard pointers,
+	 * since new tables are copies of the old ones.
+	 */
+	table = cached_info;
 
 	info = table [index];
 
 	*unwind_info_len = info->len;
 	data = info->info;
-
-	mono_hazard_pointer_clear (hp, 0);
 
 	return data;
 }
@@ -597,6 +606,10 @@ decode_cie_op (guint8 *p, guint8 **endp)
 		case DW_CFA_advance_loc4:
 			p += 4;
 			break;
+		case DW_CFA_offset_extended_sf:
+			decode_uleb128 (p, &p);
+			decode_uleb128 (p, &p);
+			break;
 		default:
 			g_assert_not_reached ();
 		}
@@ -608,24 +621,6 @@ decode_cie_op (guint8 *p, guint8 **endp)
 
 	*endp = p;
 }
-
-/* Pointer Encoding in the .eh_frame */
-enum {
-	DW_EH_PE_absptr = 0x00,
-	DW_EH_PE_omit = 0xff,
-
-	DW_EH_PE_udata4 = 0x03,
-	DW_EH_PE_sdata4 = 0x0b,
-	DW_EH_PE_sdata8 = 0x0c,
-
-	DW_EH_PE_pcrel = 0x10,
-	DW_EH_PE_textrel = 0x20,
-	DW_EH_PE_datarel = 0x30,
-	DW_EH_PE_funcrel = 0x40,
-	DW_EH_PE_aligned = 0x50,
-
-	DW_EH_PE_indirect = 0x80
-};
 
 static gint64
 read_encoded_val (guint32 encoding, guint8 *p, guint8 **endp)
@@ -753,6 +748,9 @@ decode_lsda (guint8 *lsda, guint8 *code, MonoJitExceptionInfo **ex_info, guint32
 		p += sizeof (gint32);
 		action_offset = decode_uleb128 (p, &p);
 
+		if (!action_offset)
+			continue;
+
 		action = action_table + action_offset - 1;
 
 		type_offset = decode_sleb128 (action, &action);
@@ -770,6 +768,14 @@ decode_lsda (guint8 *lsda, guint8 *code, MonoJitExceptionInfo **ex_info, guint32
 				gint32 offset = *(gint32*)ttype_entry;
 				guint8 *stub = ttype_entry + offset;
 				tinfo = *(gpointer*)stub;
+			} else if (ttype_encoding == (DW_EH_PE_pcrel | DW_EH_PE_sdata4)) {
+				guint8 *ttype_entry = (ttype - (type_offset * 4));
+				gint32 offset = *(gint32*)ttype_entry;
+				tinfo = ttype_entry + offset;
+			} else if (ttype_encoding == DW_EH_PE_udata4) {
+				/* Embedded directly */
+				guint8 *ttype_entry = (ttype - (type_offset * 4));
+				tinfo = ttype_entry;
 			} else {
 				g_assert_not_reached ();
 			}
@@ -924,7 +930,6 @@ mono_unwind_decode_fde (guint8 *fde, guint32 *out_len, guint32 *code_len, MonoJi
 		}
 	}
 
-
 	/* Make sure the FDE uses the same constants as we do */
 	g_assert (code_align == 1);
 	g_assert (data_align == DWARF_DATA_ALIGN);
@@ -958,6 +963,85 @@ mono_unwind_decode_fde (guint8 *fde, guint32 *out_len, guint32 *code_len, MonoJi
 	*out_len = i;
 
 	return g_realloc (buf, i);
+}
+
+/*
+ * mono_unwind_decode_mono_fde:
+ *
+ *   Decode an FDE entry in the LLVM emitted mono EH frame.
+ * info->ex_info is set to a malloc-ed array of MonoJitExceptionInfo structures,
+ * only try_start, try_end and handler_start is set.
+ * info->type_info is set to a malloc-ed array containing the ttype table from the
+ * LSDA.
+ */
+void
+mono_unwind_decode_llvm_mono_fde (guint8 *fde, int fde_len, guint8 *cie, guint8 *code, MonoLLVMFDEInfo *res)
+{
+	guint8 *p, *fde_aug, *cie_cfi, *fde_cfi, *buf;
+	int has_aug, aug_len, cie_cfi_len, fde_cfi_len;
+	gint32 code_align, data_align, return_reg, pers_encoding;
+
+	memset (res, 0, sizeof (*res));
+	res->this_reg = -1;
+	res->this_offset = -1;
+
+	/* fde points to data emitted by LLVM in DwarfException::EmitMonoEHFrame () */
+	p = fde;
+	has_aug = *p;
+	p ++;
+	if (has_aug) {
+		aug_len = read32 (p);
+		p += 4;
+	} else {
+		aug_len = 0;
+	}
+	fde_aug = p;
+	p += aug_len;
+	fde_cfi = p;
+
+	if (has_aug) {
+		guint8 *lsda;
+
+		/* The LSDA is embedded directly into the FDE */
+		lsda = fde_aug;
+
+		decode_lsda (lsda, code, &res->ex_info, &res->ex_info_len, &res->type_info, &res->this_reg, &res->this_offset);
+	}
+
+	/* Decode CIE */
+	p = cie;
+	code_align = decode_uleb128 (p, &p);
+	data_align = decode_sleb128 (p, &p);
+	return_reg = decode_uleb128 (p, &p);
+	pers_encoding = *p;
+	p ++;
+	if (pers_encoding != DW_EH_PE_omit)
+		read_encoded_val (pers_encoding, p, &p);
+
+	cie_cfi = p;
+
+	/* Make sure the FDE uses the same constants as we do */
+	g_assert (code_align == 1);
+	g_assert (data_align == DWARF_DATA_ALIGN);
+	g_assert (return_reg == DWARF_PC_REG);
+
+	/* Compute size of CIE unwind info it is DW_CFA_nop terminated */
+	p = cie_cfi;
+	while (TRUE) {
+		if (*p == DW_CFA_nop)
+			break;
+		else
+			decode_cie_op (p, &p);
+	}
+	cie_cfi_len = p - cie_cfi;
+	fde_cfi_len = (fde + fde_len - fde_cfi);
+
+	buf = g_malloc0 (cie_cfi_len + fde_cfi_len);
+	memcpy (buf, cie_cfi, cie_cfi_len);
+	memcpy (buf + cie_cfi_len, fde_cfi, fde_cfi_len);
+
+	res->unw_info_len = cie_cfi_len + fde_cfi_len;
+	res->unw_info = buf;
 }
 
 /*

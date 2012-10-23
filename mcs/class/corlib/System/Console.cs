@@ -44,10 +44,25 @@ namespace System
 #if !NET_2_1
 		private class WindowsConsole
 		{
+			public static bool ctrlHandlerAdded = false;
+			private delegate bool WindowsCancelHandler (int keyCode);
+			private static WindowsCancelHandler cancelHandler = new WindowsCancelHandler (DoWindowsConsoleCancelEvent);
+
 			[DllImport ("kernel32.dll", CharSet=CharSet.Auto, ExactSpelling=true)]
 			private static extern int GetConsoleCP ();
 			[DllImport ("kernel32.dll", CharSet=CharSet.Auto, ExactSpelling=true)]
 			private static extern int GetConsoleOutputCP ();
+
+			[DllImport ("kernel32.dll", CharSet=CharSet.Auto, ExactSpelling=true)]
+			private static extern bool SetConsoleCtrlHandler (WindowsCancelHandler handler, bool addHandler);
+
+			// Only call the event handler if Control-C was pressed (code == 0), nothing else
+			private static bool DoWindowsConsoleCancelEvent (int keyCode)
+			{
+				if (keyCode == 0)
+					DoConsoleCancelEvent ();
+				return keyCode == 0;
+			}
 
 			[MethodImpl (MethodImplOptions.NoInlining)]
 			public static int GetInputCodePage ()
@@ -60,11 +75,30 @@ namespace System
 			{
 				return GetConsoleOutputCP ();
 			}
+
+			public static void AddCtrlHandler ()
+			{
+				SetConsoleCtrlHandler (cancelHandler, true);
+				ctrlHandlerAdded = true;
+			}
+			
+			public static void RemoveCtrlHandler ()
+			{
+				SetConsoleCtrlHandler (cancelHandler, false);
+				ctrlHandlerAdded = false;
+			}
 		}
 #endif
+
 		internal static TextWriter stdout;
 		private static TextWriter stderr;
 		private static TextReader stdin;
+
+#if NET_4_5
+		static TextWriter console_stdout;
+		static TextWriter console_stderr;
+		static TextReader console_stdin;
+#endif
 
 		static Console ()
 		{
@@ -106,26 +140,50 @@ namespace System
 					inputEncoding = outputEncoding = Encoding.Default;
 			}
 
-			stderr = new UnexceptionalStreamWriter (OpenStandardError (0), outputEncoding); 
-			((StreamWriter)stderr).AutoFlush = true;
-			stderr = TextWriter.Synchronized (stderr, true);
+			SetupStreams (inputEncoding, outputEncoding);
+		}
 
+		static void SetupStreams (Encoding inputEncoding, Encoding outputEncoding)
+		{
 #if !NET_2_1
 			if (!Environment.IsRunningOnWindows && ConsoleDriver.IsConsole) {
 				StreamWriter w = new CStreamWriter (OpenStandardOutput (0), outputEncoding);
 				w.AutoFlush = true;
 				stdout = TextWriter.Synchronized (w, true);
+
+				w = new CStreamWriter (OpenStandardOutput (0), outputEncoding);
+				w.AutoFlush = true;
+				stderr = TextWriter.Synchronized (w, true);
+				
 				stdin = new CStreamReader (OpenStandardInput (0), inputEncoding);
 			} else {
 #endif
 				stdout = new UnexceptionalStreamWriter (OpenStandardOutput (0), outputEncoding);
 				((StreamWriter)stdout).AutoFlush = true;
 				stdout = TextWriter.Synchronized (stdout, true);
+
+				stderr = new UnexceptionalStreamWriter (OpenStandardError (0), outputEncoding); 
+				((StreamWriter)stderr).AutoFlush = true;
+				stderr = TextWriter.Synchronized (stderr, true);
+
 				stdin = new UnexceptionalStreamReader (OpenStandardInput (0), inputEncoding);
 				stdin = TextReader.Synchronized (stdin);
 #if !NET_2_1
 			}
 #endif
+
+#if NET_4_5
+			console_stderr = stderr;
+			console_stdout = stdout;
+			console_stdin = stdin;
+#endif
+
+#if MONODROID
+			if (LogcatTextWriter.IsRunningOnAndroid ()) {
+				stdout = TextWriter.Synchronized (new LogcatTextWriter ("mono-stdout", stdout));
+				stderr = TextWriter.Synchronized (new LogcatTextWriter ("mono-stderr", stderr));
+			}
+#endif  // MONODROID
 
 			GC.SuppressFinalize (stdout);
 			GC.SuppressFinalize (stderr);
@@ -149,6 +207,26 @@ namespace System
 				return stdin;
 			}
 		}
+
+#if NET_4_5
+		public static bool IsErrorRedirected {
+			get {
+				return stderr != console_stderr || ConsoleDriver.IsErrorRedirected;
+			}
+		}
+
+		public static bool IsOutputRedirected {
+			get {
+				return stdout != console_stdout || ConsoleDriver.IsOutputRedirected;
+			}
+		}
+
+		public static bool IsInputRedirected {
+			get {
+				return stdin != console_stdin || ConsoleDriver.IsInputRedirected;
+			}
+		}
+#endif
 
 		private static Stream Open (IntPtr handle, FileAccess access, int bufferSize)
 		{
@@ -304,7 +382,10 @@ namespace System
 
 		public static void Write (string format, params object[] arg)
 		{
-			stdout.Write (format, arg);
+			if (arg == null)
+				stdout.Write (format);
+			else
+				stdout.Write (format, arg);
 		}
 
 		public static void Write (char[] buffer, int index, int count)
@@ -415,7 +496,10 @@ namespace System
 
 		public static void WriteLine (string format, params object[] arg)
 		{
-			stdout.WriteLine (format, arg);
+			if (arg == null)
+				stdout.WriteLine (format);
+			else
+				stdout.WriteLine (format, arg);
 		}
 
 		public static void WriteLine (char[] buffer, int index, int count)
@@ -490,12 +574,18 @@ namespace System
 
 		public static Encoding InputEncoding {
 			get { return inputEncoding; }
-			set { inputEncoding = value; }
+			set {
+				inputEncoding = value;
+				SetupStreams (inputEncoding, outputEncoding);
+			}
 		}
 
 		public static Encoding OutputEncoding {
 			get { return outputEncoding; }
-			set { outputEncoding = value; }
+			set {
+				outputEncoding = value;
+				SetupStreams (inputEncoding, outputEncoding);
+			}
 		}
 
 		public static ConsoleColor BackgroundColor {
@@ -676,12 +766,22 @@ namespace System
 					ConsoleDriver.Init ();
 
 				cancel_event += value;
+
+				if (Environment.IsRunningOnWindows && !WindowsConsole.ctrlHandlerAdded)
+					WindowsConsole.AddCtrlHandler();
 			}
 			remove {
 				if (ConsoleDriver.Initialized == false)
 					ConsoleDriver.Init ();
 
 				cancel_event -= value;
+
+				if (cancel_event == null && Environment.IsRunningOnWindows)
+				{
+					// Need to remove our hook if there's nothing left in the event
+					if (WindowsConsole.ctrlHandlerAdded)
+						WindowsConsole.RemoveCtrlHandler();
+				}
 			}
 		}
 

@@ -4,6 +4,7 @@
  * Author: Paolo Molaro <lupus@ximian.com>
  *
  * (C) 2002 Ximian, Inc.
+ * Copyright 2012 Xamarin Inc (http://www.xamarin.com)
  */
 
 #ifndef __MONO_METADATA_GC_INTERNAL_H__
@@ -14,12 +15,62 @@
 #include <mono/metadata/threads-types.h>
 #include <mono/utils/gc_wrapper.h>
 
+typedef struct {
+	int minor_gc_count;
+	int major_gc_count;
+	long long minor_gc_time_usecs;
+	long long major_gc_time_usecs;
+} GCStats;
+
 #define mono_domain_finalizers_lock(domain) EnterCriticalSection (&(domain)->finalizable_objects_hash_lock);
 #define mono_domain_finalizers_unlock(domain) LeaveCriticalSection (&(domain)->finalizable_objects_hash_lock);
 
-#define MONO_GC_REGISTER_ROOT(x) mono_gc_register_root ((char*)&(x), sizeof(x), NULL)
+/* Register a memory area as a conservatively scanned GC root */
+#define MONO_GC_REGISTER_ROOT_PINNING(x) mono_gc_register_root ((char*)&(x), sizeof(x), NULL)
 
 #define MONO_GC_UNREGISTER_ROOT(x) mono_gc_deregister_root ((char*)&(x))
+
+/*
+ * Register a memory location as a root pointing to memory allocated using
+ * mono_gc_alloc_fixed (). This includes MonoGHashTable.
+ */
+/* The result of alloc_fixed () is not GC tracked memory */
+#define MONO_GC_REGISTER_ROOT_FIXED(x) do { \
+	if (!mono_gc_is_moving ())				\
+		MONO_GC_REGISTER_ROOT_PINNING ((x)); \
+	} while (0)
+
+/*
+ * Return a GC descriptor for an array containing N pointers to memory allocated
+ * by mono_gc_alloc_fixed ().
+ */
+/* For SGEN, the result of alloc_fixed () is not GC tracked memory */
+#define MONO_GC_ROOT_DESCR_FOR_FIXED(n) (mono_gc_is_moving () ? mono_gc_make_root_descr_all_refs (0) : NULL)
+
+/* Register a memory location holding a single object reference as a GC root */
+#define MONO_GC_REGISTER_ROOT_SINGLE(x) do { \
+	g_assert (sizeof (x) == sizeof (MonoObject*)); \
+	mono_gc_register_root ((char*)&(x), sizeof(MonoObject*), mono_gc_make_root_descr_all_refs (1)); \
+	} while (0)
+
+/*
+ * This is used for fields which point to objects which are kept alive by other references
+ * when using Boehm.
+ */
+#define MONO_GC_REGISTER_ROOT_IF_MOVING(x) do { \
+	if (mono_gc_is_moving ()) \
+		MONO_GC_REGISTER_ROOT_SINGLE(x);		\
+} while (0)
+
+#define MONO_GC_UNREGISTER_ROOT_IF_MOVING(x) do { \
+	if (mono_gc_is_moving ()) \
+		MONO_GC_UNREGISTER_ROOT (x);			\
+} while (0)
+
+/* useful until we keep track of gc-references in corlib etc. */
+#define IS_GC_REFERENCE(t) (mono_gc_is_moving () ? FALSE : ((t)->type == MONO_TYPE_U && class->image == mono_defaults.corlib))
+
+extern GCStats gc_stats MONO_INTERNAL;
 
 void   mono_object_register_finalizer               (MonoObject  *obj) MONO_INTERNAL;
 void   ves_icall_System_GC_InternalCollect          (int          generation) MONO_INTERNAL;
@@ -56,6 +107,8 @@ extern gboolean mono_gc_register_thread (void *baseptr) MONO_INTERNAL;
 
 extern gboolean mono_gc_is_finalizer_internal_thread (MonoInternalThread *thread) MONO_INTERNAL;
 
+extern void mono_gc_set_stack_end (void *stack_end) MONO_INTERNAL;
+
 /* only valid after the RECLAIM_START GC event and before RECLAIM_END
  * Not exported in public headers, but can be linked to (unsupported).
  */
@@ -86,6 +139,9 @@ GCHandle_CheckCurrentDomain (guint32 gchandle) MONO_INTERNAL;
 /* simple interface for data structures needed in the runtime */
 void* mono_gc_make_descr_from_bitmap (gsize *bitmap, int numbits) MONO_INTERNAL;
 
+/* Return a root descriptor for a root with all refs */
+void* mono_gc_make_root_descr_all_refs (int numbits) MONO_INTERNAL;
+
 /* User defined marking function */
 /* It should work like this:
  * foreach (ref in GC references in the are structure pointed to by ADDR)
@@ -97,11 +153,16 @@ typedef void (*MonoGCRootMarkFunc) (void *addr, MonoGCMarkFunc mark_func);
 /* Create a descriptor with a user defined marking function */
 void *mono_gc_make_root_descr_user (MonoGCRootMarkFunc marker);
 
+/* Return whenever user defined marking functions are supported */
+gboolean mono_gc_user_markers_supported (void) MONO_INTERNAL;
+
 /* desc is the result from mono_gc_make_descr*. A NULL value means
  * all the words might contain GC pointers.
  * The memory is non-moving and it will be explicitly deallocated.
  * size bytes will be available from the returned address (ie, descr
  * must not be stored in the returned memory)
+ * NOTE: Under Boehm, this returns memory allocated using GC_malloc, so the result should
+ * be stored into a location registered using MONO_GC_REGISTER_ROOT_FIXED ().
  */
 void* mono_gc_alloc_fixed            (size_t size, void *descr) MONO_INTERNAL;
 void  mono_gc_free_fixed             (void* addr) MONO_INTERNAL;
@@ -132,6 +193,7 @@ void  mono_gc_deregister_root (char* addr) MONO_INTERNAL;
 int   mono_gc_finalizers_for_domain (MonoDomain *domain, MonoObject **out_array, int out_size) MONO_INTERNAL;
 void  mono_gc_run_finalize (void *obj, void *data) MONO_INTERNAL;
 void  mono_gc_clear_domain (MonoDomain * domain) MONO_INTERNAL;
+void* mono_gc_alloc_mature (MonoVTable *vtable) MONO_INTERNAL;
 
 /* 
  * Register a root which can only be written using a write barrier.
@@ -190,14 +252,18 @@ typedef struct {
 	 * needed by the other functions.
 	 */
 	gpointer (*thread_attach_func) (void);
-	/* FIXME: Add a cleanup function too */
+	/* 
+	 * Function called during thread deatch to free the data allocated by
+	 * thread_attach_func.
+	 */
+	void (*thread_detach_func) (gpointer user_data);
 	/* 
 	 * Function called from every thread when suspending for GC. It can save
 	 * data needed for marking from thread stacks. user_data is the data returned 
 	 * by attach_func. This might called with GC locks held and the word stopped,
 	 * so it shouldn't do any synchronization etc.
 	 */
-	void (*thread_suspend_func) (gpointer user_data, void *sigcontext);
+	void (*thread_suspend_func) (gpointer user_data, void *sigcontext, MonoContext *ctx);
 	/* 
 	 * Function called to mark from thread stacks. user_data is the data returned 
 	 * by attach_func. This is called twice, with the word stopped:
@@ -247,13 +313,15 @@ typedef void* (*MonoGCLockedCallbackFunc) (void *data);
 
 void* mono_gc_invoke_with_gc_lock (MonoGCLockedCallbackFunc func, void *data) MONO_INTERNAL;
 
-#ifdef HAVE_SGEN_GC
 int mono_gc_get_los_limit (void) MONO_INTERNAL;
 
 guint8* mono_gc_get_card_table (int *shift_bits, gpointer *card_mask) MONO_INTERNAL;
 
 void* mono_gc_get_nursery (int *shift_bits, size_t *size) MONO_INTERNAL;
-#endif
+
+void mono_gc_set_current_thread_appdomain (MonoDomain *domain) MONO_INTERNAL;
+
+void mono_gc_set_skip_thread (gboolean skip) MONO_INTERNAL;
 
 /*
  * Return whenever GC is disabled
@@ -264,6 +332,49 @@ gboolean mono_gc_is_disabled (void) MONO_INTERNAL;
 void mono_gc_register_mach_exception_thread (pthread_t thread) MONO_INTERNAL;
 pthread_t mono_gc_get_mach_exception_thread (void) MONO_INTERNAL;
 #endif
+
+gboolean mono_gc_parse_environment_string_extract_number (const char *str, glong *out) MONO_INTERNAL;
+
+gboolean mono_gc_precise_stack_mark_enabled (void) MONO_INTERNAL;
+
+FILE *mono_gc_get_logfile (void) MONO_INTERNAL;
+
+typedef void (*mono_reference_queue_callback) (void *user_data);
+
+typedef struct _MonoReferenceQueue MonoReferenceQueue;
+typedef struct _RefQueueEntry RefQueueEntry;
+
+struct _RefQueueEntry {
+#ifdef HAVE_SGEN_GC
+	void *dis_link;
+#else
+	guint32 gchandle;
+#endif
+	void *user_data;
+	RefQueueEntry *next;
+};
+
+struct _MonoReferenceQueue {
+	RefQueueEntry *queue;
+	mono_reference_queue_callback callback;
+	MonoReferenceQueue *next;
+	gboolean should_be_deleted;
+};
+
+MonoReferenceQueue* mono_gc_reference_queue_new (mono_reference_queue_callback callback) MONO_INTERNAL;
+void mono_gc_reference_queue_free (MonoReferenceQueue *queue) MONO_INTERNAL;
+gboolean mono_gc_reference_queue_add (MonoReferenceQueue *queue, MonoObject *obj, void *user_data) MONO_INTERNAL;
+
+#ifdef HOST_WIN32
+BOOL APIENTRY mono_gc_dllmain (HMODULE module_handle, DWORD reason, LPVOID reserved) MONO_INTERNAL;
+#endif
+
+void mono_gc_bzero (void *dest, size_t size) MONO_INTERNAL;
+void mono_gc_memmove (void *dest, const void *src, size_t size) MONO_INTERNAL;
+
+guint mono_gc_get_vtable_bits (MonoClass *class) MONO_INTERNAL;
+
+void mono_gc_register_altstack (gpointer stack, gint32 stack_size, gpointer altstack, gint32 altstack_size) MONO_INTERNAL;
 
 #endif /* __MONO_METADATA_GC_INTERNAL_H__ */
 

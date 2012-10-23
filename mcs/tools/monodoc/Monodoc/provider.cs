@@ -5,6 +5,8 @@
 //   Miguel de Icaza (miguel@ximian.com)
 //
 // (C) 2002, Ximian, Inc.
+// Copyright 2003-2011 Novell
+// Copyright 2011 Xamarin Inc
 //
 // TODO:
 //   Each node should have a provider link
@@ -22,13 +24,12 @@ using System.Collections;
 using System.Diagnostics;
 using System.Configuration;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.XPath;
 using ICSharpCode.SharpZipLib.Zip;
 
-using Monodoc.Lucene.Net.Index;
-using Monodoc.Lucene.Net.Analysis.Standard;
+using Mono.Lucene.Net.Index;
+using Mono.Lucene.Net.Analysis.Standard;
 
 using Mono.Documentation;
 
@@ -131,6 +132,7 @@ public class Node : IComparable {
 	Node parent;
 	protected ArrayList nodes;
 	protected internal int position;
+	string compare_key;
 
 	static ArrayList empty = ArrayList.ReadOnly(new ArrayList(0));
 
@@ -392,14 +394,19 @@ public class Node : IComparable {
 			LoadNode ();
 		if (other.position < 0)
 			other.LoadNode ();
-
-		Regex digits = new Regex (@"([\d]+)|([^\d]+)");
-		MatchEvaluator eval = delegate (Match m) {
-			return (m.Value.Length > 0 && char.IsDigit (m.Value [0])) 
+		if (compare_key == null || other.compare_key == null) {
+			Regex digits = new Regex (@"([\d]+)|([^\d]+)");
+			MatchEvaluator eval = delegate (Match m) {
+				return (m.Value.Length > 0 && char.IsDigit (m.Value [0]))
 				? m.Value.PadLeft (System.Math.Max (caption.Length, other.caption.Length)) 
 				: m.Value;
-		};
-		return digits.Replace (caption, eval).CompareTo (digits.Replace (other.caption, eval));
+			};
+			if (compare_key == null)
+				compare_key = digits.Replace (caption, eval);
+			if (other.compare_key == null)
+				other.compare_key = digits.Replace (other.caption, eval);
+		}
+		return compare_key.CompareTo (other.compare_key);
 	}
 }
 
@@ -446,6 +453,7 @@ public class HelpSource {
 	int source_id;
 	DateTime zipFileWriteTime;
 	string name;
+	string basepath;
 	TraceLevel trace_level = TraceLevel.Warning;
 	protected bool nozip;
 	protected string base_dir;
@@ -453,6 +461,7 @@ public class HelpSource {
 	public HelpSource (string base_filename, bool create)
 	{
 		this.name = Path.GetFileName (base_filename);
+		this.basepath = Path.GetDirectoryName (base_filename);
 		tree_filename = base_filename + ".tree";
 		zip_filename = base_filename + ".zip";
 		base_dir = XmlDocUtils.GetCacheDirectory (base_filename);
@@ -497,9 +506,22 @@ public class HelpSource {
 		}
 	}
 
+	/* This gives the full path of the source/ directory */
+	public string BaseFilePath {
+		get {
+			return basepath;
+		}
+	}
+
 	public TraceLevel TraceLevel {
 		get { return trace_level; }
 		set { trace_level = value; }
+	}
+
+	public string BaseDir {
+		get {
+			return base_dir;
+		}
 	}
 	
 	ZipFile zip_file;
@@ -540,7 +562,7 @@ public class HelpSource {
 	{
 		if (nozip) {
 			Stream s = File.OpenRead (XmlDocUtils.GetCachedFileName (base_dir, id));
-			string url = "monodoc:///" + SourceID + "@" + System.Web.HttpUtility.UrlEncode (id) + "@";
+			string url = "monodoc:///" + SourceID + "@" + Uri.EscapeUriString (id) + "@";
 			return new XmlTextReader (url, s);
 		}
 
@@ -550,7 +572,7 @@ public class HelpSource {
 		ZipEntry entry = zip_file.GetEntry (id);
 		if (entry != null) {
 			Stream s = zip_file.GetInputStream (entry);
-			string url = "monodoc:///" + SourceID + "@" + System.Web.HttpUtility.UrlEncode (id) + "@";
+			string url = "monodoc:///" + SourceID + "@" + Uri.EscapeUriString (id) + "@";
 			return new XmlTextReader (url, s);
 		}
 		return null;
@@ -560,7 +582,7 @@ public class HelpSource {
 	{
 		if (nozip) {
 			Stream s = File.OpenRead (XmlDocUtils.GetCachedFileName (base_dir, id));
-			string url = "monodoc:///" + SourceID + "@" + System.Web.HttpUtility.UrlEncode (id) + "@";
+			string url = "monodoc:///" + SourceID + "@" + Uri.EscapeUriString (id) + "@";
 			XmlReader r = new XmlTextReader (url, s);
 			XmlDocument ret = new XmlDocument ();
 			ret.Load (r);
@@ -573,7 +595,7 @@ public class HelpSource {
 		ZipEntry entry = zip_file.GetEntry (id);
 		if (entry != null) {
 			Stream s = zip_file.GetInputStream (entry);
-			string url = "monodoc:///" + SourceID + "@" + System.Web.HttpUtility.UrlEncode (id) + "@";
+			string url = "monodoc:///" + SourceID + "@" + Uri.EscapeUriString (id) + "@";
 			XmlReader r = new XmlTextReader (url, s);
 			XmlDocument ret = new XmlDocument ();
 			ret.Load (r);
@@ -854,6 +876,8 @@ public class RootTree : Tree {
 	{
 		return LoadTree (null);
 	}
+
+	const string MacMonoDocDir = "/Library/Frameworks/Mono.framework/Versions/Current/lib/monodoc";
 	
 	//
 	// Loads the tree layout
@@ -871,6 +895,13 @@ public class RootTree : Tree {
 				d.Load (cfgFile);
 				basedir = d.SelectSingleNode ("config/path").Attributes ["docsPath"].Value;
 			}
+			// Temporary workaround for developers distributing a monodoc.dll themselves on Mac
+			if (Directory.Exists (MacMonoDocDir)){
+				Console.WriteLine ("MacDir exists");
+				if (!File.Exists (Path.Combine (basedir, "monodoc.xml"))){
+					basedir = MacMonoDocDir;
+				}
+			}
 		}
 
 		//
@@ -880,11 +911,15 @@ public class RootTree : Tree {
 		string layout = Path.Combine (basedir, "monodoc.xml");
 		doc.Load (layout);
 
-		return LoadTree (basedir, doc, 
-				Directory.GetFiles (Path.Combine (basedir, "sources"))
-				.Where (file => file.EndsWith (".source")));
-	}
+		string osxExternalDir = "/Library/Frameworks/Mono.framework/External/monodoc";
+		string[] osxExternalSources = Directory.Exists (osxExternalDir)
+			? Directory.GetFiles (osxExternalDir, "*.source")
+			: new string[0];
 
+		return LoadTree (basedir, doc, 
+				Directory.GetFiles (Path.Combine (basedir, "sources"), "*.source")
+				.Concat (osxExternalSources));
+	}
 
 	// Compatibility shim w/ Mono 2.6
 	public static RootTree LoadTree (string indexDir, XmlDocument docTree, IEnumerable sourceFiles)
@@ -899,6 +934,7 @@ public class RootTree : Tree {
 			using (var defTree = typeof(RootTree).Assembly.GetManifestResourceStream ("monodoc.xml"))
 				docTree.Load (defTree);
 		}
+
 
 		sourceFiles = sourceFiles ?? new string [0];
 
@@ -959,8 +995,13 @@ public class RootTree : Tree {
 		}
 	}
 
+	Dictionary<string,string> loadedSourceFiles = new Dictionary<string,string> ();
+	
 	public void AddSourceFile (string sourceFile)
 	{
+		if (loadedSourceFiles.ContainsKey (sourceFile))
+			return;
+		
 		Node third_party = LookupEntryPoint ("various") ?? this;
 
 		XmlDocument doc = new XmlDocument ();
@@ -981,6 +1022,7 @@ public class RootTree : Tree {
 			Console.Error.WriteLine ("Error: No <source> section found in the {0} file", sourceFile);
 			return;
 		}
+		loadedSourceFiles [sourceFile] = sourceFile;
 		foreach (XmlNode source in sources){
 			XmlAttribute a = source.Attributes ["provider"];
 			if (a == null){
@@ -1186,7 +1228,7 @@ public class RootTree : Tree {
 			return lastHelpSourceTime;
 		}
 	}
-	
+
 	public static bool GetNamespaceAndType (string url, out string ns, out string type)
 	{
 		int nsidx = -1;
@@ -1210,7 +1252,6 @@ public class RootTree : Tree {
 		}
 
 		if (nsidx == -1) {
-			Console.Error.WriteLine ("Did not find dot in: " + url);
 			ns = null;
 			type = null;
 			return false;
@@ -1454,12 +1495,16 @@ public class RootTree : Tree {
 				sb.Replace ("@@FONT_FAMILY@@", SettingsHandler.Settings.preferred_font_family);
 				sb.Replace ("@@FONT_SIZE@@", SettingsHandler.Settings.preferred_font_size.ToString());
 				//contributions
+				var visible = SettingsHandler.Settings.EnableEditing ? "block;" : "none;";
 				if ((oldContrib + contribs) == 0) {
 					sb.Replace ("@@CONTRIB_DISP@@", "display: none;");
+                                        sb.Replace ("@@NO_CONTRIB_DISP@@", "display: " + visible);
 				} else {
+					sb.Replace ("@@CONTRIB_DISP@@", "display: " + visible);
 					sb.Replace ("@@NO_CONTRIB_DISP@@", "display: none;");
 					sb.Replace ("@@CONTRIBS@@", con.ToString ());
 				}
+				sb.Replace ("@@EDITING_ENABLED@@", "display: " + visible);
 					
 				// load the url of nodes
 				String add_str;
@@ -1578,7 +1623,11 @@ public class RootTree : Tree {
 
 	public static void MakeIndex ()
 	{
-		RootTree root = LoadTree ();
+		MakeIndex (LoadTree ());
+	}
+
+	public static void MakeIndex (RootTree root)
+	{
 		if (root == null)
 			return;
 
@@ -1606,7 +1655,7 @@ public class RootTree : Tree {
 			// No octal in C#, how lame is that
 			chmod (path, 0x1a4);
 		}
-		Console.WriteLine ("Documentation index updated");
+		Console.WriteLine ("Documentation index at {0} updated", path);
 	}
 
 	static bool IsUnix {
@@ -1630,9 +1679,14 @@ public class RootTree : Tree {
 
 	public static void MakeSearchIndex ()
 	{
+		MakeSearchIndex (LoadTree ());
+	}
+
+	public static void MakeSearchIndex (RootTree root)
+	{
 		// Loads the RootTree
 		Console.WriteLine ("Loading the monodoc tree...");
-		RootTree root = LoadTree ();
+
 		if (root == null)
 			return;
 
@@ -1643,7 +1697,7 @@ public class RootTree : Tree {
 			if (!Directory.Exists (dir)) 
 				Directory.CreateDirectory (dir);
 
-			writer = new IndexWriter(Lucene.Net.Store.FSDirectory.GetDirectory(dir, true), new StandardAnalyzer(), true);
+			writer = new IndexWriter(Mono.Lucene.Net.Store.FSDirectory.GetDirectory(dir, true), new StandardAnalyzer(), true);
 		} catch (UnauthorizedAccessException) {
 			//try in the .config directory
 			try {
@@ -1651,7 +1705,7 @@ public class RootTree : Tree {
 				if (!Directory.Exists (dir)) 
 					Directory.CreateDirectory (dir);
 
-				writer = new IndexWriter(Lucene.Net.Store.FSDirectory.GetDirectory(dir, true), new StandardAnalyzer(), true);
+				writer = new IndexWriter(Mono.Lucene.Net.Store.FSDirectory.GetDirectory(dir, true), new StandardAnalyzer(), true);
 			} catch (UnauthorizedAccessException) {
 				Console.WriteLine ("You don't have permissions to write on " + dir);
 				return;

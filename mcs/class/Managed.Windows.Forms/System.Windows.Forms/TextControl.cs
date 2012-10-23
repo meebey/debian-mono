@@ -659,18 +659,14 @@ namespace System.Windows.Forms {
 
 		private void SetSelectionVisible (bool value)
 		{
-#if NET_2_0
 			bool old_selection_visible = selection_visible;
-#endif
 			selection_visible = value;
 
 			// cursor and selection are enemies, we can't have both in the same room at the same time
 			if (owner.IsHandleCreated && !owner.show_caret_w_selection)
 				XplatUI.CaretVisible (owner.Handle, !selection_visible);
-#if NET_2_0
 			if (UIASelectionChanged != null && (selection_visible || old_selection_visible))
 				UIASelectionChanged (this, EventArgs.Empty);
-#endif
 		}
 
 		private void DecrementLines(int line_no) {
@@ -933,15 +929,14 @@ namespace System.Windows.Forms {
 
 			int start_line_top = line.Y;			
 
-			int end_line_bottom;
-			Line end_line;
-
-			end_line = GetLine (line.line_no + line_count);
+			Line end_line = GetLine (line.line_no + line_count);
 			if (end_line == null)
 				end_line = GetLine (lines);
 
-
-			end_line_bottom = end_line.Y + end_line.height;
+			if (end_line == null)
+				return;
+			
+			int end_line_bottom = end_line.Y + end_line.height;
 			
 			if (RecalculateDocument(owner.CreateGraphicsInternal(), line.line_no, line.line_no + line_count, true)) {
 				// Lineheight changed, invalidate the rest of the document
@@ -1150,11 +1145,7 @@ namespace System.Windows.Forms {
 			int best_index = -1;
 
 			for (int i = 0; i < needles.Length; i++) {
-#if  NET_2_0
 				int index = haystack.IndexOf (needles [i], start_index,	StringComparison.InvariantCultureIgnoreCase);
-#else
-				int index = haystack.ToLower().IndexOf(needles[i], start_index);
-#endif
 
 				if (index > -1) {
 					if (term_found > -1) {
@@ -4030,9 +4021,7 @@ namespace System.Windows.Forms {
 		internal event EventHandler WidthChanged;
 		internal event EventHandler HeightChanged;
 		internal event EventHandler LengthChanged;
-#if NET_2_0
 		internal event EventHandler UIASelectionChanged;
-#endif
 		#endregion	// Events
 
 		#region Administrative

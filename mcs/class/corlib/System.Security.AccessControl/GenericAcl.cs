@@ -63,7 +63,7 @@ namespace System.Security.AccessControl {
 		
 		public abstract byte Revision { get; }
 		
-		public object SyncRoot {
+		public virtual object SyncRoot {
 			get { return this; }
 		}
 		
@@ -93,6 +93,9 @@ namespace System.Security.AccessControl {
 		{
 			return GetEnumerator ();
 		}
+		
+		internal abstract string GetSddlForm(ControlFlags sdFlags,
+		                                     bool isDacl);
 	}
 }
 

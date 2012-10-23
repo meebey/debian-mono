@@ -2,19 +2,26 @@
  * null-gc.c: GC implementation using malloc: will leak everything, just for testing.
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
- * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2004-2011 Novell, Inc (http://www.novell.com)
+ * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
  */
 
 #include "config.h"
 #include <glib.h>
 #include <mono/metadata/mono-gc.h>
 #include <mono/metadata/gc-internal.h>
+#include <mono/metadata/runtime.h>
 
 #ifdef HAVE_NULL_GC
 
 void
 mono_gc_base_init (void)
 {
+	MonoThreadInfoCallbacks cb;
+
+	memset (&cb, 0, sizeof (cb));
+	cb.mono_method_is_critical = mono_runtime_is_critical_method;
+	cb.mono_gc_pthread_create = (gpointer)mono_gc_pthread_create;
 }
 
 void
@@ -78,6 +85,12 @@ gboolean
 mono_gc_register_thread (void *baseptr)
 {
 	return TRUE;
+}
+
+int
+mono_gc_walk_heap (int flags, MonoGCReferences callback, void *data)
+{
+	return 1;
 }
 
 gboolean
@@ -145,6 +158,12 @@ mono_gc_make_descr_from_bitmap (gsize *bitmap, int numbits)
 }
 
 void*
+mono_gc_make_root_descr_all_refs (int numbits)
+{
+	return NULL;
+}
+
+void*
 mono_gc_alloc_fixed (size_t size, void *descr)
 {
 	return g_malloc0 (size);
@@ -171,7 +190,7 @@ mono_gc_wbarrier_set_arrayref (MonoArray *arr, gpointer slot_ptr, MonoObject* va
 void
 mono_gc_wbarrier_arrayref_copy (gpointer dest_ptr, gpointer src_ptr, int count)
 {
-	memmove (dest_ptr, src_ptr, count * sizeof (gpointer));
+	mono_gc_memmove (dest_ptr, src_ptr, count * sizeof (gpointer));
 }
 
 void
@@ -188,15 +207,21 @@ mono_gc_wbarrier_generic_nostore (gpointer ptr)
 void
 mono_gc_wbarrier_value_copy (gpointer dest, gpointer src, int count, MonoClass *klass)
 {
-	memmove (dest, src, count * mono_class_value_size (klass, NULL));
+	mono_gc_memmove (dest, src, count * mono_class_value_size (klass, NULL));
 }
 
 void
 mono_gc_wbarrier_object_copy (MonoObject* obj, MonoObject *src)
 {
 	/* do not copy the sync state */
-	memcpy ((char*)obj + sizeof (MonoObject), (char*)src + sizeof (MonoObject),
+	mono_gc_memmove ((char*)obj + sizeof (MonoObject), (char*)src + sizeof (MonoObject),
 			mono_object_class (obj)->instance_size - sizeof (MonoObject));
+}
+
+gboolean
+mono_gc_is_critical_method (MonoMethod *method)
+{
+	return FALSE;
 }
 
 MonoMethod*
@@ -303,6 +328,85 @@ mono_gc_wbarrier_value_copy_bitmap (gpointer _dest, gpointer _src, int size, uns
 	g_assert_not_reached ();
 }
 
+guint8*
+mono_gc_get_card_table (int *shift_bits, gpointer *card_mask)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
+void*
+mono_gc_get_nursery (int *shift_bits, size_t *size)
+{
+	return NULL;
+}
+
+void
+mono_gc_set_current_thread_appdomain (MonoDomain *domain)
+{
+}
+
+gboolean
+mono_gc_precise_stack_mark_enabled (void)
+{
+	return FALSE;
+}
+
+FILE *
+mono_gc_get_logfile (void)
+{
+	return NULL;
+}
+
+void
+mono_gc_conservatively_scan_area (void *start, void *end)
+{
+	g_assert_not_reached ();
+}
+
+void *
+mono_gc_scan_object (void *obj)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
+gsize*
+mono_gc_get_bitmap_for_descr (void *descr, int *numbits)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
+void
+mono_gc_set_gc_callbacks (MonoGCCallbacks *callbacks)
+{
+}
+
+void
+mono_gc_set_stack_end (void *stack_end)
+{
+}
+
+int
+mono_gc_get_los_limit (void)
+{
+	return G_MAXINT;
+}
+
+gboolean
+mono_gc_user_markers_supported (void)
+{
+	return FALSE;
+}
+
+void *
+mono_gc_make_root_descr_user (MonoGCRootMarkFunc marker)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
 #ifndef HOST_WIN32
 
 int
@@ -323,6 +427,33 @@ mono_gc_pthread_detach (pthread_t thread)
 	return pthread_detach (thread);
 }
 
+void
+mono_gc_pthread_exit (void *retval)
+{
+	pthread_exit (retval);
+}
+
+void mono_gc_set_skip_thread (gboolean value)
+{
+}
 #endif
+
+#ifdef HOST_WIN32
+BOOL APIENTRY mono_gc_dllmain (HMODULE module_handle, DWORD reason, LPVOID reserved)
+{
+	return TRUE;
+}
+#endif
+
+guint
+mono_gc_get_vtable_bits (MonoClass *class)
+{
+	return 0;
+}
+
+void
+mono_gc_register_altstack (gpointer stack, gint32 stack_size, gpointer altstack, gint32 altstack_size)
+{
+}
 
 #endif

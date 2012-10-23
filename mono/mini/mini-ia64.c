@@ -109,33 +109,11 @@ mono_arch_fregname (int reg)
 		return "unknown";
 }
 
-G_GNUC_UNUSED static void
-break_count (void)
-{
-}
-
-G_GNUC_UNUSED static gboolean
-debug_count (void)
-{
-	static int count = 0;
-	count ++;
-
-	if (count == atoi (getenv ("COUNT"))) {
-		break_count ();
-	}
-
-	if (count > atoi (getenv ("COUNT"))) {
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
 static gboolean
 debug_ins_sched (void)
 {
 #if 0
-	return debug_count ();
+	return mono_debug_count ();
 #else
 	return TRUE;
 #endif
@@ -145,7 +123,7 @@ static gboolean
 debug_omit_fp (void)
 {
 #if 0
-	return debug_count ();
+	return mono_debug_count ();
 #else
 	return TRUE;
 #endif
@@ -188,6 +166,9 @@ typedef struct {
 	guint32 reg_usage;
 	guint32 freg_usage;
 	gboolean need_stack_align;
+	gboolean vtype_retaddr;
+	/* The index of the vret arg in the argument list */
+	int vret_arg_index;
 	ArgInfo ret;
 	ArgInfo sig_cookie;
 	ArgInfo args [1];
@@ -350,7 +331,7 @@ add_valuetype (MonoGenericSharingContext *gsctx, MonoMethodSignature *sig, ArgIn
 static CallInfo*
 get_call_info (MonoCompile *cfg, MonoMemPool *mp, MonoMethodSignature *sig, gboolean is_pinvoke)
 {
-	guint32 i, gr, fr;
+	guint32 i, gr, fr, pstart;
 	MonoType *ret_type;
 	int n = sig->hasthis + sig->param_count;
 	guint32 stack_size = 0;
@@ -416,11 +397,10 @@ get_call_info (MonoCompile *cfg, MonoMemPool *mp, MonoMethodSignature *sig, gboo
 				cinfo->ret.storage = ArgInIReg;
 			} else {
 				add_valuetype (gsctx, sig, &cinfo->ret, sig->ret, TRUE, &tmp_gr, &tmp_fr, &tmp_stacksize);
-				if (cinfo->ret.storage == ArgOnStack)
+				if (cinfo->ret.storage == ArgOnStack) {
 					/* The caller passes the address where the value is stored */
-					add_general (&gr, &stack_size, &cinfo->ret);
-				if (cinfo->ret.storage == ArgInIReg)
-					cinfo->ret.storage = ArgValuetypeAddrInIReg;
+					cinfo->vtype_retaddr = TRUE;
+				}
 			}
 			break;
 		}
@@ -432,15 +412,36 @@ get_call_info (MonoCompile *cfg, MonoMemPool *mp, MonoMethodSignature *sig, gboo
 		}
 	}
 
+	pstart = 0;
 	/*
-	 * IA64 has MONO_ARCH_THIS_AS_FIRST_ARG defined, but we don't need to really pass
-	 * this as first, because this is stored in a non-stacked register by the calling
-	 * sequence.
+	 * To simplify get_this_arg_reg () and LLVM integration, emit the vret arg after
+	 * the first argument, allowing 'this' to be always passed in the first arg reg.
+	 * Also do this if the first argument is a reference type, since virtual calls
+	 * are sometimes made using calli without sig->hasthis set, like in the delegate
+	 * invoke wrappers.
 	 */
+	if (cinfo->vtype_retaddr && !is_pinvoke && (sig->hasthis || (sig->param_count > 0 && MONO_TYPE_IS_REFERENCE (mini_type_get_underlying_type (gsctx, sig->params [0]))))) {
+		if (sig->hasthis) {
+			add_general (&gr, &stack_size, cinfo->args + 0);
+		} else {
+			add_general (&gr, &stack_size, &cinfo->args [sig->hasthis + 0]);
+			pstart = 1;
+		}
+		add_general (&gr, &stack_size, &cinfo->ret);
+		if (cinfo->ret.storage == ArgInIReg)
+			cinfo->ret.storage = ArgValuetypeAddrInIReg;
+		cinfo->vret_arg_index = 1;
+	} else {
+		/* this */
+		if (sig->hasthis)
+			add_general (&gr, &stack_size, cinfo->args + 0);
 
-	/* this */
-	if (sig->hasthis)
-		add_general (&gr, &stack_size, cinfo->args + 0);
+		if (cinfo->vtype_retaddr) {
+			add_general (&gr, &stack_size, &cinfo->ret);
+			if (cinfo->ret.storage == ArgInIReg)
+				cinfo->ret.storage = ArgValuetypeAddrInIReg;
+		}
+	}
 
 	if (!sig->pinvoke && (sig->call_convention == MONO_CALL_VARARG) && (n == 0)) {
 		gr = PARAM_REGS;
@@ -450,7 +451,7 @@ get_call_info (MonoCompile *cfg, MonoMemPool *mp, MonoMethodSignature *sig, gboo
 		add_general (&gr, &stack_size, &cinfo->sig_cookie);
 	}
 
-	for (i = 0; i < sig->param_count; ++i) {
+	for (i = pstart; i < sig->param_count; ++i) {
 		ArgInfo *ainfo = &cinfo->args [sig->hasthis + i];
 		MonoType *ptype;
 
@@ -552,7 +553,7 @@ get_call_info (MonoCompile *cfg, MonoMemPool *mp, MonoMethodSignature *sig, gboo
  * Returns the size of the argument area on the stack.
  */
 int
-mono_arch_get_argument_info (MonoMethodSignature *csig, int param_count, MonoJitArgumentInfo *arg_info)
+mono_arch_get_argument_info (MonoGenericSharingContext *gsctx, MonoMethodSignature *csig, int param_count, MonoJitArgumentInfo *arg_info)
 {
 	int k;
 	CallInfo *cinfo = get_call_info (NULL, NULL, csig, FALSE);
@@ -602,10 +603,23 @@ mono_arch_cleanup (void)
  * This function returns the optimizations supported on this cpu.
  */
 guint32
-mono_arch_cpu_optimizazions (guint32 *exclude_mask)
+mono_arch_cpu_optimizations (guint32 *exclude_mask)
 {
 	*exclude_mask = 0;
 
+	return 0;
+}
+
+/*
+ * This function test for all SIMD functions supported.
+ *
+ * Returns a bitmask corresponding to all supported versions.
+ *
+ */
+guint32
+mono_arch_cpu_enumerate_simd_versions (void)
+{
+	/* SIMD is currently unimplemented */
 	return 0;
 }
 
@@ -852,7 +866,7 @@ mono_arch_allocate_vars (MonoCompile *cfg)
 	}
 
 	/* Allocate locals */
-	offsets = mono_allocate_stack_slots_full (cfg, cfg->arch.omit_fp ? FALSE : TRUE, &locals_stack_size, &locals_stack_align);
+	offsets = mono_allocate_stack_slots (cfg, cfg->arch.omit_fp ? FALSE : TRUE, &locals_stack_size, &locals_stack_align);
 	if (locals_stack_align) {
 		offset = ALIGN_TO (offset, locals_stack_align);
 	}
@@ -2047,7 +2061,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			cfg->code_size *= 2;
 			cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
 			code_start = cfg->native_code + offset;
-			mono_jit_stats.code_reallocs++;
+			cfg->stat_code_reallocs++;
 
 			ia64_codegen_init (code, code_start);
 		}
@@ -2726,13 +2740,11 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			int out_reg;
 
 			/* 
-			 * mono_arch_find_this_arg () needs to find the this argument in a global 
+			 * mono_arch_get_this_arg_from_call () needs to find the this argument in a global 
 			 * register.
 			 */
 			cinfo = get_call_info (cfg, cfg->mempool, call->signature, FALSE);
 			out_reg = cfg->arch.reg_out0;
-			if (cinfo->ret.storage == ArgValuetypeAddrInIReg)
-				out_reg ++;
 			ia64_mov (code, IA64_R10, out_reg);
 
 			/* Indirect call */
@@ -2778,8 +2790,6 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			 */
 			cinfo = get_call_info (cfg, cfg->mempool, call->signature, FALSE);
 			out_reg = cfg->arch.reg_out0;
-			if (cinfo->ret.storage == ArgValuetypeAddrInIReg)
-				out_reg ++;
 			ia64_mov (code, IA64_R10, out_reg);
 
 			ia64_ld8 (code, GP_SCRATCH_REG, IA64_R8);
@@ -3766,7 +3776,7 @@ ia64_patch (unsigned char* code, gpointer target)
 }
 
 void
-mono_arch_patch_code (MonoMethod *method, MonoDomain *domain, guint8 *code, MonoJumpInfo *ji, gboolean run_cctors)
+mono_arch_patch_code (MonoMethod *method, MonoDomain *domain, guint8 *code, MonoJumpInfo *ji, MonoCodeManager *dyn_code_mp, gboolean run_cctors)
 {
 	MonoJumpInfo *patch_info;
 
@@ -4042,7 +4052,7 @@ mono_arch_emit_epilog (MonoCompile *cfg)
 	while (cfg->code_len + max_epilog_size > cfg->code_size) {
 		cfg->code_size *= 2;
 		cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
-		mono_jit_stats.code_reallocs++;
+		cfg->stat_code_reallocs++;
 	}
 
 	/* FIXME: Emit unwind info */
@@ -4156,7 +4166,7 @@ mono_arch_emit_exceptions (MonoCompile *cfg)
 	while (cfg->code_len + code_size > (cfg->code_size - 16)) {
 		cfg->code_size *= 2;
 		cfg->native_code = g_realloc (cfg->native_code, cfg->code_size);
-		mono_jit_stats.code_reallocs++;
+		cfg->stat_code_reallocs++;
 	}
 
 	ia64_codegen_init (code, cfg->native_code + cfg->code_len);
@@ -4506,7 +4516,7 @@ mono_arch_get_delegate_method_ptr_addr (guint8* code, mgreg_t *regs)
 }
 
 void
-mono_arch_setup_jit_tls_data (MonoJitTlsData *tls)
+mono_arch_finish_init (void)
 {
 }
 
@@ -4630,7 +4640,7 @@ mono_arch_emit_imt_argument (MonoCompile *cfg, MonoCallInst *call, MonoInst *imt
 #endif
 
 gpointer
-mono_arch_get_this_arg_from_call (MonoGenericSharingContext *gsctx, MonoMethodSignature *sig, mgreg_t *regs, guint8 *code)
+mono_arch_get_this_arg_from_call (mgreg_t *regs, guint8 *code)
 {
 	return (gpointer)regs [IA64_R10];
 }
@@ -4743,7 +4753,7 @@ mono_arch_get_domain_intrinsic (MonoCompile* cfg)
 	return mono_get_domain_intrinsic (cfg);
 }
 
-gpointer
+mgreg_t
 mono_arch_context_get_int_reg (MonoContext *ctx, int reg)
 {
 	/* FIXME: implement */

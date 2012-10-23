@@ -1,16 +1,3 @@
-2010-08-17  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Update file hierarchy change in System too
-
-2010-08-13  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Add BarrierPostPhaseException and use it when executing post-phase
-	delegate in Barrier.
-
-2010-08-04  Raja R Harinath  <harinath@hurrynot.org>
-
-	Add a dummy SmtpServer to talk to our SmtpClient in unit tests
-
 2010-07-21  Sebastien Pouliot  <sebastien@ximian.com>
 
 	* Makefile: Ensure SECURITY_DEP gets defined in our moonlight

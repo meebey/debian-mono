@@ -1,28 +1,3 @@
-2010-09-20  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* AssemblyBuilderTest.cs: Add test for GetTypes () and incomplete
-	TypeBuilders'.
-
-	Fixes #640288
-
-2010-08-18  Zoltan Varga  <vargaz@gmail.com>
-
-	Fix the corlib tests build.
-
-2010-08-17  Jb Evain  <jbevain@gmail.com>
-
-	Add test for dynamic methods with invalid unicode name
-
-2010-08-06  Jb Evain  <jbevain@gmail.com>
-
-	Test that we can call GetMethodBody on a method defined in a
-	dynamic module.
-
-2010-08-04  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* MethodBuilderTest.cs: Add test for generic arguments used are
-	parameter of a method builder.
-
 2010-07-29 Rodrigo Kumpera  <rkumpera@novell.com>
 
 	* MethodBuilderTest.cs: Add test for #626441.

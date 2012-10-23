@@ -39,10 +39,13 @@ using System.Runtime.Remoting.Proxies;
 using System.Runtime.Remoting.Activation;
 using System.Runtime.Remoting.Messaging;
 using System.Runtime.Remoting.Lifetime;
+using System.Runtime.InteropServices;
+
 
 namespace System.Runtime.Remoting.Contexts {
 
 	[System.Runtime.InteropServices.ComVisible (true)]
+	[StructLayout (LayoutKind.Sequential)]
 	public class Context 
 	{
 #pragma warning disable 169, 414
@@ -64,7 +67,7 @@ namespace System.Runtime.Remoting.Contexts {
 
 		object[] datastore;
 		ArrayList context_properties;
-		bool frozen;
+//		bool frozen;
 		
 		static int global_count;
 
@@ -212,8 +215,8 @@ namespace System.Runtime.Remoting.Contexts {
 			if (this == DefaultContext)
 				throw new InvalidOperationException ("Can not add properties to " +
 								     "default context");
-			if (frozen)
-				throw new InvalidOperationException ("Context is Frozen");
+//			if (frozen)
+//				throw new InvalidOperationException ("Context is Frozen");
 			
 			if (context_properties == null)
 				context_properties = new ArrayList ();

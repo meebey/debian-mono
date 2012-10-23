@@ -10,7 +10,7 @@ sources = closure.c error.c lalr.c lr0.c main.c mkpar.c output.c reader.c \
 datafiles = ACKNOWLEDGEMENTS NEW_FEATURES NOTES README README.jay skeleton \
             skeleton.cs
 
-DISTFILES = $(datafiles) $(sources) jay.1 $(wildcard *.h)
+DISTFILES = $(datafiles) $(sources) jay.1 $(wildcard *.h) jay.vcxproj
 
 all-local: jay
 
@@ -46,7 +46,7 @@ dist-local: dist-default
 test-local run-test-local run-test-ondotnet-local doc-update-local:
 
 jay: $(sources:.c=.o)
-	$(CCOMPILE) -o $@ $^
+	$(CCOMPILE) $(LDFLAGS) -o $@ $^
 
 %.o: %.c
-	$(CCOMPILE) -c -o $@ $^
+	$(CCOMPILE) $(JAY_CFLAGS) -c -o $@ $^

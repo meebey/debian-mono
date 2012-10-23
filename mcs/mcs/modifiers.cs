@@ -1,8 +1,22 @@
 //
-// modifiers.cs: Modifier handling.
-// 
+// modifiers.cs: Modifiers handling
+//
+// Authors: Miguel de Icaza (miguel@gnu.org)
+//          Marek Safar (marek.safar@gmail.com)
+//
+// Dual licensed under the terms of the MIT X11 or GNU GPL
+//
+// Copyright 2001, 2002, 2003 Ximian, Inc (http://www.ximian.com)
+// Copyright 2004-2010 Novell, Inc
+//
+
 using System;
+
+#if STATIC
+using IKVM.Reflection;
+#else
 using System.Reflection;
+#endif
 
 namespace Mono.CSharp
 {
@@ -23,12 +37,13 @@ namespace Mono.CSharp
 		EXTERN    = 0x0800,
 		VOLATILE  = 0x1000,
 		UNSAFE    = 0x2000,
-		TOP       = 0x4000,
+		ASYNC     = 0x4000,
+		TOP       = 0x8000,
 
 		//
 		// Compiler specific flags
 		//
-		PROPERTY_CUSTOM 		= 0x4000,
+		PROPERTY_CUSTOM 		= 0x10000,
 
 		PARTIAL					= 0x20000,
 		DEFAULT_ACCESS_MODIFER	= 0x40000,
@@ -94,6 +109,8 @@ namespace Mono.CSharp
 				s = "volatile"; break;
 			case Modifiers.UNSAFE:
 				s = "unsafe"; break;
+			case Modifiers.ASYNC:
+				s = "async"; break;
 			}
 
 			return s;

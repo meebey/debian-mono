@@ -80,6 +80,20 @@ namespace MonoTests.System.Reflection
 			}
 		}
 
+		[Test]
+		public void TestInvokeByRefReturnMethod ()
+		{
+			try {
+				MethodInfo m = typeof (int[]).GetMethod ("Address");
+				m.Invoke (new int[1], new object[] { 0 });
+				Assert.Fail ("#1");
+			} catch (NotSupportedException e) {
+				Assert.AreEqual (typeof (NotSupportedException), e.GetType (), "#2");
+				Assert.IsNull (e.InnerException, "#3");
+				Assert.IsNotNull (e.Message, "#4");
+			}
+		}
+
 #if NET_2_0
 		[Test]
 		public void PseudoCustomAttributes ()
@@ -689,6 +703,18 @@ namespace MonoTests.System.Reflection
 			MethodInfo gmd = (typeof (MyList <int>)).GetMethod ("ConvertAll");
 			MethodInfo oi = gmd.MakeGenericMethod (gmd.GetGenericArguments ());
 			Assert.AreSame (gmd, oi);
+		}
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))]
+		public void MakeGenericMethodRespectConstraints ()
+		{
+			var m = typeof (MethodInfoTest).GetMethod ("TestMethod");
+			m.MakeGenericMethod (typeof (Type));
+		}
+
+		public void TestMethod <T> () where T : Exception
+		{
 		}
 
 		public class MyList<T>

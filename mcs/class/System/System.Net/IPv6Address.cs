@@ -95,7 +95,7 @@ namespace System.Net {
 				return 0;
 			
 			// Catch double uses of ::
-			if (ipString.IndexOf ("::") != -1)
+			if (ipString.IndexOf ("::", StringComparison.Ordinal) != -1)
 				return -1;
 
 			for (int i = 0; i < ipString.Length; i++){
@@ -136,18 +136,7 @@ namespace System.Net {
 
 		static bool TryParse (string prefix, out int res)
 		{
-#if NET_2_0
 			return Int32.TryParse (prefix, NumberStyles.Integer, CultureInfo.InvariantCulture, out res);
-#else
-			try {
-				res = Int32.Parse (prefix, NumberStyles.Integer, CultureInfo.InvariantCulture);
-			} catch (Exception) {
-				res = -1;
-				return false;
-			}
-
-			return true;
-#endif
 		}
 		
 		public static bool TryParse (string ipString, out IPv6Address result)
@@ -223,7 +212,7 @@ namespace System.Net {
 			// Only an ipv6 block remains, either:
 			// "hexnumbers::hexnumbers", "hexnumbers::" or "hexnumbers"
 			//
-			int c = ipString.IndexOf ("::");
+			int c = ipString.IndexOf ("::", StringComparison.Ordinal);
 			if (c != -1){
 				int right_slots = Fill (addr, ipString.Substring (c+2));
 				if (right_slots == -1){

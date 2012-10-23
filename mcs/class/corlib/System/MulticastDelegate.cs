@@ -32,12 +32,15 @@
 //
 
 using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System.Runtime.InteropServices;
 
 namespace System
 {
 	[System.Runtime.InteropServices.ComVisible (true)]
 	[Serializable]
+	[StructLayout (LayoutKind.Sequential)]
 	public abstract class MulticastDelegate : Delegate
 	{
 		private MulticastDelegate prev;
@@ -121,7 +124,7 @@ namespace System
 				return new Delegate [1] { other };
 			}
 
-			ArrayList list = new ArrayList ();
+			var list = new List<Delegate> ();
 			for (; d != null; d = d.kpm_next) {
 				MulticastDelegate other = (MulticastDelegate) d.Clone ();
 				other.prev = null;
@@ -129,7 +132,7 @@ namespace System
 				list.Add (other);
 			}
 
-			return (Delegate []) list.ToArray (typeof (Delegate));
+			return list.ToArray ();
 		}
 
 		// <summary>
@@ -143,7 +146,7 @@ namespace System
 			MulticastDelegate combined, orig, clone;
 
 			if (this.GetType() != follow.GetType ())
-				throw new ArgumentException (Locale.GetText ("Incompatible Delegate Types."));
+				throw new ArgumentException (Locale.GetText ("Incompatible Delegate Types. First is {0} second is {1}.", this.GetType ().FullName, follow.GetType ().FullName));
 
 			combined = (MulticastDelegate)follow.Clone ();
 			combined.SetMulticastInvoke ();

@@ -16,7 +16,6 @@
 #include <mach/thread_act.h>
 #include <mach/thread_status.h>
 
-#include <mono/arch/x86/x86-codegen.h>
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/debug-helpers.h>
 #include <mono/metadata/mono-debug.h>
@@ -34,5 +33,11 @@ mono_mach_get_threads (thread_act_array_t *threads, guint32 *count)
 	} while (ret != KERN_SUCCESS);
 
 	return ret;
+}
+
+kern_return_t
+mono_mach_free_threads (thread_act_array_t threads, guint32 count)
+{
+	return vm_deallocate(current_task (), (vm_address_t) threads, sizeof (thread_t) * count);
 }
 #endif

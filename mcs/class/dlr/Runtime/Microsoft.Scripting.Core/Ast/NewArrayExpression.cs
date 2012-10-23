@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -20,11 +20,7 @@ using System.Diagnostics;
 using System.Dynamic.Utils;
 using System.Runtime.CompilerServices;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
 #else
 namespace System.Linq.Expressions {
@@ -33,9 +29,7 @@ namespace System.Linq.Expressions {
     /// <summary>
     /// Represents creating a new array and possibly initializing the elements of the new array.
     /// </summary>
-#if !SILVERLIGHT
     [DebuggerTypeProxy(typeof(Expression.NewArrayExpressionProxy))]
-#endif
     public class NewArrayExpression : Expression {
         private readonly ReadOnlyCollection<Expression> _expressions;
         private readonly Type _type;
@@ -158,9 +152,7 @@ namespace System.Linq.Expressions {
                 RequiresCanRead(expr, "initializers");
 
                 if (!TypeUtils.AreReferenceAssignable(type, expr.Type)) {
-                    if (TypeUtils.IsSameOrSubclass(typeof(LambdaExpression), type) && type.IsAssignableFrom(expr.GetType())) {
-                        expr = Expression.Quote(expr);
-                    } else {
+                    if (!TryQuote(type, ref expr)){
                         throw Error.ExpressionTypeCannotInitializeArrayType(expr.Type, type);
                     }
                     if (newList == null) {

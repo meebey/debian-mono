@@ -26,6 +26,9 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 using System;
+#if NET_4_0
+using System.Security.Authentication.ExtendedProtection;
+#endif
 using System.ServiceModel.Security;
 
 namespace System.ServiceModel
@@ -36,7 +39,12 @@ namespace System.ServiceModel
 		HttpProxyCredentialType proxy;
 		string realm = String.Empty;
 
-		internal HttpTransportSecurity ()
+#if NET_4_0
+		public
+#else
+		internal
+#endif
+		HttpTransportSecurity ()
 		{
 		}
 
@@ -54,5 +62,10 @@ namespace System.ServiceModel
 			get { return realm; }
 			set { realm = value; }
 		}
+
+#if NET_4_0
+		[MonoTODO]
+		public ExtendedProtectionPolicy ExtendedProtectionPolicy { get; set; }
+#endif
 	}
 }

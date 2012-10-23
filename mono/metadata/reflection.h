@@ -61,7 +61,7 @@ MonoReflectionMethodBody* mono_method_body_get_object (MonoDomain *domain, MonoM
 
 MonoObject *mono_get_dbnull_object (MonoDomain *domain);
 
-MonoArray*  mono_reflection_get_custom_attrs_by_type (MonoObject *obj, MonoClass *attr_klass);
+MonoArray*  mono_reflection_get_custom_attrs_by_type (MonoObject *obj, MonoClass *attr_klass, MonoError *error);
 MonoArray*  mono_reflection_get_custom_attrs (MonoObject *obj);
 MonoArray*  mono_reflection_get_custom_attrs_data (MonoObject *obj);
 MonoArray*  mono_reflection_get_custom_attrs_blob (MonoReflectionAssembly *assembly, MonoObject *ctor, MonoArray *ctorArgs, MonoArray *properties, MonoArray *porpValues, MonoArray *fields, MonoArray* fieldValues);
@@ -131,6 +131,8 @@ MonoBoolean mono_declsec_get_inheritdemands_method (MonoMethod *callee, MonoDecl
 MonoBoolean mono_declsec_get_method_action (MonoMethod *method, uint32_t action, MonoDeclSecurityEntry *entry);
 MonoBoolean mono_declsec_get_class_action (MonoClass *klass, uint32_t action, MonoDeclSecurityEntry *entry);
 MonoBoolean mono_declsec_get_assembly_action (MonoAssembly *assembly, uint32_t action, MonoDeclSecurityEntry *entry);
+
+MonoType* mono_reflection_type_get_type (MonoReflectionType *reftype);
 
 MONO_END_DECLS
 

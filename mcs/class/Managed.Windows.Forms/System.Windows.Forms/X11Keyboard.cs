@@ -32,12 +32,22 @@
 // 
 using System;
 using System.Collections;
+using System.Diagnostics;
 using System.Drawing;
 using System.Text;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace System.Windows.Forms {
+
+	public enum XLookupStatus
+	{
+		XBufferOverflow = -1,
+		XLookupNone = 1,
+		XLookupChars = 2,
+		XLookupKeySym = 3,
+		XLookupBoth = 4
+	}
 
 	internal class X11Keyboard : IDisposable {
 		internal static object XlibLock;
@@ -51,7 +61,7 @@ namespace System.Windows.Forms {
 		private XIMProperties ximStyle;
 		private EventMask xic_event_mask = EventMask.NoEventMask;
 		private StringBuilder lookup_buffer;
-		private byte [] utf8_buffer;
+		private byte [] lookup_byte_buffer = new byte [100];
 		private int min_keycode, max_keycode, keysyms_per_keycode, syms;
 		private int [] keyc2vkey = new int [256];
 		private int [] keyc2scan = new int [256];
@@ -60,6 +70,7 @@ namespace System.Windows.Forms {
 		private bool num_state, cap_state;
 		private bool initialized;
 		private bool menu_state = false;
+		private Encoding encoding;
 
 		private int NumLockMask;
 		private int AltGrMask;
@@ -69,6 +80,16 @@ namespace System.Windows.Forms {
 			this.display = display;
 			lookup_buffer = new StringBuilder (24);
 			EnsureLayoutInitialized ();
+		}
+
+		private Encoding AnsiEncoding
+		{
+			get
+			{
+				if (encoding == null)
+					encoding = Encoding.GetEncoding(new CultureInfo(lcid).TextInfo.ANSICodePage);
+				return encoding;
+			}
 		}
 
 		public IntPtr ClientWindow {
@@ -130,8 +151,6 @@ namespace System.Windows.Forms {
 			xim = XOpenIM (display, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
 			if (xim == IntPtr.Zero) 
 				Console.Error.WriteLine ("Could not get XIM");
-			else 
-				utf8_buffer = new byte [100];
 
 			initialized = true;
 		}
@@ -184,7 +203,7 @@ namespace System.Windows.Forms {
 		{
 			if (XplatUI.key_filters.Count == 0)
 				return false;
-			IntPtr status;
+			XLookupStatus status;
 			XKeySym ks;
 			KeyFilterData data;
 			data.Down = (e.type == XEventName.KeyPress);
@@ -198,10 +217,10 @@ namespace System.Windows.Forms {
 
 		public void FocusIn (IntPtr window)
 		{
+			this.client_window = window;
 			if (xim == IntPtr.Zero)
 				return;
 
-			this.client_window = window;
 			if (!xic_table.ContainsKey ((long) window))
 				CreateXicForWindow (window);
 			IntPtr xic = GetXic (window);
@@ -209,15 +228,23 @@ namespace System.Windows.Forms {
 				XSetICFocus (xic);
 		}
 
+		private bool have_Xutf8ResetIC = true;
+
 		public void FocusOut (IntPtr window)
 		{
+			this.client_window = IntPtr.Zero;
 			if (xim == IntPtr.Zero)
 				return;
 
-			this.client_window = IntPtr.Zero;
 			IntPtr xic = GetXic (window);
 			if (xic != IntPtr.Zero) {
-				Xutf8ResetIC (xic);
+				if (have_Xutf8ResetIC) {
+					try {
+						Xutf8ResetIC (xic);
+					} catch (EntryPointNotFoundException) {
+						have_Xutf8ResetIC = false;
+					}
+				}
 				XUnsetICFocus (xic);
 			}
 		}
@@ -269,7 +296,7 @@ namespace System.Windows.Forms {
 			XKeySym keysym;
 			int ascii_chars;
 
-			IntPtr status = IntPtr.Zero;
+			XLookupStatus status;
 			ascii_chars = LookupString (ref xevent, 24, out keysym, out status);
 
 			if (((int) keysym >= (int) MiscKeys.XK_ISO_Lock && 
@@ -284,7 +311,7 @@ namespace System.Windows.Forms {
 
 			int event_time = (int)xevent.KeyEvent.time;
 
-			if (status == (IntPtr) 2) {
+			if (status == XLookupStatus.XLookupChars) {
 				// do not ignore those inputs. They are mostly from XIM.
 				msg = SendImeComposition (lookup_buffer.ToString (0, lookup_buffer.Length));
 				msg.hwnd = hwnd;
@@ -442,7 +469,7 @@ namespace System.Windows.Forms {
 			}
 
 			XKeySym t;
-			IntPtr status;
+			XLookupStatus status;
 			int res = LookupString (ref e, 24, out t, out status);
 			int keysym = (int) t;
 
@@ -452,8 +479,7 @@ namespace System.Windows.Forms {
 				if (dead_char != 0) {
 					byte [] bytes = new byte [1];
 					bytes [0] = (byte) dead_char;
-					Encoding encoding = Encoding.GetEncoding (new CultureInfo (lcid).TextInfo.ANSICodePage);
-					buffer = new string (encoding.GetChars (bytes));
+					buffer = new string (AnsiEncoding.GetChars (bytes));
 					res = -1;
 				}
 			} else {
@@ -648,7 +674,7 @@ namespace System.Windows.Forms {
 
 		public int EventToVkey (XEvent e)
 		{
-			IntPtr status;
+			XLookupStatus status;
 			XKeySym ks;
 
 			LookupString (ref e, 0, out ks, out status);
@@ -681,7 +707,7 @@ namespace System.Windows.Forms {
 				e2.KeyEvent.keycode = keyc;
 				XKeySym t;
 
-				IntPtr status;
+				XLookupStatus status;
 				LookupString (ref e2, 0, out t, out status);
 
 				keysym = (uint) t;
@@ -974,6 +1000,7 @@ namespace System.Windows.Forms {
 				xic = XCreateIC (xim,
 					XNames.XNInputStyle, styleRoot,
 					XNames.XNClientWindow, window,
+					XNames.XNFocusWindow, window,
 					IntPtr.Zero);
 			}
 			return xic;
@@ -1027,10 +1054,10 @@ namespace System.Windows.Forms {
 
 			public XIMCallbackContext (IntPtr clientWindow)
 			{
-				startCB = new XIMCallback (IntPtr.Zero, DoPreeditStart);
-				doneCB = new XIMCallback (IntPtr.Zero, DoPreeditDone);
-				drawCB = new XIMCallback (IntPtr.Zero, DoPreeditDraw);
-				caretCB = new XIMCallback (IntPtr.Zero, DoPreeditCaret);
+				startCB = new XIMCallback (clientWindow, DoPreeditStart);
+				doneCB = new XIMCallback (clientWindow, DoPreeditDone);
+				drawCB = new XIMCallback (clientWindow, DoPreeditDraw);
+				caretCB = new XIMCallback (clientWindow, DoPreeditCaret);
 				pStartCB = Marshal.AllocHGlobal (Marshal.SizeOf (typeof (XIMCallback)));
 				pDoneCB = Marshal.AllocHGlobal (Marshal.SizeOf (typeof (XIMCallback)));
 				pDrawCB = Marshal.AllocHGlobal (Marshal.SizeOf (typeof (XIMCallback)));
@@ -1064,27 +1091,29 @@ namespace System.Windows.Forms {
 
 			int DoPreeditStart (IntPtr xic, IntPtr clientData, IntPtr callData)
 			{
-				Console.WriteLine ("DoPreeditStart");
+				Debug.WriteLine ("DoPreeditStart");
+				XplatUI.SendMessage(clientData, Msg.WM_XIM_PREEDITSTART, clientData, callData);
 				return 100;
 			}
 
 			int DoPreeditDone (IntPtr xic, IntPtr clientData, IntPtr callData)
 			{
-				Console.WriteLine ("DoPreeditDone");
+				Debug.WriteLine ("DoPreeditDone");
+				XplatUI.SendMessage(clientData, Msg.WM_XIM_PREEDITDONE, clientData, callData);
 				return 0;
 			}
 
 			int DoPreeditDraw (IntPtr xic, IntPtr clientData, IntPtr callData)
 			{
-				Console.WriteLine ("DoPreeditDraw");
-				//XIMPreeditDrawCallbackStruct cd = (XIMPreeditDrawCallbackStruct) Marshal.PtrToStructure (callData, typeof (XIMPreeditDrawCallbackStruct));
+				Debug.WriteLine ("DoPreeditDraw");
+				XplatUI.SendMessage(clientData, Msg.WM_XIM_PREEDITDRAW, clientData, callData);
 				return 0;
 			}
 
 			int DoPreeditCaret (IntPtr xic, IntPtr clientData, IntPtr callData)
 			{
-				Console.WriteLine ("DoPreeditCaret");
-				//XIMPreeditCaretCallbackStruct cd = (XIMPreeditCaretCallbackStruct) Marshal.PtrToStructure (callData, typeof (XIMPreeditCaretCallbackStruct));
+				Debug.WriteLine ("DoPreeditCaret");
+				XplatUI.SendMessage(clientData, Msg.WM_XIM_PREEDITCARET, clientData, callData);
 				return 0;
 			}
 
@@ -1172,28 +1201,38 @@ namespace System.Windows.Forms {
 			}
 		}
 
-		private int LookupString (ref XEvent xevent, int len, out XKeySym keysym, out IntPtr status)
+		private bool have_Xutf8LookupString = true;
+
+		private int LookupString (ref XEvent xevent, int len, out XKeySym keysym, out XLookupStatus status)
 		{
 			IntPtr keysym_res;
 			int res;
 
-			status = IntPtr.Zero;
+			status = XLookupStatus.XLookupNone;
 			IntPtr xic = GetXic (client_window);
-			if (xic != IntPtr.Zero) {
+			if (xic != IntPtr.Zero && have_Xutf8LookupString && xevent.type == XEventName.KeyPress) {
 				do {
-					res = Xutf8LookupString (xic, ref xevent, utf8_buffer, 100, out keysym_res,  out status);
-					if ((int) status != -1) // XLookupBufferOverflow
+					try {
+						res = Xutf8LookupString (xic, ref xevent, lookup_byte_buffer, 100, out keysym_res,  out status);
+					} catch (EntryPointNotFoundException) {
+						have_Xutf8LookupString = false;
+
+						// call again, this time we'll go through the non-xic clause
+						return LookupString (ref xevent, len, out keysym, out status);
+					}
+					if (status != XLookupStatus.XBufferOverflow)
 						break;
-					utf8_buffer = new byte [utf8_buffer.Length << 1];
+					lookup_byte_buffer = new byte [lookup_byte_buffer.Length << 1];
 				} while (true);
 				lookup_buffer.Length = 0;
-				string s = Encoding.UTF8.GetString (utf8_buffer, 0, res);
+				string s = Encoding.UTF8.GetString (lookup_byte_buffer, 0, res);
 				lookup_buffer.Append (s);
 				keysym = (XKeySym) keysym_res.ToInt32 ();
 				return s.Length;
 			} else {
+				IntPtr statusPtr = IntPtr.Zero;
 				lookup_buffer.Length = 0;
-				res = XLookupString (ref xevent, lookup_buffer, len, out keysym_res, IntPtr.Zero);
+				res = XLookupString (ref xevent, lookup_buffer, len, out keysym_res, out statusPtr);
 				keysym = (XKeySym) keysym_res.ToInt32 ();
 				return res;
 			}
@@ -1259,9 +1298,9 @@ namespace System.Windows.Forms {
 		private static extern bool XSetLocaleModifiers (string mods);
 
 		[DllImport ("libX11")]
-		internal extern static int XLookupString(ref XEvent xevent, StringBuilder buffer, int num_bytes, out IntPtr keysym, IntPtr status);
+		internal extern static int XLookupString(ref XEvent xevent, StringBuilder buffer, int num_bytes, out IntPtr keysym, out IntPtr status);
 		[DllImport ("libX11")]
-		internal extern static int Xutf8LookupString(IntPtr xic, ref XEvent xevent, byte [] buffer, int num_bytes, out IntPtr keysym, out IntPtr status);
+		internal extern static int Xutf8LookupString(IntPtr xic, ref XEvent xevent, byte [] buffer, int num_bytes, out IntPtr keysym, out XLookupStatus status);
 
 		[DllImport ("libX11")]
 		private static extern IntPtr XGetKeyboardMapping (IntPtr display, byte first_keycode, int keycode_count, 

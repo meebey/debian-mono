@@ -1,6 +1,6 @@
 noinst_LTLIBRARIES = libmonoutils.la
 
-INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CFLAGS) $(GLIB_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CPPFLAGS) $(GLIB_CFLAGS)
 
 if ENABLE_DTRACE
 
@@ -67,8 +67,8 @@ monoutils_sources = \
 	mono-codeman.h	\
 	mono-counters.h	\
 	mono-digest.h	\
-	mono-embed.h	\
 	mono-error.h	\
+	mono-machine.h	\
 	mono-math.h	\
 	mono-membar.h	\
 	mono-path.h	\
@@ -78,7 +78,28 @@ monoutils_sources = \
 	valgrind.h	\
 	mach-support.c	\
 	mach-support.h  \
-	memcheck.h
+	memcheck.h	\
+	mono-context.c	\
+	mono-context.h	\
+	mono-stack-unwinding.h	\
+	hazard-pointer.c	\
+	hazard-pointer.h	\
+	lock-free-queue.c	\
+	lock-free-queue.h	\
+	lock-free-alloc.c	\
+	lock-free-alloc.h	\
+	lock-free-array-queue.c	\
+	lock-free-array-queue.h	\
+	mono-linked-list-set.c	\
+	mono-linked-list-set.h	\
+	mono-threads.c	\
+	mono-threads-posix.c	\
+	mono-threads-mach.c	\
+	mono-threads-windows.c	\
+	mono-threads.h	\
+	mono-tls.h	\
+	linux_magic.h	\
+	mono-memory-model.h
 
 arch_sources = 
 
@@ -97,9 +118,10 @@ endif
 libmonoutils_la_SOURCES = $(monoutils_sources) $(arch_sources)
 libmonoutilsincludedir = $(includedir)/mono-$(API_VER)/mono/utils
 
-libmonoutilsinclude_HEADERS = \
-	mono-logger.h	\
-	mono-error.h	\
-	mono-publib.h
+libmonoutilsinclude_HEADERS = 	\
+	mono-logger.h		\
+	mono-error.h		\
+	mono-publib.h		\
+	mono-dl-fallback.h
 
-EXTRA_DIST = ChangeLog
+EXTRA_DIST = ChangeLog mono-embed.h mono-embed.c

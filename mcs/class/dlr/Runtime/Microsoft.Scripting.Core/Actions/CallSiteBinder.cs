@@ -1,25 +1,22 @@
-/* ****************************************************************************
+﻿/* ****************************************************************************
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
  *
  * ***************************************************************************/
 
-#if CLR2
+#if !FEATURE_CORE_DLR
 using Microsoft.Scripting.Ast;
 #else
 using System.Linq.Expressions;
-#endif
-#if SILVERLIGHT
-using System.Core;
 #endif
 
 using System.Collections.Generic;
@@ -66,7 +63,7 @@ namespace System.Runtime.CompilerServices {
 
             private LambdaSignature() {
                 Type target = typeof(T);
-                if (!typeof(Delegate).IsAssignableFrom(target)) {
+                if (!target.IsSubclassOf(typeof(MulticastDelegate))) {
                     throw Error.TypeParameterIsNotDelegate(target);
                 }
 
@@ -139,7 +136,7 @@ namespace System.Runtime.CompilerServices {
             //
             // finally produce the new rule if we need to
             //
-#if !CLR2 && !SILVERLIGHT
+#if !CLR2 && !SILVERLIGHT && !ANDROID && !WP75
             // We cannot compile rules in the heterogeneous app domains since they
             // may come from less trusted sources
             // Silverlight always uses a homogenous appdomain, so we don’t need this check
@@ -166,7 +163,6 @@ namespace System.Runtime.CompilerServices {
         }
 
         private static Expression<T> Stitch<T>(Expression binding, LambdaSignature<T> signature) where T : class {
-            Type targetType = typeof(T);
             Type siteType = typeof(CallSite<T>);
 
             var body = new ReadOnlyCollectionBuilder<Expression>(3);

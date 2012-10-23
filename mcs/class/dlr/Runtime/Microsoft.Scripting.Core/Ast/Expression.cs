@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -23,11 +23,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
     using Microsoft.Scripting.Utils;
 #else
@@ -45,7 +41,7 @@ namespace System.Linq.Expressions {
 
         // LINQ protected ctor from 3.5
 
-#if !CLR2 // needs ConditionWeakTable in 4.0
+		// needs ConditionWeakTable in 4.0
 
         // For 4.0, many frequently used Expression nodes have had their memory
         // footprint reduced by removing the Type and NodeType fields. This has
@@ -84,7 +80,6 @@ namespace System.Linq.Expressions {
 
             _legacyCtorSupportTable.Add(this, new ExtensionInfo(nodeType, type));
         }
-#endif
 
         /// <summary>
         /// Constructs a new instance of <see cref="Expression"/>.
@@ -97,12 +92,11 @@ namespace System.Linq.Expressions {
         /// </summary>
         public virtual ExpressionType NodeType {
             get {
-#if !CLR2
                 ExtensionInfo extInfo;
                 if (_legacyCtorSupportTable != null && _legacyCtorSupportTable.TryGetValue(this, out extInfo)) {
                     return extInfo.NodeType;
                 }
-#endif
+
                 // the extension expression failed to override NodeType
                 throw Error.ExtensionNodeMustOverrideProperty("Expression.NodeType");
             }
@@ -115,12 +109,11 @@ namespace System.Linq.Expressions {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         public virtual Type Type {
             get {
-#if !CLR2
                 ExtensionInfo extInfo;
                 if (_legacyCtorSupportTable != null && _legacyCtorSupportTable.TryGetValue(this, out extInfo)) {
                     return extInfo.Type;
                 }
-#endif
+
                 // the extension expression failed to override Type
                 throw Error.ExtensionNodeMustOverrideProperty("Expression.Type");
             }
@@ -224,7 +217,7 @@ namespace System.Linq.Expressions {
             return ExpressionStringBuilder.ExpressionToString(this);
         }
 
-#if CLR2
+#if !FEATURE_CORE_DLR
         /// <summary>
         /// Writes a <see cref="String"/> representation of the <see cref="Expression"/> to a <see cref="TextWriter"/>.
         /// </summary>

@@ -20,8 +20,6 @@
 // Copyright (c) 2007 Novell, Inc.
 //
 
-#if NET_2_0
-
 using System.ComponentModel;
 using System.Collections;
 using System.Collections.Generic;
@@ -346,7 +344,7 @@ namespace System.Windows.Forms {
 			get { return datasource; }
 			set {
 				if (datasource != value) {
-					if (datasource == null)
+					if (value == null)
 						datamember = String.Empty;
 
 					DisconnectDataSourceEvents (datasource);
@@ -1071,5 +1069,3 @@ namespace System.Windows.Forms {
 		}
 	}
 }
-
-#endif

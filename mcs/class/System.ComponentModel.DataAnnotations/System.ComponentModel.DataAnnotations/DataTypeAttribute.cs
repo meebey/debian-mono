@@ -32,7 +32,11 @@ using System.ComponentModel;
 
 namespace System.ComponentModel.DataAnnotations
 {
+#if NET_4_0
+	[AttributeUsage (AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method, AllowMultiple = false)]
+#else
 	[AttributeUsage (AttributeTargets.Property|AttributeTargets.Field, AllowMultiple = false)]
+#endif
 	public class DataTypeAttribute : ValidationAttribute
 	{
 		public DataTypeAttribute (DataType dataType)
@@ -74,10 +78,11 @@ namespace System.ComponentModel.DataAnnotations
 			return dt.ToString ();
 		}
 
-		[MonoTODO]
 		public override bool IsValid (object value)
 		{
-			throw new NotImplementedException ();
+			// Returns alwasy true 	
+			// See: http://msdn.microsoft.com/en-us/library/cc679235.aspx
+			return true;
 		}
 	}
 }

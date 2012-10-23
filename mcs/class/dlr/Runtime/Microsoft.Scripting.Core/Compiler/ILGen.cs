@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -20,17 +20,14 @@ using System.Dynamic.Utils;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
+using Microsoft.Scripting.Utils;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast.Compiler {
 #else
 namespace System.Linq.Expressions.Compiler {
 #endif
-#if CLR2 || SILVERLIGHT
+#if !FEATURE_CORE_DLR || SILVERLIGHT
     using ILGenerator = OffsetTrackingILGenerator;
 #endif
 
@@ -526,7 +523,12 @@ namespace System.Linq.Expressions.Compiler {
         }
 
         internal static bool ShouldLdtoken(Type t) {
-            return t is TypeBuilder || t.IsGenericParameter || t.IsVisible;
+#if FEATURE_REFEMIT
+            if (t is TypeBuilder) {
+                return true;
+            }
+#endif
+            return t.IsGenericParameter || t.IsVisible;
         }
 
         internal static bool ShouldLdtoken(MethodBase mb) {
@@ -612,6 +614,8 @@ namespace System.Linq.Expressions.Compiler {
                typeTo.IsInterface ||
                typeFrom == typeof(object) || // boxing cast
                typeTo == typeof(object) ||
+               typeFrom == typeof(System.Enum) ||
+               typeFrom == typeof(System.ValueType) ||
                TypeUtils.IsLegalExplicitVariantDelegateConversion(typeFrom, typeTo))
             {
                 il.EmitCastToType(typeFrom, typeTo);
@@ -876,7 +880,7 @@ namespace System.Linq.Expressions.Compiler {
 
 
         internal static void EmitGetValueOrDefault(this ILGenerator il, Type nullableType) {
-            MethodInfo mi = nullableType.GetMethod("GetValueOrDefault", System.Type.EmptyTypes);
+            MethodInfo mi = nullableType.GetMethod("GetValueOrDefault", ReflectionUtils.EmptyTypes);
             Debug.Assert(nullableType.IsValueType);
             il.Emit(OpCodes.Call, mi);
         }

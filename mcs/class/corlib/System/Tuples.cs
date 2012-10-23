@@ -27,7 +27,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if MOONLIGHT || NET_4_0 || BOOTSTRAP_NET_4_0
+#if MOONLIGHT || NET_4_0 || MOBILE
 
 using System;
 using System.Collections;
@@ -57,7 +57,7 @@ namespace System
 					ok = false;
 			}
 			if (!ok)
-				throw new ArgumentException ("The last element of an eight element tuple must be a Tuple.");
+				throw new ArgumentException ("rest", "The last element of an eight element tuple must be a Tuple.");
 		}
 	}
 
@@ -82,9 +82,15 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			return comparer.Compare (item1, t.item1);
 		}
 
 		public override bool Equals (object obj)
@@ -95,10 +101,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1);
 		}
@@ -144,9 +148,17 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			return comparer.Compare (item2, t.item2);
 		}
 
 		public override bool Equals (object obj)
@@ -157,10 +169,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2);
@@ -215,9 +225,19 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2, T3>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			res = comparer.Compare (item2, t.item2);
+			if (res != 0) return res;
+			return comparer.Compare (item3, t.item3);
 		}
 
 		public override bool Equals (object obj)
@@ -228,10 +248,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2, T3>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2) &&
@@ -294,9 +312,21 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2, T3, T4>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			res = comparer.Compare (item2, t.item2);
+			if (res != 0) return res;
+			res = comparer.Compare (item3, t.item3);
+			if (res != 0) return res;
+			return comparer.Compare (item4, t.item4);
 		}
 
 		public override bool Equals (object obj)
@@ -307,10 +337,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2, T3, T4>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2) &&
@@ -381,9 +409,23 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2, T3, T4, T5>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			res = comparer.Compare (item2, t.item2);
+			if (res != 0) return res;
+			res = comparer.Compare (item3, t.item3);
+			if (res != 0) return res;
+			res = comparer.Compare (item4, t.item4);
+			if (res != 0) return res;
+			return comparer.Compare (item5, t.item5);
 		}
 
 		public override bool Equals (object obj)
@@ -394,10 +436,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2, T3, T4, T5>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2) &&
@@ -476,9 +516,25 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2, T3, T4, T5, T6>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			res = comparer.Compare (item2, t.item2);
+			if (res != 0) return res;
+			res = comparer.Compare (item3, t.item3);
+			if (res != 0) return res;
+			res = comparer.Compare (item4, t.item4);
+			if (res != 0) return res;
+			res = comparer.Compare (item5, t.item5);
+			if (res != 0) return res;
+			return comparer.Compare (item6, t.item6);
 		}
 
 		public override bool Equals (object obj)
@@ -489,10 +545,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2, T3, T4, T5, T6>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2) &&
@@ -579,9 +633,27 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2, T3, T4, T5, T6, T7>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			res = comparer.Compare (item2, t.item2);
+			if (res != 0) return res;
+			res = comparer.Compare (item3, t.item3);
+			if (res != 0) return res;
+			res = comparer.Compare (item4, t.item4);
+			if (res != 0) return res;
+			res = comparer.Compare (item5, t.item5);
+			if (res != 0) return res;
+			res = comparer.Compare (item6, t.item6);
+			if (res != 0) return res;
+			return comparer.Compare (item7, t.item7);
 		}
 
 		public override bool Equals (object obj)
@@ -592,10 +664,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2, T3, T4, T5, T6, T7>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2) &&
@@ -678,9 +748,29 @@ namespace System
 			return ((IStructuralComparable) this).CompareTo (obj, Comparer<object>.Default);
 		}
 
-		[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)
+		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
-			throw new NotImplementedException ();
+			var t = other as Tuple<T1, T2, T3, T4, T5, T6, T7, TRest>;
+			if (t == null) {
+				if (other == null) return 1;
+				throw new ArgumentException ("other");
+			}
+
+			int res = comparer.Compare (item1, t.item1);
+			if (res != 0) return res;
+			res = comparer.Compare (item2, t.item2);
+			if (res != 0) return res;
+			res = comparer.Compare (item3, t.item3);
+			if (res != 0) return res;
+			res = comparer.Compare (item4, t.item4);
+			if (res != 0) return res;
+			res = comparer.Compare (item5, t.item5);
+			if (res != 0) return res;
+			res = comparer.Compare (item6, t.item6);
+			if (res != 0) return res;
+			res = comparer.Compare (item7, t.item7);
+			if (res != 0) return res;
+			return comparer.Compare (rest, t.rest);
 		}
 
 		public override bool Equals (object obj)
@@ -691,10 +781,8 @@ namespace System
 		bool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)
 		{
 			var t = other as Tuple<T1, T2, T3, T4, T5, T6, T7, TRest>;
-			if (t == null) {
-				if (other == null) return false;
-				throw new ArgumentException ();
-			}
+			if (t == null)
+				return false;
 
 			return comparer.Equals (item1, t.item1) &&
 				comparer.Equals (item2, t.item2) &&
@@ -788,10 +876,25 @@ public class TupleGen
 			Console.WriteLine ("\t\t}");
 			
 			Console.WriteLine ();
-			Console.WriteLine ("\t\t[MonoTODO] int IStructuralComparable.CompareTo (object other, IComparer comparer)");
+			Console.WriteLine ("\t\tint IStructuralComparable.CompareTo (object other, IComparer comparer)");
 			Console.WriteLine ("\t\t{");
-			Console.WriteLine ("\t\t\tthrow new NotImplementedException ();");
-			Console.WriteLine ("\t\t}");
+			Console.WriteLine ("\t\t\tvar t = other as {0};", type_name);
+			Console.WriteLine ("\t\t\tif (t == null) {");
+			Console.WriteLine ("\t\t\t\tif (other == null) return 1;");
+			Console.WriteLine ("\t\t\t\tthrow new ArgumentException ("other");");
+			Console.WriteLine ("\t\t\t}");
+			Console.WriteLine ();
+			
+			for (int i = 1; i < arity; ++i) {
+				Console.Write ("\t\t\t");
+				if (i == 1)
+					Console.Write ("int ");
+
+				Console.WriteLine ("res = comparer.Compare ({0}, t.{0});", GetItemName (i));
+				Console.WriteLine ("\t\t\tif (res != 0) return res;");
+			}
+			Console.WriteLine ("\t\t\treturn comparer.Compare ({0}, t.{0});", GetItemName (arity));
+			Console.WriteLine ("\t\t}");			
 			
 			Console.WriteLine ();
 			Console.WriteLine ("\t\tpublic override bool Equals (object obj)");
@@ -803,10 +906,8 @@ public class TupleGen
 			Console.WriteLine ("\t\tbool IStructuralEquatable.Equals (object other, IEqualityComparer comparer)");
 			Console.WriteLine ("\t\t{");
 			Console.WriteLine ("\t\t\tvar t = other as {0};", type_name);
-			Console.WriteLine ("\t\t\tif (t == null) {");
-			Console.WriteLine ("\t\t\t\tif (other == null) return false;");
-			Console.WriteLine ("\t\t\t\tthrow new ArgumentException ();");
-			Console.WriteLine ("\t\t\t}");
+			Console.WriteLine ("\t\t\tif (t == null)");
+			Console.WriteLine ("\t\t\t\treturn false;");
 			Console.WriteLine ();
 			Console.Write ("\t\t\treturn");
 			
@@ -827,7 +928,7 @@ public class TupleGen
 			Console.WriteLine ();
 			Console.WriteLine ("\t\tpublic override int GetHashCode ()");
 			Console.WriteLine ("\t\t{");
-			Console.WriteLine ("\t\t\treturn GetHashCode (EqualityComparer<object>.Default);");
+			Console.WriteLine ("\t\t\treturn ((IStructuralEquatable) this).GetHashCode (EqualityComparer<object>.Default);");
 			Console.WriteLine ("\t\t}");
 			
 			Console.WriteLine ();

@@ -11,6 +11,7 @@
  * allowing more efficient function ordering in the AOT files.
  */
 
+#include <config.h>
 #include <mono/metadata/profiler.h>
 #include <mono/metadata/tokentype.h>
 #include <mono/metadata/tabledefs.h>
@@ -21,6 +22,10 @@
 #include <stdlib.h>
 #include <glib.h>
 #include <sys/stat.h>
+
+#ifdef HOST_WIN32
+#include <direct.h>
+#endif
 
 struct _MonoProfiler {
 	GHashTable *images;

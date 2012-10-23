@@ -11,17 +11,14 @@ LIB_MCS_FLAGS = \
 		/r:System.Core.dll \
 	        $(RESOURCE_FILES:%=/resource:%)
 
-ifneq (2.1, $(FRAMEWORK_VERSION))
-LIB_MCS_FLAGS += /r:System.Configuration.dll
-endif
-
 TEST_MCS_FLAGS = $(LIB_MCS_FLAGS)
 
 EXTRA_DISTFILES = $(RESOURCE_FILES) $(TEST_EXTRA_DISTFILES)
 TEST_EXTRA_DISTFILES = \
-	Test/XmlFiles/*.xml
+	Test/XmlFiles/*.xml \
+	Test/XmlFiles/*.xaml
 
-VALID_PROFILE := $(filter 4.0, $(FRAMEWORK_VERSION))
+VALID_PROFILE := $(filter 4, $(FRAMEWORK_VERSION_MAJOR))
 ifndef VALID_PROFILE
 LIBRARY_NAME = dummy-System.Xaml.dll
 NO_INSTALL = yes

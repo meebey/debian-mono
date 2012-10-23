@@ -28,8 +28,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0
-
 #if SECURITY_DEP
 extern alias PrebuiltSystem;
 #endif
@@ -57,6 +55,9 @@ using X509CertificateCollection = PrebuiltSystem::System.Security.Cryptography.X
 
 namespace System.Net.Mail {
 	public class SmtpClient
+#if NET_4_0
+	: IDisposable
+#endif
 	{
 		#region Fields
 
@@ -118,6 +119,9 @@ namespace System.Net.Mail {
 			if (cfg != null) {
 				this.host = cfg.Network.Host;
 				this.port = cfg.Network.Port;
+#if NET_4_0
+				this.enableSsl = cfg.Network.EnableSsl;
+#endif
 				TargetName = cfg.Network.TargetName;
 				if (this.TargetName == null)
 					TargetName = "SMTPSVC/" + (host != null ? host : "");
@@ -132,7 +136,7 @@ namespace System.Net.Mail {
 					Credentials = new CCredentialsByHost (cfg.Network.UserName, password);
 				}
 
-				if (cfg.From != null)
+				if (!String.IsNullOrEmpty (cfg.From))
 					defaultFrom = new MailAddress (cfg.From);
 			}
 #else
@@ -252,7 +256,18 @@ namespace System.Net.Mail {
 		#endregion // Events 
 
 		#region Methods
+#if NET_4_0
+		public void Dispose ()
+		{
+			Dispose (true);
+		}
 
+		[MonoTODO ("Does nothing at the moment.")]
+		protected virtual void Dispose (bool disposing)
+		{
+			// TODO: We should close all the connections and abort any async operations here
+		}
+#endif
 		private void CheckState ()
 		{
 			if (messageInProcess != null)
@@ -261,8 +276,11 @@ namespace System.Net.Mail {
 		
 		private static string EncodeAddress(MailAddress address)
 		{
-			string encodedDisplayName = ContentType.EncodeSubjectRFC2047 (address.DisplayName, Encoding.UTF8);
-			return "\"" + encodedDisplayName + "\" <" + address.Address + ">";
+			if (!String.IsNullOrEmpty (address.DisplayName)) {
+				string encodedDisplayName = ContentType.EncodeSubjectRFC2047 (address.DisplayName, Encoding.UTF8);
+				return "\"" + encodedDisplayName + "\" <" + address.Address + ">";
+			}
+			return address.ToString ();
 		}
 
 		private static string EncodeAddresses(MailAddressCollection addresses)
@@ -1278,4 +1296,3 @@ try {
 	}
 }
 
-#endif // NET_2_0

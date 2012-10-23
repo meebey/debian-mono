@@ -131,6 +131,7 @@ typedef enum {
 	SocketOptionName_Expedited=2,
 	SocketOptionName_NoChecksum=1,
 	SocketOptionName_ChecksumCoverage=20,
+	SocketOptionName_HopLimit=21,
 
 	/* This is Mono-specific, keep it in sync with
 	 * Mono.Posix/PeerCred.cs
@@ -179,6 +180,7 @@ typedef struct _MonoSocketAsyncResult {
 	gint error;
 	gint operation;
 	MonoAsyncResult *ares;
+	gint32 end_called;
 } MonoSocketAsyncResult;
 
 typedef struct
@@ -196,8 +198,8 @@ extern gint32 ves_icall_System_Net_Sockets_Socket_Available_internal(SOCKET sock
 extern void ves_icall_System_Net_Sockets_Socket_Blocking_internal(SOCKET sock, gboolean block, gint32 *error) MONO_INTERNAL;
 extern gpointer ves_icall_System_Net_Sockets_Socket_Accept_internal(SOCKET sock, gint32 *error, gboolean blocking) MONO_INTERNAL;
 extern void ves_icall_System_Net_Sockets_Socket_Listen_internal(SOCKET sock, guint32 backlog, gint32 *error) MONO_INTERNAL;
-extern MonoObject *ves_icall_System_Net_Sockets_Socket_LocalEndPoint_internal(SOCKET sock, gint32 *error) MONO_INTERNAL;
-extern MonoObject *ves_icall_System_Net_Sockets_Socket_RemoteEndPoint_internal(SOCKET sock, gint32 *error) MONO_INTERNAL;
+extern MonoObject *ves_icall_System_Net_Sockets_Socket_LocalEndPoint_internal(SOCKET sock, gint32 af, gint32 *error) MONO_INTERNAL;
+extern MonoObject *ves_icall_System_Net_Sockets_Socket_RemoteEndPoint_internal(SOCKET sock, gint32 af, gint32 *error) MONO_INTERNAL;
 extern void ves_icall_System_Net_Sockets_Socket_Bind_internal(SOCKET sock, MonoObject *sockaddr, gint32 *error) MONO_INTERNAL;
 extern void ves_icall_System_Net_Sockets_Socket_Connect_internal(SOCKET sock, MonoObject *sockaddr, gint32 *error) MONO_INTERNAL;
 extern gint32 ves_icall_System_Net_Sockets_Socket_Receive_internal(SOCKET sock, MonoArray *buffer, gint32 offset, gint32 count, gint32 flags, gint32 *error) MONO_INTERNAL;
@@ -218,6 +220,7 @@ extern MonoBoolean ves_icall_System_Net_Dns_GetHostName_internal(MonoString **h_
 extern MonoBoolean ves_icall_System_Net_Sockets_Socket_Poll_internal (SOCKET sock, gint mode, gint timeout, gint32 *error) MONO_INTERNAL;
 extern void ves_icall_System_Net_Sockets_Socket_Disconnect_internal(SOCKET sock, MonoBoolean reuse, gint32 *error) MONO_INTERNAL;
 extern gboolean ves_icall_System_Net_Sockets_Socket_SendFile (SOCKET sock, MonoString *filename, MonoArray *pre_buffer, MonoArray *post_buffer, gint flags) MONO_INTERNAL;
+void icall_cancel_blocking_socket_operation (MonoThread *thread) MONO_INTERNAL;
 
 extern void mono_network_init(void) MONO_INTERNAL;
 extern void mono_network_cleanup(void) MONO_INTERNAL;

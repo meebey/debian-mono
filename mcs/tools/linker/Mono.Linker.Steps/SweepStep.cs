@@ -28,18 +28,19 @@
 //
 
 using System.Collections;
-
+using System.Collections.Generic;
 using Mono.Cecil;
+using Mono.Collections.Generic;
 
 namespace Mono.Linker.Steps {
 
-	public class SweepStep : IStep {
+	public class SweepStep : BaseStep {
 
 		AssemblyDefinition [] assemblies;
 
-		public void Process (LinkContext context)
+		protected override void Process ()
 		{
-			assemblies = context.GetAssemblies ();
+			assemblies = Context.GetAssemblies ();
 			foreach (var assembly in assemblies)
 				SweepAssembly (assembly);
 		}
@@ -54,23 +55,25 @@ namespace Mono.Linker.Steps {
 				return;
 			}
 
-			var types = assembly.MainModule.Types;
-			var cloned_types = Clone (types);
+			var types = new List<TypeDefinition> ();
 
-			types.Clear ();
-
-			foreach (TypeDefinition type in cloned_types) {
+			foreach (TypeDefinition type in assembly.MainModule.Types) {
 				if (Annotations.IsMarked (type)) {
 					SweepType (type);
 					types.Add (type);
 					continue;
 				}
 
-				SweepReferences (assembly, type);
+				if (type.Name == "<Module>")
+					types.Add (type);
 			}
+
+			assembly.MainModule.Types.Clear ();
+			foreach (TypeDefinition type in types)
+				assembly.MainModule.Types.Add (type);
 		}
 
-		static bool IsMarkedAssembly (AssemblyDefinition assembly)
+		bool IsMarkedAssembly (AssemblyDefinition assembly)
 		{
 			return Annotations.IsMarked (assembly.MainModule);
 		}
@@ -101,61 +104,34 @@ namespace Mono.Linker.Steps {
 			}
 		}
 
-		static ICollection Clone (ICollection collection)
-		{
-			return new ArrayList (collection);
-		}
-
-		void SweepReferences (AssemblyDefinition assembly, TypeDefinition type)
-		{
-			foreach (AssemblyDefinition asm in assemblies) {
-				ModuleDefinition module = asm.MainModule;
-				if (!module.TypeReferences.Contains (type))
-					continue;
-
-				TypeReference typeRef = module.TypeReferences [type.FullName];
-				if (AssemblyMatch (assembly, typeRef)) {
-					SweepMemberReferences (module, typeRef);
-					module.TypeReferences.Remove (typeRef);
-				}
-			}
-		}
-
-		static void SweepMemberReferences (ModuleDefinition module, TypeReference reference)
-		{
-			var references = module.MemberReferences;
-
-			for (int i = 0; i < references.Count; i++) {
-				if (references [i].DeclaringType == reference)
-					references.RemoveAt (i--);
-			}
-		}
-
-		static bool AssemblyMatch (AssemblyDefinition assembly, TypeReference type)
-		{
-			AssemblyNameReference reference = type.Scope as AssemblyNameReference;
-			if (reference == null)
-				return false;
-
-			return AreSameReference (assembly.Name, reference);
-		}
-
-		static void SweepType (TypeDefinition type)
+		void SweepType (TypeDefinition type)
 		{
 			if (type.HasFields)
 				SweepCollection (type.Fields);
 
-			if (type.HasConstructors)
-				SweepCollection (type.Constructors);
-
 			if (type.HasMethods)
 				SweepCollection (type.Methods);
+
+			if (type.HasNestedTypes)
+				SweepNestedTypes (type);
 		}
 
-		static void SweepCollection (IList list)
+		void SweepNestedTypes (TypeDefinition type)
+		{
+			for (int i = 0; i < type.NestedTypes.Count; i++) {
+				var nested = type.NestedTypes [i];
+				if (Annotations.IsMarked (nested)) {
+					SweepType (nested);
+				} else {
+					type.NestedTypes.RemoveAt (i--);
+				}
+			}
+		}
+
+		void SweepCollection (IList list)
 		{
 			for (int i = 0; i < list.Count; i++)
-				if (!Annotations.IsMarked ((IAnnotationProvider) list [i]))
+				if (!Annotations.IsMarked ((IMetadataTokenProvider) list [i]))
 					list.RemoveAt (i--);
 		}
 

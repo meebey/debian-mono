@@ -139,10 +139,10 @@ namespace Microsoft.CSharp.RuntimeBinder
 			Compiler.Expression expr;
 
 			if (is_compound) {
-				var target_expr = ctx.CreateCompilerExpression (argumentInfo[0], target);
-				expr = new Compiler.CompoundAssign (oper, target_expr, right, left, Compiler.Location.Null);
+				var target_expr = new Compiler.RuntimeValueExpression (target, ctx.ImportType (target.LimitType));
+				expr = new Compiler.CompoundAssign (oper, target_expr, right, left);
 			} else {
-				expr = new Compiler.Binary (oper, left, right, Compiler.Location.Null);
+				expr = new Compiler.Binary (oper, left, right);
 			}
 
 			expr = new Compiler.Cast (new Compiler.TypeExpression (ctx.ImportType (ReturnType), Compiler.Location.Null), expr, Compiler.Location.Null);

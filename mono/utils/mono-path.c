@@ -30,6 +30,11 @@
 
 /* Resolves '..' and '.' references in a path. If the path provided is relative,
  * it will be relative to the current directory */
+
+/* For Native Client, the above is not true.  Since there is no getcwd we fill */
+/* in the file being passed in relative to '.' and don't resolve it            */
+
+/* There are a couple of tests for this method in mono/test/mono-path.cs */
 gchar *
 mono_path_canonicalize (const char *path)
 {
@@ -39,9 +44,14 @@ mono_path_canonicalize (const char *path)
 	if (g_path_is_absolute (path)) {
 		abspath = g_strdup (path);
 	} else {
+#ifdef __native_client__
+		gchar *tmpdir = ".";
+		abspath = g_build_filename (tmpdir, path, NULL);
+#else
 		gchar *tmpdir = g_get_current_dir ();
 		abspath = g_build_filename (tmpdir, path, NULL);
 		g_free (tmpdir);
+#endif
 	}
 
 #ifdef HOST_WIN32
@@ -73,13 +83,29 @@ mono_path_canonicalize (const char *path)
 		pos = strchr (lastpos, G_DIR_SEPARATOR);
 	}
 
-#ifdef HOST_WIN32 /* For UNC paths the first '\' is removed. */
-	if (*(lastpos-1) == G_DIR_SEPARATOR && *(lastpos-2) == G_DIR_SEPARATOR)
+#ifdef HOST_WIN32
+	/* Avoid removing the first '\' for UNC paths. We must make sure that it's indeed an UNC path
+	by checking if the \\ pair happens exactly at the end of the string.
+	*/
+	if (*(lastpos-1) == G_DIR_SEPARATOR && *(lastpos-2) == G_DIR_SEPARATOR && *lastpos == 0)
 		lastpos = lastpos-1;
 #endif
 	
 	if (dest != lastpos) strcpy (dest, lastpos);
-	return g_strreverse (abspath);
+	
+	g_strreverse (abspath);
+
+	/* We strip away all trailing dir separators. This is not correct for the root directory,
+	 * since we'll return an empty string, so re-append a dir separator if there is none in the
+	 * result */
+	if (strchr (abspath, G_DIR_SEPARATOR) == NULL) {
+		int len = strlen (abspath);
+		abspath = g_realloc (abspath, len + 2);
+		abspath [len] = G_DIR_SEPARATOR;
+		abspath [len+1] = 0;
+	}
+
+	return abspath;
 }
 
 /*

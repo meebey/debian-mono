@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -21,7 +21,7 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast.Compiler {
 #else
 namespace System.Linq.Expressions.Compiler {
@@ -39,6 +39,7 @@ namespace System.Linq.Expressions.Compiler {
             // if not, emit into IL
             if (_method is DynamicMethod) {
                 EmitConstant(array, typeof(T[]));
+#if FEATURE_REFEMIT
             } else if(_typeBuilder != null) {
                 // store into field in our type builder, we will initialize
                 // the value only once.
@@ -51,6 +52,7 @@ namespace System.Linq.Expressions.Compiler {
                 _ilg.Emit(OpCodes.Stsfld, fb);
                 _ilg.MarkLabel(l);
                 _ilg.Emit(OpCodes.Ldsfld, fb);
+#endif
             } else { 
                 _ilg.EmitArray(array);
             }
@@ -111,15 +113,7 @@ namespace System.Linq.Expressions.Compiler {
         /// 
         private void EmitDelegateConstruction(LambdaExpression lambda) {
             // 1. Create the new compiler
-            LambdaCompiler impl;
-            if (_method is DynamicMethod) {
-                impl = new LambdaCompiler(_tree, lambda);
-            } else {
-                // When the lambda does not have a name or the name is empty, generate a unique name for it.
-                string name = String.IsNullOrEmpty(lambda.Name) ? GetUniqueMethodName() : lambda.Name;
-                MethodBuilder mb = _typeBuilder.DefineMethod(name, MethodAttributes.Private | MethodAttributes.Static);
-                impl = new LambdaCompiler(_tree, lambda, mb);
-            }
+            LambdaCompiler impl = CreateCompiler(lambda);
 
             // 2. emit the lambda
             // Since additional ILs are always emitted after the lambda's body, should not emit with tail call optimization.
@@ -127,6 +121,18 @@ namespace System.Linq.Expressions.Compiler {
 
             // 3. emit the delegate creation in the outer lambda
             EmitDelegateConstruction(impl);
+        }
+
+        private LambdaCompiler CreateCompiler(LambdaExpression lambda) {
+#if FEATURE_REFEMIT
+            if (!(_method is DynamicMethod)) {
+                // When the lambda does not have a name or the name is empty, generate a unique name for it.
+                string name = String.IsNullOrEmpty(lambda.Name) ? GetUniqueMethodName() : lambda.Name;
+                MethodBuilder mb = _typeBuilder.DefineMethod(name, MethodAttributes.Private | MethodAttributes.Static);
+                return new LambdaCompiler(_tree, lambda, mb);
+            }
+#endif
+            return new LambdaCompiler(_tree, lambda);
         }
 
         private static Type[] GetParameterTypes(LambdaExpression lambda) {

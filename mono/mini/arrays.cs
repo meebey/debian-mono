@@ -434,6 +434,14 @@ class Tests {
 		if (sum != 1800)
 			return 12;
 
+		/* Null check */
+		object[,] a13 = null;
+		try {
+			a13 [0, 0] = new Object ();
+			return 13;
+		} catch (NullReferenceException) {
+		}
+
 		return 0;
 	}
 
@@ -719,7 +727,7 @@ class Tests {
 		return 0;
 	}
 
-	public static int long_indices () {
+	public static int test_0_long_indices () {
 		int[] arr = new int [10];
 		int[,] arr2 = new int [10, 10];
 		long index = 1;
@@ -731,6 +739,16 @@ class Tests {
 			return 2;
 		return 0;
 	}
+
+	// #7438
+	public static int test_0_ldelema_2_64bit () {
+        bool[,] test = new bool[201,201];
+        int x,y;
+        for(x=-100;x<100;x++) for(y=-100;y<100;y++){
+            test[x+100,y+100] = true;
+        }
+		return 0;
+	}		
 }
 
 

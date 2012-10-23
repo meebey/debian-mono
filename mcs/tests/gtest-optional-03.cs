@@ -32,10 +32,13 @@ class C
 		if (B.TestDecimal (2, 5) != 5)
 			return 8;
 		
-		B b = new B ();
-		b [1] = 'z';
-		if (b [0] != 'h')
+		if (B.TestEnum () != E.Value)
 			return 9;
+		
+		B b = new B ();
+		b [1] = 3;
+		if (b [0] != 6)
+			return 10;
 		
 		B.TestNew ();
 		

@@ -27,7 +27,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0 && SECURITY_DEP
+#if SECURITY_DEP
 
 namespace System.Net {
 	sealed class ListenerPrefix
@@ -111,6 +111,8 @@ namespace System.Net {
 				host = uri.Substring (start_host, root - start_host);
 				path = uri.Substring (root);
 			}
+			if (path.Length != 1)
+				path = path.Substring (0, path.Length - 1);
 		}
 
 		public static void CheckUri (string uri)

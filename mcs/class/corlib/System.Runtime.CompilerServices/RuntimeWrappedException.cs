@@ -28,10 +28,12 @@
 
 using System.Runtime.Serialization;
 using System.Security.Permissions;
+using System.Runtime.InteropServices;
 
 namespace System.Runtime.CompilerServices {
 
 	[Serializable]
+	[StructLayout (LayoutKind.Sequential)]
 	public sealed class RuntimeWrappedException : Exception
 	{
 #pragma warning disable 649
@@ -41,7 +43,7 @@ namespace System.Runtime.CompilerServices {
 #pragma warning restore 649
 
 		// Called by the runtime
-		private RuntimeWrappedException () 
+		private RuntimeWrappedException () : base ("An object that does not derive from System.Exception has been wrapped in a RuntimeWrappedException.")
 		{
 		}
 

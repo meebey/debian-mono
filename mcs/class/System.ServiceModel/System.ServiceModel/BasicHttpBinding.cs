@@ -5,6 +5,7 @@
 //	Atsushi Enomoto <atsushi@ximian.com>
 //
 // Copyright (C) 2005-2006 Novell, Inc.  http://www.novell.com
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -181,23 +182,10 @@ namespace System.ServiceModel
 			CreateBindingElements ()
 		{
 			var list = new List<BindingElement> ();
-			switch (Security.Mode) {
-#if !NET_2_1
-			case BasicHttpSecurityMode.Message:
-				if (Security.Message.ClientCredentialType != BasicHttpMessageCredentialType.Certificate)
-					throw new InvalidOperationException ("When Message security is enabled in a BasicHttpBinding, the message security credential type must be BasicHttpMessageCredentialType.Certificate.");
-				goto case BasicHttpSecurityMode.TransportWithMessageCredential;
-			case BasicHttpSecurityMode.TransportWithMessageCredential:
-				SecurityBindingElement sec;
-				if (Security.Message.ClientCredentialType != BasicHttpMessageCredentialType.Certificate)
-					// FIXME: pass proper security token parameters.
-					sec = SecurityBindingElement.CreateCertificateOverTransportBindingElement ();
-				else
-					sec = new AsymmetricSecurityBindingElement ();
-				list.Add (sec);
-				break;
-#endif
-			}
+			
+			var security = CreateSecurityBindingElement ();
+			if (security != null)
+				list.Add (security);
 
 #if NET_2_1
 			if (EnableHttpCookieContainer)
@@ -208,6 +196,37 @@ namespace System.ServiceModel
 			list.Add (GetTransport ());
 
 			return new BindingElementCollection (list.ToArray ());
+		}
+		
+		SecurityBindingElement CreateSecurityBindingElement () 
+		{
+            SecurityBindingElement element;
+			switch (Security.Mode) {
+#if !NET_2_1
+			case BasicHttpSecurityMode.Message:
+				if (Security.Message.ClientCredentialType != BasicHttpMessageCredentialType.Certificate)
+					throw new InvalidOperationException ("When Message security is enabled in a BasicHttpBinding, the message security credential type must be BasicHttpMessageCredentialType.Certificate.");
+				element = SecurityBindingElement.CreateMutualCertificateBindingElement (
+				    MessageSecurityVersion.WSSecurity10WSTrustFebruary2005WSSecureConversationFebruary2005WSSecurityPolicy11BasicSecurityProfile10);
+				break;
+
+			case BasicHttpSecurityMode.TransportWithMessageCredential:
+				if (Security.Message.ClientCredentialType != BasicHttpMessageCredentialType.Certificate)
+					// FIXME: pass proper security token parameters.
+					element = SecurityBindingElement.CreateCertificateOverTransportBindingElement ();
+				else
+					element = new AsymmetricSecurityBindingElement ();
+				break;
+#endif
+			default: 
+				return null;
+			}
+
+#if !NET_2_1
+			element.SetKeyDerivation (false);
+			element.SecurityHeaderLayout = SecurityHeaderLayout.Lax;
+#endif
+			return element;
 		}
 
 		MessageEncodingBindingElement BuildMessageEncodingBindingElement ()
@@ -251,44 +270,30 @@ namespace System.ServiceModel
 			h.ProxyAddress = ProxyAddress;
 			h.UseDefaultWebProxy = UseDefaultWebProxy;
 			h.TransferMode = TransferMode;
+#if NET_4_0
+			h.ExtendedProtectionPolicy = Security.Transport.ExtendedProtectionPolicy;
+#endif
 
-#if !NET_2_1
-			switch (Security.Mode) {
-			case BasicHttpSecurityMode.Transport:
-				switch (Security.Transport.ClientCredentialType) {
-				case HttpClientCredentialType.Basic:
-					h.AuthenticationScheme = AuthenticationSchemes.Basic;
-					break;
-				case HttpClientCredentialType.Ntlm:
-					h.AuthenticationScheme = AuthenticationSchemes.Ntlm;
-					break;
-				case HttpClientCredentialType.Windows:
-					h.AuthenticationScheme = AuthenticationSchemes.Negotiate;
-					break;
-				case HttpClientCredentialType.Digest:
-					h.AuthenticationScheme = AuthenticationSchemes.Digest;
-					break;
-				case HttpClientCredentialType.Certificate:
-					var https = (HttpsTransportBindingElement) h;
-					https.RequireClientCertificate = true;
-					break;
-				}
+#if !NET_2_1 || MOBILE
+			switch (Security.Transport.ClientCredentialType) {
+			case HttpClientCredentialType.Basic:
+				h.AuthenticationScheme = AuthenticationSchemes.Basic;
 				break;
-			case BasicHttpSecurityMode.TransportCredentialOnly:
-				switch (Security.Transport.ClientCredentialType) {
-				case HttpClientCredentialType.Basic:
-					h.AuthenticationScheme = AuthenticationSchemes.Basic;
+			case HttpClientCredentialType.Ntlm:
+				h.AuthenticationScheme = AuthenticationSchemes.Ntlm;
+				break;
+			case HttpClientCredentialType.Windows:
+				h.AuthenticationScheme = AuthenticationSchemes.Negotiate;
+				break;
+			case HttpClientCredentialType.Digest:
+				h.AuthenticationScheme = AuthenticationSchemes.Digest;
+				break;
+			case HttpClientCredentialType.Certificate:
+				switch (Security.Mode) {
+				case BasicHttpSecurityMode.Transport:
+					(h as HttpsTransportBindingElement).RequireClientCertificate = true;
 					break;
-				case HttpClientCredentialType.Ntlm:
-					h.AuthenticationScheme = AuthenticationSchemes.Ntlm;
-					break;
-				case HttpClientCredentialType.Windows:
-					h.AuthenticationScheme = AuthenticationSchemes.Negotiate;
-					break;
-				case HttpClientCredentialType.Digest:
-					h.AuthenticationScheme = AuthenticationSchemes.Digest;
-					break;
-				case HttpClientCredentialType.Certificate:
+				case BasicHttpSecurityMode.TransportCredentialOnly:
 					throw new InvalidOperationException ("Certificate-based client authentication is not supported by 'TransportCredentialOnly' mode.");
 				}
 				break;

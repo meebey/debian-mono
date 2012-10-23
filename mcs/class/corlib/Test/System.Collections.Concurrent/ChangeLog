@@ -1,17 +1,3 @@
-2010-08-27  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Allow at max one Remove operation to fail in tests.
-
-	Some concurrent collections don't necessarily guarantee that a
-	call to Dequeue/Pop/equivalent will succeed even in the case there
-	are elements in the collection. When one of such operation fail in
-	test, retry it immediately to check for that sort of cases.
-
-2010-08-12  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Add additional unit test for ConcurrentDictionary to validate
-	behavior with the new SplitOrderedList backend.
-
 2010-06-03  Jérémie Laval  <jeremie.laval@gmail.com>
 
 	* CollectionStressTestHelper.cs: Bump remove test repeat to 1000.

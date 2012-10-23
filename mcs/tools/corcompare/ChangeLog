@@ -1,11 +1,3 @@
-2010-08-23  Andrés G. Aragoneses  <knocte@gmail.com>
-
-	[tools] Merge mono-abi-info tool into a "--abi" flag for
-	mono-api-info
-
-	This commit also includes a brief (help welcome!) man page for
-	mono-api-info that explains its usage.
-
 2010-08-05  Andrés G. Aragoneses  <andres@lindenlab.com>
 
 	* mono-api-info.cs: Implemented new mode to show ABI.

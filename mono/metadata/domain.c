@@ -7,6 +7,7 @@
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2011-2012 Xamarin, Inc (http://www.xamarin.com)
  */
 
 #include <config.h>
@@ -20,6 +21,8 @@
 #include <mono/utils/mono-logger-internal.h>
 #include <mono/utils/mono-membar.h>
 #include <mono/utils/mono-counters.h>
+#include <mono/utils/hazard-pointer.h>
+#include <mono/utils/mono-tls.h>
 #include <mono/metadata/object.h>
 #include <mono/metadata/object-internals.h>
 #include <mono/metadata/domain-internals.h>
@@ -43,37 +46,27 @@
  * or the other (we used to do it because tls slots were GC-tracked,
  * but we can't depend on this).
  */
-static guint32 appdomain_thread_id = -1;
+static MonoNativeTlsKey appdomain_thread_id;
 
-/* 
- * Avoid calling TlsSetValue () if possible, since in the io-layer, it acquires
- * a global lock (!) so it is a contention point.
- */
-#if (defined(__i386__) || defined(__x86_64__)) && !defined(HOST_WIN32)
-#define NO_TLS_SET_VALUE
-#endif
- 
-#ifdef HAVE_KW_THREAD
+#ifdef MONO_HAVE_FAST_TLS
 
-static __thread MonoDomain * tls_appdomain MONO_TLS_FAST;
+MONO_FAST_TLS_DECLARE(tls_appdomain);
 
-#define GET_APPDOMAIN() tls_appdomain
+#define GET_APPDOMAIN() ((MonoDomain*)MONO_FAST_TLS_GET(tls_appdomain))
 
-#ifdef NO_TLS_SET_VALUE
 #define SET_APPDOMAIN(x) do { \
-	tls_appdomain = x; \
+	MONO_FAST_TLS_SET (tls_appdomain,x); \
+	mono_native_tls_set_value (appdomain_thread_id, x); \
+	mono_gc_set_current_thread_appdomain (x); \
 } while (FALSE)
-#else
-#define SET_APPDOMAIN(x) do { \
-	tls_appdomain = x; \
-	TlsSetValue (appdomain_thread_id, x); \
-} while (FALSE)
-#endif
 
-#else /* !HAVE_KW_THREAD */
+#else /* !MONO_HAVE_FAST_TLS */
 
-#define GET_APPDOMAIN() ((MonoDomain *)TlsGetValue (appdomain_thread_id))
-#define SET_APPDOMAIN(x) TlsSetValue (appdomain_thread_id, x);
+#define GET_APPDOMAIN() ((MonoDomain *)mono_native_tls_get_value (appdomain_thread_id))
+#define SET_APPDOMAIN(x) do {						\
+		mono_native_tls_set_value (appdomain_thread_id, x);	\
+		mono_gc_set_current_thread_appdomain (x);		\
+	} while (FALSE)
 
 #endif
 
@@ -130,8 +123,9 @@ static MonoAotModuleInfoTable *aot_modules = NULL;
 static const MonoRuntimeInfo supported_runtimes[] = {
 	{"v2.0.50215","2.0", { {2,0,0,0},    {8,0,0,0}, { 3, 5, 0, 0 } }	},
 	{"v2.0.50727","2.0", { {2,0,0,0},    {8,0,0,0}, { 3, 5, 0, 0 } }	},
+	{"v4.0.30319","4.5", { {4,0,0,0},    {10,0,0,0}, { 4, 0, 0, 0 } }   },
 	{"v4.0.30128","4.0", { {4,0,0,0},    {10,0,0,0}, { 4, 0, 0, 0 } }   },
-	{"v4.0.30319","4.0", { {4,0,0,0},    {10,0,0,0}, { 4, 0, 0, 0 } }   },
+	{"v4.0.20506","4.0", { {4,0,0,0},    {10,0,0,0}, { 4, 0, 0, 0 } }   },
 	{"moonlight", "2.1", { {2,0,5,0},    {9,0,0,0}, { 3, 5, 0, 0 } }    },
 };
 
@@ -155,7 +149,7 @@ get_runtime_by_version (const char *version);
 static MonoImage*
 mono_jit_info_find_aot_module (guint8* addr);
 
-guint32
+MonoNativeTlsKey
 mono_domain_get_tls_key (void)
 {
 	return appdomain_thread_id;
@@ -271,36 +265,6 @@ jit_info_table_free (MonoJitInfoTable *table)
 	mono_domain_unlock (domain);
 
 	g_free (table);
-}
-
-/* Can be called with hp==NULL, in which case it acts as an ordinary
-   pointer fetch.  It's used that way indirectly from
-   mono_jit_info_table_add(), which doesn't have to care about hazards
-   because it holds the respective domain lock. */
-static gpointer
-get_hazardous_pointer (gpointer volatile *pp, MonoThreadHazardPointers *hp, int hazard_index)
-{
-	gpointer p;
-
-	for (;;) {
-		/* Get the pointer */
-		p = *pp;
-		/* If we don't have hazard pointers just return the
-		   pointer. */
-		if (!hp)
-			return p;
-		/* Make it hazardous */
-		mono_hazard_pointer_set (hp, hazard_index, p);
-		/* Check that it's still the same.  If not, try
-		   again. */
-		if (*pp != p) {
-			mono_hazard_pointer_clear (hp, hazard_index);
-			continue;
-		}
-		break;
-	}
-
-	return p;
 }
 
 /* The jit_info_table is sorted in ascending order by the end
@@ -1031,6 +995,39 @@ mono_jit_info_get_try_block_hole_table_info (MonoJitInfo *ji)
 		return NULL;
 	}
 }
+
+MonoArchEHJitInfo*
+mono_jit_info_get_arch_eh_info (MonoJitInfo *ji)
+{
+	if (ji->has_arch_eh_info) {
+		char *ptr = (char*)&ji->clauses [ji->num_clauses];
+		if (ji->has_generic_jit_info)
+			ptr += sizeof (MonoGenericJitInfo);
+		if (ji->has_try_block_holes)
+			ptr += sizeof (MonoTryBlockHoleTableJitInfo);
+		return (MonoArchEHJitInfo*)ptr;
+	} else {
+		return NULL;
+	}
+}
+
+MonoMethodCasInfo*
+mono_jit_info_get_cas_info (MonoJitInfo *ji)
+{
+	if (ji->has_cas_info) {
+		char *ptr = (char*)&ji->clauses [ji->num_clauses];
+		if (ji->has_generic_jit_info)
+			ptr += sizeof (MonoGenericJitInfo);
+		if (ji->has_try_block_holes)
+			ptr += sizeof (MonoTryBlockHoleTableJitInfo);
+		if (ji->has_arch_eh_info)
+			ptr += sizeof (MonoArchEHJitInfo);
+		return (MonoMethodCasInfo*)ptr;
+	} else {
+		return NULL;
+	}
+}
+
 void
 mono_install_create_domain_hook (MonoCreateDomainFunc func)
 {
@@ -1216,9 +1213,8 @@ mono_domain_create (void)
 	domain->jit_info_table = jit_info_table_new (domain);
 	domain->jit_info_free_queue = NULL;
 	domain->finalizable_objects_hash = g_hash_table_new (mono_aligned_addr_hash, NULL);
-#ifndef HAVE_SGEN_GC
 	domain->track_resurrection_handles_hash = g_hash_table_new (mono_aligned_addr_hash, NULL);
-#endif
+	domain->ftnptrs_hash = g_hash_table_new (mono_aligned_addr_hash, NULL);
 
 	InitializeCriticalSection (&domain->lock);
 	InitializeCriticalSection (&domain->assemblies_lock);
@@ -1272,8 +1268,10 @@ mono_init_internal (const char *filename, const char *exe_filename, const char *
 #ifdef HOST_WIN32
 	/* Avoid system error message boxes. */
 	SetErrorMode (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+#endif
 
-	mono_load_coree (exe_filename);
+#ifndef HOST_WIN32
+	wapi_init ();
 #endif
 
 	mono_perfcounters_init ();
@@ -1284,7 +1282,8 @@ mono_init_internal (const char *filename, const char *exe_filename, const char *
 
 	mono_gc_base_init ();
 
-	appdomain_thread_id = TlsAlloc ();
+	MONO_FAST_TLS_INIT (tls_appdomain);
+	mono_native_tls_alloc (&appdomain_thread_id, NULL);
 
 	InitializeCriticalSection (&appdomains_mutex);
 
@@ -1296,7 +1295,7 @@ mono_init_internal (const char *filename, const char *exe_filename, const char *
 	mono_reflection_init ();
 
 	/* FIXME: When should we release this memory? */
-	MONO_GC_REGISTER_ROOT (appdomains_list);
+	MONO_GC_REGISTER_ROOT_FIXED (appdomains_list);
 
 	domain = mono_domain_create ();
 	mono_root_domain = domain;
@@ -1749,15 +1748,11 @@ mono_cleanup (void)
 	mono_debug_cleanup ();
 	mono_metadata_cleanup ();
 
-	TlsFree (appdomain_thread_id);
+	mono_native_tls_free (appdomain_thread_id);
 	DeleteCriticalSection (&appdomains_mutex);
 
-	/*
-	 * This should be called last as TlsGetValue ()/TlsSetValue () can be called during
-	 * shutdown.
-	 */
 #ifndef HOST_WIN32
-	_wapi_cleanup ();
+	wapi_cleanup ();
 #endif
 }
 
@@ -1898,24 +1893,20 @@ mono_domain_assembly_open (MonoDomain *domain, const char *name)
 	return ass;
 }
 
-#ifndef HAVE_SGEN_GC
 static void
 free_slist (gpointer key, gpointer value, gpointer user_data)
 {
 	g_slist_free (value);
 }
-#endif
 
-#if HAVE_SGEN_GC
 static void
 unregister_vtable_reflection_type (MonoVTable *vtable)
 {
 	MonoObject *type = vtable->type;
 
 	if (type->vtable->klass != mono_defaults.monotype_class)
-		mono_gc_deregister_root ((char*)&vtable->type);
+		MONO_GC_UNREGISTER_ROOT_IF_MOVING (vtable->type);
 }
-#endif
 
 void
 mono_domain_free (MonoDomain *domain, gboolean force)
@@ -1958,6 +1949,11 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 	mono_g_hash_table_destroy (domain->env);
 	domain->env = NULL;
 
+	if (domain->tlsrec_list) {
+		mono_thread_destroy_domain_tls (domain);
+		domain->tlsrec_list = NULL;
+	}
+
 	mono_reflection_cleanup_domain (domain);
 
 	if (domain->type_hash) {
@@ -1969,22 +1965,26 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 		domain->type_init_exception_hash = NULL;
 	}
 
-	for (tmp = domain->domain_assemblies; tmp; tmp = tmp->next) {
-		MonoAssembly *ass = tmp->data;
-		mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_ASSEMBLY, "Unloading domain %s %p, assembly %s %p, refcount=%d\n", domain->friendly_name, domain, ass->aname.name, ass, ass->ref_count);
-		if (!mono_assembly_close_except_image_pools (ass))
-			tmp->data = NULL;
-	}
-
-#if HAVE_SGEN_GC
 	if (domain->class_vtable_array) {
 		int i;
 		for (i = 0; i < domain->class_vtable_array->len; ++i)
 			unregister_vtable_reflection_type (g_ptr_array_index (domain->class_vtable_array, i));
 	}
-#endif
 
+	for (tmp = domain->domain_assemblies; tmp; tmp = tmp->next) {
+		MonoAssembly *ass = tmp->data;
+		mono_assembly_release_gc_roots (ass);
+	}
+
+	/* This needs to be done before closing assemblies */
 	mono_gc_clear_domain (domain);
+
+	for (tmp = domain->domain_assemblies; tmp; tmp = tmp->next) {
+		MonoAssembly *ass = tmp->data;
+		mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_ASSEMBLY, "Unloading domain %s[%p], assembly %s[%p], ref_count=%d", domain->friendly_name, domain, ass->aname.name, ass, ass->ref_count);
+		if (!mono_assembly_close_except_image_pools (ass))
+			tmp->data = NULL;
+	}
 
 	for (tmp = domain->domain_assemblies; tmp; tmp = tmp->next) {
 		MonoAssembly *ass = tmp->data;
@@ -2059,14 +2059,12 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 
 	g_hash_table_destroy (domain->finalizable_objects_hash);
 	domain->finalizable_objects_hash = NULL;
-#ifndef HAVE_SGEN_GC
 	if (domain->track_resurrection_objects_hash) {
 		g_hash_table_foreach (domain->track_resurrection_objects_hash, free_slist, NULL);
 		g_hash_table_destroy (domain->track_resurrection_objects_hash);
 	}
 	if (domain->track_resurrection_handles_hash)
 		g_hash_table_destroy (domain->track_resurrection_handles_hash);
-#endif
 	if (domain->method_rgctx_hash) {
 		g_hash_table_destroy (domain->method_rgctx_hash);
 		domain->method_rgctx_hash = NULL;
@@ -2074,6 +2072,14 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 	if (domain->generic_virtual_cases) {
 		g_hash_table_destroy (domain->generic_virtual_cases);
 		domain->generic_virtual_cases = NULL;
+	}
+	if (domain->generic_virtual_thunks) {
+		g_hash_table_destroy (domain->generic_virtual_thunks);
+		domain->generic_virtual_thunks = NULL;
+	}
+	if (domain->ftnptrs_hash) {
+		g_hash_table_destroy (domain->ftnptrs_hash);
+		domain->ftnptrs_hash = NULL;
 	}
 
 	DeleteCriticalSection (&domain->finalizable_objects_hash_lock);
@@ -2090,7 +2096,7 @@ mono_domain_free (MonoDomain *domain, gboolean force)
 
 	mono_perfcounters->loader_appdomains--;
 
-	if ((domain == mono_root_domain))
+	if (domain == mono_root_domain)
 		mono_root_domain = NULL;
 }
 
@@ -2204,6 +2210,58 @@ mono_domain_code_commit (MonoDomain *domain, void *data, int size, int newsize)
 	mono_domain_unlock (domain);
 }
 
+#if defined(__native_client_codegen__) && defined(__native_client__)
+/*
+ * Given the temporary buffer (allocated by mono_domain_code_reserve) into which
+ * we are generating code, return a pointer to the destination in the dynamic 
+ * code segment into which the code will be copied when mono_domain_code_commit
+ * is called.
+ * LOCKING: Acquires the domain lock.
+ */
+void *
+nacl_domain_get_code_dest (MonoDomain *domain, void *data)
+{
+	void *dest;
+	mono_domain_lock (domain);
+	dest = nacl_code_manager_get_code_dest (domain->code_mp, data);
+	mono_domain_unlock (domain);
+	return dest;
+}
+
+/* 
+ * Convenience function which calls mono_domain_code_commit to validate and copy
+ * the code. The caller sets *buf_base and *buf_size to the start and size of
+ * the buffer (allocated by mono_domain_code_reserve), and *code_end to the byte
+ * after the last instruction byte. On return, *buf_base will point to the start
+ * of the copied in the code segment, and *code_end will point after the end of 
+ * the copied code.
+ */
+void
+nacl_domain_code_validate (MonoDomain *domain, guint8 **buf_base, int buf_size, guint8 **code_end)
+{
+	guint8 *tmp = nacl_domain_get_code_dest (domain, *buf_base);
+	mono_domain_code_commit (domain, *buf_base, buf_size, *code_end - *buf_base);
+	*code_end = tmp + (*code_end - *buf_base);
+	*buf_base = tmp;
+}
+
+#else
+
+/* no-op versions of Native Client functions */
+
+void *
+nacl_domain_get_code_dest (MonoDomain *domain, void *data)
+{
+	return data;
+}
+
+void
+nacl_domain_code_validate (MonoDomain *domain, guint8 **buf_base, int buf_size, guint8 **code_end)
+{
+}
+
+#endif
+
 /*
  * mono_domain_code_foreach:
  * Iterate over the code thunks of the code manager of @domain.
@@ -2246,8 +2304,9 @@ mono_domain_add_class_static_data (MonoDomain *domain, MonoClass *klass, gpointe
 		int size = GPOINTER_TO_INT (domain->static_data_array [1]);
 		next = GPOINTER_TO_INT (domain->static_data_array [0]);
 		if (next >= size) {
-			gpointer *new_array = mono_gc_alloc_fixed (sizeof (gpointer) * (size * 2), NULL);
-			memcpy (new_array, domain->static_data_array, sizeof (gpointer) * size);
+			/* 'data' is allocated by alloc_fixed */
+			gpointer *new_array = mono_gc_alloc_fixed (sizeof (gpointer) * (size * 2), MONO_GC_ROOT_DESCR_FOR_FIXED (size * 2));
+			mono_gc_memmove (new_array, domain->static_data_array, sizeof (gpointer) * size);
 			size *= 2;
 			new_array [1] = GINT_TO_POINTER (size);
 			mono_gc_free_fixed (domain->static_data_array);
@@ -2255,7 +2314,7 @@ mono_domain_add_class_static_data (MonoDomain *domain, MonoClass *klass, gpointe
 		}
 	} else {
 		int size = 32;
-		gpointer *new_array = mono_gc_alloc_fixed (sizeof (gpointer) * size, NULL);
+		gpointer *new_array = mono_gc_alloc_fixed (sizeof (gpointer) * size, MONO_GC_ROOT_DESCR_FOR_FIXED (size));
 		next = 2;
 		new_array [0] = GINT_TO_POINTER (next);
 		new_array [1] = GINT_TO_POINTER (size);
@@ -2519,11 +2578,24 @@ get_runtime_by_version (const char *version)
 {
 	int n;
 	int max = G_N_ELEMENTS (supported_runtimes);
-	
+	int vlen;
+
+	if (!version)
+		return NULL;
+
 	for (n=0; n<max; n++) {
 		if (strcmp (version, supported_runtimes[n].runtime_version) == 0)
 			return &supported_runtimes[n];
 	}
+	
+	vlen = strlen (version);
+	if (vlen >= 4 && version [1] - '0' >= 4) {
+		for (n=0; n<max; n++) {
+			if (strncmp (version, supported_runtimes[n].runtime_version, 4) == 0)
+				return &supported_runtimes[n];
+		}
+	}
+	
 	return NULL;
 }
 

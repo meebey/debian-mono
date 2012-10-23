@@ -1,17 +1,3 @@
-2010-08-27  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Increase the number of repeated run in stress test.
-
-2010-08-27  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Change the way continuation delegates are stored and processed in
-	Task. Fix random the random hangs.
-
-2010-08-19  Jérémie Laval  <jeremie.laval@gmail.com>
-
-	Update Task unit tests to reflect behavior change with
-	cancellation
-
 2010-03-02  Jérémie Laval  <jeremie.laval@gmail.com>
 
 	* TaskFactoryTest.cs: Add TaskFactoryTests

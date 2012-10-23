@@ -47,14 +47,14 @@ namespace System.Reflection {
 	[ComDefaultInterfaceAttribute (typeof (_Module))]
 	[Serializable]
 	[ClassInterfaceAttribute (ClassInterfaceType.None)]
-
-#if NET_4_0 || MOONLIGHT
+	[StructLayout (LayoutKind.Sequential)]
+#if NET_4_0 || MOONLIGHT || MOBILE
 	public abstract class Module : ISerializable, ICustomAttributeProvider, _Module {
 #else
 	public partial class Module : ISerializable, ICustomAttributeProvider, _Module {
 #endif
-		public static readonly TypeFilter FilterTypeName;
-		public static readonly TypeFilter FilterTypeNameIgnoreCase;
+		public static readonly TypeFilter FilterTypeName = new TypeFilter (filter_by_type_name);
+		public static readonly TypeFilter FilterTypeNameIgnoreCase = new TypeFilter (filter_by_type_name_ignore_case);
 	
 #pragma warning disable 649	
 		internal IntPtr _impl; /* a pointer to a MonoImage */
@@ -68,14 +68,8 @@ namespace System.Reflection {
 	
 		const BindingFlags defaultBindingFlags = 
 			BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance;
-		
-		static Module () {
-			FilterTypeName = new TypeFilter (filter_by_type_name);
-			FilterTypeNameIgnoreCase = new TypeFilter (filter_by_type_name_ignore_case);
-		}
 
-
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		protected
 #else
 		internal
@@ -291,9 +285,9 @@ namespace System.Reflection {
 		}
 
 #if NET_4_0
-		public override bool Equals (object obj)
+		public override bool Equals (object o)
 		{
-			return obj == this;
+			return o == (object) this;
 		}
 
 		public override int GetHashCode ()
@@ -312,7 +306,7 @@ namespace System.Reflection {
 
 		public static bool operator != (Module left, Module right)
 		{
-			if ((object)left != (object)right)
+			if ((object)left == (object)right)
 				return false;
 			if ((object)left == null ^ (object)right == null)
 				return true;
@@ -321,7 +315,7 @@ namespace System.Reflection {
 
 #endif
 
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 
 		public virtual Assembly Assembly {
 			get { throw CreateNIE (); }

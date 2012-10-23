@@ -1,1 +1,1 @@
-#define FULL_VERSION "tarball"
+#define FULL_VERSION "(no/c3a0383"

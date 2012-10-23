@@ -1,7 +1,3 @@
-2010-08-06  Atsushi Eno  <atsushi@ximian.com>
-
-	KnownTypes should return the actual types.
-
 2010-06-02  Atsushi Enomoto  <atsushi@ximian.com>
 
 	* XmlObjectSerializerTest.cs : enable binary reader test for #601785.

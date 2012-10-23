@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -70,7 +68,10 @@ namespace Microsoft.Build.BuildEngine {
 					AddProperty (bp);
 				} 
 			} else
-				this.propertiesByName = new Dictionary <string, BuildProperty> (StringComparer.InvariantCultureIgnoreCase);
+				this.propertiesByName = new Dictionary <string, BuildProperty> (StringComparer.OrdinalIgnoreCase);
+
+			DefinedInFileName = importedProject != null ? importedProject.FullFileName :
+						(project != null ? project.FullFileName : null);
 		}
 
 		public BuildProperty AddNewProperty (string propertyName,
@@ -287,7 +288,9 @@ namespace Microsoft.Build.BuildEngine {
 				propertiesByName [propertyName] = value;
 			}
 		}
-		
+
+		internal string DefinedInFileName { get; private set; }
+
 		internal GroupingCollection GroupingCollection {
 			get { return parentCollection; }
 			set { parentCollection = value; }
@@ -298,5 +301,3 @@ namespace Microsoft.Build.BuildEngine {
 		}
 	}
 }
-
-#endif

@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -23,11 +23,7 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Runtime.CompilerServices;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
 #else
 namespace System.Linq.Expressions {
@@ -41,9 +37,7 @@ namespace System.Linq.Expressions {
     /// <remarks>
     /// Lambda expressions take input through parameters and are expected to be fully bound. 
     /// </remarks>
-#if !SILVERLIGHT
     [DebuggerTypeProxy(typeof(Expression.LambdaExpressionProxy))]
-#endif
     public abstract class LambdaExpression : Expression {
         private readonly string _name;
         private readonly Expression _body;
@@ -67,6 +61,8 @@ namespace System.Linq.Expressions {
             _delegateType = delegateType;
             _tailCall = tailCall;
         }
+
+        internal abstract LambdaExpression Accept(StackSpiller spiller);
 
         /// <summary>
         /// Gets the static type of the expression that this <see cref="Expression" /> represents. (Inherited from <see cref="Expression"/>.)
@@ -139,6 +135,7 @@ namespace System.Linq.Expressions {
             return LambdaCompiler.Compile(this, debugInfoGenerator);
         }
 
+#if FEATURE_REFEMIT
         /// <summary>
         /// Compiles the lambda into a method definition.
         /// </summary>
@@ -165,8 +162,7 @@ namespace System.Linq.Expressions {
 
             LambdaCompiler.Compile(this, method, debugInfoGenerator);
         }
-
-        internal abstract LambdaExpression Accept(StackSpiller spiller);
+#endif
     }
 
     /// <summary>
@@ -508,7 +504,7 @@ namespace System.Linq.Expressions {
             ContractUtils.RequiresNotNull(delegateType, "delegateType");
             RequiresCanRead(body, "body");
 
-            if (!typeof(Delegate).IsAssignableFrom(delegateType) || delegateType == typeof(Delegate)) {
+            if (!typeof(MulticastDelegate).IsAssignableFrom(delegateType) || delegateType == typeof(MulticastDelegate)) {
                 throw Error.LambdaTypeMustBeDerivedFromSystemDelegate();
             }
 
@@ -553,9 +549,7 @@ namespace System.Linq.Expressions {
                 throw Error.IncorrectNumberOfLambdaDeclarationParameters();
             }
             if (mi.ReturnType != typeof(void) && !TypeUtils.AreReferenceAssignable(mi.ReturnType, body.Type)) {
-                if (TypeUtils.IsSameOrSubclass(typeof(LambdaExpression), mi.ReturnType) && mi.ReturnType.IsAssignableFrom(body.GetType())) {
-                    body = Expression.Quote(body);
-                } else {
+                if (!TryQuote(mi.ReturnType, ref body)) {
                     throw Error.ExpressionTypeDoesNotMatchReturn(body.Type, mi.ReturnType);
                 }
             }

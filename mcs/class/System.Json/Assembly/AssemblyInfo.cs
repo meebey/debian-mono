@@ -36,44 +36,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about the System.Json assembly
-// v3.5 Assembly
 
-[assembly: AssemblyTitle ("System.Json.dll")]
-[assembly: AssemblyDescription ("System.Json.dll")]
 [assembly: AssemblyDefaultAlias ("System.Json.dll")]
 
-[assembly: AssemblyCompany (Consts.MonoCompany)]
-[assembly: AssemblyProduct (Consts.MonoProduct)]
-[assembly: AssemblyCopyright (Consts.MonoCopyright)]
-[assembly: AssemblyVersion (Consts.FxVersion)]
-[assembly: SatelliteContractVersion (Consts.FxVersion)]
 [assembly: AssemblyInformationalVersion (Consts.FxFileVersion)]
-[assembly: AssemblyFileVersion (Consts.FxFileVersion)]
-
-[assembly: NeutralResourcesLanguage ("en-US")]
-#if !NET_2_1
-[assembly: CLSCompliant (true)]
-#endif
-[assembly: AssemblyDelaySign (true)]
-#if NET_2_1
-	[assembly: AssemblyKeyFile ("../silverlight.pub")]
-#else
-	[assembly: AssemblyKeyFile ("../silverlight.pub")] // easing InternalVisibleTo use.
-#endif
-
-[assembly: ComVisible (false)]
-#if !NET_2_1
-[assembly: AllowPartiallyTrustedCallers]
-#endif
-
-[assembly: CompilationRelaxations (CompilationRelaxations.NoStringInterning)]
-[assembly: Debuggable (DebuggableAttribute.DebuggingModes.IgnoreSymbolStoreSequencePoints)]
-[assembly: RuntimeCompatibility (WrapNonExceptionThrows = true)]
-// Extension attribute should be added by compiler
-
-/*
-[assembly: StringFreezing]
-[assembly: DefaultDependency (LoadHint.Always)]
-*/
-[assembly: SecurityCritical]
-[assembly: SecurityPermission (SecurityAction.RequestMinimum, SkipVerification = true)]

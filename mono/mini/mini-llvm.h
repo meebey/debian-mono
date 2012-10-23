@@ -7,6 +7,11 @@
 int mono_llvm_load (const char* bpath) MONO_INTERNAL;
 
 #ifdef MONO_LLVM_IN_MINI
+
+#ifdef __MACH__
+#include <mach-o/dyld.h>
+#endif
+
 typedef void (*MonoLLVMVoidFunc)(void);
 typedef void (*MonoLLVMCFGFunc)(MonoCompile *cfg);
 typedef void (*MonoLLVMEmitCallFunc)(MonoCompile *cfg, MonoCallInst *call);
@@ -48,12 +53,14 @@ mono_llvm_emit_call (MonoCompile *cfg, MonoCallInst *call)
 void
 mono_llvm_create_aot_module (const char *got_symbol)
 {
+	g_assert (mono_llvm_create_aot_module_fptr);
 	mono_llvm_create_aot_module_fptr (got_symbol);
 }
 
 void
 mono_llvm_emit_aot_module (const char *filename, int got_size)
 {
+	g_assert (mono_llvm_emit_aot_module_fptr);
 	mono_llvm_emit_aot_module_fptr (filename, got_size);
 }
 
@@ -89,16 +96,31 @@ mono_llvm_load (const char* bpath)
 	char buf [4096];
 	int binl;
 	binl = readlink ("/proc/self/exe", buf, sizeof (buf)-1);
+#ifdef __MACH__
+	if (binl == -1) {
+		uint32_t bsize = sizeof (buf);
+		if (_NSGetExecutablePath (buf, &bsize) == 0) {
+			binl = strlen (buf);
+		}
+	}
+#endif
 	if (binl != -1) {
 		char *base;
 		char *name;
 		buf [binl] = 0;
 		base = g_path_get_dirname (buf);
 		name = g_strdup_printf ("%s/.libs", base);
-		g_free (base);
 		err = NULL;
 		llvm_lib = try_llvm_load (name, &err);
 		g_free (name);
+		if (!llvm_lib) {
+			char *newbase = g_path_get_dirname (base);
+			name = g_strdup_printf ("%s/lib", newbase);
+			err = NULL;
+			llvm_lib = try_llvm_load (name, &err);
+			g_free (name);
+		}
+		g_free (base);
 	}
 	if (!llvm_lib) {
 		llvm_lib = try_llvm_load (NULL, &err);

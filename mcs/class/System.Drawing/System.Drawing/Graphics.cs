@@ -49,7 +49,7 @@ namespace System.Drawing
 #endif
 	{
 		internal IntPtr nativeObject = IntPtr.Zero;
-		internal CarbonContext context;
+		internal IMacContext maccontext;
 		private bool disposed = false;
 		private static float defDpiX = 0;
 		private static float defDpiY = 0;
@@ -190,6 +190,8 @@ namespace System.Drawing
 				CopyFromScreenX11 (sourceX, sourceY, destinationX, destinationY, blockRegionSize, copyPixelOperation);
 			} else if (GDIPlus.UseCarbonDrawable) {
 				CopyFromScreenMac (sourceX, sourceY, destinationX, destinationY, blockRegionSize, copyPixelOperation);
+			} else if (GDIPlus.UseCocoaDrawable) {
+				CopyFromScreenMac (sourceX, sourceY, destinationX, destinationY, blockRegionSize, copyPixelOperation);
 			} else {
 				CopyFromScreenWin32 (sourceX, sourceY, destinationX, destinationY, blockRegionSize, copyPixelOperation);
 			}
@@ -293,11 +295,12 @@ namespace System.Drawing
 		{
 			Status status;
 			if (! disposed) {
-				if (GDIPlus.UseCarbonDrawable && context.ctx != IntPtr.Zero) {
+				if (GDIPlus.UseCarbonDrawable || GDIPlus.UseCocoaDrawable) {
 					Flush ();
-					Carbon.CGContextSynchronize (context.ctx);
-					Carbon.ReleaseContext (context.port, context.ctx);
+					if (maccontext != null)
+						maccontext.Release ();
 				}
+
 				status = GDIPlus.GdipDeleteGraphics (nativeObject);
 				nativeObject = IntPtr.Zero;
 				GDIPlus.CheckStatus (status);
@@ -1026,8 +1029,11 @@ namespace System.Drawing
 		{
 			if (pen == null)
 				throw new ArgumentNullException ("pen");
-			Status status = GDIPlus.GdipDrawLine (nativeObject, pen.nativeObject, x1, y1, x2, y2);
-			GDIPlus.CheckStatus (status);
+			if (!float.IsNaN(x1) && !float.IsNaN(y1) &&
+			    !float.IsNaN(x2) && !float.IsNaN(y2)) {
+				Status status = GDIPlus.GdipDrawLine (nativeObject, pen.nativeObject, x1, y1, x2, y2);
+				GDIPlus.CheckStatus (status);
+			}
 		}
 
 		public void DrawLines (Pen pen, PointF [] points)
@@ -1681,8 +1687,9 @@ namespace System.Drawing
 
 			Status status = GDIPlus.GdipFlush (nativeObject, intention);
                         GDIPlus.CheckStatus (status);                    
-			if (GDIPlus.UseCarbonDrawable && context.ctx != IntPtr.Zero)
-				Carbon.CGContextSynchronize (context.ctx);
+
+			if (maccontext != null)
+				maccontext.Synchronize ();
 		}
 
 		[EditorBrowsable (EditorBrowsableState.Advanced)]		
@@ -1714,12 +1721,22 @@ namespace System.Drawing
 		{
 			IntPtr graphics;
 
+			if (GDIPlus.UseCocoaDrawable) {
+				CocoaContext context = MacSupport.GetCGContextForNSView (hwnd);
+				GDIPlus.GdipCreateFromContext_macosx (context.ctx, context.width, context.height, out graphics);
+
+				Graphics g = new Graphics (graphics);
+				g.maccontext = context;
+
+				return g;
+			}
+
 			if (GDIPlus.UseCarbonDrawable) {
-				CarbonContext context = Carbon.GetCGContextForView (hwnd);
+				CarbonContext context = MacSupport.GetCGContextForView (hwnd);
 				GDIPlus.GdipCreateFromContext_macosx (context.ctx, context.width, context.height, out graphics);
 				
 				Graphics g = new Graphics (graphics);
-				g.context = context;
+				g.maccontext = context;
 				
 				return g;
 			}

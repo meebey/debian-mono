@@ -166,6 +166,32 @@ namespace MonoTests.System.Collections.Concurrent
 			}
 			Assert.AreEqual(0, defaultCollection.Count, "#" + i);
 		}
+
+		[TestAttribute]
+		public void TryTakeTestCase ()
+		{
+			defaultCollection.Add (1);
+
+			int value = default (int);
+			bool firstTake = defaultCollection.TryTake (out value);
+			int value2 = default (int);
+			bool secondTake = defaultCollection.TryTake (out value2);
+
+			Assert.AreEqual (1, value);
+			Assert.IsTrue (firstTake);
+			Assert.AreEqual (default (int), value2);
+			Assert.IsFalse (secondTake);
+		}
+
+		[Test]
+		public void EmptyTryTakeWithTimeout ()
+		{
+			object o = null;
+			var queue = new BlockingCollection<object> ();
+			bool success = queue.TryTake (out o, 500);
+			Assert.IsNull (o);
+			Assert.IsFalse (success);
+		}
 	}
 }
 #endif

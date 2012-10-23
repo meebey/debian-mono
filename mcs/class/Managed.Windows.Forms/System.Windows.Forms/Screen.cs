@@ -43,9 +43,7 @@ namespace System.Windows.Forms {
 		private Rectangle	bounds;
 		private Rectangle	workarea;
 		private string		name;
-#if NET_2_0
 		private int		bits_per_pixel;
-#endif
 		#endregion	// Local Variables
 
 		#region	Constructors
@@ -59,9 +57,7 @@ namespace System.Windows.Forms {
 			this.name = name;
 			this.bounds = bounds;
 			this.workarea = workarea;
-#if NET_2_0
 			this.bits_per_pixel = 32;
-#endif
 		}
 		#endregion	// Constructors
 
@@ -80,12 +76,10 @@ namespace System.Windows.Forms {
 		#endregion	// Public Static Properties
 
 		#region Public Instance Properties
-#if NET_2_0
 		[MonoTODO ("Stub, always returns 32")]
 		public int BitsPerPixel {
 			get { return bits_per_pixel; }
 		}
-#endif
 
 		public Rectangle Bounds {
 			get {
@@ -114,7 +108,8 @@ namespace System.Windows.Forms {
 
 		#region Public Static Methods
 		public static Screen FromControl(Control control) {
-			return Screen.FromPoint(control.Location);
+			var point = control.Parent != null ? control.Parent.PointToScreen(control.Location) : control.Location;
+			return Screen.FromPoint(point);
 		}
 
 		public static Screen FromHandle(IntPtr hwnd) {
@@ -122,7 +117,8 @@ namespace System.Windows.Forms {
 
 			control = Control.FromHandle(hwnd);
 			if (control != null) {
-				return Screen.FromPoint(control.Location);
+				var point = control.Parent != null ? control.Parent.PointToScreen(control.Location) : control.Location;
+				return Screen.FromPoint(point);
 			}
 			return Screen.PrimaryScreen;
 		}

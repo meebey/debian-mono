@@ -173,6 +173,20 @@ namespace MonoTests.System.Collections.Generic {
 		}
 
 		[Test]
+		public void TestIntersectWithComparer ()
+		{
+			var data = new[] {"a", "b", "C", "d", "E"};
+			var other = new[] {"a", "B", "e"};
+			var result = new[] {"a", "b", "E"};
+
+			var set = new HashSet<string> (data, StringComparer.OrdinalIgnoreCase);
+
+			set.IntersectWith (other);
+
+			AssertContainsOnly (result, set);
+		}
+
+		[Test]
 		public void TestExceptWith ()
 		{
 			var data = new [] {1, 2, 3, 4, 5, 6};
@@ -236,6 +250,18 @@ namespace MonoTests.System.Collections.Generic {
 		}
 
 		[Test]
+		public void TestSubsetOfComparer ()
+		{
+			var data = new[] { "abc", "DF", "gHIl" };
+
+			var other1 = new[] { "pqR", "ABC", "ghil", "dF", "lmn" };
+
+			var set = new HashSet<string> (data, StringComparer.OrdinalIgnoreCase);
+
+			Assert.IsTrue (set.IsSubsetOf (other1));
+		}
+
+		[Test]
 		public void TestProperSubsetOf ()
 		{
 			var data = new [] {1, 2, 3};
@@ -248,6 +274,18 @@ namespace MonoTests.System.Collections.Generic {
 			Assert.IsTrue (set.IsProperSubsetOf (other));
 			Assert.IsFalse (set.IsProperSubsetOf (other2));
 			Assert.IsFalse (set.IsProperSubsetOf (other3));
+		}
+
+		[Test]
+		public void TestProperSubsetOfComparer ()
+		{
+			var data = new[] { "abc", "DF", "gHIl" };
+
+			var other1 = new[] { "pqR", "ABC", "ghil", "dF", "lmn" };
+
+			var set = new HashSet<string> (data, StringComparer.OrdinalIgnoreCase);
+
+			Assert.IsTrue (set.IsProperSubsetOf (other1));
 		}
 
 		[Test]
@@ -266,6 +304,20 @@ namespace MonoTests.System.Collections.Generic {
 		}
 
 		[Test]
+		public void TestSupersetOfComparer ()
+		{
+			var data = new[] {"a", "B", "c", "D"};
+
+			var other1 = new[] {"A", "a", "C", "c"};
+			var other2 = new[] {"A", "a", "B", "D", "C", "c"};
+
+			var set = new HashSet<string> (data, StringComparer.OrdinalIgnoreCase);
+
+			Assert.IsTrue (set.IsSupersetOf (other1));
+			Assert.IsTrue (set.IsSupersetOf (other2));
+		}
+
+		[Test]
 		public void TestProperSupersetOf ()
 		{
 			var data = new [] {1, 2, 3, 4, 5};
@@ -278,6 +330,20 @@ namespace MonoTests.System.Collections.Generic {
 			Assert.IsTrue (set.IsProperSupersetOf (other));
 			Assert.IsFalse (set.IsProperSupersetOf (other2));
 			Assert.IsFalse (set.IsProperSupersetOf (other3));
+		}
+
+		[Test]
+		public void TestProperSupersetOfComparer ()
+		{
+			var data = new[] { "a", "B", "c", "D" };
+
+			var other1 = new[] { "A", "a", "d", "D" };
+			var other2 = new[] { "A", "a", "B", "D", "C", "c" };
+
+			var set = new HashSet<string> (data, StringComparer.OrdinalIgnoreCase);
+
+			Assert.IsTrue (set.IsProperSupersetOf (other1));
+			Assert.IsFalse (set.IsProperSupersetOf (other2));
 		}
 
 		[Test]
@@ -298,6 +364,20 @@ namespace MonoTests.System.Collections.Generic {
 			Assert.IsFalse (set.SetEquals (other3));
 			Assert.IsFalse (set.SetEquals (other4));
 			Assert.IsFalse (set.SetEquals (other5));
+		}
+
+		[Test]
+		public void TestSetEqualsComparer ()
+		{
+			var data = new[] { "abc", "DF", "gHIl" };
+
+			var other1 = new[] { "ABC", "DF", "GHIL" };
+			var other2 = new[] { "ABC", "aBc", "DF", "GHIL", "ghil" };
+
+			var set = new HashSet<string>(data, StringComparer.OrdinalIgnoreCase);
+
+			Assert.IsTrue (set.SetEquals (other1));
+			Assert.IsTrue (set.SetEquals (other2));
 		}
 
 		[Test]
@@ -343,6 +423,31 @@ namespace MonoTests.System.Collections.Generic {
 			set.Add (42);
 
 			Assert.AreEqual (1, set.Count);
+		}
+
+		[Test]
+		public void TestHashSetEqualityComparer ()
+		{
+			var data = new string[] { "foo", "bar", "foobar" };
+			var set1 = new HashSet<string> (data, StringComparer.Ordinal);
+			var set2 = new HashSet<string> (data, StringComparer.OrdinalIgnoreCase);
+
+			var comparer = HashSet<string>.CreateSetComparer ();
+			Assert.IsTrue (comparer.Equals (set1, set1));
+			Assert.IsTrue (comparer.Equals (set1, set2));
+			Assert.AreEqual (comparer.GetHashCode (set1), comparer.GetHashCode (set2));
+
+			var set3 = new HashSet<string> (new [] { "foobar", "foo", "bar" });
+			Assert.IsTrue (comparer.Equals (set1, set3));
+			Assert.AreEqual (comparer.GetHashCode (set1), comparer.GetHashCode (set3));
+
+			var set4 = new HashSet<string> (new [] { "oh", "hai", "folks" });
+			Assert.IsFalse (comparer.Equals (set2, set4));
+			Assert.AreNotEqual (comparer.GetHashCode (set2), comparer.GetHashCode (set4));
+
+			Assert.IsTrue (comparer.Equals (null, null));
+			Assert.AreEqual (0, comparer.GetHashCode (null));
+			Assert.IsFalse (comparer.Equals (set1, null));
 		}
 
 		static void AssertContainsOnly<T> (IEnumerable<T> result, IEnumerable<T> data)

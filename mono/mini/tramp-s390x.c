@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------*/
 /* 								    */
-/* Name        - tramp-s390.c      			  	    */
+/* Name        - tramp-s390x.c      			  	    */
 /* 								    */
 /* Function    - JIT trampoline code for S/390.                     */
 /* 								    */
@@ -82,14 +82,13 @@
 /*                When value type methods are called through the    */
 /*		  vtable we need to unbox the 'this' argument.	    */
 /*		                               		 	    */
-/* Parameters   - gsctx  - Generic sharing context		    */
-/*                method - Methd pointer			    */
+/* Parameters   - method - Methd pointer			    */
 /*		  addr   - Pointer to native code for method	    */
 /*		                               		 	    */
 /*------------------------------------------------------------------*/
 
 gpointer
-mono_arch_get_unbox_trampoline (MonoGenericSharingContext *gsctx, MonoMethod *method, gpointer addr)
+mono_arch_get_unbox_trampoline (MonoMethod *method, gpointer addr)
 {
 	guint8 *code, *start;
 	int this_pos = s390_r2;
@@ -219,10 +218,10 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 {
 	guint8 *buf, *tramp, *code;
 	int i, offset, lmfOffset;
+	GSList *unwind_ops = NULL;
+	MonoJumpInfo *ji = NULL;
 
 	g_assert (!aot);
-	if (info)
-		*info = NULL;
 
 	/* Now we'll create in 'buf' the S/390 trampoline code. This
 	   is the trampoline code common to all methods  */
@@ -396,6 +395,10 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 	/* Flush instruction cache, since we've generated code */
 	mono_arch_flush_icache (code, buf - code);
 	
+	if (info)
+		*info = mono_tramp_info_create (mono_get_generic_trampoline_name(tramp_type), 
+						buf, buf - code, ji, unwind_ops);
+
 	/* Sanity check */
 	g_assert ((buf - code) <= 512);
 

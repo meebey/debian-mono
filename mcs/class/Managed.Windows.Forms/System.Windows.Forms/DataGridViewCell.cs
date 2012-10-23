@@ -25,7 +25,6 @@
 //
 
 
-#if NET_2_0
 
 using System;
 using System.Drawing;
@@ -805,7 +804,7 @@ namespace System.Windows.Forms {
 			string value = null;
 			
 			if (Selected) {
-				DataGridViewCellStyle style = GetInheritedStyle (null, rowIndex, false);
+//				DataGridViewCellStyle style = GetInheritedStyle (null, rowIndex, false);
 				value = GetEditedFormattedValue (rowIndex, DataGridViewDataErrorContexts.ClipboardContent | DataGridViewDataErrorContexts.Formatting) as string;
 			}
 
@@ -1325,10 +1324,15 @@ namespace System.Windows.Forms {
 		{
 			object oldValue = this.Value;
 
-			if (DataProperty != null && !DataProperty.IsReadOnly)
+			if (DataProperty != null && !DataProperty.IsReadOnly) {
 				DataProperty.SetValue (OwningRow.DataBoundItem, value);
-			else
+			} else if (DataGridView != null && DataGridView.VirtualMode) {
+				DataGridViewCellValueEventArgs ea = new DataGridViewCellValueEventArgs(ColumnIndex, RowIndex);
+				ea.Value = value;
+				DataGridView.OnCellValuePushed(ea);
+			} else {
 				valuex = value;
+			}
 
 			if (!Object.ReferenceEquals (oldValue, value) || !Object.Equals (oldValue, value)) {
 				RaiseCellValueChanged (new DataGridViewCellEventArgs (ColumnIndex, RowIndex));
@@ -1587,5 +1591,3 @@ namespace System.Windows.Forms {
 	}
 
 }
-
-#endif

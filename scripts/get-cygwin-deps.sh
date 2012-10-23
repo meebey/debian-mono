@@ -25,23 +25,16 @@ dir=cygwin-deps
 mkdir -p $dir
 
 echo -n "Downloading deps... "
-if [ ! -f $dir/glib-2.6.6.zip ]; then
-	wget -P $dir ftp://ftp.gtk.org/pub/gtk/v2.6/win32/glib-2.6.6.zip || exit 1
-fi
-if [ ! -f $dir/glib-dev-2.6.6.zip ]; then
-	wget -P $dir ftp://ftp.gtk.org/pub/gtk/v2.6/win32/glib-dev-2.6.6.zip || exit 1
-fi
 if [ ! -f $dir/gettext-runtime-0.17-1.zip ]; then
 	wget -P $dir http://ftp.gnome.org/pub/gnome/binaries/win32/dependencies/gettext-runtime-0.17-1.zip
 fi
 if [ ! -f $dir/libiconv-1.13-mingw32-dev.tar.gz ]; then
-	wget -P $dir http://sourceforge.net/projects/mingw/files/MinGW/libiconv/release%201.13/libiconv-1.13-mingw32-dev.tar.gz/download
+	wget -P $dir http://sourceforge.net/projects/mingw/files/MinGW/libiconv/libiconv-1.13/libiconv-1.13-mingw32-dev.tar.gz/download
 fi
 echo "done."
 
 echo -n "Extracting to cygwin-deps/ ..."
 (cd $dir && for i in *.zip; do unzip -oq $i || exit 1; done) || exit 1
-(cd $dir && for i in *.tar.gz; do tar xzf $i || exit 1; done) || exit 1
 # This is needed because windows can't use dll's without an x flag.
 chmod a+x $dir/bin/*.dll
 echo "done."

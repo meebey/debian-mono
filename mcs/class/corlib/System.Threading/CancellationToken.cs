@@ -1,10 +1,12 @@
 //
 // CancellationToken.cs
 //
-// Author:
+// Authors:
 //       Jérémie "Garuma" Laval <jeremie.laval@gmail.com>
+//       Marek Safar (marek.safar@gmail.com)
 //
 // Copyright (c) 2009 Jérémie "Garuma" Laval
+// Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,24 +26,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#if NET_4_0 || MOBILE
+
 using System;
 using System.Threading;
+using System.Diagnostics;
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
 namespace System.Threading
 {
+	[DebuggerDisplay ("IsCancellationRequested = {IsCancellationRequested}")]
 	public struct CancellationToken
 	{
+		readonly CancellationTokenSource source;
+
 		public CancellationToken (bool canceled)
-			: this ()
+			: this (canceled ? CancellationTokenSource.CanceledSource : null)
 		{
-			// dummy, this is actually set by CancellationTokenSource when the token is created
-			Source = null;
+		}
+
+		internal CancellationToken (CancellationTokenSource source)
+		{
+			this.source = source;
 		}
 
 		public static CancellationToken None {
 			get {
-				return CancellationTokenSource.NoneSource.Token;
+				// simply return new struct value, it's the fastest option
+				// and we don't have to bother with reseting source
+				return new CancellationToken ();
 			}
 		}
 
@@ -73,7 +85,8 @@ namespace System.Threading
 
 		public void ThrowIfCancellationRequested ()
 		{
-			Source.ThrowIfCancellationRequested ();
+			if (Source.IsCancellationRequested)
+				throw new OperationCanceledException (this);
 		}
 
 		public bool Equals (CancellationToken other)
@@ -81,9 +94,9 @@ namespace System.Threading
 			return this.Source == other.Source;
 		}
 
-		public override bool Equals (object obj)
+		public override bool Equals (object other)
 		{
-			return (obj is CancellationToken) ? Equals ((CancellationToken)obj) : false;
+			return (other is CancellationToken) ? Equals ((CancellationToken)other) : false;
 		}
 
 		public override int GetHashCode ()
@@ -91,19 +104,19 @@ namespace System.Threading
 			return Source.GetHashCode ();
 		}
 
-		public static bool operator == (CancellationToken lhs, CancellationToken rhs)
+		public static bool operator == (CancellationToken left, CancellationToken right)
 		{
-			return lhs.Equals (rhs);
+			return left.Equals (right);
 		}
 
-		public static bool operator != (CancellationToken lhs, CancellationToken rhs)
+		public static bool operator != (CancellationToken left, CancellationToken right)
 		{
-			return !lhs.Equals (rhs);
+			return !left.Equals (right);
 		}
 
 		public bool CanBeCanceled {
 			get {
-				return true;
+				return source != null;
 			}
 		}
 
@@ -119,9 +132,10 @@ namespace System.Threading
 			}
 		}
 
-		internal CancellationTokenSource Source {
-			get;
-			set;
+		CancellationTokenSource Source {
+			get {
+				return source ?? CancellationTokenSource.NoneSource;
+			}
 		}
 	}
 }

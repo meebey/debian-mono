@@ -6,6 +6,7 @@
 //
 // (C) 2001 Ximian, Inc.  http://www.ximian.com
 // Copyright (C) 2004-2005 Novell, Inc (http://www.novell.com)
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -88,6 +89,10 @@ namespace System.Reflection {
 		internal virtual int GetParameterCount ()
 		{
 			throw new NotImplementedException ("must be implemented");
+		}
+
+		internal virtual Type GetParameterType (int pos) {
+			throw new NotImplementedException ();
 		}
 
 		[DebuggerHidden]
@@ -222,11 +227,10 @@ namespace System.Reflection {
 			throw new NotSupportedException ();
 		}
 
-
 #if NET_4_0
 		public override bool Equals (object obj)
 		{
-			return obj == this;
+			return obj == (object) this;
 		}
 
 		public override int GetHashCode ()
@@ -250,6 +254,24 @@ namespace System.Reflection {
 			if ((object)left == null ^ (object)right == null)
 				return true;
 			return !left.Equals (right);
+		}
+		
+		public virtual bool IsSecurityCritical {
+			get {
+				throw new NotImplementedException ();
+			}
+		}
+		
+		public virtual bool IsSecuritySafeCritical {
+			get {
+				throw new NotImplementedException ();
+			}
+		}
+
+		public virtual bool IsSecurityTransparent {
+			get {
+				throw new NotImplementedException ();
+			}
 		}
 #endif
 

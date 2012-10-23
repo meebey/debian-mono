@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 class Tests {
 
@@ -445,6 +446,29 @@ class Tests {
 		return 0;
 	}
 
+	public static int test_0_generic_virtual_on_interfaces_ref () {
+		Foo<string>.count1 = 0;
+		Foo<string>.count2 = 0;
+		Foo<string>.count3 = 0;
+		Foo<string>.count4 = 0;
+
+		IFoo f = new Foo<string> ("");
+		for (int i = 0; i < 1000; ++i) {
+			f.Bar <string> ();
+			f.Bar <object> ();
+			f.NonGeneric ();
+		}
+
+		if (Foo<string>.count2 != 1000)
+			return 2;
+		if (Foo<string>.count3 != 1000)
+			return 3;
+		if (Foo<string>.count4 != 1000)
+			return 4;
+
+		return 0;
+	}
+
 	//repro for #505375
 	[Category ("!FULLAOT")]
 	public static int test_2_cprop_bug () {
@@ -487,6 +511,11 @@ class Tests {
 
 	public static int test_0_fullaot_comparer_t () {
 		var l = new SortedList <TimeSpan, int> ();
+		return l.Count;
+	}
+
+	public static int test_0_fullaot_comparer_t_2 () {
+		var l = new Dictionary <TimeSpan, int> ();
 		return l.Count;
 	}
 
@@ -602,6 +631,40 @@ class Tests {
 		if (p.Key != "FOO" || p.Value != typeof (int))
 			return 1;
 
+		return 0;
+	}
+
+
+	struct RecStruct<T> {
+		public void foo (RecStruct<RecStruct<T>> baz) {
+		}
+	}
+
+	public static int test_0_infinite_generic_recursion () {
+		// Check that the AOT compile can deal with infinite generic recursion through
+		// parameter types
+		RecStruct<int> bla;
+
+		return 0;
+	}
+
+	struct FooStruct {
+	}
+
+	bool IsNull2 <T> (object value) where T : struct {
+		T? item = (T?) value;
+
+		if (item.HasValue)
+			return false;
+
+		return true;
+	}
+
+	public static int test_0_full_aot_nullable_unbox_from_gshared_code () {
+		if (!new Tests ().IsNull2<FooStruct> (null))
+			return 1;
+		if (new Tests ().IsNull2<FooStruct> (new FooStruct ()))
+			return 2;
 		return 0;
 	}
 
@@ -733,7 +796,7 @@ class Tests {
 			GenericEvent (this);
 		}
 
-		public static int count1, count2, count3;
+		public static int count1, count2, count3, count4;
 
 		public void NonGeneric () {
 			count3 ++;
@@ -744,6 +807,8 @@ class Tests {
 				count1 ++;
 			else if (typeof (T) == typeof (string))
 				count2 ++;
+			else if (typeof (T) == typeof (object))
+				count4 ++;
 			return null;
 		}
 	}
@@ -784,5 +849,119 @@ class Tests {
 	
 	static T Unbox <T> (object o) {
 		return (T) o;
+	}
+
+	interface IDefaultRetriever
+	{
+		T GetDefault<T>();
+	}
+
+	class DefaultRetriever : IDefaultRetriever
+	{
+		[MethodImpl(MethodImplOptions.Synchronized)]
+		public T GetDefault<T>()
+		{
+			return default(T);
+		}
+	}
+
+	[Category ("!FULLAOT")]
+	public static int test_0_regress_668095_synchronized_gshared () {
+		return DoSomething (new DefaultRetriever ());
+	}
+
+    static int DoSomething(IDefaultRetriever foo) {
+		int result = foo.GetDefault<int>();
+		return result;
+	}
+
+	class Response {
+	}
+
+	public static int test_0_687865_isinst_with_cache_wrapper () {
+		object o = new object ();
+		if (o is Action<IEnumerable<Response>>)
+			return 1;
+		else
+			return 0;
+	}
+
+	enum DocType {
+		One,
+		Two,
+		Three
+	}
+
+	class Doc {
+		public string Name {
+			get; set;
+		}
+
+		public DocType Type {
+			get; set;
+		}
+	}
+
+	// #2155
+	public static int test_0_fullaot_sflda_cctor () {
+		List<Doc> documents = new List<Doc>();
+		documents.Add(new Doc { Name = "Doc1", Type = DocType.One } );
+		documents.Add(new Doc { Name = "Doc2", Type = DocType.Two } );
+		documents.Add(new Doc { Name = "Doc3", Type = DocType.Three } );
+		documents.Add(new Doc { Name = "Doc4", Type = DocType.One } );
+		documents.Add(new Doc { Name = "Doc5", Type = DocType.Two } );
+		documents.Add(new Doc { Name = "Doc6", Type = DocType.Three } );
+		documents.Add(new Doc { Name = "Doc7", Type = DocType.One } );
+		documents.Add(new Doc { Name = "Doc8", Type = DocType.Two } );
+		documents.Add(new Doc { Name = "Doc9", Type = DocType.Three } );
+
+		List<DocType> categories = documents.Select(d=>d.Type).Distinct().ToList<DocType>().OrderBy(d => d).ToList();
+		foreach(DocType cat in categories) {
+			List<Doc> catDocs = documents.Where(d => d.Type == cat).OrderBy(d => d.Name).ToList<Doc>();
+		}
+		return 0;
+	}
+
+	class A { }
+
+    static List<A> sources = new List<A>();
+
+	// #6112
+    public static int test_0_fullaot_imt () {
+        sources.Add(null);
+        sources.Add(null);
+
+        int a = sources.Count;
+        var enumerator = sources.GetEnumerator() as IEnumerator<object>;
+
+        while (enumerator.MoveNext())
+        {
+            object o = enumerator.Current;
+        }
+
+		return 0;
+	}
+
+	struct Record : Foo2<Record>.IRecord {
+		int counter;
+		int Foo2<Record>.IRecord.DoSomething () {
+			return counter++;
+		}
+	}
+
+	class Foo2<T> where T : Foo2<T>.IRecord {
+		public interface IRecord {
+			int DoSomething ();
+		}
+
+		public static int Extract (T[] t) {
+			return t[0].DoSomething ();
+		}
+	}
+
+	public static int test_1_regress_constrained_iface_call_7571 () {
+        var r = new Record [10];
+        Foo2<Record>.Extract (r);
+		return Foo2<Record>.Extract (r);
 	}
 }

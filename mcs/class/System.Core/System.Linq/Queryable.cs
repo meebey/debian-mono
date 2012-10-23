@@ -158,13 +158,12 @@ namespace System.Linq {
 			if (queryable != null)
 				return queryable;
 
-			var type = source.GetType ();
-
-			if (!type.IsGenericImplementationOf (typeof (IEnumerable<>)))
+			Type ienumerable;
+			if (!source.GetType ().IsGenericImplementationOf (typeof (IEnumerable<>), out ienumerable))
 				throw new ArgumentException ("source is not IEnumerable<>");
 
 			return (IQueryable) Activator.CreateInstance (
-				typeof (QueryableEnumerable<>).MakeGenericType (type.GetFirstGenericArgument ()), source);
+				typeof (QueryableEnumerable<>).MakeGenericType (ienumerable.GetFirstGenericArgument ()), source);
 		}
 
 		#endregion
@@ -1604,7 +1603,7 @@ namespace System.Linq {
 
 		#endregion
 
-#if NET_4_0
+#if NET_4_0 || MOONLIGHT
 		#region Zip
 
 		public static IQueryable<TResult> Zip<TFirst, TSecond, TResult> (this IQueryable<TFirst> source1, IEnumerable<TSecond> source2, Expression<Func<TFirst, TSecond, TResult>> resultSelector)

@@ -1,12 +1,3 @@
-2010-09-30  Gonzalo Paniagua Javier  <gonzalo.mono@gmail.com>
-
-	Invoke the callback in separate threads
-
-	The callbacks need to be invoked in different threads to avoid
-	clogging the IO pool.
-
-	Fixes bug #639656.
-
 2010-04-21  Sebastien Pouliot  <sebastien@ximian.com>
 
 	* SocketAsyncEventArgs.cs: Add check for elevated permissions on

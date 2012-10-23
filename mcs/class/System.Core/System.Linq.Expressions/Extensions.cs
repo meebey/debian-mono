@@ -27,6 +27,7 @@
 //
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -53,18 +54,25 @@ namespace System.Linq.Expressions {
 			return self == typeof (Expression) || self.IsSubclassOf (typeof (Expression));
 		}
 
-		public static bool IsGenericImplementationOf (this Type self, Type type)
+		public static bool IsGenericImplementationOf (this Type self, Type type, out Type generic_iface)
 		{
-			foreach (Type iface in self.GetInterfaces ())
-				if (iface.IsGenericInstanceOf (type))
-					return true;
+			foreach (var iface in self.GetInterfaces ()) {
+				if (!iface.IsGenericInstanceOf (type))
+					continue;
+
+				generic_iface = iface;
+				return true;
+			}
+
+			generic_iface = null;
 			return false;
 		}
 
 		public static bool IsAssignableTo (this Type self, Type type)
 		{
-			return type.IsAssignableFrom (self) ||
-				ArrayTypeIsAssignableTo (self, type);
+			return type.IsAssignableFrom (self)
+				|| ArrayTypeAreAssignable (self, type)
+				|| ArrayTypeIsAssignableToInterface (self, type);		
 		}
 
 		public static Type GetFirstGenericArgument (this Type self)
@@ -108,7 +116,7 @@ namespace System.Linq.Expressions {
 			return types;
 		}
 
-		static bool ArrayTypeIsAssignableTo (Type type, Type candidate)
+		static bool ArrayTypeAreAssignable (Type type, Type candidate)
 		{
 			if (!type.IsArray || !candidate.IsArray)
 				return false;
@@ -117,6 +125,17 @@ namespace System.Linq.Expressions {
 				return false;
 
 			return type.GetElementType ().IsAssignableTo (candidate.GetElementType ());
+		}
+
+		static bool ArrayTypeIsAssignableToInterface (Type type, Type candidate)
+		{
+			if (!type.IsArray)
+				return false;
+
+			if (!(candidate.IsGenericInstanceOf (typeof (IList<>)) || candidate.IsGenericInstanceOf (typeof (ICollection<>)) || candidate.IsGenericInstanceOf (typeof (IEnumerable<>))))
+				return false;
+
+			return type.GetElementType () == candidate.GetFirstGenericArgument ();
 		}
 
 		public static void OnFieldOrProperty (this MemberInfo self,

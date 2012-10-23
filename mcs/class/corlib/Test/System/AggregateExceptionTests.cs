@@ -1,4 +1,3 @@
-#if NET_4_0
 // AggregateExceptionTests.cs
 //
 // Copyright (c) 2008 Jérémie "Garuma" Laval
@@ -23,19 +22,20 @@
 //
 //
 
+#if NET_4_0
+
 using System;
 using System.Linq;
 using System.Threading;
+using System.Collections.Generic;
 
 using NUnit;
-using NUnit.Core;
 using NUnit.Framework;
 
-namespace ParallelFxTests
+namespace MonoTests.System
 {
-	
 	[TestFixture()]
-	public class AggregateExceptionTests
+	public class AggregateExceptionTest
 	{
 		AggregateException e;
 		
@@ -43,6 +43,23 @@ namespace ParallelFxTests
 		public void Setup()
 		{
 			e = new AggregateException(new Exception("foo"), new AggregateException(new Exception("bar"), new Exception("foobar")));
+		}
+
+		[Test]
+		public void SimpleInnerExceptionTestCase ()
+		{
+			var message = "Foo";
+			var inner = new ApplicationException (message);
+			var ex = new AggregateException (inner);
+
+			Assert.IsNotNull (ex.InnerException);
+			Assert.IsNotNull (ex.InnerExceptions);
+
+			Assert.AreEqual (inner, ex.InnerException);
+			Assert.AreEqual (1, ex.InnerExceptions.Count);
+			Assert.AreEqual (inner, ex.InnerExceptions[0]);
+			Assert.AreEqual (message, ex.InnerException.Message);
+			Assert.AreEqual (inner, ex.GetBaseException ());
 		}
 		
 		[TestAttribute]
@@ -52,6 +69,32 @@ namespace ParallelFxTests
 			
 			Assert.AreEqual(3, ex.InnerExceptions.Count, "#1");
 			Assert.AreEqual(3, ex.InnerExceptions.Where((exception) => !(exception is AggregateException)).Count(), "#2");
+		}
+
+		[Test, ExpectedException (typeof (ArgumentException))]
+		public void InitializationWithNullInnerValuesTest ()
+		{
+			var foo = new AggregateException (new Exception[] { new Exception (), null, new ApplicationException ()});
+		}
+
+		[Test]
+		public void InitializationWithNullValuesTest ()
+		{
+			Throws (typeof (ArgumentNullException), () => new AggregateException ((IEnumerable<Exception>)null));
+			Throws (typeof (ArgumentNullException), () => new AggregateException ((Exception[])null));
+		}
+
+		static void Throws (Type t, Action action)
+		{
+			Exception e = null;
+			try {
+				action ();
+			} catch (Exception ex) {
+				e = ex;
+			}
+
+			if (e == null || e.GetType () != t)
+				Assert.Fail ();
 		}
 	}
 }

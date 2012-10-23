@@ -24,7 +24,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
+#if NET_4_0 || MOBILE
 using System;
 using System.Threading;
 
@@ -40,14 +40,13 @@ namespace System.Threading
 			this.id = id;
 			this.source = source;
 		}
-		
+
 		#region IDisposable implementation
 		public void Dispose ()
 		{
-			// Remove the corresponding callback from source
-			source.RemoveCallback (this);
+			if (source != null)
+				source.RemoveCallback (this);
 		}
-
 		#endregion
 
 		#region IEquatable<CancellationTokenRegistration> implementation
@@ -56,27 +55,26 @@ namespace System.Threading
 			return this.id == other.id && this.source == other.source;
 		}
 		
-		public static bool operator== (CancellationTokenRegistration lhs, CancellationTokenRegistration rhs)
+		public static bool operator== (CancellationTokenRegistration left, CancellationTokenRegistration right)
 		{
-			return lhs.Equals (rhs);
+			return left.Equals (right);
 		}
 		
-		public static bool operator!= (CancellationTokenRegistration lhs, CancellationTokenRegistration rhs)
+		public static bool operator!= (CancellationTokenRegistration left, CancellationTokenRegistration right)
 		{
-			return !lhs.Equals (rhs);
+			return !left.Equals (right);
 		}
 		#endregion
 		
 		public override int GetHashCode ()
 		{
-			return id.GetHashCode () ^ source.GetHashCode ();
+			return id.GetHashCode () ^ (source == null ? 0 : source.GetHashCode ());
 		}
 
 		public override bool Equals (object obj)
 		{
 			return (obj is CancellationTokenRegistration) ? Equals ((CancellationTokenRegistration)obj) : false;
 		}
-
 	}
 }
 #endif

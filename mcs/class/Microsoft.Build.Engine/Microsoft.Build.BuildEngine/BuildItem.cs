@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -64,7 +62,7 @@ namespace Microsoft.Build.BuildEngine {
 
 			this.name = itemName;
 			this.finalItemSpec = taskItem.ItemSpec;
-			this.itemInclude = Utilities.Escape (taskItem.ItemSpec);
+			this.itemInclude = MSBuildUtils.Escape (taskItem.ItemSpec);
 			this.evaluatedMetadata = (Hashtable) taskItem.CloneCustomMetadata ();
 			this.unevaluatedMetadata = (Hashtable) taskItem.CloneCustomMetadata ();
 		}
@@ -127,7 +125,7 @@ namespace Microsoft.Build.BuildEngine {
 		{
 			if (ReservedNameUtils.IsReservedMetadataName (metadataName)) {
 				string metadata = ReservedNameUtils.GetReservedMetadata (FinalItemSpec, metadataName, evaluatedMetadata);
-				return (metadataName.ToLower () == "fullpath") ? Utilities.Escape (metadata) : metadata;
+				return (metadataName.ToLower () == "fullpath") ? MSBuildUtils.Escape (metadata) : metadata;
 			}
 
 			if (evaluatedMetadata.Contains (metadataName))
@@ -140,7 +138,7 @@ namespace Microsoft.Build.BuildEngine {
 		{
 			if (ReservedNameUtils.IsReservedMetadataName (metadataName)) {
 				string metadata = ReservedNameUtils.GetReservedMetadata (FinalItemSpec, metadataName, unevaluatedMetadata);
-				return (metadataName.ToLower () == "fullpath") ? Utilities.Escape (metadata) : metadata;
+				return (metadataName.ToLower () == "fullpath") ? MSBuildUtils.Escape (metadata) : metadata;
 			} else if (unevaluatedMetadata.Contains (metadataName))
 				return (string) unevaluatedMetadata [metadataName];
 			else
@@ -199,7 +197,7 @@ namespace Microsoft.Build.BuildEngine {
 					metadataName));
 
 			if (treatMetadataValueAsLiteral && !HasParentItem)
-				metadataValue = Utilities.Escape (metadataValue);
+				metadataValue = MSBuildUtils.Escape (metadataValue);
 
 			if (FromXml) {
 				XmlElement element = itemElement [metadataName];
@@ -231,7 +229,7 @@ namespace Microsoft.Build.BuildEngine {
 				evaluatedMetadata [name] = (string) e.ConvertTo (parent_item_group.ParentProject,
 						typeof (string), ExpressionOptions.ExpandItemRefs);
 			} else
-				evaluatedMetadata [name] = Utilities.Unescape (value);
+				evaluatedMetadata [name] = MSBuildUtils.Unescape (value);
 				
 			unevaluatedMetadata [name] = value;
 		}
@@ -247,9 +245,9 @@ namespace Microsoft.Build.BuildEngine {
 
 		internal void Evaluate (Project project, bool evaluatedTo)
 		{
-			// FIXME: maybe make Expression.ConvertTo (null, ...) work as Utilities.Unescape ()?
+			// FIXME: maybe make Expression.ConvertTo (null, ...) work as MSBuildUtils.Unescape ()?
 			if (project == null) {
-				this.finalItemSpec = Utilities.Unescape (Include);
+				this.finalItemSpec = MSBuildUtils.Unescape (Include);
 				return;
 			}
 			
@@ -535,5 +533,3 @@ namespace Microsoft.Build.BuildEngine {
 		}
 	}
 }
-
-#endif

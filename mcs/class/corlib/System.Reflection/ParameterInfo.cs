@@ -36,6 +36,7 @@ namespace System.Reflection
 	[ComDefaultInterfaceAttribute (typeof (_ParameterInfo))]
 	[Serializable]
 	[ClassInterfaceAttribute (ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public class ParameterInfo : ICustomAttributeProvider, _ParameterInfo {
 
 		protected Type ClassImpl;
@@ -184,7 +185,11 @@ namespace System.Reflection
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		extern int GetMetadataToken ();
 
-		public int MetadataToken {
+		public
+#if NET_4_0 || MOONLIGHT
+		virtual
+#endif
+		int MetadataToken {
 			get {
 				if (MemberImpl is PropertyInfo) {
 					PropertyInfo prop = (PropertyInfo)MemberImpl;

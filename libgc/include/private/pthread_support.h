@@ -8,6 +8,8 @@
      
 #if defined(GC_DARWIN_THREADS)
 # include "private/darwin_stop_world.h"
+#elif defined(GC_OPENBSD_THREADS)
+# include "private/openbsd_stop_world.h"
 #else
 # include "private/pthread_stop_world.h"
 #endif
@@ -26,6 +28,9 @@ typedef struct GC_Thread_Rep {
 				  /* guaranteed to be dead, but we may  */
 				  /* not yet have registered the join.) */
     pthread_t id;
+#ifdef PLATFORM_ANDROID
+    pid_t kernel_id;
+#endif
     /* Extra bookkeeping information the stopping code uses */
     struct thread_stop_info stop_info;
     
@@ -42,6 +47,10 @@ typedef struct GC_Thread_Rep {
     				/* not need to be sent a signal to stop	*/
     				/* it.					*/
     ptr_t stack_end;		/* Cold end of the stack.		*/
+	ptr_t altstack; /* The start of the altstack if there is one, NULL otherwise */
+	int altstack_size; /* The size of the altstack if there is one */
+	ptr_t stack; /* The start of the normal stack */
+	int stack_size; /* The size of the normal stack */
 #   ifdef IA64
 	ptr_t backing_store_end;
 	ptr_t backing_store_ptr;
@@ -87,6 +96,9 @@ typedef struct GC_Thread_Rep {
 
 # define THREAD_TABLE_SZ 128	/* Must be power of 2	*/
 extern volatile GC_thread GC_threads[THREAD_TABLE_SZ];
+#ifdef NACL
+extern __thread GC_thread gc_thread_self;
+#endif
 
 extern GC_bool GC_thr_initialized;
 
@@ -94,7 +106,7 @@ GC_thread GC_lookup_thread(pthread_t id);
 
 void GC_thread_deregister_foreign (void *data);
 
-void GC_stop_init();
+void GC_stop_init(void);
 
 extern GC_bool GC_in_thread_creation;
 	/* We may currently be in thread creation or destruction.	*/

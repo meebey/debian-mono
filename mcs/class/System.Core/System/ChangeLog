@@ -1,13 +1,3 @@
-2010-08-23  Marek Safar  <marek.safar@gmail.com>
-
-	Fixed typo in T14 argument
-
-2010-07-22  tgiphil  <phil@thinkedge.com>
-
-	Moved ValidateRules method in TimeZoneInfo.cs outside of LIBC
-	since a caller outside of LIBC calls the method. Fixes compile
-	error when LIBC is not defined.
-
 
 Fri Jul 23 16:46:38 CEST 2010 Paolo Molaro <lupus@ximian.com>
 

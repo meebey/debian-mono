@@ -3,22 +3,26 @@
 //
 // Authors:
 //   Miguel de Icaza (miguel@gnome.org)
+//   Marek Safar (marek.safar@gmail.com)
 //
 // Dual licensed under the terms of the MIT X11 or GNU GPL
 //
 // Copyright 2001, 2002, 2003 Ximian, Inc (http://www.ximian.com)
-// Copyright 2004, 2005, 2006, 2007, 2008 Novell, Inc
+// Copyright 2004-2011 Novell, Inc
+// Copyright 2011 Xamarin Inc
 //
+
 using System;
 using System.Threading;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.IO;
-using System.Globalization;
 using System.Text;
+using System.Linq;
 
-namespace Mono.CSharp {
+namespace Mono.CSharp
+{
 
 	/// <summary>
 	///   Evaluator: provides an API to evaluate C# statements and
@@ -50,120 +54,93 @@ namespace Mono.CSharp {
 		}
 
 		static object evaluator_lock = new object ();
+		static volatile bool invoking;
 		
-		static string current_debug_name;
+#if !STATIC
 		static int count;
+#endif
 		static Thread invoke_thread;
 
-		static List<NamespaceEntry.UsingAliasEntry> using_alias_list = new List<NamespaceEntry.UsingAliasEntry> ();
-		internal static List<NamespaceEntry.UsingEntry> using_list = new List<NamespaceEntry.UsingEntry> ();
-		static Dictionary<string, Tuple<FieldSpec, FieldInfo>> fields = new Dictionary<string, Tuple<FieldSpec, FieldInfo>> ();
+		readonly Dictionary<string, Tuple<FieldSpec, FieldInfo>> fields;
 
-		static TypeSpec interactive_base_class;
-		static Driver driver;
-		static bool inited;
+		Type base_class;
+		bool inited;
+		int startup_files;
 
-		static CompilerContext ctx;
+		readonly CompilerContext ctx;
+		readonly ModuleContainer module;
+		readonly ReflectionImporter importer;
+		readonly CompilationSourceFile source_file;
 		
-		public static TextWriter MessageOutput = Console.Out;
-
-		/// <summary>
-		///   Optional initialization for the Evaluator.
-		/// </summary>
-		/// <remarks>
-		///  Initializes the Evaluator with the command line options
-		///  that would be processed by the command line compiler.  Only
-		///  the first call to Init will work, any future invocations are
-		///  ignored.
-		///
-		///  You can safely avoid calling this method if your application
-		///  does not need any of the features exposed by the command line
-		///  interface.
-		/// </remarks>
-		public static void Init (string [] args)
+		public Evaluator (CompilerContext ctx)
 		{
-			InitAndGetStartupFiles (args);
+			this.ctx = ctx;
+
+			module = new ModuleContainer (ctx);
+			module.Evaluator = this;
+
+			source_file = new CompilationSourceFile (module, null);
+			module.AddTypeContainer (source_file);
+
+			startup_files = ctx.SourceFiles.Count;
+
+			// FIXME: Importer needs this assembly for internalsvisibleto
+			module.SetDeclaringAssembly (new AssemblyDefinitionDynamic (module, "evaluator"));
+			importer = new ReflectionImporter (module, ctx.BuiltinTypes);
+
+			InteractiveBaseClass = typeof (InteractiveBase);
+			fields = new Dictionary<string, Tuple<FieldSpec, FieldInfo>> ();
 		}
 
-		internal static ReportPrinter SetPrinter (ReportPrinter report_printer)
+		void Init ()
 		{
-			return ctx.Report.SetPrinter (report_printer);
-		}				
+			var loader = new DynamicLoader (importer, ctx);
 
-		/// <summary>
-		///   Optional initialization for the Evaluator.
-		/// </summary>
-		/// <remarks>
-		///  Initializes the Evaluator with the command line
-		///  options that would be processed by the command
-		///  line compiler.  Only the first call to
-		///  InitAndGetStartupFiles or Init will work, any future
-		///  invocations are ignored.
-		///
-		///  You can safely avoid calling this method if your application
-		///  does not need any of the features exposed by the command line
-		///  interface.
-		///
-		///  This method return an array of strings that contains any
-		///  files that were specified in `args'.
-		/// </remarks>
-		public static string [] InitAndGetStartupFiles (string [] args)
+			CompilerCallableEntryPoint.Reset ();
+			RootContext.ToplevelTypes = module;
+
+			//var startup_files = new List<string> ();
+			//foreach (CompilationUnit file in Location.SourceFiles)
+			//    startup_files.Add (file.Path);
+
+			loader.LoadReferences (module);
+			ctx.BuiltinTypes.CheckDefinitions (module);
+			module.InitializePredefinedTypes ();
+
+			inited = true;
+		}
+
+		void ParseStartupFiles ()
 		{
-			lock (evaluator_lock){
-				if (inited)
-					return new string [0];
-				
-				driver = Driver.Create (args, false, new ConsoleReportPrinter ());
-				if (driver == null)
-					throw new Exception ("Failed to create compiler driver with the given arguments");
+			Driver d = new Driver (ctx);
 
-				ctx = driver.ctx;
+			Location.Initialize (ctx.SourceFiles);
 
-				RootContext.ToplevelTypes = new ModuleCompiled (ctx, true);
-				
-				driver.ProcessDefaultConfig ();
-
-				var startup_files = new List<string> ();
-				foreach (CompilationUnit file in Location.SourceFiles)
-					startup_files.Add (file.Path);
-				
-				CompilerCallableEntryPoint.Reset ();
-				RootContext.ToplevelTypes = new ModuleCompiled (ctx, true);
-				var ctypes = TypeManager.InitCoreTypes ();
-
-				ctx.MetaImporter.Initialize ();
-				driver.LoadReferences ();
-				TypeManager.InitCoreTypes (ctx, ctypes);
-				TypeManager.InitOptionalCoreTypes (ctx);
-
-				RootContext.EvalMode = true;
-				inited = true;
-
-				return startup_files.ToArray ();
+			var parser_session = new ParserSession ();
+			for (int i = 0; i < startup_files; ++i) {
+				var sf = ctx.SourceFiles [i];
+				d.Parse (sf, module, parser_session, ctx.Report);
 			}
 		}
 
-		static void Init ()
-		{
-			Init (new string [0]);
-		}
-		
-		static void Reset ()
+		void Reset ()
 		{
 			CompilerCallableEntryPoint.PartialReset ();
-			RootContext.PartialReset ();
 			
-			RootContext.ToplevelTypes = new ModuleCompiled (ctx, true);
-
-			Location.AddFile (null, "{interactive}");
-			Location.Initialize ();
-
-			current_debug_name = "interactive" + (count++) + ".dll";
-			if (Environment.GetEnvironmentVariable ("SAVE") != null){
-				CodeGen.Init (current_debug_name, current_debug_name, false, ctx);
-			} else
-				CodeGen.InitDynamic (ctx, current_debug_name);
+			Location.Reset ();
+			Location.Initialize (ctx.SourceFiles);
 		}
+
+		/// <summary>
+		///   If true, turns type expressions into valid expressions
+		///   and calls the describe method on it
+		/// </summary>
+		public bool DescribeTypeExpressions;
+
+		/// <summary>
+		///   Whether the evaluator will use terse syntax, and the semicolons at the end are optional
+		/// </summary>
+		public bool Terse = true;
 
 		/// <summary>
 		///   The base class for the classes that host the user generated code
@@ -179,22 +156,16 @@ namespace Mono.CSharp {
 		///   base class and the static members that are
 		///   available to your evaluated code.
 		/// </remarks>
-		static public TypeSpec InteractiveBaseClass {
+		public Type InteractiveBaseClass {
 			get {
-				if (interactive_base_class != null)
-					return interactive_base_class;
-
-				return ctx.MetaImporter.ImportType (typeof (InteractiveBase));
+				return base_class;
 			}
-		}
+			set {
+				base_class = value;
 
-		public static void SetInteractiveBaseClass (Type type)
-		{
-			if (type == null)
-				throw new ArgumentNullException ();
-
-			lock (evaluator_lock)
-				interactive_base_class = ctx.MetaImporter.ImportType (type);
+				if (value != null && typeof (InteractiveBase).IsAssignableFrom (value))
+					InteractiveBase.Evaluator = this;
+			}
 		}
 
 		/// <summary>
@@ -203,7 +174,7 @@ namespace Mono.CSharp {
 		/// <remarks>
 		///   Use this method to interrupt long-running invocations.
 		/// </remarks>
-		public static void Interrupt ()
+		public void Interrupt ()
 		{
 			if (!inited || !invoking)
 				return;
@@ -237,20 +208,28 @@ namespace Mono.CSharp {
 		///   compiled parameter will be set to the delegate
 		///   that can be invoked to execute the code.
 		///
-	        /// </remarks>
-		static public string Compile (string input, out CompiledMethod compiled)
+		/// </remarks>
+		public string Compile (string input, out CompiledMethod compiled)
 		{
 			if (input == null || input.Length == 0){
 				compiled = null;
 				return null;
 			}
-			
+
 			lock (evaluator_lock){
-				if (!inited)
+				if (!inited) {
 					Init ();
-				
+					ParseStartupFiles ();
+				} else {
+					ctx.Report.Printer.Reset ();
+				}
+
 				bool partial_input;
 				CSharpParser parser = ParseString (ParseMode.Silent, input, out partial_input);
+				if (parser == null && Terse && partial_input){
+					bool ignore;
+					parser = ParseString (ParseMode.Silent, input + ";", out ignore);
+				}
 				if (parser == null){
 					compiled = null;
 					if (partial_input)
@@ -260,20 +239,10 @@ namespace Mono.CSharp {
 					return null;
 				}
 				
-				object parser_result = parser.InteractiveResult;
-				
-				if (!(parser_result is Class)){
-					int errors = ctx.Report.Errors;
-					
-					NamespaceEntry.VerifyAllUsing ();
-					if (errors == ctx.Report.Errors)
-						parser.CurrentNamespace.Extract (using_alias_list, using_list);
-				}
-
-				compiled = CompileBlock (parser_result as Class, parser.undo, ctx.Report);
+				Class parser_result = parser.InteractiveResult;
+				compiled = CompileBlock (parser_result, parser.undo, ctx.Report);
+				return null;
 			}
-			
-			return null;
 		}
 
 		/// <summary>
@@ -294,8 +263,8 @@ namespace Mono.CSharp {
 		///   On success, a delegate is returned that can be used
 		///   to invoke the method.
 		///
-	        /// </remarks>
-		static public CompiledMethod Compile (string input)
+		/// </remarks>
+		public CompiledMethod Compile (string input)
 		{
 			CompiledMethod compiled;
 
@@ -308,11 +277,6 @@ namespace Mono.CSharp {
 			// Either null (on error) or the compiled method.
 			return compiled;
 		}
-
-		//
-		// Todo: Should we handle errors, or expect the calling code to setup
-		// the recording themselves?
-		//
 
 		/// <summary>
 		///   Evaluates and expression or statement and returns any result values.
@@ -336,7 +300,7 @@ namespace Mono.CSharp {
 		///   that the input is partial and that the user
 		///   should provide an updated string.
 		/// </remarks>
-		public static string Evaluate (string input, out object result, out bool result_set)
+		public string Evaluate (string input, out object result, out bool result_set)
 		{
 			CompiledMethod compiled;
 
@@ -353,7 +317,7 @@ namespace Mono.CSharp {
 			//
 			// The code execution does not need to keep the compiler lock
 			//
-			object retval = typeof (NoValueSet);
+			object retval = typeof (QuitValue);
 
 			try {
 				invoke_thread = System.Threading.Thread.CurrentThread;
@@ -370,7 +334,7 @@ namespace Mono.CSharp {
 			// We use a reference to a compiler type, in this case
 			// Driver as a flag to indicate that this was a statement
 			//
-			if (retval != typeof (NoValueSet)){
+			if (!ReferenceEquals (retval, typeof (QuitValue))) {
 				result_set = true;
 				result = retval; 
 			}
@@ -378,7 +342,7 @@ namespace Mono.CSharp {
 			return null;
 		}
 
-		public static string [] GetCompletions (string input, out string prefix)
+		public string [] GetCompletions (string input, out string prefix)
 		{
 			prefix = "";
 			if (input == null || input.Length == 0)
@@ -391,55 +355,36 @@ namespace Mono.CSharp {
 				bool partial_input;
 				CSharpParser parser = ParseString (ParseMode.GetCompletions, input, out partial_input);
 				if (parser == null){
-					if (CSharpParser.yacc_verbose_flag != 0)
-						Console.WriteLine ("DEBUG: No completions available");
 					return null;
 				}
 				
-				Class parser_result = parser.InteractiveResult as Class;
-				
-				if (parser_result == null){
-					if (CSharpParser.yacc_verbose_flag != 0)
-						Console.WriteLine ("Do not know how to cope with !Class yet");
-					return null;
-				}
+				Class parser_result = parser.InteractiveResult;
+
+#if NET_4_0
+				var access = AssemblyBuilderAccess.RunAndCollect;
+#else
+				var access = AssemblyBuilderAccess.Run;
+#endif
+				var a = new AssemblyDefinitionDynamic (module, "completions");
+				a.Create (AppDomain.CurrentDomain, access);
+				module.SetDeclaringAssembly (a);
+
+				// Need to setup MemberCache
+				parser_result.CreateContainer ();
+
+				var method = parser_result.Members[0] as Method;
+				BlockContext bc = new BlockContext (method, method.Block, ctx.BuiltinTypes.Void);
 
 				try {
-					RootContext.ResolveTree ();
-					if (ctx.Report.Errors != 0)
-						return null;
-					
-					RootContext.PopulateTypes ();
-					if (ctx.Report.Errors != 0)
-						return null;
-
-					MethodOrOperator method = null;
-					foreach (MemberCore member in parser_result.Methods){
-						if (member.Name != "Host")
-							continue;
-						
-						method = (MethodOrOperator) member;
-						break;
-					}
-					if (method == null)
-						throw new InternalErrorException ("did not find the the Host method");
-
-					BlockContext bc = new BlockContext (method, method.Block, method.ReturnType);
-
-					try {
-						method.Block.Resolve (null, bc, method.ParameterInfo, method);
-					} catch (CompletionResult cr){
-						prefix = cr.BaseText;
-						return cr.Result;
-					} 
-				} finally {
-					parser.undo.ExecuteUndo ();
-				}
-				
+					method.Block.Resolve (null, bc, method);
+				} catch (CompletionResult cr) {
+					prefix = cr.BaseText;
+					return cr.Result;
+				} 
 			}
 			return null;
 		}
-		
+
 		/// <summary>
 		///   Executes the given expression or statement.
 		/// </summary>
@@ -448,17 +393,12 @@ namespace Mono.CSharp {
 		///    on success, false on parsing errors.  Exceptions
 		///    might be thrown by the called code.
 		/// </remarks>
-		public static bool Run (string statement)
+		public bool Run (string statement)
 		{
-			if (!inited)
-				Init ();
-
 			object result;
 			bool result_set;
 
-			bool ok = Evaluate (statement, out result, out result_set) == null;
-			
-			return ok;
+			return Evaluate (statement, out result, out result_set) == null;
 		}
 
 		/// <summary>
@@ -471,7 +411,7 @@ namespace Mono.CSharp {
 		///   This method will throw an exception if there is a syntax error,
 		///   of if the provided input is not an expression but a statement.
 		/// </remarks>
-		public static object Evaluate (string input)
+		public object Evaluate (string input)
 		{
 			object result;
 			bool result_set;
@@ -486,7 +426,7 @@ namespace Mono.CSharp {
 
 			return result;
 		}
-	
+
 		enum InputKind {
 			EOF,
 			StatementOrExpression,
@@ -504,9 +444,9 @@ namespace Mono.CSharp {
 		// without more than one lookahead token.   There are very
 		// few ambiguities.
 		//
-		static InputKind ToplevelOrStatement (SeekableStreamReader seekable)
+		InputKind ToplevelOrStatement (SeekableStreamReader seekable)
 		{
-			Tokenizer tokenizer = new Tokenizer (seekable, (CompilationUnit) Location.SourceFiles [0], ctx);
+			Tokenizer tokenizer = new Tokenizer (seekable, source_file, new ParserSession ());
 			
 			int t = tokenizer.token ();
 			switch (t){
@@ -608,15 +548,14 @@ namespace Mono.CSharp {
 		// @partial_input: if @silent is true, then it returns whether the
 		// parsed expression was partial, and more data is needed
 		//
-		static CSharpParser ParseString (ParseMode mode, string input, out bool partial_input)
+		CSharpParser ParseString (ParseMode mode, string input, out bool partial_input)
 		{
 			partial_input = false;
 			Reset ();
-			queued_fields.Clear ();
-			Tokenizer.LocatedToken.Initialize ();
 
-			Stream s = new MemoryStream (Encoding.Default.GetBytes (input));
-			SeekableStreamReader seekable = new SeekableStreamReader (s, Encoding.Default);
+			var enc = ctx.Settings.Encoding;
+			var s = new MemoryStream (enc.GetBytes (input));
+			SeekableStreamReader seekable = new SeekableStreamReader (s, enc);
 
 			InputKind kind = ToplevelOrStatement (seekable);
 			if (kind == InputKind.Error){
@@ -635,28 +574,23 @@ namespace Mono.CSharp {
 			}
 			seekable.Position = 0;
 
-			CSharpParser parser = new CSharpParser (seekable, (CompilationUnit) Location.SourceFiles [0], ctx);
+			source_file.DeclarationFound = false;
+			CSharpParser parser = new CSharpParser (seekable, source_file, new ParserSession ());
 
 			if (kind == InputKind.StatementOrExpression){
 				parser.Lexer.putback_char = Tokenizer.EvalStatementParserCharacter;
-				RootContext.StatementMode = true;
+				ctx.Settings.StatementMode = true;
 			} else {
-				//
-				// Do not activate EvalCompilationUnitParserCharacter until
-				// I have figured out all the limitations to invoke methods
-				// in the generated classes.  See repl.txt
-				//
-				parser.Lexer.putback_char = Tokenizer.EvalUsingDeclarationsParserCharacter;
-				//parser.Lexer.putback_char = Tokenizer.EvalCompilationUnitParserCharacter;
-				RootContext.StatementMode = false;
+				parser.Lexer.putback_char = Tokenizer.EvalCompilationUnitParserCharacter;
+				ctx.Settings.StatementMode = false;
 			}
 
 			if (mode == ParseMode.GetCompletions)
 				parser.Lexer.CompleteOnEOF = true;
 
 			ReportPrinter old_printer = null;
-			if ((mode == ParseMode.Silent || mode == ParseMode.GetCompletions) && CSharpParser.yacc_verbose_flag == 0)
-				old_printer = SetPrinter (new StreamReportPrinter (TextWriter.Null));
+			if ((mode == ParseMode.Silent || mode == ParseMode.GetCompletions))
+				old_printer = ctx.Report.SetPrinter (new StreamReportPrinter (TextWriter.Null));
 
 			try {
 				parser.parse ();
@@ -665,71 +599,94 @@ namespace Mono.CSharp {
 					if (mode != ParseMode.ReportErrors  && parser.UnexpectedEOF)
 						partial_input = true;
 
-					parser.undo.ExecuteUndo ();
+					if (parser.undo != null)
+						parser.undo.ExecuteUndo ();
+
 					parser = null;
 				}
 
 				if (old_printer != null)
-					SetPrinter (old_printer);
+					ctx.Report.SetPrinter (old_printer);
 			}
 			return parser;
 		}
 
-		//
-		// Queue all the fields that we use, as we need to then go from FieldBuilder to FieldInfo
-		// or reflection gets confused (it basically gets confused, and variables override each
-		// other).
-		//
-		static List<Field> queued_fields = new List<Field> ();
-		
-		//static ArrayList types = new ArrayList ();
-
-		static volatile bool invoking;
-		
-		static CompiledMethod CompileBlock (Class host, Undo undo, Report Report)
+		CompiledMethod CompileBlock (Class host, Undo undo, Report Report)
 		{
-			RootContext.ResolveTree ();
-			if (Report.Errors != 0){
-				undo.ExecuteUndo ();
-				return null;
+#if STATIC
+			throw new NotSupportedException ();
+#else
+			string current_debug_name = "eval-" + count + ".dll";
+			++count;
+
+			AssemblyDefinitionDynamic assembly;
+			AssemblyBuilderAccess access;
+
+			if (Environment.GetEnvironmentVariable ("SAVE") != null) {
+				access = AssemblyBuilderAccess.RunAndSave;
+				assembly = new AssemblyDefinitionDynamic (module, current_debug_name, current_debug_name);
+				assembly.Importer = importer;
+			} else {
+#if NET_4_0
+				access = AssemblyBuilderAccess.RunAndCollect;
+#else
+				access = AssemblyBuilderAccess.Run;
+#endif
+				assembly = new AssemblyDefinitionDynamic (module, current_debug_name);
 			}
-			
-			RootContext.PopulateTypes ();
+
+			assembly.Create (AppDomain.CurrentDomain, access);
+
+			Method expression_method;
+			if (host != null) {
+				var base_class_imported = importer.ImportType (base_class);
+				var baseclass_list = new List<FullNamedExpression> (1) {
+					new TypeExpression (base_class_imported, host.Location)
+				};
+
+				host.AddBasesForPart (baseclass_list);
+
+				host.CreateContainer ();
+				host.DefineContainer ();
+				host.Define ();
+
+				expression_method = (Method) host.Members[0];
+			} else {
+				expression_method = null;
+			}
+
+			module.CreateContainer ();
+
+			// Disable module and source file re-definition checks
+			module.EnableRedefinition ();
+			source_file.EnableRedefinition ();
+
+			module.Define ();
 
 			if (Report.Errors != 0){
-				undo.ExecuteUndo ();
+				if (undo != null)
+					undo.ExecuteUndo ();
+
 				return null;
 			}
 
-			TypeBuilder tb = null;
-			MethodBuilder mb = null;
-				
 			if (host != null){
-				tb = host.TypeBuilder;
-				mb = null;
-				foreach (MemberCore member in host.Methods){
-					if (member.Name != "Host")
-						continue;
-					
-					MethodOrOperator method = (MethodOrOperator) member;
-					mb = method.MethodBuilder;
-					break;
-				}
-
-				if (mb == null)
-					throw new Exception ("Internal error: did not find the method builder for the generated method");
+				host.EmitContainer ();
 			}
 			
-			RootContext.EmitCode ();
+			module.EmitContainer ();
 			if (Report.Errors != 0){
-				undo.ExecuteUndo ();
+				if (undo != null)
+					undo.ExecuteUndo ();
 				return null;
 			}
-			
-			RootContext.CloseTypes (ctx);
 
-			if (Environment.GetEnvironmentVariable ("SAVE") != null)
-				CodeGen.Save (current_debug_name, false, Report);
+			module.CloseContainer ();
+			if (host != null)
+				host.CloseContainer ();
+
+			if (access == AssemblyBuilderAccess.RunAndSave)
+				assembly.Save ();
 
 			if (host == null)
 				return null;
@@ -738,15 +695,23 @@ namespace Mono.CSharp {
 			// Unlike Mono, .NET requires that the MethodInfo is fetched, it cant
 			// work from MethodBuilders.   Retarded, I know.
 			//
-			var tt = CodeGen.Assembly.Builder.GetType (tb.Name);
-			MethodInfo mi = tt.GetMethod (mb.Name);
-			
-			// Pull the FieldInfos from the type, and keep track of them
-			foreach (Field field in queued_fields){
-				FieldInfo fi = tt.GetField (field.Name);
+			var tt = assembly.Builder.GetType (host.TypeBuilder.Name);
+			var mi = tt.GetMethod (expression_method.MemberName.Name);
+
+			//
+			// We need to then go from FieldBuilder to FieldInfo
+			// or reflection gets confused (it basically gets confused, and variables override each
+			// other).
+			//
+			foreach (var member in host.Members) {
+				var field = member as Field;
+				if (field == null)
+					continue;
+
+				var fi = tt.GetField (field.Name);
 
 				Tuple<FieldSpec, FieldInfo> old;
-				
+
 				// If a previous value was set, nullify it, so that we do
 				// not leak memory
 				if (fields.TryGetValue (field.Name, out old)) {
@@ -760,54 +725,28 @@ namespace Mono.CSharp {
 						} catch {
 						}
 					}
-
-					fields [field.Name] = Tuple.Create (old.Item1, fi);
-				} else {
-					fields.Add (field.Name, Tuple.Create (field.Spec, fi));
 				}
-			}
-			//types.Add (tb);
 
-			queued_fields.Clear ();
+				fields[field.Name] = Tuple.Create (field.Spec, fi);
+			}
 			
 			return (CompiledMethod) System.Delegate.CreateDelegate (typeof (CompiledMethod), mi);
+#endif
 		}
-		
-		static internal void LoadAliases (NamespaceEntry ns)
-		{
-			ns.Populate (using_alias_list, using_list);
-		}
-		
+
 		/// <summary>
 		///   A sentinel value used to indicate that no value was
 		///   was set by the compiled function.   This is used to
 		///   differentiate between a function not returning a
 		///   value and null.
 		/// </summary>
-		public class NoValueSet {
-		}
+		internal static class QuitValue { }
 
-		static internal Tuple<FieldSpec, FieldInfo> LookupField (string name)
+		internal Tuple<FieldSpec, FieldInfo> LookupField (string name)
 		{
 			Tuple<FieldSpec, FieldInfo> fi;
 			fields.TryGetValue (name, out fi);
 			return fi;
-		}
-
-		//
-		// Puts the FieldBuilder into a queue of names that will be
-		// registered.   We can not register FieldBuilders directly
-		// we need to fetch the FieldInfo after Reflection cooks the
-		// types, or bad things happen (bad means: FieldBuilders behave
-		// incorrectly across multiple assemblies, causing assignments to
-		// invalid areas
-		//
-		// This also serves for the parser to register Field classes
-		// that should be exposed as global variables
-		//
-		static internal void QueueField (Field f)
-		{
-			queued_fields.Add (f);
 		}
 
 		static string Quote (string s)
@@ -818,37 +757,43 @@ namespace Mono.CSharp {
 			return "\"" + s + "\"";
 		}
 
-		static public string GetUsing ()
+		public string GetUsing ()
 		{
-			lock (evaluator_lock){
-				StringBuilder sb = new StringBuilder ();
-				
-				foreach (object x in using_alias_list)
-					sb.Append (String.Format ("using {0};\n", x));
-				
-				foreach (object x in using_list)
-					sb.Append (String.Format ("using {0};\n", x));
-				
-				return sb.ToString ();
+			StringBuilder sb = new StringBuilder ();
+			// TODO:
+			//foreach (object x in ns.using_alias_list)
+			//    sb.AppendFormat ("using {0};\n", x);
+
+			foreach (var ue in source_file.Usings) {
+				sb.AppendFormat ("using {0};", ue.ToString ());
+				sb.Append (Environment.NewLine);
 			}
+
+			return sb.ToString ();
 		}
 
-		static internal ICollection<string> GetUsingList ()
+		internal List<string> GetUsingList ()
 		{
-			var res = new List<string> (using_list.Count);
-			foreach (object ue in using_list)
-				res.Add (ue.ToString ());
+			var res = new List<string> ();
+
+			foreach (var ue in source_file.Usings) {
+				if (ue.Alias != null || ue.ResolvedExpression == null)
+					continue;
+
+				res.Add (ue.NamespaceExpression.Name);
+			}
+
 			return res;
 		}
 		
-		static internal string [] GetVarNames ()
+		internal string [] GetVarNames ()
 		{
 			lock (evaluator_lock){
 				return new List<string> (fields.Keys).ToArray ();
 			}
 		}
 		
-		static public string GetVars ()
+		public string GetVars ()
 		{
 			lock (evaluator_lock){
 				StringBuilder sb = new StringBuilder ();
@@ -875,31 +820,27 @@ namespace Mono.CSharp {
 		/// <summary>
 		///    Loads the given assembly and exposes the API to the user.
 		/// </summary>
-		static public void LoadAssembly (string file)
+		public void LoadAssembly (string file)
 		{
+			var loader = new DynamicLoader (importer, ctx);
+			var assembly = loader.LoadAssemblyFile (file, false);
+			if (assembly == null)
+				return;
+
 			lock (evaluator_lock){
-				driver.LoadAssembly (file, false);
-				ctx.GlobalRootNamespace.ComputeNamespaces (ctx);
+				importer.ImportAssembly (assembly, module.GlobalRootNamespace);
 			}
 		}
 
 		/// <summary>
 		///    Exposes the API of the given assembly to the Evaluator
 		/// </summary>
-		static public void ReferenceAssembly (Assembly a)
+		public void ReferenceAssembly (Assembly a)
 		{
 			lock (evaluator_lock){
-//				GlobalRootNamespace.Instance.AddAssemblyReference (a);
-//				GlobalRootNamespace.Instance.ComputeNamespaces (ctx);
-				ctx.MetaImporter.ImportAssembly (a, ctx.GlobalRootNamespace);
+				importer.ImportAssembly (a, module.GlobalRootNamespace);
 			}
 		}
-
-		/// <summary>
-		///   If true, turns type expressions into valid expressions
-		///   and calls the describe method on it
-		/// </summary>
-		public static bool DescribeTypeExpressions;
 	}
 
 	
@@ -952,6 +893,8 @@ namespace Mono.CSharp {
 		///   Used to signal that the user has invoked the  `quit' statement.
 		/// </summary>
 		public static bool QuitRequested;
+
+		public static Evaluator Evaluator;
 		
 		/// <summary>
 		///   Shows all the variables defined so far.
@@ -970,20 +913,17 @@ namespace Mono.CSharp {
 			Output.Write (Evaluator.GetUsing ());
 			Output.Flush ();
 		}
-
-		public delegate void Simple ();
-		
+	
 		/// <summary>
 		///   Times the execution of the given delegate
 		/// </summary>
-		static public TimeSpan Time (Simple a)
+		static public TimeSpan Time (Action a)
 		{
 			DateTime start = DateTime.Now;
 			a ();
 			return DateTime.Now - start;
 		}
 		
-#if !SMCS_SOURCE
 		/// <summary>
 		///   Loads the assemblies from a package
 		/// </summary>
@@ -999,9 +939,7 @@ namespace Mono.CSharp {
 				return;
 			}
 
-			string pkgout = Driver.GetPackageFlags (pkg, false, RootContext.ToplevelTypes.Compiler.Report);
-			if (pkgout == null)
-				return;
+			string pkgout = Driver.GetPackageFlags (pkg, null);
 
 			string [] xargs = pkgout.Trim (new Char [] {' ', '\n', '\r', '\t'}).
 				Split (new Char [] { ' ', '\t'});
@@ -1015,7 +953,6 @@ namespace Mono.CSharp {
 				}
 			}
 		}
-#endif
 
 		/// <summary>
 		///   Loads the assembly
@@ -1030,6 +967,16 @@ namespace Mono.CSharp {
 		{
 			Evaluator.LoadAssembly (assembly);
 		}
+
+		static public void print (object obj)
+		{
+			Output.WriteLine (obj);
+		}
+
+		static public void print (string fmt, params object [] args)
+		{
+			Output.WriteLine (fmt, args);
+		}
 		
 		/// <summary>
 		///   Returns a list of available static methods. 
@@ -1037,16 +984,19 @@ namespace Mono.CSharp {
 		static public string help {
 			get {
 				return "Static methods:\n" +
-					"  Describe (object)       - Describes the object's type\n" +
-					"  LoadPackage (package);  - Loads the given Package (like -pkg:FILE)\n" +
-					"  LoadAssembly (assembly) - Loads the given assembly (like -r:ASSEMBLY)\n" +
-					"  ShowVars ();            - Shows defined local variables.\n" +
-					"  ShowUsing ();           - Show active using declarations.\n" +
-					"  Prompt                  - The prompt used by the C# shell\n" +
-					"  ContinuationPrompt      - The prompt for partial input\n" +
-					"  Time(() -> { })         - Times the specified code\n" +
-					"  quit;                   - You'll never believe it - this quits the repl!\n" +
-					"  help;                   - This help text\n";
+#if !NET_2_1
+					"  Describe (object);       - Describes the object's type\n" +
+#endif
+					"  LoadPackage (package);   - Loads the given Package (like -pkg:FILE)\n" +
+					"  LoadAssembly (assembly); - Loads the given assembly (like -r:ASSEMBLY)\n" +
+					"  ShowVars ();             - Shows defined local variables.\n" +
+					"  ShowUsing ();            - Show active using declarations.\n" +
+					"  Prompt                   - The prompt used by the C# shell\n" +
+					"  ContinuationPrompt       - The prompt for partial input\n" +
+					"  Time (() => { });        - Times the specified code\n" +
+					"  print (obj);             - Shorthand for Console.WriteLine\n" +
+					"  quit;                    - You'll never believe it - this quits the repl!\n" +
+					"  help;                    - This help text\n";
 			}
 		}
 
@@ -1058,8 +1008,15 @@ namespace Mono.CSharp {
 				QuitRequested = true;
 
 				// To avoid print null at the exit
-				return typeof (Evaluator.NoValueSet);
+				return typeof (Evaluator.QuitValue);
 			}
+		}
+
+		/// <summary>
+		///   Same as quit - useful in script scenerios
+		/// </summary>
+		static public void Quit () {
+			QuitRequested = true;
 		}
 
 #if !NET_2_1
@@ -1087,56 +1044,16 @@ namespace Mono.CSharp {
 #endif
 	}
 
-	//
-	// A local variable reference that will create a Field in a
-	// Class with the resolved type.  This is necessary so we can
-	// support "var" as a field type in a class declaration.
-	//
-	// We allow LocalVariableReferece to do the heavy lifting, and
-	// then we insert the field with the resolved type
-	//
-	public class LocalVariableReferenceWithClassSideEffect : LocalVariableReference {
-		TypeContainer container;
-		string name;
-		
-		public LocalVariableReferenceWithClassSideEffect (TypeContainer container, string name, Block current_block, string local_variable_id, LocalInfo li, Location loc)
-			: base (current_block, local_variable_id, loc, li, false)
+	class HoistedEvaluatorVariable : HoistedVariable
+	{
+		public HoistedEvaluatorVariable (Field field)
+			: base (null, field)
 		{
-			this.container = container;
-			this.name = name;
 		}
 
-		public override bool Equals (object obj)
+		protected override FieldExpr GetFieldExpression (EmitContext ec)
 		{
-			LocalVariableReferenceWithClassSideEffect lvr = obj as LocalVariableReferenceWithClassSideEffect;
-			if (lvr == null)
-				return false;
-
-			if (lvr.name != name || lvr.container != container)
-				return false;
-
-			return base.Equals (obj);
-		}
-
-		public override int GetHashCode ()
-		{
-			return name.GetHashCode ();
-		}
-		
-		override public Expression DoResolveLValue (ResolveContext ec, Expression right_side)
-		{
-			Expression ret = base.DoResolveLValue (ec, right_side);
-			if (ret == null)
-				return null;
-
-			Field f = new Field (container, new TypeExpression (ret.Type, Location),
-					     Modifiers.PUBLIC | Modifiers.STATIC,
-					     new MemberName (name, Location), null);
-			container.AddField (f);
-			if (f.Define ())
-				Evaluator.QueueField (f);
-			
-			return ret;
+			return new FieldExpr (field, field.Location);
 		}
 	}
 
@@ -1154,80 +1071,84 @@ namespace Mono.CSharp {
 
 		protected override Expression DoResolve (ResolveContext ec)
 		{
-			CloneContext cc = new CloneContext ();
-			Expression clone = source.Clone (cc);
+			Expression clone = source.Clone (new CloneContext ());
+
+			clone = clone.Resolve (ec);
+			if (clone == null)
+				return null;
 
 			//
 			// A useful feature for the REPL: if we can resolve the expression
 			// as a type, Describe the type;
 			//
-			if (Evaluator.DescribeTypeExpressions){
-				var old_printer = Evaluator.SetPrinter (new StreamReportPrinter (TextWriter.Null));
-				clone = clone.Resolve (ec);
-				if (clone == null){
-					clone = source.Clone (cc);
-					clone = clone.Resolve (ec, ResolveFlags.Type);
-					if (clone == null){
-						Evaluator.SetPrinter (old_printer);
-						clone = source.Clone (cc);
-						clone = clone.Resolve (ec);
-						return null;
-					}
-					
+			if (ec.Module.Evaluator.DescribeTypeExpressions){
+				var old_printer = ec.Report.SetPrinter (new SessionReportPrinter ());
+				Expression tclone;
+				try {
+					// Note: clone context cannot be shared otherwise block mapping would leak
+					tclone = source.Clone (new CloneContext ());
+					tclone = tclone.Resolve (ec, ResolveFlags.Type);
+					if (ec.Report.Errors > 0)
+						tclone = null;
+				} finally {
+					ec.Report.SetPrinter (old_printer);
+				}
+
+				if (tclone is TypeExpr) {
 					Arguments args = new Arguments (1);
 					args.Add (new Argument (new TypeOf ((TypeExpr) clone, Location)));
-					source = new Invocation (new SimpleName ("Describe", Location), args).Resolve (ec);
+					return new Invocation (new SimpleName ("Describe", Location), args).Resolve (ec);
 				}
-				Evaluator.SetPrinter (old_printer);
-			} else {
-				clone = clone.Resolve (ec);
-				if (clone == null)
-					return null;
 			}
-	
+
 			// This means its really a statement.
-			if (clone.Type == TypeManager.void_type || clone is DynamicInvocation || clone is Assign) {
+			if (clone.Type.Kind == MemberKind.Void || clone is DynamicInvocation || clone is Assign) {
 				return clone;
 			}
 
+			source = clone;
 			return base.DoResolve (ec);
 		}
 	}
 
-	public class Undo {
-		List<KeyValuePair<TypeContainer, TypeContainer>> undo_types;
+	public class Undo
+	{
+		List<Action> undo_actions;
 		
 		public Undo ()
 		{
-			undo_types = new List<KeyValuePair<TypeContainer, TypeContainer>> ();
 		}
 
-		public void AddTypeContainer (TypeContainer current_container, TypeContainer tc)
+		public void AddTypeContainer (TypeContainer current_container, TypeDefinition tc)
 		{
 			if (current_container == tc){
 				Console.Error.WriteLine ("Internal error: inserting container into itself");
 				return;
 			}
 
-			if (undo_types == null)
-				undo_types = new List<KeyValuePair<TypeContainer, TypeContainer>> ();
+			if (undo_actions == null)
+				undo_actions = new List<Action> ();
 
-			undo_types.Add (new KeyValuePair<TypeContainer, TypeContainer> (current_container, tc));
+			var existing = current_container.Containers.FirstOrDefault (l => l.Basename == tc.Basename);
+			if (existing != null) {
+				current_container.RemoveContainer (existing);
+				undo_actions.Add (() => current_container.AddTypeContainer (existing));
+			}
+
+			undo_actions.Add (() => current_container.RemoveContainer (tc));
 		}
 
 		public void ExecuteUndo ()
 		{
-			if (undo_types == null)
+			if (undo_actions == null)
 				return;
 
-			foreach (var p in undo_types){
-				TypeContainer current_container = p.Key;
-
-				current_container.RemoveTypeContainer (p.Value);
+			foreach (var p in undo_actions){
+				p ();
 			}
-			undo_types = null;
+
+			undo_actions = null;
 		}
 	}
 	
 }
-	

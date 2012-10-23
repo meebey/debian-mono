@@ -2,7 +2,8 @@
  * boehm-gc.c: GC implementation using either the installed or included Boehm GC.
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
- * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2004-2011 Novell, Inc (http://www.novell.com)
+ * Copyright 2011-2012 Xamarin, Inc (http://www.xamarin.com)
  */
 
 #include "config.h"
@@ -20,8 +21,10 @@
 #include <mono/metadata/domain-internals.h>
 #include <mono/metadata/metadata-internals.h>
 #include <mono/metadata/marshal.h>
+#include <mono/metadata/runtime.h>
 #include <mono/utils/mono-logger-internal.h>
 #include <mono/utils/mono-time.h>
+#include <mono/utils/mono-threads.h>
 #include <mono/utils/dtrace.h>
 #include <mono/utils/gc_wrapper.h>
 
@@ -34,9 +37,19 @@
 #include "private/pthread_support.h"
 #endif
 
+#if defined(PLATFORM_MACOSX) && defined(HAVE_PTHREAD_GET_STACKADDR_NP)
+void *pthread_get_stackaddr_np(pthread_t);
+#endif
+
 #define GC_NO_DESCRIPTOR ((gpointer)(0 | GC_DS_LENGTH))
+/*Boehm max heap cannot be smaller than 16MB*/
+#define MIN_BOEHM_MAX_HEAP_SIZE_IN_MB 16
+#define MIN_BOEHM_MAX_HEAP_SIZE (MIN_BOEHM_MAX_HEAP_SIZE_IN_MB << 20)
 
 static gboolean gc_initialized = FALSE;
+
+static void*
+boehm_thread_register (MonoThreadInfo* info, void *baseptr);
 
 static void
 mono_gc_warning (char *msg, GC_word arg)
@@ -47,6 +60,9 @@ mono_gc_warning (char *msg, GC_word arg)
 void
 mono_gc_base_init (void)
 {
+	MonoThreadInfoCallbacks cb;
+	char *env;
+
 	if (gc_initialized)
 		return;
 
@@ -100,6 +116,8 @@ mono_gc_base_init (void)
 
 		GC_stackbottom = (char*)ss.ss_sp;
 	}
+#elif defined(__native_client__)
+	/* Do nothing, GC_stackbottom is set correctly in libgc */
 #else
 	{
 		int dummy;
@@ -124,56 +142,165 @@ mono_gc_base_init (void)
 #ifdef HAVE_GC_GCJ_MALLOC
 	GC_init_gcj_malloc (5, NULL);
 #endif
+
+#ifdef HAVE_GC_ALLOW_REGISTER_THREADS
+	GC_allow_register_threads();
+#endif
+
+	if ((env = getenv ("MONO_GC_PARAMS"))) {
+		char **ptr, **opts = g_strsplit (env, ",", -1);
+		for (ptr = opts; *ptr; ++ptr) {
+			char *opt = *ptr;
+			if (g_str_has_prefix (opt, "max-heap-size=")) {
+				glong max_heap;
+
+				opt = strchr (opt, '=') + 1;
+				if (*opt && mono_gc_parse_environment_string_extract_number (opt, &max_heap)) {
+					if (max_heap < MIN_BOEHM_MAX_HEAP_SIZE) {
+						fprintf (stderr, "max-heap-size must be at least %dMb.\n", MIN_BOEHM_MAX_HEAP_SIZE_IN_MB);
+						exit (1);
+					}
+					GC_set_max_heap_size (max_heap);
+				} else {
+					fprintf (stderr, "max-heap-size must be an integer.\n");
+					exit (1);
+				}
+				continue;
+			} else {
+				/* Could be a parameter for sgen */
+				/*
+				fprintf (stderr, "MONO_GC_PARAMS must be a comma-delimited list of one or more of the following:\n");
+				fprintf (stderr, "  max-heap-size=N (where N is an integer, possibly with a k, m or a g suffix)\n");
+				exit (1);
+				*/
+			}
+		}
+		g_strfreev (opts);
+	}
+
+	memset (&cb, 0, sizeof (cb));
+	cb.thread_register = boehm_thread_register;
+	cb.mono_method_is_critical = (gpointer)mono_runtime_is_critical_method;
+#ifndef HOST_WIN32
+	cb.mono_gc_pthread_create = (gpointer)mono_gc_pthread_create;
+#endif
+	
+	mono_threads_init (&cb, sizeof (MonoThreadInfo));
+
 	mono_gc_enable_events ();
 	gc_initialized = TRUE;
 }
 
+/**
+ * mono_gc_collect:
+ * @generation: GC generation identifier
+ *
+ * Perform a garbage collection for the given generation, higher numbers
+ * mean usually older objects. Collecting a high-numbered generation
+ * implies collecting also the lower-numbered generations.
+ * The maximum value for @generation can be retrieved with a call to
+ * mono_gc_max_generation(), so this function is usually called as:
+ *
+ * 	mono_gc_collect (mono_gc_max_generation ());
+ */
 void
 mono_gc_collect (int generation)
 {
-	MONO_PROBE_GC_BEGIN (generation);
+	MONO_GC_BEGIN (generation);
 
 	mono_perfcounters->gc_induced++;
 	GC_gcollect ();
 	
-	MONO_PROBE_GC_END (generation);
+	MONO_GC_END (generation);
 #if defined(ENABLE_DTRACE) && defined(__sun__)
 	/* This works around a dtrace -G problem on Solaris.
 	   Limit its actual use to when the probe is enabled. */
-	if (MONO_PROBE_GC_END_ENABLED ())
+	if (MONO_GC_END_ENABLED ())
 		sleep(0);
 #endif
 }
 
+/**
+ * mono_gc_max_generation:
+ *
+ * Get the maximum generation number used by the current garbage
+ * collector. The value will be 0 for the Boehm collector, 1 or more
+ * for the generational collectors.
+ *
+ * Returns: the maximum generation number.
+ */
 int
 mono_gc_max_generation (void)
 {
 	return 0;
 }
 
+/**
+ * mono_gc_get_generation:
+ * @object: a managed object
+ *
+ * Get the garbage collector's generation that @object belongs to.
+ * Use this has a hint only.
+ *
+ * Returns: a garbage collector generation number
+ */
 int
 mono_gc_get_generation  (MonoObject *object)
 {
 	return 0;
 }
 
+/**
+ * mono_gc_collection_count:
+ * @generation: a GC generation number
+ *
+ * Get how many times a garbage collection has been performed
+ * for the given @generation number.
+ *
+ * Returns: the number of garbage collections
+ */
 int
 mono_gc_collection_count (int generation)
 {
 	return GC_gc_no;
 }
 
+/**
+ * mono_gc_add_memory_pressure:
+ * @value: amount of bytes
+ *
+ * Adjust the garbage collector's view of how many bytes of memory
+ * are indirectly referenced by managed objects (for example unmanaged
+ * memory holding image or other binary data).
+ * This is a hint only to the garbage collector algorithm.
+ * Note that negative amounts of @value will decrease the memory
+ * pressure.
+ */
 void
 mono_gc_add_memory_pressure (gint64 value)
 {
 }
 
+/**
+ * mono_gc_get_used_size:
+ *
+ * Get the approximate amount of memory used by managed objects.
+ *
+ * Returns: the amount of memory used in bytes
+ */
 int64_t
 mono_gc_get_used_size (void)
 {
 	return GC_get_heap_size () - GC_get_free_bytes ();
 }
 
+/**
+ * mono_gc_get_heap_size:
+ *
+ * Get the amount of memory used by the garbage collector.
+ *
+ * Returns: the size of the heap in bytes
+ */
 int64_t
 mono_gc_get_heap_size (void)
 {
@@ -217,6 +344,12 @@ extern int GC_thread_register_foreign (void *base_addr);
 gboolean
 mono_gc_register_thread (void *baseptr)
 {
+	return mono_thread_info_attach (baseptr) != NULL;
+}
+
+static void*
+boehm_thread_register (MonoThreadInfo* info, void *baseptr)
+{
 #if GC_VERSION_MAJOR >= 7
 	struct GC_stack_base sb;
 	int res;
@@ -232,16 +365,16 @@ mono_gc_register_thread (void *baseptr)
 	res = GC_register_my_thread (&sb);
 	if ((res != GC_SUCCESS) && (res != GC_DUPLICATE)) {
 		g_warning ("GC_register_my_thread () failed.\n");
-		return FALSE;
+		return NULL;
 	}
-	return TRUE;
+	return info;
 #else
 	if (mono_gc_is_gc_thread())
-		return TRUE;
+		return info;
 #if defined(USE_INCLUDED_LIBGC) && !defined(HOST_WIN32)
-	return GC_thread_register_foreign (baseptr);
+	return GC_thread_register_foreign (baseptr) ? info : NULL;
 #else
-	return FALSE;
+	return NULL;
 #endif
 #endif
 }
@@ -256,6 +389,12 @@ mono_object_is_alive (MonoObject* o)
 #endif
 }
 
+int
+mono_gc_walk_heap (int flags, MonoGCReferences callback, void *data)
+{
+	return 1;
+}
+
 #ifdef USE_INCLUDED_LIBGC
 
 static gint64 gc_start_time;
@@ -263,30 +402,42 @@ static gint64 gc_start_time;
 static void
 on_gc_notification (GCEventType event)
 {
-	if (event == MONO_GC_EVENT_START) {
-		mono_perfcounters->gc_collections0++;
-		mono_stats.major_gc_count ++;
+	MonoGCEvent e = (MonoGCEvent)event;
+
+	if (e == MONO_GC_EVENT_PRE_STOP_WORLD) 
+		mono_thread_info_suspend_lock ();
+	else if (e == MONO_GC_EVENT_POST_START_WORLD)
+		mono_thread_info_suspend_unlock ();
+	
+	if (e == MONO_GC_EVENT_START) {
+		if (mono_perfcounters)
+			mono_perfcounters->gc_collections0++;
+		gc_stats.major_gc_count ++;
 		gc_start_time = mono_100ns_ticks ();
-	} else if (event == MONO_GC_EVENT_END) {
-		guint64 heap_size = GC_get_heap_size ();
-		guint64 used_size = heap_size - GC_get_free_bytes ();
-		mono_perfcounters->gc_total_bytes = used_size;
-		mono_perfcounters->gc_committed_bytes = heap_size;
-		mono_perfcounters->gc_reserved_bytes = heap_size;
-		mono_perfcounters->gc_gen0size = heap_size;
-		mono_stats.major_gc_time_usecs += (mono_100ns_ticks () - gc_start_time) / 10;
+	} else if (e == MONO_GC_EVENT_END) {
+		if (mono_perfcounters) {
+			guint64 heap_size = GC_get_heap_size ();
+			guint64 used_size = heap_size - GC_get_free_bytes ();
+			mono_perfcounters->gc_total_bytes = used_size;
+			mono_perfcounters->gc_committed_bytes = heap_size;
+			mono_perfcounters->gc_reserved_bytes = heap_size;
+			mono_perfcounters->gc_gen0size = heap_size;
+		}
+		gc_stats.major_gc_time_usecs += (mono_100ns_ticks () - gc_start_time) / 10;
 		mono_trace_message (MONO_TRACE_GC, "gc took %d usecs", (mono_100ns_ticks () - gc_start_time) / 10);
 	}
-	mono_profiler_gc_event ((MonoGCEvent) event, 0);
+	mono_profiler_gc_event (e, 0);
 }
  
 static void
 on_gc_heap_resize (size_t new_size)
 {
 	guint64 heap_size = GC_get_heap_size ();
-	mono_perfcounters->gc_committed_bytes = heap_size;
-	mono_perfcounters->gc_reserved_bytes = heap_size;
-	mono_perfcounters->gc_gen0size = heap_size;
+	if (mono_perfcounters) {
+		mono_perfcounters->gc_committed_bytes = heap_size;
+		mono_perfcounters->gc_reserved_bytes = heap_size;
+		mono_perfcounters->gc_gen0size = heap_size;
+	}
 	mono_profiler_gc_heap_resize (new_size);
 }
 
@@ -387,6 +538,12 @@ mono_gc_make_descr_from_bitmap (gsize *bitmap, int numbits)
 #else
 	return NULL;
 #endif
+}
+
+void*
+mono_gc_make_root_descr_all_refs (int numbits)
+{
+	return NULL;
 }
 
 void*
@@ -553,7 +710,7 @@ mono_gc_wbarrier_set_arrayref (MonoArray *arr, gpointer slot_ptr, MonoObject* va
 void
 mono_gc_wbarrier_arrayref_copy (gpointer dest_ptr, gpointer src_ptr, int count)
 {
-	memmove (dest_ptr, src_ptr, count * sizeof (gpointer));
+	mono_gc_memmove (dest_ptr, src_ptr, count * sizeof (gpointer));
 }
 
 void
@@ -570,14 +727,14 @@ mono_gc_wbarrier_generic_nostore (gpointer ptr)
 void
 mono_gc_wbarrier_value_copy (gpointer dest, gpointer src, int count, MonoClass *klass)
 {
-	memmove (dest, src, count * mono_class_value_size (klass, NULL));
+	mono_gc_memmove (dest, src, count * mono_class_value_size (klass, NULL));
 }
 
 void
 mono_gc_wbarrier_object_copy (MonoObject* obj, MonoObject *src)
 {
 	/* do not copy the sync state */
-	memcpy ((char*)obj + sizeof (MonoObject), (char*)src + sizeof (MonoObject),
+	mono_gc_memmove ((char*)obj + sizeof (MonoObject), (char*)src + sizeof (MonoObject),
 			mono_object_class (obj)->instance_size - sizeof (MonoObject));
 }
 
@@ -826,6 +983,18 @@ create_allocator (int atype, int offset)
 
 static MonoMethod* alloc_method_cache [ATYPE_NUM];
 
+static G_GNUC_UNUSED gboolean
+mono_gc_is_critical_method (MonoMethod *method)
+{
+	int i;
+
+	for (i = 0; i < ATYPE_NUM; ++i)
+		if (method == alloc_method_cache [i])
+			return TRUE;
+
+	return FALSE;
+}
+
 /*
  * If possible, generate a managed method that can quickly allocate objects in class
  * @klass. The method will typically have an thread-local inline allocation sequence.
@@ -849,7 +1018,7 @@ mono_gc_get_managed_allocator (MonoVTable *vtable, gboolean for_box)
 		return NULL;
 	if (!SMALL_ENOUGH (klass->instance_size))
 		return NULL;
-	if (klass->has_finalize || klass->marshalbyref || (mono_profiler_get_events () & MONO_PROFILE_ALLOCATIONS))
+	if (mono_class_has_finalizer (klass) || klass->marshalbyref || (mono_profiler_get_events () & MONO_PROFILE_ALLOCATIONS))
 		return NULL;
 	if (klass->rank)
 		return NULL;
@@ -914,6 +1083,12 @@ mono_gc_get_write_barrier (void)
 }
 
 #else
+
+static G_GNUC_UNUSED gboolean
+mono_gc_is_critical_method (MonoMethod *method)
+{
+	return FALSE;
+}
 
 MonoMethod*
 mono_gc_get_managed_allocator (MonoVTable *vtable, gboolean for_box)
@@ -993,6 +1168,71 @@ mono_gc_wbarrier_value_copy_bitmap (gpointer _dest, gpointer _src, int size, uns
 	g_assert_not_reached ();
 }
 
+
+guint8*
+mono_gc_get_card_table (int *shift_bits, gpointer *card_mask)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
+void*
+mono_gc_get_nursery (int *shift_bits, size_t *size)
+{
+	return NULL;
+}
+
+void
+mono_gc_set_current_thread_appdomain (MonoDomain *domain)
+{
+}
+
+gboolean
+mono_gc_precise_stack_mark_enabled (void)
+{
+	return FALSE;
+}
+
+FILE *
+mono_gc_get_logfile (void)
+{
+	return NULL;
+}
+
+void
+mono_gc_conservatively_scan_area (void *start, void *end)
+{
+	g_assert_not_reached ();
+}
+
+void *
+mono_gc_scan_object (void *obj)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
+gsize*
+mono_gc_get_bitmap_for_descr (void *descr, int *numbits)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
+
+void
+mono_gc_set_gc_callbacks (MonoGCCallbacks *callbacks)
+{
+}
+
+void
+mono_gc_set_stack_end (void *stack_end)
+{
+}
+
+void mono_gc_set_skip_thread (gboolean value)
+{
+}
+
 /*
  * These will call the redefined versions in libgc.
  */
@@ -1017,6 +1257,62 @@ mono_gc_pthread_detach (pthread_t thread)
 	return pthread_detach (thread);
 }
 
+void
+mono_gc_pthread_exit (void *retval)
+{
+	pthread_exit (retval);
+}
+
 #endif
+
+#ifdef HOST_WIN32
+BOOL APIENTRY mono_gc_dllmain (HMODULE module_handle, DWORD reason, LPVOID reserved)
+{
+#ifdef USE_INCLUDED_LIBGC
+	return GC_DllMain (module_handle, reason, reserved);
+#else
+	return TRUE;
+#endif
+}
+#endif
+
+guint
+mono_gc_get_vtable_bits (MonoClass *class)
+{
+	return 0;
+}
+
+/*
+ * mono_gc_register_altstack:
+ *
+ *   Register the dimensions of the normal stack and altstack with the collector.
+ * Currently, STACK/STACK_SIZE is only used when the thread is suspended while it is on an altstack.
+ */
+void
+mono_gc_register_altstack (gpointer stack, gint32 stack_size, gpointer altstack, gint32 altstack_size)
+{
+#ifdef USE_INCLUDED_LIBGC
+	GC_register_altstack (stack, stack_size, altstack, altstack_size);
+#endif
+}
+
+int
+mono_gc_get_los_limit (void)
+{
+	return G_MAXINT;
+}
+
+gboolean
+mono_gc_user_markers_supported (void)
+{
+	return FALSE;
+}
+
+void *
+mono_gc_make_root_descr_user (MonoGCRootMarkFunc marker)
+{
+	g_assert_not_reached ();
+	return NULL;
+}
 
 #endif /* no Boehm GC */

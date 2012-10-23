@@ -31,9 +31,7 @@ using System.Text;
 
 namespace System.Windows.Forms
 {
-#if NET_2_0
 	[DefaultProperty ("Text")]
-#endif
 	[TypeConverter(typeof(TreeNodeConverter))]
 	[Serializable]
 	public class TreeNode : MarshalByRefObject, ICloneable, ISerializable
@@ -45,7 +43,6 @@ namespace System.Windows.Forms
 		private string text;
 		private int image_index = -1;
 		private int selected_image_index = -1;
-#if NET_2_0
 		private ContextMenu context_menu;
 		private ContextMenuStrip context_menu_strip;
 		private string image_key = String.Empty;
@@ -53,7 +50,6 @@ namespace System.Windows.Forms
 		private int state_image_index = -1;
 		private string state_image_key = String.Empty;
 		private string tool_tip_text = String.Empty;
-#endif
 		internal TreeNodeCollection nodes;
 		internal TreeViewAction check_reason = TreeViewAction.Unknown;
 
@@ -68,9 +64,7 @@ namespace System.Windows.Forms
 
 		internal IntPtr handle;
 		
-#if NET_2_0
 		private string name = string.Empty;
-#endif
 		#endregion	// Fields
 
 		#region Internal Constructors
@@ -80,12 +74,7 @@ namespace System.Windows.Forms
 			is_expanded = true;
 		}
 
-#if NET_2_0
-		protected
-#else
-		private
-#endif
-		TreeNode (SerializationInfo serializationInfo, StreamingContext context) : this ()
+		protected TreeNode (SerializationInfo serializationInfo, StreamingContext context) : this ()
 		{
 			SerializationInfoEnumerator	en;
 			SerializationEntry		e;
@@ -146,21 +135,29 @@ namespace System.Windows.Forms
 		#endregion	// Public Constructors
 
 		#region ICloneable Members
-		public virtual object Clone()
+		public virtual object Clone ()
 		{
 			TreeNode tn = (TreeNode)Activator.CreateInstance (GetType ());
-			tn.Text = text;
+			tn.name = name;
+			tn.text = text;
+			tn.image_key = image_key;
 			tn.image_index = image_index;
 			tn.selected_image_index = selected_image_index;
+			tn.selected_image_key = selected_image_key;
+			tn.state_image_index = state_image_index;
+			tn.state_image_key = state_image_key;
+			tn.tag = tag;
+			tn.check = check;
+			tn.tool_tip_text = tool_tip_text;
+			tn.context_menu = context_menu;
+			tn.context_menu_strip = context_menu_strip;
 			if (nodes != null) {
 				foreach (TreeNode child in nodes)
-					tn.Nodes.Add ((TreeNode)child.Clone ());
+					tn.nodes.Add ((TreeNode)child.Clone ());
 			}
-			tn.Tag = tag;
-			tn.Checked = Checked;
 			if (prop_bag != null)
 				tn.prop_bag = OwnerDrawPropertyBag.Copy (prop_bag);
-			return tn;	
+			return tn;
 		}
 
 		#endregion	// ICloneable Members
@@ -180,7 +177,6 @@ namespace System.Windows.Forms
 				si.AddValue ("Child-" + i, Nodes [i], typeof (TreeNode));
 		}
 
-#if NET_2_0
 		protected virtual void Deserialize (SerializationInfo serializationInfo, StreamingContext context)
 		{
 			Text = serializationInfo.GetString ("Text");
@@ -209,7 +205,6 @@ namespace System.Windows.Forms
 			for (int i = 0; i < Nodes.Count; i++)
 				si.AddValue ("Child-" + i, Nodes[i], typeof (TreeNode));
 		}
-#endif
 		#endregion	// ISerializable Members
 
 		#region Public Instance Properties
@@ -230,9 +225,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public Rectangle Bounds {
 			get {
 				if (TreeView == null)
@@ -263,10 +256,8 @@ namespace System.Windows.Forms
 			int indent_level = IndentLevel;
 			int roots = (TreeView.ShowRootLines ? 1 : 0);
 			int cb = (TreeView.CheckBoxes ? 19 : 0);
-#if NET_2_0
 			if (!TreeView.CheckBoxes && StateImage != null)
 				cb = 19;
-#endif
 			int imgs = (TreeView.ImageList != null ?  TreeView.ImageList.ImageSize.Width + 3 : 0);
 			return ((indent_level + roots) * TreeView.Indent) + cb + imgs - TreeView.hbar_offset;
 		}
@@ -279,11 +270,7 @@ namespace System.Windows.Forms
 
 		internal int GetImageX ()
 		{
-#if NET_2_0
 			return GetLinesX () + (TreeView.CheckBoxes || StateImage != null ? 19 : 0);
-#else
-			return GetLinesX () + (TreeView.CheckBoxes ? 19 : 0);
-#endif
 		}
 
 		// In theory we should be able to track this instead of computing
@@ -302,9 +289,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[DefaultValue (false)]
-#endif
 		public bool Checked {
 			get { return check; }
 			set {
@@ -326,7 +311,6 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[DefaultValue (null)]
 		public virtual ContextMenu ContextMenu {
 			get { return context_menu; }
@@ -340,7 +324,6 @@ namespace System.Windows.Forms
 		}
 		
 		[Browsable (false)]
-#endif
 		public TreeNode FirstNode {
 			get {
 				if (nodes.Count > 0)
@@ -368,17 +351,11 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public string FullPath {
 			get {
 				if (TreeView == null)
-#if NET_2_0
 					throw new InvalidOperationException ("No TreeView associated");
-#else
-					throw new Exception ("No TreeView associated");
-#endif
 
 				StringBuilder builder = new StringBuilder ();
 				BuildFullPath (builder);
@@ -386,13 +363,11 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[DefaultValue (-1)]
 		[RelatedImageList ("TreeView.ImageList")]
 		[TypeConverter (typeof (TreeViewImageIndexConverter))]
 		[RefreshProperties (RefreshProperties.Repaint)]
 		[Editor ("System.Windows.Forms.Design.ImageIndexEditor, " + Consts.AssemblySystem_Design, typeof (System.Drawing.Design.UITypeEditor))]
-#endif
 		[Localizable(true)]
 		public int ImageIndex {
 			get { return image_index; }
@@ -400,16 +375,13 @@ namespace System.Windows.Forms
 				if (image_index == value)
 					return;
 				image_index = value;
-#if NET_2_0
 				image_key = string.Empty;
-#endif
 				TreeView tree = TreeView;
 				if (tree != null)
 					tree.UpdateNode (this);
 			}
 		}
 
-#if NET_2_0
 		[Localizable(true)]
 		[DefaultValue ("")]
 		[RelatedImageList ("TreeView.ImageList")]
@@ -429,11 +401,8 @@ namespace System.Windows.Forms
 				tree.UpdateNode(this);
 			}
 		}
-#endif
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public bool IsEditing {
 			get {
 				TreeView tv = TreeView;
@@ -443,9 +412,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public bool IsExpanded {
 			get {
 				TreeView tv = TreeView;
@@ -466,9 +433,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public bool IsSelected {
 			get {
 				if (TreeView == null || !TreeView.IsHandleCreated)
@@ -477,9 +442,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public bool IsVisible {
 			get {
 				if (TreeView == null || !TreeView.IsHandleCreated || !TreeView.Visible)
@@ -492,16 +455,13 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public TreeNode LastNode {
 			get {
 				return (nodes == null || nodes.Count == 0) ? null : nodes [nodes.Count - 1];
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
 		public int Level {
 			get { return IndentLevel; }
@@ -515,11 +475,8 @@ namespace System.Windows.Forms
 				this.name = (value == null) ? string.Empty : value;
 			}
 		}
-#endif
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public TreeNode NextNode {
 			get {
 				if (parent == null)
@@ -531,9 +488,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public TreeNode NextVisibleNode {
 			get {
 				OpenTreeNodeEnumerator o = new OpenTreeNodeEnumerator (this);
@@ -548,9 +503,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[DefaultValue (null)]
-#endif
 		[Localizable (true)]
 		public Font NodeFont {
 			get {
@@ -568,9 +521,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		[ListBindable (false)]
 		public TreeNodeCollection Nodes {
 			get {
@@ -580,9 +531,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public TreeNode Parent {
 			get {
 				TreeView tree_view = TreeView;
@@ -592,9 +541,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public TreeNode PrevNode {
 			get {
 				if (parent == null)
@@ -606,9 +553,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public TreeNode PrevVisibleNode {
 			get {
 				OpenTreeNodeEnumerator o = new OpenTreeNodeEnumerator (this);
@@ -623,20 +568,17 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[DefaultValue (-1)]
 		[RelatedImageList ("TreeView.ImageList")]
 		[TypeConverter (typeof (TreeViewImageIndexConverter))]
 		[RefreshProperties (RefreshProperties.Repaint)]
 		[Editor ("System.Windows.Forms.Design.ImageIndexEditor, " + Consts.AssemblySystem_Design, typeof (System.Drawing.Design.UITypeEditor))]
-#endif
 		[Localizable (true)]
 		public int SelectedImageIndex {
 			get { return selected_image_index; }
 			set { selected_image_index = value; }
 		}
 
-#if NET_2_0
 		[Localizable (true)]
 		[DefaultValue ("")]
 		[RelatedImageList ("TreeView.ImageList")]
@@ -681,7 +623,6 @@ namespace System.Windows.Forms
 				}
 			}
 		}
-#endif
 
 		[Bindable(true)]
 		[Localizable(false)]
@@ -704,16 +645,13 @@ namespace System.Windows.Forms
 					return;
 				text = value;
 				Invalidate ();
-#if NET_2_0
 				// UIA Framework Event: Text Changed
 				TreeView view = TreeView;
 				if (view != null)
 					view.OnUIANodeTextChanged (new TreeViewEventArgs (this));
-#endif
 			}
 		}
 
-#if NET_2_0
 		[DefaultValue ("")]
 		[Localizable (false)]
 		public string ToolTipText {
@@ -722,7 +660,6 @@ namespace System.Windows.Forms
 		}
 		
 		[Browsable (false)]
-#endif
 		public TreeView TreeView {
 			get {
 				if (tree_view != null)
@@ -739,9 +676,7 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		[Browsable (false)]
-#endif
 		public IntPtr Handle {
 			get {
 				// MS throws a NullReferenceException if the TreeView isn't set...
@@ -775,7 +710,6 @@ namespace System.Windows.Forms
 			CollapseInternal (false);
 		}
 
-#if NET_2_0
 		public void Collapse (bool ignoreChildren)
 		{
 			if (ignoreChildren)
@@ -783,7 +717,7 @@ namespace System.Windows.Forms
 			else
 				CollapseRecursive (this);
 		}
-#endif
+
 		public void EndEdit (bool cancel)
 		{
 			TreeView tv = TreeView;
@@ -1106,7 +1040,6 @@ namespace System.Windows.Forms
 			}
 		}
 
-#if NET_2_0
 		internal Image StateImage {
 			get {
 				if (TreeView != null) {
@@ -1121,7 +1054,6 @@ namespace System.Windows.Forms
 				return null;
 			}
 		}
-#endif
 
 		// Order of operation:
 		// 1) Node.Image[Key|Index]
@@ -1135,23 +1067,19 @@ namespace System.Windows.Forms
 				if (IsSelected) {
 					if (selected_image_index >= 0)
 						return selected_image_index;
-#if NET_2_0
 					if (!string.IsNullOrEmpty (selected_image_key))
 						return TreeView.ImageList.Images.IndexOfKey (selected_image_key);
 					if (!string.IsNullOrEmpty (TreeView.SelectedImageKey))
 						return TreeView.ImageList.Images.IndexOfKey (TreeView.SelectedImageKey);
-#endif
 					if (TreeView.SelectedImageIndex >= 0)
 						return TreeView.SelectedImageIndex;
 				} else {
 					if (image_index >= 0)
 						return image_index;
-#if NET_2_0
 					if (!string.IsNullOrEmpty (image_key))
 						return TreeView.ImageList.Images.IndexOfKey (image_key);
 					if (!string.IsNullOrEmpty (TreeView.ImageKey))
 						return TreeView.ImageList.Images.IndexOfKey (TreeView.ImageKey);
-#endif
 					if (TreeView.ImageIndex >= 0)
 						return TreeView.ImageIndex;
 				}

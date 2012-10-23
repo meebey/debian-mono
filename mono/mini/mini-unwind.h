@@ -16,10 +16,16 @@
  * This is a platform-independent interface for unwinding through stack frames 
  * based on the Dwarf unwinding interface.
  * See http://dwarfstd.org/Dwarf3.pdf, section "Call Frame Information".
- * Currently, this is only used for emitting unwind info in AOT files.
  */
 
-/* CFA = Canonical Frame Address */
+/*
+ * CFA = Canonical Frame Address. By convention, this is the value of the stack pointer
+ * prior to the execution of the call instruction in the caller. I.e. on x86, it is
+ * esp + 4 on entry to a function. The value of the CFA does not change during execution
+ * of a function. There are two kinds of unwind directives:
+ * - those that describe how to compute the CFA at a given pc offset inside a function
+ * - those that describe where a given register is saved relative to the CFA.
+ */
 
 /* Unwind ops */
 
@@ -69,11 +75,11 @@ typedef struct {
  */
 
 /* Set cfa to reg+offset */
-#define mono_emit_unwind_op_def_cfa(cfg,ip,reg,offset) mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_def_cfa, (reg), (offset))
+#define mono_emit_unwind_op_def_cfa(cfg,ip,reg,offset) do { mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_def_cfa, (reg), (offset)); (cfg)->cfa_reg = (reg); (cfg)->cfa_offset = (offset); } while (0)
 /* Set cfa to reg+existing offset */
-#define mono_emit_unwind_op_def_cfa_reg(cfg,ip,reg) mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_def_cfa_register, (reg), (0))
+#define mono_emit_unwind_op_def_cfa_reg(cfg,ip,reg) do { mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_def_cfa_register, (reg), (0)); (cfg)->cfa_reg = (reg); } while (0)
 /* Set cfa to existing reg+offset */
-#define mono_emit_unwind_op_def_cfa_offset(cfg,ip,offset) mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_def_cfa_offset, (0), (offset))
+#define mono_emit_unwind_op_def_cfa_offset(cfg,ip,offset) do { mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_def_cfa_offset, (0), (offset)); (cfg)->cfa_offset = (offset); } while (0)
 /* Reg is the same as it was on enter to the function */
 #define mono_emit_unwind_op_same_value(cfg,ip,reg) mono_emit_unwind_op (cfg, (ip) - (cfg)->native_code, DW_CFA_same_value, (reg), 0)
 /* Reg is saved at cfa+offset */
@@ -85,6 +91,24 @@ typedef struct {
 #define mono_add_unwind_op_def_cfa_offset(op_list,code,buf,offset) do { (op_list) = g_slist_append ((op_list), mono_create_unwind_op ((code) - (buf), DW_CFA_def_cfa_offset, 0, (offset))); } while (0)
 #define mono_add_unwind_op_same_value(op_list,code,buf,reg) do { (op_list) = g_slist_append ((op_list), mono_create_unwind_op ((code) - (buf), DW_CFA_same_value, (reg), 0)); } while (0)
 #define mono_add_unwind_op_offset(op_list,code,buf,reg,offset) do { (op_list) = g_slist_append ((op_list), mono_create_unwind_op ((code) - (buf), DW_CFA_offset, (reg), (offset))); } while (0)
+
+/* Pointer Encoding in the .eh_frame */
+enum {
+	DW_EH_PE_absptr = 0x00,
+	DW_EH_PE_omit = 0xff,
+
+	DW_EH_PE_udata4 = 0x03,
+	DW_EH_PE_sdata4 = 0x0b,
+	DW_EH_PE_sdata8 = 0x0c,
+
+	DW_EH_PE_pcrel = 0x10,
+	DW_EH_PE_textrel = 0x20,
+	DW_EH_PE_datarel = 0x30,
+	DW_EH_PE_funcrel = 0x40,
+	DW_EH_PE_aligned = 0x50,
+
+	DW_EH_PE_indirect = 0x80
+};
 
 int
 mono_hw_reg_to_dwarf_reg (int reg) MONO_INTERNAL;
@@ -103,8 +127,9 @@ mono_unwind_ops_encode (GSList *unwind_ops, guint32 *out_len) MONO_INTERNAL;
 
 void
 mono_unwind_frame (guint8 *unwind_info, guint32 unwind_info_len, 
-				   guint8 *start_ip, guint8 *end_ip, guint8 *ip, mgreg_t *regs, 
-				   int nregs, guint8 **out_cfa) MONO_INTERNAL;
+				   guint8 *start_ip, guint8 *end_ip, guint8 *ip, mgreg_t *regs, int nregs,
+				   mgreg_t **save_locations, int save_locations_len,
+				   guint8 **out_cfa) MONO_INTERNAL;
 
 void mono_unwind_init (void) MONO_INTERNAL;
 
@@ -115,6 +140,21 @@ guint32 mono_cache_unwind_info (guint8 *unwind_info, guint32 unwind_info_len) MO
 guint8* mono_get_cached_unwind_info (guint32 index, guint32 *unwind_info_len) MONO_INTERNAL;
 
 guint8* mono_unwind_decode_fde (guint8 *fde, guint32 *out_len, guint32 *code_len, MonoJitExceptionInfo **ex_info, guint32 *ex_info_len, gpointer **type_info, int *this_reg, int *this_offset) MONO_LLVM_INTERNAL;
+
+/* Data retrieved from an LLVM Mono FDE entry */
+typedef struct {
+	/* Malloc'ed */
+	guint8 *unw_info;
+	guint32 unw_info_len;
+	MonoJitExceptionInfo *ex_info;
+	guint32 ex_info_len;
+	gpointer *type_info;
+	int this_reg;
+	int this_offset;
+} MonoLLVMFDEInfo;
+
+void
+mono_unwind_decode_llvm_mono_fde (guint8 *fde, int fde_len, guint8 *cie, guint8 *code, MonoLLVMFDEInfo *res) MONO_INTERNAL;
 
 GSList* mono_unwind_get_cie_program (void) MONO_INTERNAL;
 

@@ -47,7 +47,7 @@ namespace System {
 		static int terminal_size;
 		
 		//static uint flag = 0xdeadbeef;
-		static string [] locations = { "/etc/terminfo", "/usr/share/terminfo", "/usr/lib/terminfo" };
+		readonly static string [] locations = { "/etc/terminfo", "/usr/share/terminfo", "/usr/lib/terminfo" };
 
 		TermInfoReader reader;
 		int cursorLeft;
@@ -212,8 +212,11 @@ namespace System {
 					endString += resetColors;
 				
 				unsafe {
-					if (!ConsoleDriver.TtySetup (keypadXmit, endString, out control_characters, out native_terminal_size))
-						throw new IOException ("Error initializing terminal.");
+					if (!ConsoleDriver.TtySetup (keypadXmit, endString, out control_characters, out native_terminal_size)){
+						control_characters = new byte [17];
+						native_terminal_size = null;
+						//throw new IOException ("Error initializing terminal.");
+					}
 				}
 				
 				stdin = new StreamReader (Console.OpenStandardInput (0), Console.InputEncoding);
@@ -247,7 +250,7 @@ namespace System {
 				
 				GetCursorPosition ();
 #if DEBUG
-					logger.WriteLine ("noGetPosition: {0} left: {1} top: {2}", noGetPosition, cursorLeft, cursorTop);
+				logger.WriteLine ("noGetPosition: {0} left: {1} top: {2}", noGetPosition, cursorLeft, cursorTop);
 				logger.Flush ();
 #endif
 				if (noGetPosition) {
@@ -545,6 +548,7 @@ namespace System {
 					Init ();
 				}
 
+				CheckWindowDimensions ();
 				return bufferHeight;
 			}
 			set {
@@ -562,6 +566,7 @@ namespace System {
 					Init ();
 				}
 
+				CheckWindowDimensions ();
 				return bufferWidth;
 			}
 			set {
@@ -578,8 +583,7 @@ namespace System {
 				if (!inited) {
 					Init ();
 				}
-
-				throw new NotSupportedException ();
+				return false;
 			}
 		}
 
@@ -677,7 +681,7 @@ namespace System {
 					Init ();
 				}
 
-				throw new NotSupportedException ();
+				return false;
 			}
 		}
 
@@ -1321,74 +1325,6 @@ namespace System {
 			keymap [TermInfoStrings.KeyIc] = new ConsoleKeyInfo ('\0', ConsoleKey.Insert, false, false, false);
 		}
 
-		//
-		// The keys that we know about and use
-		//
-		static TermInfoStrings [] UsedKeys = {
-			TermInfoStrings.KeyBackspace,
-			TermInfoStrings.KeyClear,
-			TermInfoStrings.KeyDown,
-			TermInfoStrings.KeyF1,
-			TermInfoStrings.KeyF10,
-			TermInfoStrings.KeyF2,
-			TermInfoStrings.KeyF3,
-			TermInfoStrings.KeyF4,
-			TermInfoStrings.KeyF5,
-			TermInfoStrings.KeyF6,
-			TermInfoStrings.KeyF7,
-			TermInfoStrings.KeyF8,
-			TermInfoStrings.KeyF9,
-			TermInfoStrings.KeyHome,
-			TermInfoStrings.KeyLeft,
-			TermInfoStrings.KeyLl,
-			TermInfoStrings.KeyNpage,
-			TermInfoStrings.KeyPpage,
-			TermInfoStrings.KeyRight,
-			TermInfoStrings.KeySf,
-			TermInfoStrings.KeySr,
-			TermInfoStrings.KeyUp,
-			TermInfoStrings.KeyA1,
-			TermInfoStrings.KeyA3,
-			TermInfoStrings.KeyB2,
-			TermInfoStrings.KeyC1,
-			TermInfoStrings.KeyC3,
-			TermInfoStrings.KeyBtab,
-			TermInfoStrings.KeyBeg,
-			TermInfoStrings.KeyCopy,
-			TermInfoStrings.KeyEnd,
-			TermInfoStrings.KeyEnter,
-			TermInfoStrings.KeyHelp,
-			TermInfoStrings.KeyPrint,
-			TermInfoStrings.KeyUndo,
-			TermInfoStrings.KeySbeg,
-			TermInfoStrings.KeyScopy,
-			TermInfoStrings.KeySdc,
-			TermInfoStrings.KeyShelp,
-			TermInfoStrings.KeyShome,
-			TermInfoStrings.KeySleft,
-			TermInfoStrings.KeySprint,
-			TermInfoStrings.KeySright,
-			TermInfoStrings.KeySundo,
-			TermInfoStrings.KeyF11,
-			TermInfoStrings.KeyF12,
-			TermInfoStrings.KeyF13,
-			TermInfoStrings.KeyF14,
-			TermInfoStrings.KeyF15,
-			TermInfoStrings.KeyF16,
-			TermInfoStrings.KeyF17,
-			TermInfoStrings.KeyF18,
-			TermInfoStrings.KeyF19,
-			TermInfoStrings.KeyF20,
-			TermInfoStrings.KeyF21,
-			TermInfoStrings.KeyF22,
-			TermInfoStrings.KeyF23,
-			TermInfoStrings.KeyF24,
-
-			// These were missing
-			TermInfoStrings.KeyDc,
-			TermInfoStrings.KeyIc
-		};
-		
 		void InitKeys ()
 		{
 			if (initKeys)
@@ -1397,6 +1333,74 @@ namespace System {
 			CreateKeyMap ();
 			rootmap = new ByteMatcher ();
 
+			//
+			// The keys that we know about and use
+			//
+			var UsedKeys = new [] {
+				TermInfoStrings.KeyBackspace,
+				TermInfoStrings.KeyClear,
+				TermInfoStrings.KeyDown,
+				TermInfoStrings.KeyF1,
+				TermInfoStrings.KeyF10,
+				TermInfoStrings.KeyF2,
+				TermInfoStrings.KeyF3,
+				TermInfoStrings.KeyF4,
+				TermInfoStrings.KeyF5,
+				TermInfoStrings.KeyF6,
+				TermInfoStrings.KeyF7,
+				TermInfoStrings.KeyF8,
+				TermInfoStrings.KeyF9,
+				TermInfoStrings.KeyHome,
+				TermInfoStrings.KeyLeft,
+				TermInfoStrings.KeyLl,
+				TermInfoStrings.KeyNpage,
+				TermInfoStrings.KeyPpage,
+				TermInfoStrings.KeyRight,
+				TermInfoStrings.KeySf,
+				TermInfoStrings.KeySr,
+				TermInfoStrings.KeyUp,
+				TermInfoStrings.KeyA1,
+				TermInfoStrings.KeyA3,
+				TermInfoStrings.KeyB2,
+				TermInfoStrings.KeyC1,
+				TermInfoStrings.KeyC3,
+				TermInfoStrings.KeyBtab,
+				TermInfoStrings.KeyBeg,
+				TermInfoStrings.KeyCopy,
+				TermInfoStrings.KeyEnd,
+				TermInfoStrings.KeyEnter,
+				TermInfoStrings.KeyHelp,
+				TermInfoStrings.KeyPrint,
+				TermInfoStrings.KeyUndo,
+				TermInfoStrings.KeySbeg,
+				TermInfoStrings.KeyScopy,
+				TermInfoStrings.KeySdc,
+				TermInfoStrings.KeyShelp,
+				TermInfoStrings.KeyShome,
+				TermInfoStrings.KeySleft,
+				TermInfoStrings.KeySprint,
+				TermInfoStrings.KeySright,
+				TermInfoStrings.KeySundo,
+				TermInfoStrings.KeyF11,
+				TermInfoStrings.KeyF12,
+				TermInfoStrings.KeyF13,
+				TermInfoStrings.KeyF14,
+				TermInfoStrings.KeyF15,
+				TermInfoStrings.KeyF16,
+				TermInfoStrings.KeyF17,
+				TermInfoStrings.KeyF18,
+				TermInfoStrings.KeyF19,
+				TermInfoStrings.KeyF20,
+				TermInfoStrings.KeyF21,
+				TermInfoStrings.KeyF22,
+				TermInfoStrings.KeyF23,
+				TermInfoStrings.KeyF24,
+
+				// These were missing
+				TermInfoStrings.KeyDc,
+				TermInfoStrings.KeyIc
+			};
+			
 			foreach (TermInfoStrings tis in UsedKeys)
 				AddStringMapping (tis);
 			

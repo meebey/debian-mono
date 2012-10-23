@@ -65,8 +65,7 @@
 /*------------------------------------------------------------------*/
 
 gboolean mono_arch_handle_exception (void     *ctx,
-				     gpointer obj, 
-				     gboolean test_only);
+									 gpointer obj);
 
 /*========================= End of Prototypes ======================*/
 
@@ -75,23 +74,6 @@ gboolean mono_arch_handle_exception (void     *ctx,
 /*------------------------------------------------------------------*/
 
 /*====================== End of Global Variables ===================*/
-
-/*------------------------------------------------------------------*/
-/*                                                                  */
-/* Name		- mono_arch_has_unwind_info                         */
-/*                                                                  */
-/* Function	- Tests if a function has a DWARF exception table   */
-/*		  that is able to restore all caller saved registers*/
-/*                                                                  */
-/*------------------------------------------------------------------*/
-
-gboolean
-mono_arch_has_unwind_info (gconstpointer addr)
-{
-	return FALSE;
-}
-
-/*========================= End of Function ========================*/
 
 /*------------------------------------------------------------------*/
 /*                                                                  */
@@ -246,7 +228,7 @@ throw_exception (MonoObject *exc, unsigned long ip, unsigned long sp,
 		if (!rethrow)
 			mono_ex->stack_trace = NULL;
 	}
-	mono_arch_handle_exception (&ctx, exc, FALSE);
+	mono_arch_handle_exception (&ctx, exc);
 	setcontext(&ctx);
 
 	g_assert_not_reached ();
@@ -433,41 +415,29 @@ mono_arch_get_throw_exception_by_name (void)
 /*                                                                  */
 /* Name		- mono_arch_find_jit_info                           */
 /*                                                                  */
-/* Function	- This function is used to gather informatoin from  */
-/*                @ctx. It returns the MonoJitInfo of the corres-   */
-/*                ponding function, unwinds one stack frame and     */
-/*                stores the resulting context into @new_ctx. It    */
-/*                also stores a string describing the stack location*/
-/*                into @trace (if not NULL), and modifies the @lmf  */
-/*                if necessary. @native_offset returns the IP off-  */
-/*                set from the start of the function or -1 if that  */
-/*                informatoin is not available.                     */
+/* Function	- See exceptions-amd64.c for docs.                      */
 /*                                                                  */
 /*------------------------------------------------------------------*/
 
-MonoJitInfo *
+gboolean
 mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, 
-			 MonoJitInfo *res, MonoJitInfo *prev_ji, MonoContext *ctx, 
-			 MonoContext *new_ctx, MonoLMF **lmf, gboolean *managed)
+							 MonoJitInfo *ji, MonoContext *ctx, 
+							 MonoContext *new_ctx, MonoLMF **lmf,
+							 mgreg_t **save_locations,
+							 StackFrameInfo *frame)
 {
-	MonoJitInfo *ji;
 	gpointer ip = MONO_CONTEXT_GET_IP (ctx);
 	MonoS390StackFrame *sframe;
 
-	if (prev_ji && 
-	    (ip >= prev_ji->code_start && 
-	    ((guint8 *) ip <= ((guint8 *) prev_ji->code_start) + prev_ji->code_size)))
-		ji = prev_ji;
-	else
-		ji = mini_jit_info_table_find (domain, ip, NULL);
+	memset (frame, 0, sizeof (StackFrameInfo));
+	frame->ji = ji;
 
-	if (managed)
-		*managed = FALSE;
+	*new_ctx = *ctx;
 
 	if (ji != NULL) {
 		gint32 address;
 
-		*new_ctx = *ctx;
+		frame->type = FRAME_TYPE_MANAGED;
 
 		if (*lmf && (MONO_CONTEXT_GET_SP (ctx) >= (gpointer)(*lmf)->ebp)) {
 			/* remove any unused lmf */
@@ -476,40 +446,36 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls,
 
 		address = (char *)ip - (char *)ji->code_start;
 
-		if (managed)
-			if (!ji->method->wrapper_type)
-				*managed = TRUE;
-
 		sframe = (MonoS390StackFrame *) MONO_CONTEXT_GET_SP (ctx);
 		MONO_CONTEXT_SET_BP (new_ctx, sframe->prev);
 		sframe = (MonoS390StackFrame *) sframe->prev;
-		MONO_CONTEXT_SET_IP (new_ctx, sframe->return_address);
+		MONO_CONTEXT_SET_IP (new_ctx, (guint8*)sframe->return_address - 2);
 		memcpy (&new_ctx->uc_mcontext.gregs[6], sframe->regs, (8*sizeof(gint32)));
-		return ji;
+		return TRUE;
 	} else if (*lmf) {
-		
-		*new_ctx = *ctx;
-
 		if (!(*lmf)->method)
-			return (gpointer)-1;
+			return FALSE;
 
-		if ((ji = mini_jit_info_table_find (domain, (gpointer)(*lmf)->eip, NULL))) {
-		} else {
-			memset (res, 0, MONO_SIZEOF_JIT_INFO);
-			res->method = (*lmf)->method;
+		ji = mini_jit_info_table_find (domain, (gpointer)(*lmf)->eip, NULL);
+		if (!ji) {
+			// FIXME: This can happen with multiple appdomains (bug #444383)
+			return FALSE;
 		}
+
+		frame->ji = ji;
+		frame->type = FRAME_TYPE_MANAGED_TO_NATIVE;
 
 		memcpy(new_ctx->uc_mcontext.gregs, (*lmf)->gregs, sizeof((*lmf)->gregs));
 		memcpy(new_ctx->uc_mcontext.fpregs.fprs, (*lmf)->fregs, sizeof((*lmf)->fregs));
 
 		MONO_CONTEXT_SET_BP (new_ctx, (*lmf)->ebp);
-		MONO_CONTEXT_SET_IP (new_ctx, (*lmf)->eip);
+		MONO_CONTEXT_SET_IP (new_ctx, (*lmf)->eip - 2);
 		*lmf = (*lmf)->previous_lmf;
 
-		return ji ? ji : res;
+		return TRUE;
 	}
 
-	return NULL;
+	return FALSE;
 }
 
 /*========================= End of Function ========================*/
@@ -522,15 +488,13 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls,
 /*                                                                  */
 /* Parameters   - ctx       - Saved processor state                 */
 /*                obj       - The exception object                  */
-/*                test_only - Only test if the exception is caught, */
-/*                            but don't call handlers               */
 /*                                                                  */
 /*------------------------------------------------------------------*/
 
 gboolean
-mono_arch_handle_exception (void *uc, gpointer obj, gboolean test_only)
+mono_arch_handle_exception (void *uc, gpointer obj)
 {
-	return mono_handle_exception (uc, obj, mono_arch_ip_from_context(uc), test_only);
+	return mono_handle_exception (uc, obj);
 }
 
 /*========================= End of Function ========================*/

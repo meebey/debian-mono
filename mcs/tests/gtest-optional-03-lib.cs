@@ -4,6 +4,11 @@ public struct S
 {
 }
 
+public enum E
+{
+	Value = 3
+}
+
 public class B
 {
 	public static string TestString (string s = "mono")
@@ -31,8 +36,13 @@ public class B
 		return d;
 	}
 	
-	char ch;
-	public char this [int id, char v = 'h'] {
+	public static E TestEnum (E e = E.Value)
+	{
+		return e;
+	}
+	
+	byte ch;
+	public byte this [int id, byte v = 1+5] {
 		get { return v; }
 		set { ch = value; } 
 	}

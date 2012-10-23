@@ -19,12 +19,18 @@
 #define GINT_TO_POINTER(v)     @GINT_TO_POINTER@
 #define GUINT_TO_POINTER(v)    @GUINT_TO_POINTER@
 
+#if @HAVE_ALLOCA_H@ == 1
+#define G_HAVE_ALLOCA_H
+#endif
+
 typedef unsigned @GSIZE@ gsize;
 typedef signed   @GSIZE@ gssize;
 
 #define G_GSIZE_FORMAT   @GSIZE_FORMAT@
 #define G_GUINT64_FORMAT @G_GUINT64_FORMAT@
 #define G_GINT64_FORMAT @G_GINT64_FORMAT@
+#define G_GUINT32_FORMAT @G_GUINT32_FORMAT@
+#define G_GINT32_FORMAT @G_GINT32_FORMAT@
 
 #if @G_HAVE_ISO_VARARGS@ == 1
 #define G_HAVE_ISO_VARARGS
@@ -37,5 +43,7 @@ typedef signed   @GSIZE@ gssize;
 #undef G_BREAKPOINT
 #define G_BREAKPOINT()
 #endif
+
+typedef @PIDTYPE@ GPid;
 
 #endif

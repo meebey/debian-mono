@@ -3,6 +3,7 @@
 
 #include <mono/arch/ppc/ppc-codegen.h>
 #include <mono/utils/mono-sigcontext.h>
+#include <mono/utils/mono-context.h>
 #include <glib.h>
 
 #ifdef __mono_ppc64__
@@ -42,27 +43,6 @@ struct MonoLMF {
 	gdouble    fregs [MONO_SAVED_FREGS]; /* 14..31 */
 };
 
-/* we define our own structure and we'll copy the data
- * from sigcontext/ucontext/mach when we need it.
- * This also makes us save stack space and time when copying
- * We might also want to add an additional field to propagate
- * the original context from the signal handler.
- */
-typedef struct {
-	gulong sc_ir;          // pc 
-	gulong sc_sp;          // r1
-	mgreg_t regs [MONO_SAVED_GREGS];
-	double fregs [MONO_SAVED_FREGS];
-} MonoContext;
-
-/*
- * This structure is an extension of MonoLMF and contains extra information.
- */
-typedef struct {
-	struct MonoLMF lmf;
-	gboolean debugger_invoke;
-	MonoContext ctx; /* if debugger_invoke is TRUE */
-} MonoLMFExt;
 
 typedef struct MonoCompileArch {
 	int fp_conv_var_offset;
@@ -195,7 +175,7 @@ typedef struct MonoCompileArch {
 #define MONO_ARCH_IMT_REG ppc_r12
 
 #define MONO_ARCH_VTABLE_REG	ppc_r12
-#define MONO_ARCH_RGCTX_REG	ppc_r12
+#define MONO_ARCH_RGCTX_REG	MONO_ARCH_IMT_REG
 
 #define MONO_ARCH_NO_IOV_CHECK 1
 #define MONO_ARCH_HAVE_DECOMPOSE_OPTS 1
@@ -203,10 +183,8 @@ typedef struct MonoCompileArch {
 
 #define MONO_ARCH_HAVE_GENERALIZED_IMT_THUNK 1
 
-#define MONO_ARCH_HAVE_STATIC_RGCTX_TRAMPOLINE 1
 #define MONO_ARCH_HAVE_FULL_AOT_TRAMPOLINES 1
 #define MONO_ARCH_HAVE_XP_UNWIND 1
-#define MONO_ARCH_HAVE_FIND_JIT_INFO_EXT 1
 
 #define MONO_ARCH_GSHARED_SUPPORTED 1
 
@@ -220,16 +198,6 @@ typedef struct MonoCompileArch {
 
 #define PPC_NUM_REG_ARGS (PPC_LAST_ARG_REG-PPC_FIRST_ARG_REG+1)
 #define PPC_NUM_REG_FPARGS (PPC_LAST_FPARG_REG-PPC_FIRST_FPARG_REG+1)
-
-/* we have the stack pointer, not the base pointer in sigcontext */
-#define MONO_CONTEXT_SET_IP(ctx,ip) do { (ctx)->sc_ir = (gulong)ip; } while (0);
-/* FIXME: should be called SET_SP */
-#define MONO_CONTEXT_SET_BP(ctx,bp) do { (ctx)->sc_sp = (gulong)bp; } while (0);
-#define MONO_CONTEXT_SET_SP(ctx,sp) do { (ctx)->sc_sp = (gulong)sp; } while (0);
-
-#define MONO_CONTEXT_GET_IP(ctx) ((gpointer)((ctx)->sc_ir))
-#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)((ctx)->regs [ppc_r31-13]))
-#define MONO_CONTEXT_GET_SP(ctx) ((gpointer)((ctx)->sc_sp))
 
 #ifdef MONO_CROSS_COMPILE
 
@@ -285,6 +253,8 @@ typedef struct {
 #endif
 #endif
 
+#define MONO_ARCH_INIT_TOP_LMF_ENTRY(lmf) do { (lmf)->ebp = -1; } while (0)
+
 typedef struct {
 	gint8 reg;
 	gint8 size;
@@ -330,6 +300,11 @@ extern guint8* mono_ppc_create_pre_code_ftnptr (guint8 *code) MONO_INTERNAL;
 /* For other operating systems, we pull the definition from an external file */
 #include "mini-ppc-os.h"
 #endif
+
+gboolean
+mono_ppc_tail_call_supported (MonoMethodSignature *caller_sig, MonoMethodSignature *callee_sig) MONO_INTERNAL;
+
+#define MONO_ARCH_USE_OP_TAIL_CALL(caller_sig, callee_sig) mono_ppc_tail_call_supported (caller_sig, callee_sig)
 
 void
 mono_ppc_patch (guchar *code, const guchar *target) MONO_INTERNAL;

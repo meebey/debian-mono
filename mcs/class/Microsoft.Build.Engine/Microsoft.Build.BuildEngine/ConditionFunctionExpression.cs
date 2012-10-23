@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -46,7 +44,7 @@ namespace Microsoft.Build.BuildEngine {
 			Type t = typeof (ConditionFunctionExpression);
 			string [] names = new string [] { "Exists", "HasTrailingSlash" };
 		
-			functions = new Dictionary <string, MethodInfo> ();
+			functions = new Dictionary <string, MethodInfo> (StringComparer.OrdinalIgnoreCase);
 			foreach (string name in names)
 				functions.Add (name, t.GetMethod (name, BindingFlags.NonPublic | BindingFlags.Static));
 		}
@@ -60,10 +58,10 @@ namespace Microsoft.Build.BuildEngine {
 		public override  bool BoolEvaluate (Project context)
 		{
 			if (!functions.ContainsKey (name))
-				throw new InvalidOperationException ();
+				throw new InvalidOperationException ("Unknown function named: " + name);
 			
 			if (functions [name] == null)
-				throw new InvalidOperationException ();
+				throw new InvalidOperationException ("Unknown function named: " + name);
 				
 			MethodInfo mi = functions [name];
 			object [] argsArr = new object [args.Count + 1];
@@ -135,5 +133,3 @@ namespace Microsoft.Build.BuildEngine {
 
 	}
 }
-
-#endif

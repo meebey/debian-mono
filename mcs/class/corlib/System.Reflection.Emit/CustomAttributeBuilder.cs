@@ -41,6 +41,7 @@ namespace System.Reflection.Emit {
 	[ComVisible (true)]
 	[ComDefaultInterface (typeof (_CustomAttributeBuilder))]
 	[ClassInterface (ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public class CustomAttributeBuilder : _CustomAttributeBuilder {
 		ConstructorInfo ctor;
 		byte[] data;
@@ -117,6 +118,18 @@ namespace System.Reflection.Emit {
 			return true;
 		}
 
+		static bool IsValidValue (Type type, object value) {
+			if (type.IsValueType && value == null)
+				return false;
+			if (type.IsArray && type.GetElementType ().IsValueType) {
+				foreach (var v in (Array)value) {
+					if (v == null)
+						return false;
+				}
+			}
+			return true;
+		} 
+
 		private void Initialize (ConstructorInfo con, object [] constructorArgs,
 				PropertyInfo [] namedProperties, object [] propertyValues,
 				FieldInfo [] namedFields, object [] fieldValues)
@@ -156,6 +169,8 @@ namespace System.Reflection.Emit {
 					throw new ArgumentException ("Field '" + fi.Name + "' does not belong to the same class as the constructor");
 				if (!IsValidType (fi.FieldType))
 					throw new ArgumentException ("Field '" + fi.Name + "' does not have a valid type.");
+				if (!IsValidValue (fi.FieldType, fieldValues [i]))
+					throw new ArgumentException ("Field " + fi.Name + " is not a valid value.");
 				// FIXME: Check enums and TypeBuilders as well
 				if (fieldValues [i] != null)
 					// IsEnum does not seem to work on TypeBuilders
@@ -179,6 +194,8 @@ namespace System.Reflection.Emit {
 					throw new ArgumentException ("Property '" + pi.Name + "' does not belong to the same class as the constructor");
 				if (!IsValidType (pi.PropertyType))
 					throw new ArgumentException ("Property '" + pi.Name + "' does not have a valid type.");
+				if (!IsValidValue (pi.PropertyType, propertyValues [i]))
+					throw new ArgumentException ("Property " + pi.Name + " is not a valid value.");
 				if (propertyValues [i] != null) {
 					if (!(pi.PropertyType is TypeBuilder) && !pi.PropertyType.IsEnum && !pi.PropertyType.IsInstanceOfType (propertyValues [i]))
 						if (!pi.PropertyType.IsArray)
@@ -193,12 +210,15 @@ namespace System.Reflection.Emit {
 					Type paramType = pi.ParameterType;
 					if (!IsValidType (paramType))
 						throw new ArgumentException ("Parameter " + i + " does not have a valid type.");
+					if (!IsValidValue (paramType, constructorArgs [i]))
+						throw new ArgumentException ("Parameter " + i + " is not a valid value.");
+					
 					if (constructorArgs [i] != null) {
 						if (!(paramType is TypeBuilder) && !paramType.IsEnum && !paramType.IsInstanceOfType (constructorArgs [i]))
 							if (!paramType.IsArray)
 								throw new ArgumentException ("Value of argument " + i + " does not match parameter type: " + paramType + " -> " + constructorArgs [i]);
 						if (!IsValidParam (constructorArgs [i], paramType))
-							throw new ArgumentException ("Cannot emit a CustomAttribute with argument of type " + constructorArgs [i].GetType () + ".");
+							throw new ArgumentException ("Cannot emit a CustomAttribute with argument of type " + constructorArgs [i].GetType () + "."); 
 					}
 				}
 				i ++;

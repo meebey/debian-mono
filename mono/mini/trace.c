@@ -6,6 +6,7 @@
  *   Dietmar Maurer (dietmar@ximian.com)
  *
  * (C) 2002 Ximian, Inc.
+ * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
  */
 
 #include <config.h>
@@ -75,6 +76,10 @@ mono_trace_eval (MonoMethod *method)
 		case MONO_TRACEOP_PROGRAM:
 			if (trace_spec.assembly && (method->klass->image == mono_assembly_get_image (trace_spec.assembly)))
 				inc = 1; break;
+		case MONO_TRACEOP_WRAPPER:
+			if ((method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) ||
+				(method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE))
+				inc = 1; break;
 		case MONO_TRACEOP_METHOD:
 			if (mono_method_desc_full_match ((MonoMethodDesc *) op->data, method))
 				inc = 1; break;
@@ -137,6 +142,7 @@ enum Token {
 	TOKEN_PROGRAM,
 	TOKEN_EXCEPTION,
 	TOKEN_NAMESPACE,
+	TOKEN_WRAPPER,
 	TOKEN_STRING,
 	TOKEN_EXCLUDE,
 	TOKEN_DISABLED,
@@ -184,6 +190,8 @@ get_token (void)
 			return TOKEN_ALL;
 		if (strcmp (value, "program") == 0)
 			return TOKEN_PROGRAM;
+		if (strcmp (value, "wrapper") == 0)
+			return TOKEN_WRAPPER;
 		if (strcmp (value, "disabled") == 0)
 			return TOKEN_DISABLED;
 		return TOKEN_STRING;
@@ -234,6 +242,8 @@ get_spec (int *last)
 		trace_spec.ops [*last].op = MONO_TRACEOP_ALL;
 	else if (token == TOKEN_PROGRAM)
 		trace_spec.ops [*last].op = MONO_TRACEOP_PROGRAM;
+	else if (token == TOKEN_WRAPPER)
+		trace_spec.ops [*last].op = MONO_TRACEOP_WRAPPER;
 	else if (token == TOKEN_NAMESPACE){
 		trace_spec.ops [*last].op = MONO_TRACEOP_NAMESPACE;
 		trace_spec.ops [*last].data = g_strdup (value);
@@ -318,10 +328,8 @@ static double seconds_since_start (void)
 }
 
 static void indent (int diff) {
-	int v;
 	if (diff < 0)
 		indent_level += diff;
-	v = indent_level;
 	if (start_time == 0)
 		start_time = mono_100ns_ticks ();
 	printf ("[%p: %.5f %d] ", (void*)GetCurrentThreadId (), seconds_since_start (), indent_level);
@@ -393,7 +401,7 @@ mono_trace_enter_method (MonoMethod *method, char *ebp)
 
 	arg_info = alloca (sizeof (MonoJitArgumentInfo) * (sig->param_count + 1));
 
-	mono_arch_get_argument_info (sig, sig->param_count, arg_info);
+	mono_arch_get_argument_info (NULL, sig, sig->param_count, arg_info);
 
 	if (MONO_TYPE_ISSTRUCT (mono_method_signature (method)->ret)) {
 		g_assert (!mono_method_signature (method)->ret->byref);

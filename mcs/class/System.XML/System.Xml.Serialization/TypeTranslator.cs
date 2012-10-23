@@ -98,16 +98,20 @@ namespace System.Xml.Serialization
 			nameCache.Add (typeof (decimal), new TypeData (typeof (decimal), "decimal", true));
 			nameCache.Add (typeof (XmlQualifiedName), new TypeData (typeof (XmlQualifiedName), "QName", true));
 			nameCache.Add (typeof (string), new TypeData (typeof (string), "string", true));
+#if !MOONLIGHT
 			XmlSchemaPatternFacet guidFacet = new XmlSchemaPatternFacet();
 			guidFacet.Value = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 			nameCache.Add (typeof (Guid), new TypeData (typeof (Guid), "guid", true, (TypeData)nameCache[typeof (string)], guidFacet));
+#endif
 			nameCache.Add (typeof (byte), new TypeData (typeof (byte), "unsignedByte", true));
 			nameCache.Add (typeof (sbyte), new TypeData (typeof (sbyte), "byte", true));
 			nameCache.Add (typeof (char), new TypeData (typeof (char), "char", true, (TypeData)nameCache[typeof (ushort)], null));
 			nameCache.Add (typeof (object), new TypeData (typeof (object), "anyType", false));
 			nameCache.Add (typeof (byte[]), new TypeData (typeof (byte[]), "base64Binary", true));
+#if !MOONLIGHT
 			nameCache.Add (typeof (XmlNode), new TypeData (typeof (XmlNode), "XmlNode", false));
 			nameCache.Add (typeof (XmlElement), new TypeData (typeof (XmlElement), "XmlElement", false));
+#endif
 
 			primitiveTypes = new Hashtable();
 			ICollection types = nameCache.Values;
@@ -163,8 +167,11 @@ namespace System.Xml.Serialization
 			return GetTypeData (type, null);
 		}
 
-		public static TypeData GetTypeData (Type runtimeType, string xmlDataType)
+		public static TypeData GetTypeData (Type runtimeType, string xmlDataType, bool underlyingEnumType = false)
 		{
+			if (underlyingEnumType && runtimeType.IsEnum)
+				runtimeType = Enum.GetUnderlyingType (runtimeType);
+
 			Type type = runtimeType;
 			bool nullableOverride = false;
 #if NET_2_0
@@ -172,7 +179,39 @@ namespace System.Xml.Serialization
 			if (type.IsGenericType && type.GetGenericTypeDefinition () == typeof (Nullable<>)) {
 				nullableOverride = true;
 				type = type.GetGenericArguments () [0];
+			}
 
+
+			if ((xmlDataType != null) && (xmlDataType.Length != 0)) {
+				// If the type is an array, xmlDataType specifies the type for the array elements,
+				// not for the whole array. The exception is base64Binary, since it is a byte[],
+				// that's why the following check is needed.
+				TypeData at = GetPrimitiveTypeData (xmlDataType);
+				if (type.IsArray && type != at.Type) {
+						TypeData tt = (TypeData) primitiveArrayTypes [xmlDataType];
+						if (tt != null)
+							return tt;
+						if (at.Type == type.GetElementType ()) {
+							tt = new TypeData (type, GetArrayName (at.XmlType), false);
+							primitiveArrayTypes [xmlDataType] = tt;
+							return tt;
+						}
+						else
+							throw new InvalidOperationException ("Cannot convert values of type '" + type.GetElementType () + "' to '" + xmlDataType + "'");
+				}
+				if (nullableOverride){
+					TypeData tt = (TypeData) nullableTypes [at.XmlType];
+					if (tt == null){
+						tt = new TypeData (type, at.XmlType, false);
+						tt.IsNullable = true;
+						nullableTypes [at.XmlType] = tt;
+					}
+					return tt;
+				}
+				return at;
+			}
+
+			if (nullableOverride){
 				TypeData pt = GetTypeData (type); // beware this recursive call btw ...
 				if (pt != null) {
 						TypeData tt = (TypeData) nullableTypes [pt.XmlType];
@@ -193,27 +232,7 @@ namespace System.Xml.Serialization
 				}
 			}
 #endif
-
-			if ((xmlDataType != null) && (xmlDataType.Length != 0)) {
-				// If the type is an array, xmlDataType specifies the type for the array elements,
-				// not for the whole array. The exception is base64Binary, since it is a byte[],
-				// that's why the following check is needed.
-				TypeData at = GetPrimitiveTypeData (xmlDataType);
-				if (type.IsArray && type != at.Type) {
-						TypeData tt = (TypeData) primitiveArrayTypes [xmlDataType];
-						if (tt != null)
-							return tt;
-						if (at.Type == type.GetElementType ()) {
-							tt = new TypeData (type, GetArrayName (at.XmlType), false);
-							primitiveArrayTypes [xmlDataType] = tt;
-							return tt;
-						}
-						else
-							throw new InvalidOperationException ("Cannot convert values of type '" + type.GetElementType () + "' to '" + xmlDataType + "'");
-				}
-				return at;
-			}
-
+			
 				TypeData typeData = nameCache[runtimeType] as TypeData;
 				if (typeData != null) return typeData;
 

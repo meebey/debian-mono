@@ -324,12 +324,14 @@ namespace MonoTests.System.ServiceModel
 		}
 
 		[Test]
+		[Category ("NotWorking")] // Timeouts randomly #5813
 		public void RunDestinationUnreachableTest ()
 		{
 			RunDestinationUnreachableTest ("BasicHttp", new BasicHttpBinding ());
 		}
 
 		[Test]
+		[Category ("NotWorking")] // Timeouts randomly #5813
 		public void RunDestinationUnreachableTest2 ()
 		{
 			RunDestinationUnreachableTest ("CustomSoap12", new CustomBinding (new HttpTransportBindingElement ()));
@@ -370,6 +372,34 @@ namespace MonoTests.System.ServiceModel
 			var binding = new BasicHttpBinding ();
 			var contract = ContractDescription.GetContract (typeof (IDummyService));
 			host.AddServiceEndpoint (new ServiceEndpoint (contract, binding, address));
+		}
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))]
+		public void AddServiceEndpoint_Directly_NullAddress ()
+		{
+			var host = new ServiceHost (typeof (DummyService));
+			var binding = new BasicHttpBinding ();
+			var contract = ContractDescription.GetContract (typeof (IDummyService));
+			host.AddServiceEndpoint (new ServiceEndpoint (contract, binding, null));
+		}
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))]
+		public void AddServiceEndpoint_Directly_NullBinding ()
+		{
+			var host = new ServiceHost (typeof (DummyService));
+			var address = new EndpointAddress ("http://localhost:8080");
+			var contract = ContractDescription.GetContract (typeof (IDummyService));
+			host.AddServiceEndpoint (new ServiceEndpoint (contract, null, address));
+		}
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))]
+		public void AddServiceMetadataEndpoint ()
+		{
+			var host = new ServiceHost (typeof (DummyService));
+			host.AddServiceEndpoint (new ServiceMetadataEndpoint ());
 		}
 
 		[Test]

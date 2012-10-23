@@ -5,6 +5,8 @@
 
 using System;
 using System.Reflection;
+using System.Reflection.Emit;
+using System.Threading;
 
 using NUnit.Framework;
 
@@ -1023,7 +1025,6 @@ namespace MonoTests.System
 		}
 
 		[Test] // #617161
-		[Category ("NotWorking")]
 		public void ClosedOverNullReferenceStaticMethod ()
 		{
 			var del = (Func<long?,long?>) Delegate.CreateDelegate (
@@ -1065,7 +1066,86 @@ namespace MonoTests.System
 
 			action_int (42);
 		}
+
+		class Foo {
+
+			public void Bar ()
+			{
+			}
+		}
+
+		Foo foo;
+		event Action bar_handler;
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))] // #635349, #605936
+		public void NewDelegateClosedOverNullReferenceInstanceMethod ()
+		{
+			bar_handler += foo.Bar;
+		}
+
+		public void Banga ()
+		{
+		}
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))]
+		public void CreateDelegateOpenOnly ()
+		{
+			Delegate.CreateDelegate (
+				typeof (Action),
+				this.GetType ().GetMethod ("Banga"));
+		}
+
+		[Test] // #664205
+		public void DynamicInvokeNullTarget ()
+		{
+			var method = new DynamicMethod ("test", typeof (int), new [] { typeof (object) }, true);
+			var il = method.GetILGenerator ();
+			il.Emit (OpCodes.Ldc_I4, 42);
+			il.Emit (OpCodes.Ret);
+
+			var @delegate = method.CreateDelegate (typeof (Func<int>), null);
+
+			Assert.AreEqual (42, (int) @delegate.DynamicInvoke ());
+		}
+
 #endif
+		public static void CreateDelegateOfStaticMethodBoundToNull_Helper (object[] args) {}
+
+		[Test]
+		public void CreateDelegateOfStaticMethodBoundToNull ()
+		{
+			Type t = typeof (Action);
+			MethodInfo m = typeof (DelegateTest).GetMethod ("CreateDelegateOfStaticMethodBoundToNull_Helper");
+			object firstArg = null;
+	
+			try {
+				Delegate.CreateDelegate (t, m) ;
+				Assert.Fail ("#1");
+			} catch (ArgumentException) {  }
+	
+			try {
+				Delegate.CreateDelegate(t, m, true);
+				Assert.Fail ("#2");
+			} catch (ArgumentException) {  }
+	
+			try {
+				Delegate.CreateDelegate(t, m, false);
+			} catch (ArgumentException) { Assert.Fail ("#3"); }
+	
+			try {
+				Delegate.CreateDelegate(t, null, m);
+			} catch (ArgumentException) { Assert.Fail ("#4"); }
+	
+			try {
+				Delegate.CreateDelegate(t, null, m, true);
+			} catch (ArgumentException) { Assert.Fail ("#5");  }
+	
+			try {
+				Delegate.CreateDelegate(t, null, m, false);
+			} catch (ArgumentException) { Assert.Fail ("#6"); }
+		}
 
 		[Test]
 		public void GetHashCode_Constant () {
@@ -1077,6 +1157,50 @@ namespace MonoTests.System
 			Assert.AreEqual (hc1, hc2);
 		}
 
+		public interface CreateDelegateIFoo {
+			int Test2 ();
+		}
+		
+		public abstract class CreateDelegateFoo {
+			public abstract int Test ();
+		}
+		
+		public class CreateDelegateMid : CreateDelegateFoo {
+			public override int Test () {
+				return 1;
+			}
+		}
+		
+		public class CreateDelegateBar : CreateDelegateMid, CreateDelegateIFoo {
+			public override int Test () {
+				return 2;
+			}
+		
+			public int Test2 () {
+				return 3;
+			}
+		}
+	
+		delegate int IntNoArgs ();
+
+		[Test]
+		public void CreateDelegateWithAbstractMethods ()
+		{
+			var f = new CreateDelegateBar ();
+			var m = typeof (CreateDelegateFoo).GetMethod ("Test");
+			var m2 = typeof (CreateDelegateMid).GetMethod ("Test");
+			var m3 = typeof (CreateDelegateIFoo).GetMethod ("Test2");
+	
+			IntNoArgs a1 = (IntNoArgs)Delegate.CreateDelegate (typeof (IntNoArgs), f, m);
+			IntNoArgs a2 = (IntNoArgs)Delegate.CreateDelegate (typeof (IntNoArgs), f, m2);
+			IntNoArgs a3 = (IntNoArgs)Delegate.CreateDelegate (typeof (IntNoArgs), f, m3);
+
+			Assert.AreEqual (2, a1 (), "#1");
+			Assert.AreEqual (2, a2 (), "#2");
+			Assert.AreEqual (3, a3 (), "#3");
+		}
+		
+
 		delegate string FooDelegate (Iface iface, string s);
 
 		delegate string FooDelegate2 (B b, string s);
@@ -1084,6 +1208,116 @@ namespace MonoTests.System
 		public interface Iface
 		{
 			string retarg (string s);
+		}
+
+		[Test]
+		public void CreateDelegateWithLdFtnAndAbstractMethod ()
+		{
+			AssemblyName assemblyName = new AssemblyName ();
+			assemblyName.Name = "customMod";
+			assemblyName.Version = new Version (1, 2, 3, 4);
+	
+			AssemblyBuilder assembly
+				= Thread.GetDomain ().DefineDynamicAssembly (
+					  assemblyName, AssemblyBuilderAccess.RunAndSave);
+	
+			ModuleBuilder module = assembly.DefineDynamicModule ("res", "res.dll");
+	
+			TypeBuilder tb = module.DefineType ("Test2", TypeAttributes.Public, typeof (object));
+	
+			{
+				MethodBuilder mb =
+					tb.DefineMethod ("test", MethodAttributes.Public | MethodAttributes.Static,
+									 typeof (int), null);
+				ILGenerator il = mb.GetILGenerator ();
+	
+				il.Emit (OpCodes.Newobj, typeof (CreateDelegateBar).GetConstructor (new Type [] { }));
+				il.Emit (OpCodes.Ldftn, typeof (CreateDelegateIFoo).GetMethod ("Test2"));
+				il.Emit (OpCodes.Newobj, typeof (IntNoArgs).GetConstructor (new Type [] { typeof (object), typeof (IntPtr) }));
+				il.Emit (OpCodes.Call, typeof (IntNoArgs).GetMethod ("Invoke"));
+				il.Emit (OpCodes.Ret);
+			}
+	
+			Type t = tb.CreateType ();
+	
+			Object obj = Activator.CreateInstance (t, new object [0] { });
+	
+			int a = (int) t.GetMethod ("test").Invoke (obj, null);
+			Assert.AreEqual (3, a, "#1");
+		}
+
+		public static int MethodWithIntParam (int x) {
+			return 10;
+		}
+
+		[Test]
+		[Category("NotWorking")]
+		public void CantBindValueTypeToFirstArg () {
+			try {
+				Delegate.CreateDelegate (typeof (Delegate695978_2), 10, typeof (DelegateTest).GetMethod ("MethodWithIntParam"));
+				Assert.Fail ("create delegate must fail");
+			} catch (ArgumentException) {}
+		}
+
+		struct Struct695978 {
+			public int value;
+			public int test() { return value + 10; }
+			public static int test2 (ref Struct695978 foo) { return foo.value + 20; }
+		}
+
+		delegate int Delegate695978_1 (ref Struct695978 _this);
+		delegate int Delegate695978_2 ();
+		delegate int Delegate695978_3 (Struct695978 _this);
+
+		[Test] //tests for #695978
+		[Category ("NotWorking")]
+		public void DelegateWithValueTypeArguments ()
+		{
+			Struct695978 es = new Struct695978 ();
+			es.value = 100;
+
+			var ar1 = (Delegate695978_1)Delegate.CreateDelegate(typeof (Delegate695978_1), typeof (Struct695978).GetMethod("test"));
+			Assert.IsNotNull (ar1);
+			Assert.AreEqual (110, ar1 (ref es));
+
+			var ar2 = (Delegate695978_2)Delegate.CreateDelegate(typeof (Delegate695978_2), null, typeof (Struct695978).GetMethod("test"));
+			Assert.IsNotNull (ar2);
+			Assert.AreEqual (110, ar2 ());
+
+			ar1 = (Delegate695978_1) Delegate.CreateDelegate(typeof (Delegate695978_1), typeof (Struct695978).GetMethod("test2"));
+			Assert.IsNotNull (ar1);
+			Assert.AreEqual (120, ar1 (ref es));
+
+			try {
+				Delegate.CreateDelegate(typeof (Delegate695978_2), null, typeof (Struct695978).GetMethod("test2"));
+				Assert.Fail ("#1");
+			} catch (ArgumentException) {}
+
+
+			ar2 = (Delegate695978_2) Delegate.CreateDelegate(typeof (Delegate695978_2), new Struct695978 (), typeof (Struct695978).GetMethod("test"));
+			Assert.IsNotNull (ar2);
+			Assert.AreEqual (120, ar2 ());
+
+			try {
+				Delegate.CreateDelegate(typeof (Delegate695978_2), new Struct695978 (), typeof (Struct695978).GetMethod("test2"));
+				Assert.Fail ("#2");
+			} catch (ArgumentException) {}
+
+			try {
+				Delegate.CreateDelegate(typeof (Delegate695978_3), typeof (Struct695978).GetMethod("test"));
+				Assert.Fail ("#3");
+			} catch (ArgumentException) {}
+		}
+
+        private static Func<Int32, Int32, bool> Int32D = (x, y) => (x & y) == y;
+
+		[Test]
+		public void EnumBaseTypeConversion () {
+			var d =
+				Delegate.CreateDelegate(typeof (Func<StringComparison,
+												StringComparison, bool>), Int32D.Method) as
+				Func<StringComparison, StringComparison, bool>; 
+			Assert.IsTrue (d (0, 0));
 		}
 
 		public class B {

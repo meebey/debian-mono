@@ -199,7 +199,7 @@ namespace System.Web.UI
 		[DesignerSerializationVisibility (DesignerSerializationVisibility.Hidden)]
 		[EditorBrowsable (EditorBrowsableState.Never), Browsable (false)]
 #if NET_4_0
-		[Bindable (true)]
+		[Bindable (false)]
 #endif
 		public Control BindingContainer {
 			get {
@@ -546,7 +546,7 @@ namespace System.Web.UI
 		[Browsable (false)]
 		[WebSysDescription ("The container that this control is part of. The control's name has to be unique within the container.")]
 #if NET_4_0
-		[Bindable (true)]
+		[Bindable (false)]
 #endif
 		public virtual Control NamingContainer {
 			get {
@@ -583,7 +583,7 @@ namespace System.Web.UI
 		[Browsable (false)]
 		[WebSysDescription ("The parent control of this control.")]
 #if NET_4_0
-		[Bindable (true)]
+		[Bindable (false)]
 #endif
 		public virtual Control Parent { //DIT
 			get { return _parent; }
@@ -600,7 +600,7 @@ namespace System.Web.UI
 		[Browsable (false)]
 		[DesignerSerializationVisibility (DesignerSerializationVisibility.Hidden)]
 #if NET_4_0
-		[Bindable (true)]
+		[Bindable (false)]
 #endif
 		public TemplateControl TemplateControl {
 			get { return TemplateControlInternal; }
@@ -842,16 +842,16 @@ namespace System.Web.UI
 				return ret;
 
 			System.ComponentModel.AttributeCollection attrs = TypeDescriptor.GetAttributes (myType);
-			if (attrs != null || attrs.Count > 0) {
-				ret = false;
+			ret = false;
+			
+			if (attrs != null) {
 				foreach (Attribute attr in attrs) {
 					if (attr is ViewStateModeByIdAttribute) {
 						ret = true;
 						break;
 					}
 				}
-			} else
-				ret = false;
+			}
 			
 			loadViewStateByIDCache.Add (myType, ret);
 			return ret;
@@ -1092,7 +1092,7 @@ namespace System.Web.UI
 				namingContainer = NamingContainer;
 				if (namingContainer == null)
 					return null;
-				
+
 				return namingContainer.FindControl (id, pathOffset);
 			}
 
@@ -1100,8 +1100,24 @@ namespace System.Web.UI
 				return null;
 			
 			int separatorIdx = id.IndexOf (IdSeparator, pathOffset);
-			if (separatorIdx == -1)
-				return LookForControlByName (id.Substring (pathOffset));
+			if (separatorIdx == -1) {
+				// If there are no separators in the id, we must first check whether
+				// any direct descendant control with that id exists before
+				// attempting to look in our naming container
+				Control ctl = LookForControlByName (pathOffset > 0 ? id.Substring (pathOffset) : id);
+				if (ctl != null)
+					return ctl;
+				
+				if (pathOffset == 0) {
+					namingContainer = NamingContainer;
+					if (namingContainer != null) {
+						ctl = namingContainer.FindControl (id);
+						if (ctl != null)
+							return ctl;
+					}
+				}
+				return null;
+			}
 
 			string idfound = id.Substring (pathOffset, separatorIdx - pathOffset);
 			namingContainer = LookForControlByName (idfound);
@@ -1618,10 +1634,12 @@ namespace System.Web.UI
 				trace.Write ("control", String.Concat ("LoadRecursive ", _userId, " ", type_name));
 			}
 #endif
-			if (Adapter != null)
-				Adapter.OnLoad (EventArgs.Empty);
-			else
-				OnLoad (EventArgs.Empty);
+			if ((stateMask & LOADED) == 0) {
+				if (Adapter != null)
+					Adapter.OnLoad (EventArgs.Empty);
+				else
+					OnLoad (EventArgs.Empty);
+			}
 			int ccount = _controls != null ? _controls.Count : 0;
 			for (int i = 0; i < ccount; i++) {
 				Control c = _controls [i];
@@ -2102,7 +2120,7 @@ namespace System.Web.UI
 		}
 #if NET_4_0
 		[ThemeableAttribute(false)]
-		[DefaultValue ("0")]
+		[DefaultValue (ViewStateMode.Inherit)]
 		public virtual ViewStateMode ViewStateMode {
 			get { return viewStateMode;  }
 			set {
@@ -2149,7 +2167,6 @@ namespace System.Web.UI
 				throw new ArgumentNullException ("control");
 
 			Control parent = this;
-			Page page = Page;
 			Control namingContainer = control.NamingContainer;
 			
 			if (namingContainer != null)

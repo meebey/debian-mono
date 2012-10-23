@@ -25,7 +25,6 @@
 // Authors:
 //	Jonathan Pobst (monkey@jpobst.com)
 //
-#if NET_2_0
 
 using System;
 using System.ComponentModel;
@@ -60,7 +59,8 @@ namespace System.Windows.Forms
 			ia.SetColorMatrix (grayscale_matrix);
 			
 			Bitmap b = new Bitmap(normalImage.Width, normalImage.Height);
-			Graphics.FromImage(b).DrawImage(normalImage, new Rectangle (0, 0, normalImage.Width, normalImage.Height), 0, 0, normalImage.Width, normalImage.Height, GraphicsUnit.Pixel, ia);
+			using (Graphics g = Graphics.FromImage(b))
+				g.DrawImage(normalImage, new Rectangle (0, 0, normalImage.Width, normalImage.Height), 0, 0, normalImage.Width, normalImage.Height, GraphicsUnit.Pixel, ia);
 			
 			return b;
 		}
@@ -192,12 +192,18 @@ namespace System.Windows.Forms
 
 		protected virtual void OnRenderItemBackground (ToolStripItemRenderEventArgs e)
 		{
-			if (e.Item.BackgroundImage != null) {
+			if (e.Item.BackColor != Control.DefaultBackColor) {
+				// Only paint the BackColor if it's not the default one,
+				// to avoid painting a solid background color over the parent ToolStrip gradient.
 				Rectangle item_bounds = new Rectangle (0, 0, e.Item.Width, e.Item.Height);
 				e.Graphics.FillRectangle (ThemeEngine.Current.ResPool.GetSolidBrush (e.Item.BackColor), item_bounds);
+			}
+
+			if (e.Item.BackgroundImage != null) {
+				Rectangle item_bounds = new Rectangle (0, 0, e.Item.Width, e.Item.Height);
 				DrawBackground (e.Graphics, item_bounds, e.Item.BackgroundImage, e.Item.BackgroundImageLayout);
 			}
-				
+
 			ToolStripItemRenderEventHandler eh = (ToolStripItemRenderEventHandler)Events [RenderItemBackgroundEvent];
 			if (eh != null)
 				eh (this, e);
@@ -564,4 +570,3 @@ namespace System.Windows.Forms
 		#endregion
 	}
 }
-#endif

@@ -25,21 +25,19 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections;
 using System.Xml;
 
 namespace Microsoft.Build.BuildEngine {
 	internal class BuildWhen {
-		Project			parentProject;
+		//Project			parentProject;
 		GroupingCollection	groupingCollection;
 		XmlElement		whenElement;
 	
 		public BuildWhen (XmlElement whenElement, Project parentProject)
 		{
-			this.parentProject = parentProject;
+			//this.parentProject = parentProject;
 			this.groupingCollection = new GroupingCollection (parentProject);
 			if (whenElement == null)
 				throw new ArgumentNullException ("whenElement");
@@ -82,5 +80,3 @@ namespace Microsoft.Build.BuildEngine {
 		}
 	}
 }
-
-#endif

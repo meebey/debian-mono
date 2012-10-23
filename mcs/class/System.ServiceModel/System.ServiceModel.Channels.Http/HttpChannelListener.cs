@@ -40,11 +40,6 @@ using System.Threading;
 
 namespace System.ServiceModel.Channels.Http
 {
-	internal interface IChannelDispatcherBoundListener
-	{
-		ChannelDispatcher ChannelDispatcher { get; set; }
-	}
-
 	internal class HttpChannelListener<TChannel> : InternalChannelListenerBase<TChannel>, IChannelDispatcherBoundListener
 		where TChannel : class, IChannel
 	{
@@ -93,8 +88,13 @@ namespace System.ServiceModel.Channels.Http
 			// HTTP channel could be accepted while there is no incoming request yet. The reply channel waits for the actual request.
 			// HTTP channel listeners do not accept more than one channel at a time.
 			DateTime start = DateTime.Now;
-			accept_channel_handle.WaitOne (timeout - (DateTime.Now - start));
-			accept_channel_handle.Reset ();
+			TimeSpan waitTimeout;
+			if (timeout == TimeSpan.MaxValue)
+				waitTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
+			else
+				waitTimeout = timeout - (DateTime.Now - start);
+			accept_channel_handle.WaitOne (waitTimeout);
+			accept_channel_handle.Reset (); 
 			TChannel ch = CreateChannel (timeout - (DateTime.Now - start));
 			ch.Closed += delegate {
 				accept_channel_handle.Set ();
@@ -125,14 +125,14 @@ namespace System.ServiceModel.Channels.Http
 		protected HttpListenerManager GetOrCreateListenerManager ()
 		{
 			var table = HttpListenerManagerTable.GetOrCreate (ChannelDispatcher != null ? ChannelDispatcher.Host : null);
-			return table.GetOrCreateManager (Uri);
+			return table.GetOrCreateManager (Uri, Source);
 		}
 
 		protected override void OnOpen (TimeSpan timeout)
 		{
 			listener_manager = GetOrCreateListenerManager ();
 			Properties.Add (listener_manager);
-			listener_manager.RegisterListener (ChannelDispatcher, timeout);
+			listener_manager.RegisterListener (ChannelDispatcher, Source, timeout);
 		}
 
 		protected override void OnAbort ()

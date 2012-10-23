@@ -53,6 +53,7 @@ namespace System.Reflection {
 	[ComDefaultInterfaceAttribute (typeof (_AssemblyName))]
 	[Serializable]
 	[ClassInterfaceAttribute (ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public sealed class AssemblyName  : ICloneable, ISerializable, IDeserializationCallback, _AssemblyName {
 
 #pragma warning disable 169
@@ -150,7 +151,10 @@ namespace System.Reflection {
 				if (name == null)
 					return string.Empty;
 				StringBuilder fname = new StringBuilder ();
-				fname.Append (name);
+				if (Char.IsWhiteSpace (name [0]))
+					fname.Append ("\"" + name + "\"");
+				else
+					fname.Append (name);
 				if (Version != null) {
 					fname.Append (", Version=");
 					fname.Append (Version.ToString ());

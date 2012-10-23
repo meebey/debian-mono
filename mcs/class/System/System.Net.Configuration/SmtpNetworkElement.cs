@@ -28,7 +28,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0 && CONFIGURATION_DEP
+#if CONFIGURATION_DEP
 
 using System;
 using System.Configuration;
@@ -72,7 +72,13 @@ namespace System.Net.Configuration {
 			get { return (string) base ["targetName"]; }
 			set { base ["targetName"] = value; }
                 }
-		
+#if NET_4_0
+		[ConfigurationPropertyAttribute("enableSsl", DefaultValue = false)]
+		public bool EnableSsl {
+			get { return (bool) base ["enableSsl"]; }
+			set { base ["enableSsl"] = value; }
+		}
+#endif
 		protected override ConfigurationPropertyCollection Properties {
 			// what to do here?
 			get { return base.Properties; }

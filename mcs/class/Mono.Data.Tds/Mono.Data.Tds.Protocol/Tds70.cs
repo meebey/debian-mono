@@ -522,6 +522,13 @@ namespace Mono.Data.Tds.Protocol
 				size = param.GetActualSize ();
 			}
 
+			/*
+			 * If the value is null, not setting the size to 0 will cause varchar
+			 * fields to get inserted as an empty string rather than an null.
+			 */
+			if (param.Value == null || param.Value == DBNull.Value)
+				size = 0;
+
 			// Change colType according to the following table
 			/* 
 			 * Original Type	Maxlen		New Type 
@@ -615,7 +622,8 @@ namespace Mono.Data.Tds.Protocol
 			// types if param value is NULL
 			if ((colType == TdsColumnType.BigVarChar || 
 			     colType == TdsColumnType.BigNVarChar ||
-			     colType == TdsColumnType.BigVarBinary) && 
+			     colType == TdsColumnType.BigVarBinary ||
+			     colType == TdsColumnType.Image) && 
 			    (param.Value == null || param.Value == DBNull.Value))
 				size = -1;
 			else
@@ -645,7 +653,8 @@ namespace Mono.Data.Tds.Protocol
 					break;
 				}
 				case "smallmoney": {
-					Decimal val = (decimal) param.Value;
+					// 4 == SqlMoney::MoneyFormat.NumberDecimalDigits
+					Decimal val = Decimal.Round ((decimal) param.Value, 4);
 					if (val < SMALLMONEY_MIN || val > SMALLMONEY_MAX)
 						throw new OverflowException (string.Format (
 							CultureInfo.InvariantCulture,
@@ -770,7 +779,10 @@ namespace Mono.Data.Tds.Protocol
 			Parameters = parameters;
 
 			TdsMetaParameterCollection parms = new TdsMetaParameterCollection ();
-			TdsMetaParameter parm = new TdsMetaParameter ("@Handle", "int", null);
+			// Tested with MS SQL 2008 RC2 Express and MS SQL 2012 Express:
+			// You may pass either -1 or 0, but not null as initial value of @Handle,
+			// which is an output parameter.
+			TdsMetaParameter parm = new TdsMetaParameter ("@Handle", "int", -1);
 			parm.Direction = TdsParameterDirection.Output;
 			parms.Add (parm);
 

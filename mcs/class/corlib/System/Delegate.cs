@@ -49,6 +49,7 @@ namespace System
 	[ClassInterface (ClassInterfaceType.AutoDual)]
 	[System.Runtime.InteropServices.ComVisible (true)]
 	[Serializable]
+	[StructLayout (LayoutKind.Sequential)]
 	public abstract class Delegate : ICloneable, ISerializable
 	{
 		#region Sync with object-internals.h
@@ -132,10 +133,25 @@ namespace System
 				if (!argType.IsValueType && argType.IsAssignableFrom (delArgType))
 					match = true;
 			}
+			// enum basetypes
+			if (!match) {
+				if (delArgType.IsEnum && Enum.GetUnderlyingType (delArgType) == argType)
+					match = true;
+			}
 
 			return match;
 		}
 
+		private static bool arg_type_match_this (Type delArgType, Type argType, bool boxedThis) {
+			bool match;
+			if (argType.IsValueType)
+				match = delArgType.IsByRef && delArgType.GetElementType () == argType ||
+						(boxedThis && delArgType == argType);
+			else
+				match = delArgType == argType || argType.IsAssignableFrom (delArgType);
+
+			return match;
+		}
 		private static bool return_type_match (Type delReturnType, Type returnType) {
 			bool returnMatch = returnType == delReturnType;
 
@@ -149,6 +165,11 @@ namespace System
 		}
 
 		public static Delegate CreateDelegate (Type type, object firstArgument, MethodInfo method, bool throwOnBindFailure)
+		{
+			return CreateDelegate (type, firstArgument, method, throwOnBindFailure, true);
+		}
+
+		static Delegate CreateDelegate (Type type, object firstArgument, MethodInfo method, bool throwOnBindFailure, bool allowClosed)
 		{
 			// The name of the parameter changed in 2.0
 			object target = firstArgument;
@@ -211,7 +232,7 @@ namespace System
 			bool argsMatch;
 			if (target != null) {
 				if (!method.IsStatic) {
-					argsMatch = arg_type_match (target.GetType (), method.DeclaringType);
+					argsMatch = arg_type_match_this (target.GetType (), method.DeclaringType, true);
 					for (int i = 0; i < args.Length; i++)
 						argsMatch &= arg_type_match (delargs [i].ParameterType, args [i].ParameterType);
 				} else {
@@ -223,19 +244,19 @@ namespace System
 				if (!method.IsStatic) {
 					if (args.Length + 1 == delargs.Length) {
 						// The first argument should match this
-						argsMatch = arg_type_match (delargs [0].ParameterType, method.DeclaringType);
+						argsMatch = arg_type_match_this (delargs [0].ParameterType, method.DeclaringType, false);
 						for (int i = 0; i < args.Length; i++)
 							argsMatch &= arg_type_match (delargs [i + 1].ParameterType, args [i].ParameterType);
 					} else {
 						// closed over a null reference
-						argsMatch = true;
+						argsMatch = allowClosed;
 						for (int i = 0; i < args.Length; i++)
 							argsMatch &= arg_type_match (delargs [i].ParameterType, args [i].ParameterType);
 					}
 				} else {
 					if (delargs.Length + 1 == args.Length) {
 						// closed over a null reference
-						argsMatch = !args [0].ParameterType.IsValueType;
+						argsMatch = !(args [0].ParameterType.IsValueType || args [0].ParameterType.IsByRef) && allowClosed;
 						for (int i = 0; i < delargs.Length; i++)
 							argsMatch &= arg_type_match (delargs [i].ParameterType, args [i + 1].ParameterType);
 					} else {
@@ -258,22 +279,24 @@ namespace System
 			return d;
 		}
 
-		public static Delegate CreateDelegate (Type type, object firstArgument, MethodInfo method) {
-			return CreateDelegate (type, firstArgument, method, true);
+		public static Delegate CreateDelegate (Type type, object firstArgument, MethodInfo method)
+		{
+			return CreateDelegate (type, firstArgument, method, true, true);
 		}
 
 		public static Delegate CreateDelegate (Type type, MethodInfo method, bool throwOnBindFailure)
 		{
-			return CreateDelegate (type, null, method, throwOnBindFailure);
+			return CreateDelegate (type, null, method, throwOnBindFailure, false);
 		}
 
-		public static Delegate CreateDelegate (Type type, MethodInfo method) {
+		public static Delegate CreateDelegate (Type type, MethodInfo method)
+		{
 			return CreateDelegate (type, method, true);
 		}
 
 		public static Delegate CreateDelegate (Type type, object target, string method)
 		{
-			return CreateDelegate(type, target, method, false);
+			return CreateDelegate (type, target, method, false);
 		}
 
 		static MethodInfo GetCandidateMethod (Type type, Type target, string method, BindingFlags bflags, bool ignoreCase, bool throwOnBindFailure)
@@ -385,7 +408,7 @@ namespace System
 				method_info = m_target.GetType ().GetMethod (data.method_name, mtypes);
 			}
 
-			if ((m_target != null) && Method.IsStatic) {
+			if (Method.IsStatic && (args != null ? args.Length : 0) == Method.GetParameters ().Length - 1) {
 				// The delegate is bound to m_target
 				if (args != null) {
 					object[] newArgs = new object [args.Length + 1];
@@ -464,7 +487,7 @@ namespace System
 					return a;
 
 			if (a.GetType () != b.GetType ())
-				throw new ArgumentException (Locale.GetText ("Incompatible Delegate Types."));
+				throw new ArgumentException (Locale.GetText ("Incompatible Delegate Types. First is {0} second is {1}.", a.GetType ().FullName, b.GetType ().FullName));
 			
 			return a.CombineImpl (b);
 		}

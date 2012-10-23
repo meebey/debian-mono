@@ -5,6 +5,7 @@
  *    Dietmar Maurer (dietmar@ximian.com)
  *
  * (C) 2003 Ximian, Inc.
+ * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
  */
 #include <config.h>
 #include <string.h>
@@ -268,7 +269,7 @@ mono_ssa_rename_vars (MonoCompile *cfg, int max_vars, MonoBasicBlock *bb, gboole
 			}
 			else if (G_UNLIKELY (!var && lvreg_defined [ins->dreg] && (ins->dreg >= MONO_MAX_IREGS))) {
 				/* Perform renaming for local vregs */
-				lvreg_stack [ins->dreg] = mono_alloc_preg (cfg);
+				lvreg_stack [ins->dreg] = vreg_is_ref (cfg, ins->dreg) ? mono_alloc_ireg_ref (cfg) : mono_alloc_preg (cfg);
 				ins->dreg = lvreg_stack [ins->dreg];
 			}
 			else
@@ -683,7 +684,6 @@ mono_ssa_copyprop (MonoCompile *cfg)
 				/* Rewrite all uses of var to be uses of var2 */
 				int dreg = var->dreg;
 				int sreg1 = var2->dreg;
-				const char *spec;
 
 				l = info->uses;
 				while (l) {
@@ -692,8 +692,6 @@ mono_ssa_copyprop (MonoCompile *cfg)
 					GList *next = l->next;
 					int num_sregs;
 					int sregs [MONO_MAX_SRC_REGS];
-
-					spec = INS_INFO (ins->opcode);
 
 					num_sregs = mono_inst_get_src_registers (ins, sregs);
 					for (i = 0; i < num_sregs; ++i) {

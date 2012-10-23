@@ -52,7 +52,20 @@ namespace MonoTests.System.Runtime.CompilerServices {
 		}
 	}
 
-	public class Key {}
+	class Key {
+		public int Foo;
+		public override string ToString () {
+				return "key-" + Foo;
+			}
+	}
+
+	class Val {
+		public int Foo;
+		public override string ToString () {
+			return "value-" + Foo;
+		}
+	}
+	
 
 	[Test]
 	public void GetValue () {
@@ -180,8 +193,9 @@ namespace MonoTests.System.Runtime.CompilerServices {
 
 	[Test]
 	public void Reachability () {
+		if (GC.MaxGeneration == 0) /*Boehm doesn't handle ephemerons */
+			return;
 		var cwt = new ConditionalWeakTable <object,object> ();
-
 		List<object> keepAlive;
 		List<WeakReference> keys;
 		FillStuff (cwt, out keepAlive, out keys);
@@ -226,6 +240,8 @@ namespace MonoTests.System.Runtime.CompilerServices {
 
 	[Test]
 	public void InsertStress () {
+		if (GC.MaxGeneration == 0) /*Boehm doesn't handle ephemerons */
+			return;
 		var cwt = new ConditionalWeakTable <object,object> ();
 
 		var a = new object ();
@@ -275,6 +291,8 @@ namespace MonoTests.System.Runtime.CompilerServices {
 
 	[Test]
 	public void OldGenStress () {
+		if (GC.MaxGeneration == 0) /*Boehm doesn't handle ephemerons */
+			return;
 		var cwt = new ConditionalWeakTable <object,object>[1];
 		List<object> k = null;
 		List<WeakReference> res, res2;
@@ -417,6 +435,8 @@ namespace MonoTests.System.Runtime.CompilerServices {
 	[Test]
 	public void FinalizableObjectsThatRetainDeadKeys ()
 	{
+		if (GC.MaxGeneration == 0) /*Boehm doesn't handle ephemerons */
+			return;
 		lock (_lock1) { 
 			var cwt = new ConditionalWeakTable <object,object> ();
 			ThreadStart dele = () => { FillWithFinalizable (cwt); };
@@ -434,6 +454,37 @@ namespace MonoTests.System.Runtime.CompilerServices {
 		lock (_lock2) { Monitor.Wait (_lock2, 1000); }
 
 		Assert.AreEqual (20, reachable, "#1");
+	}
+
+	[Test]
+	public void OldGenKeysMakeNewGenObjectsReachable ()
+	{
+		if (GC.MaxGeneration == 0) /*Boehm doesn't handle ephemerons */
+			return;
+		ConditionalWeakTable<object, Val> table = new ConditionalWeakTable<object, Val>();
+		List<Key> keys = new List<Key>();
+
+		//
+		// This list references all keys for the duration of the program, so none 
+		// should be collected ever.
+		//
+		for (int x = 0; x < 1000; x++) 
+			keys.Add (new Key () { Foo = x });
+
+		for (int i = 0; i < 1000; ++i) {
+			// Insert all keys into the ConditionalWeakTable
+			foreach (var key in keys)
+				table.Add (key, new Val () { Foo = key.Foo });
+
+			// Look up all keys to verify that they are still there
+			Val val;
+			foreach (var key in keys)
+				Assert.IsTrue (table.TryGetValue (key, out val), "#1-" + i + "-k-" + key);
+
+			// Remove all keys from the ConditionalWeakTable
+			foreach (var key in keys)
+				Assert.IsTrue (table.Remove (key), "#2-" + i + "-k-" + key);
+		}
 	}
 	}
 }

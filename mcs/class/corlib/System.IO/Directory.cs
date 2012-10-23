@@ -93,7 +93,7 @@ namespace System.IO
 
 		static DirectoryInfo CreateDirectoriesInternal (string path)
 		{
-#if !MOONLIGHT
+#if !NET_2_1
 			if (SecurityManager.SecurityEnabled) {
 				new FileIOPermission (FileIOPermissionAccess.Read | FileIOPermissionAccess.Write, path).Demand ();
 			}
@@ -236,18 +236,25 @@ namespace System.IO
 
 		public static string GetCurrentDirectory ()
 		{
-			MonoIOError error;
-
 			SecurityManager.EnsureElevatedPermissions (); // this is a no-op outside moonlight
-				
-			string result = MonoIO.GetCurrentDirectory (out error);
-			if (error != MonoIOError.ERROR_SUCCESS)
-				throw MonoIO.GetException (error);
-#if !MOONLIGHT
+
+			string result = InsecureGetCurrentDirectory();
+#if !NET_2_1
 			if ((result != null) && (result.Length > 0) && SecurityManager.SecurityEnabled) {
 				new FileIOPermission (FileIOPermissionAccess.PathDiscovery, result).Demand ();
 			}
 #endif
+			return result;
+		}
+
+		internal static string InsecureGetCurrentDirectory()
+		{
+			MonoIOError error;
+			string result = MonoIO.GetCurrentDirectory(out error);
+
+			if (error != MonoIOError.ERROR_SUCCESS)
+				throw MonoIO.GetException(error);
+
 			return result;
 		}
 		
@@ -266,12 +273,12 @@ namespace System.IO
 		{
 			if (searchOption == SearchOption.TopDirectoryOnly)
 				return GetDirectories (path, searchPattern);
-			ArrayList all = new ArrayList ();
+			var all = new List<string> ();
 			GetDirectoriesRecurse (path, searchPattern, all);
-			return (string []) all.ToArray (typeof (string));
+			return all.ToArray ();
 		}
 		
-		static void GetDirectoriesRecurse (string path, string searchPattern, ArrayList all)
+		static void GetDirectoriesRecurse (string path, string searchPattern, List<string> all)
 		{
 			all.AddRange (GetDirectories (path, searchPattern));
 			foreach (string dir in GetDirectories (path))
@@ -303,12 +310,12 @@ namespace System.IO
 		{
 			if (searchOption == SearchOption.TopDirectoryOnly)
 				return GetFiles (path, searchPattern);
-			ArrayList all = new ArrayList ();
+			var all = new List<string> ();
 			GetFilesRecurse (path, searchPattern, all);
-			return (string []) all.ToArray (typeof (string));
+			return all.ToArray ();
 		}
 		
-		static void GetFilesRecurse (string path, string searchPattern, ArrayList all)
+		static void GetFilesRecurse (string path, string searchPattern, List<string> all)
 		{
 			all.AddRange (GetFiles (path, searchPattern));
 			foreach (string dir in GetDirectories (path))
@@ -393,7 +400,10 @@ namespace System.IO
 #if !MOONLIGHT
 		public static void SetAccessControl (string path, DirectorySecurity directorySecurity)
 		{
-			throw new NotImplementedException ();
+			if (null == directorySecurity)
+				throw new ArgumentNullException ("directorySecurity");
+				
+			directorySecurity.PersistModifications (path);
 		}
 #endif
 
@@ -461,11 +471,9 @@ namespace System.IO
 			MonoIOError error;
 			if (!MonoIO.ExistsDirectory (wildpath, out error)) {
 				if (error == MonoIOError.ERROR_SUCCESS) {
-					MonoIOError file_error;
-					if (MonoIO.ExistsFile (wildpath, out file_error)) {
-						stop = true;
-						return wildpath;
-					}
+				 	MonoIOError file_error;
+				 	if (MonoIO.ExistsFile (wildpath, out file_error))
+						throw new IOException ("The directory name is invalid.");
 				}
 
 				if (error != MonoIOError.ERROR_PATH_NOT_FOUND)
@@ -503,7 +511,7 @@ namespace System.IO
 			return result;
 		}
 
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		public static string[] GetFileSystemEntries (string path, string searchPattern, SearchOption searchOption)
 		{
 			// Take the simple way home:
@@ -536,34 +544,48 @@ namespace System.IO
 				yield return path_with_pattern;
 				yield break;
 			}
-			
+
 			IntPtr handle;
 			MonoIOError error;
 			FileAttributes rattr;
-			bool subdirs = searchOption == SearchOption.AllDirectories;
 			
 			string s = MonoIO.FindFirst (path, path_with_pattern, out rattr, out error, out handle);
-			if (s == null)
-				yield break;
-			if (error != 0)
-				throw MonoIO.GetException (Path.GetDirectoryName (Path.Combine (path, searchPattern)), (MonoIOError) error);
-
 			try {
-				if (((rattr & FileAttributes.ReparsePoint) == 0) && ((rattr & kind) != 0))
-					yield return s;
-				
-				while ((s = MonoIO.FindNext (handle, out rattr, out error)) != null){
-					if ((rattr & FileAttributes.ReparsePoint) != 0)
-						continue;
-					if ((rattr & kind) != 0)
+				while (s != null) {
+					// Convert any file specific flag to FileAttributes.Normal which is used as include files flag
+					if (((rattr & FileAttributes.Directory) == 0) && rattr != 0)
+						rattr |= FileAttributes.Normal;
+
+					if ((rattr & FileAttributes.ReparsePoint) == 0 && (rattr & kind) != 0)
 						yield return s;
-					
-					if (((rattr & FileAttributes.Directory) != 0) && subdirs)
-						foreach (string child in EnumerateKind (s, searchPattern, searchOption, kind))
-							yield return child;
+
+					s = MonoIO.FindNext (handle, out rattr, out error);
 				}
+
+				if (error != 0)
+					throw MonoIO.GetException (Path.GetDirectoryName (Path.Combine (path, searchPattern)), (MonoIOError) error);
 			} finally {
-				MonoIO.FindClose (handle);
+				if (handle != IntPtr.Zero)
+					MonoIO.FindClose (handle);
+			}
+
+			if (searchOption == SearchOption.AllDirectories) {
+				s = MonoIO.FindFirst (path, Path.Combine (path, "*"), out rattr, out error, out handle);
+
+				try {
+					while (s != null) {
+						if ((rattr & FileAttributes.Directory) != 0)
+							foreach (string child in EnumerateKind (s, searchPattern, searchOption, kind))
+								yield return child;
+						s = MonoIO.FindNext (handle, out rattr, out error);
+					}
+
+					if (error != 0)
+						throw MonoIO.GetException (path, (MonoIOError) error);
+				} finally {
+					if (handle != IntPtr.Zero)
+						MonoIO.FindClose (handle);
+				}
 			}
 		}
 
@@ -627,16 +649,18 @@ namespace System.IO
 #endif
 
 #if !MOONLIGHT
-		[MonoNotSupported ("DirectorySecurity isn't implemented")]
 		public static DirectorySecurity GetAccessControl (string path, AccessControlSections includeSections)
 		{
-			throw new PlatformNotSupportedException ();
+			return new DirectorySecurity (path, includeSections);
 		}
 
-		[MonoNotSupported ("DirectorySecurity isn't implemented")]
 		public static DirectorySecurity GetAccessControl (string path)
 		{
-			throw new PlatformNotSupportedException ();
+			// AccessControlSections.Audit requires special permissions.
+			return GetAccessControl (path,
+						 AccessControlSections.Owner |
+						 AccessControlSections.Group |
+						 AccessControlSections.Access);
 		}
 #endif
 	}

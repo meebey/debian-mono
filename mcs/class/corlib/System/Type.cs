@@ -1,8 +1,9 @@
 //
 // System.Type.cs
 //
-// Author:
+// Authors:
 //   Miguel de Icaza (miguel@ximian.com)
+//   Marek Safar (marek.safar@gmail.com)
 //
 // (C) Ximian, Inc.  http://www.ximian.com
 //
@@ -34,6 +35,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Globalization;
@@ -44,6 +46,7 @@ namespace System {
 	[ClassInterface (ClassInterfaceType.None)]
 	[ComVisible (true)]
 	[ComDefaultInterface (typeof (_Type))]
+	[StructLayout (LayoutKind.Sequential)]
 	public abstract class Type : MemberInfo, IReflect, _Type {
 		
 		internal RuntimeTypeHandle _impl;
@@ -218,6 +221,14 @@ namespace System {
 				return IsCOMObjectImpl ();
 			}
 		}
+		
+#if NET_4_5
+		public virtual bool IsConstructedGenericType {
+			get {
+				throw new NotImplementedException ();
+			}
+		}
+#endif
 
 		public bool IsContextful {
 			get {
@@ -381,11 +392,14 @@ namespace System {
 		}
 
 		public override MemberTypes MemberType {
-			get {return MemberTypes.TypeInfo;}
+			get {
+				return MemberTypes.TypeInfo;
+			}
 		}
 
-		override
-		public abstract Module Module {get;}
+		public abstract override Module Module {
+			get;
+		}
 	
 		public abstract string Namespace {get;}
 
@@ -435,7 +449,7 @@ namespace System {
 #if NET_4_0
 		public virtual bool Equals (Type o)
 		{
-			if ((object)o == this)
+			if ((object)o == (object)this)
 				return true;
 			if ((object)o == null)
 				return false;
@@ -446,7 +460,7 @@ namespace System {
 			o = o.UnderlyingSystemType;
 			if ((object)o == null)
 				return false;
-			if ((object)o == this)
+			if ((object)o == (object)this)
 				return true;
 			return me.EqualsInternal (o);
 		}		
@@ -497,14 +511,22 @@ namespace System {
 
 			var fields = GetFields (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
-			string [] result = new string [fields.Length];
-			for (int i = 0; i < fields.Length; ++i)
-				result [i] = fields [i].Name;
+			string [] names = new string [fields.Length];
+			if (0 != names.Length) {
+				for (int i = 0; i < fields.Length; ++i)
+					names [i] = fields [i].Name;
+					
+				var et = GetEnumUnderlyingType ();
+				var values = Array.CreateInstance (et, names.Length);
+				for (int i = 0; i < fields.Length; ++i)
+					values.SetValue (fields [i].GetValue (null), i);
+				MonoEnumInfo.SortEnums (et, values, names);
+			}
 
-			return result;
+			return names;
 		}
 
-		NotImplementedException CreateNIE () {
+		static NotImplementedException CreateNIE () {
 			return new NotImplementedException ();
 		}
 
@@ -804,13 +826,13 @@ namespace System {
 			if (filter == null)
 				throw new ArgumentNullException ("filter");
 
-			ArrayList ifaces = new ArrayList ();
+			var ifaces = new List<Type> ();
 			foreach (Type iface in GetInterfaces ()) {
 				if (filter (iface, filterCriteria))
 					ifaces.Add (iface);
 			}
 
-			return (Type []) ifaces.ToArray (typeof (Type));
+			return ifaces.ToArray ();
 		}
 		
 		public Type GetInterface (string name) {
@@ -826,11 +848,11 @@ namespace System {
 		public virtual InterfaceMapping GetInterfaceMap (Type interfaceType) {
 			if (!IsSystemType)
 				throw new NotSupportedException ("Derived classes must provide an implementation.");
+			if (interfaceType == null)
+				throw new ArgumentNullException ("interfaceType");
 			if (!interfaceType.IsSystemType)
 				throw new ArgumentException ("interfaceType", "Type is an user type");
 			InterfaceMapping res;
-			if (interfaceType == null)
-				throw new ArgumentNullException ("interfaceType");
 			if (!interfaceType.IsInterface)
 				throw new ArgumentException (Locale.GetText ("Argument must be an interface."), "interfaceType");
 			if (IsInterface)
@@ -1341,13 +1363,6 @@ namespace System {
 			return FullName;
 		}
 
-		internal virtual bool IsCompilerContext {
-			get {
-				AssemblyBuilder builder = Assembly as AssemblyBuilder;
-				return builder != null && builder.IsCompilerContext;
-			}
-		}
-
 		internal virtual Type InternalResolve ()
 		{
 			return UnderlyingSystemType;
@@ -1358,6 +1373,14 @@ namespace System {
 				return _impl.Value != IntPtr.Zero;
 			}
 		}
+		
+#if NET_4_5
+		public virtual Type[] GenericTypeArguments {
+			get {
+				return IsGenericType ? GetGenericArguments () : EmptyTypes;
+			}
+		}
+#endif
 
 		public virtual Type[] GetGenericArguments ()
 		{
@@ -1385,28 +1408,9 @@ namespace System {
 			[MethodImplAttribute(MethodImplOptions.InternalCall)]
 			get;
 		}
-
+		
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		static extern Type MakeGenericType (Type gt, Type [] types);
-
-		static AssemblyBuilder PeelAssemblyBuilder (Type type)
-		{
-			if (type.Assembly is AssemblyBuilder)
-				return (AssemblyBuilder)type.Assembly;
-
-			if (type.HasElementType)
-				return PeelAssemblyBuilder (type.GetElementType ());
-
-			if (!type.IsGenericType || type.IsGenericParameter || type.IsGenericTypeDefinition)
-				return null;
-
-			foreach (Type arg in type.GetGenericArguments ()) {
-				AssemblyBuilder ab = PeelAssemblyBuilder (arg);
-				if (ab != null)
-					return ab;
-			}
-			return null;
-		}
 
 		public virtual Type MakeGenericType (params Type[] typeArguments)
 		{
@@ -1420,7 +1424,6 @@ namespace System {
 				throw new ArgumentException (String.Format ("The type or method has {0} generic parameter(s) but {1} generic argument(s) where provided. A generic argument must be provided for each generic parameter.", GetGenericArguments ().Length, typeArguments.Length), "typeArguments");
 
 			bool hasUserType = false;
-			AssemblyBuilder compilerContext = null;
 
 			Type[] systemTypes = new Type[typeArguments.Length];
 			for (int i = 0; i < typeArguments.Length; ++i) {
@@ -1430,14 +1433,10 @@ namespace System {
 
 				if (!(t is MonoType))
 					hasUserType = true;
-				if (t.IsCompilerContext)
-					compilerContext = PeelAssemblyBuilder (t);
 				systemTypes [i] = t;
 			}
 
 			if (hasUserType) {
-				if (compilerContext != null)
-					return compilerContext.MakeGenericType (this, typeArguments);
 				return new MonoGenericClass (this, typeArguments);
 			}
 
@@ -1583,7 +1582,7 @@ namespace System {
 		public virtual StructLayoutAttribute StructLayoutAttribute {
 			get {
 #if NET_4_0
-				throw CreateNIE ();
+				throw new NotSupportedException ();
 #else
 				return GetStructLayoutAttribute ();
 #endif
@@ -1610,8 +1609,13 @@ namespace System {
 			else
 				attr.CharSet = CharSet.Auto;
 
-			if (kind != LayoutKind.Auto)
-				GetPacking (out attr.Pack, out attr.Size);
+			if (kind != LayoutKind.Auto) {
+				int packing;
+				GetPacking (out packing, out attr.Size);
+				// 0 means no data provided, we end up with default value
+				if (packing != 0)
+					attr.Pack = packing;
+			}
 
 			return attr;
 		}
@@ -1640,7 +1644,7 @@ namespace System {
 		}			
 
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
+#if NET_4_0
 		public virtual bool IsEquivalentTo (Type other)
 		{
 			return this == other;
@@ -1650,15 +1654,12 @@ namespace System {
 		/* 
 		 * Return whenever this object is an instance of a user defined subclass
 		 * of System.Type or an instance of TypeDelegator.
+		 * A user defined type is not simply the opposite of a system type.
+		 * It's any class that's neither a SRE or runtime baked type.
 		 */
-		internal bool IsUserType {
+		internal virtual bool IsUserType {
 			get {
-				/* 
-				 * subclasses cannot modify _impl so if it is zero, it means the
-				 * type is not created by the runtime.
-				 */
-				return _impl.Value == IntPtr.Zero &&
-					(GetType ().Assembly != typeof (Type).Assembly || GetType () == typeof (TypeDelegator));
+				return true;
 			}
 		}
 

@@ -1,18 +1,3 @@
-2010-08-30  Atsushi Eno  <atsushi@ximian.com>
-
-	Add not-working code for TransferMode support.
-
-2010-08-24  Atsushi Eno  <atsushi@ximian.com>
-
-	Disable separate loop for HttpListener context acquisition. It
-	prevents HttpStandaloneChannelListener from closing itself.
-
-2010-08-20  Atsushi Eno  <atsushi@ximian.com>
-
-	When closing the listeners, TryDequeueRequest() could be somehow
-	invoked after the listener entry was removed, so expect null
-	search result.
-
 2010-07-14  Atsushi Enomoto  <atsushi@ximian.com>
 
 	* HttpReplyChannel.cs : pass HTTP ContentType header value to

@@ -658,7 +658,7 @@ namespace MonoTests.System.Reflection.Emit
 				Assert.AreEqual ("FOO", ((ObsoleteAttribute) attrs [0]).Message, "#B3");
 			}
 		}
-
+#if !NET_2_1
 		[Test]
 		[ExpectedException (typeof (InvalidOperationException))]
 		public void TestAddDeclarativeSecurityAlreadyCreated ()
@@ -717,7 +717,7 @@ namespace MonoTests.System.Reflection.Emit
 			mb.AddDeclarativeSecurity (SecurityAction.Demand, set);
 			mb.AddDeclarativeSecurity (SecurityAction.Demand, set);
 		}
-
+#endif
 		[AttributeUsage (AttributeTargets.Parameter)]
 		class ParamAttribute : Attribute
 		{
@@ -1115,6 +1115,29 @@ namespace MonoTests.System.Reflection.Emit
 			Assert.IsNotNull (body);
 			Assert.AreEqual (1, body.LocalVariables.Count);
 			Assert.AreEqual (typeof (object), body.LocalVariables [0].LocalType);
+		}
+
+
+		[Test] //#384127
+		public void GetGenericArgumentsReturnsNullForNonGenericMethod ()
+		{
+			var tb = module.DefineType ("Base");
+	
+			var mb = tb.DefineMethod ("foo", MethodAttributes.Public, typeof (void), Type.EmptyTypes);
+	
+			Assert.IsNull (mb.GetGenericArguments ());
+
+		}
+
+		[Test]
+		[ExpectedException (typeof (ArgumentException))]
+		public void SetConstantIllegalType ()
+		{
+			var tb = module.DefineType ("Base");
+	
+			var mb = tb.DefineMethod ("foo", MethodAttributes.Public, typeof (void), new Type [] { typeof (decimal) });
+			ParameterBuilder pb = mb.DefineParameter (1, ParameterAttributes.In, "foo");
+			pb.SetConstant (5m);
 		}
 	}
 }

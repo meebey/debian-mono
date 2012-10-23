@@ -102,7 +102,7 @@ namespace Mono.Xml.Schema
 
 		// Extra for XmlSchemaValidtingReader
 		// (not in XsdValidatingReader)
-		XsElement element; // ... xsinfo.Element?
+		//XsElement element; // ... xsinfo.Element?
 
 		#endregion
 
@@ -158,9 +158,10 @@ namespace Mono.Xml.Schema
 			remove { v.ValidationEventHandler -= value; }
 		}
 
+		[MonoTODO]
 		public XmlSchemaType ElementSchemaType {
 			get {
-				return element != null ? element.ElementSchemaType : null;
+				return null; // element != null ? element.ElementSchemaType : null;
 			}
 		}
 
@@ -391,7 +392,18 @@ namespace Mono.Xml.Schema
 		}
 
 		public override IXmlSchemaInfo SchemaInfo {
-			get { return this; }
+			get {
+				return new XmlSchemaInfo () {
+					//ContentType = this.ContentType,
+					IsDefault = this.IsDefault,
+					IsNil = this.IsNil,
+					MemberType = this.MemberType,
+					SchemaAttribute = this.SchemaAttribute,
+					SchemaElement = this.SchemaElement,
+					SchemaType = this.SchemaType,
+					Validity = this.Validity
+					};
+			}
 		}
 
 		public override string Value {
@@ -771,26 +783,6 @@ namespace Mono.Xml.Schema
 			defaultAttributeConsumed = true;
 			return true;
 		}
-
-#if NET_1_0
-		public override string ReadInnerXml ()
-		{
-			// MS.NET 1.0 has a serious bug here. It skips validation.
-			return ReadInnerXmlInternal ();
-		}
-
-		public override string ReadOuterXml ()
-		{
-			// MS.NET 1.0 has a serious bug here. It skips validation.
-			return ReadInnerXmlInternal ();
-		}
-
-		// XmlReader.ReadString() should call derived this.Read().
-		public override string ReadString ()
-		{
-			return ReadStringInternal ();
-		}
-#endif
 
 		// This class itself does not have this feature.
 		public override void ResolveEntity ()

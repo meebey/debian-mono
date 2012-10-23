@@ -282,41 +282,32 @@ namespace System
 			if (attributeType == null)
 				throw new ArgumentNullException ("attributeType");
 
-			if (IsUserCattrProvider (obj))
-				return obj.IsDefined (attributeType, inherit);
+			AttributeUsageAttribute usage = null;
+			do {
+				if (IsUserCattrProvider (obj))
+					return obj.IsDefined (attributeType, inherit);
 
-			if (IsDefinedInternal (obj, attributeType))
-				return true;
+				if (IsDefinedInternal (obj, attributeType))
+					return true;
 
-			object[] pseudoAttrs = GetPseudoCustomAttributes (obj, attributeType);
-			if (pseudoAttrs != null) {
-				for (int i = 0; i < pseudoAttrs.Length; ++i)
-					if (attributeType.IsAssignableFrom (pseudoAttrs [i].GetType ()))
-						return true;
-			}
+				object[] pseudoAttrs = GetPseudoCustomAttributes (obj, attributeType);
+				if (pseudoAttrs != null) {
+					for (int i = 0; i < pseudoAttrs.Length; ++i)
+						if (attributeType.IsAssignableFrom (pseudoAttrs[i].GetType ()))
+							return true;
+				}
 
-#if ONLY_1_1
-			if (inherit) {
-				AttributeUsageAttribute usage = RetrieveAttributeUsage (attributeType);
-				if (!usage.Inherited)
-					inherit = false;
-			}
-#endif
+				if (usage == null) {
+					if (!inherit)
+						return false;
 
-			// FIXME (bug #82431):
-			// on 2.0 profile we should always walk the inheritance
-			// chain and base the behavior on the inheritance level:
-			//
-			// 0  : return true if "attributeType" is assignable from
-			// any of the custom attributes
-			//
-			// > 0: return true if "attributeType" is assignable from
-			// any of the custom attributes and AttributeUsageAttribute
-			// .Inherited of the assignable attribute is true
+					usage = RetrieveAttributeUsage (attributeType);
+					if (!usage.Inherited)
+						return false;
+				}
 
-			ICustomAttributeProvider btype;
-			if (inherit && ((btype = GetBase (obj)) != null))
-				return IsDefined (btype, attributeType, inherit);
+				obj = GetBase (obj);
+			} while (obj != null);
 
 			return false;
 		}
@@ -349,6 +340,26 @@ namespace System
 
 		}
 
+		static EventInfo GetBaseEventDefinition (EventInfo evt)
+		{
+			MethodInfo method = evt.GetAddMethod (true);
+			if (method == null || !method.IsVirtual)
+				method = evt.GetRaiseMethod (true);
+			if (method == null || !method.IsVirtual)
+				method = evt.GetRemoveMethod (true);
+			if (method == null || !method.IsVirtual)
+				return null;
+
+			MethodInfo baseMethod = method.GetBaseMethod ();
+			if (baseMethod != null && baseMethod != method) {
+				BindingFlags flags = method.IsPublic ? BindingFlags.Public : BindingFlags.NonPublic;
+				flags |= method.IsStatic ? BindingFlags.Static : BindingFlags.Instance;
+
+				return baseMethod.DeclaringType.GetEvent (evt.Name, flags);
+			}
+			return null;
+		}
+
 		// Handles Type, MonoProperty and MonoMethod.
 		// The runtime has also cases for MonoEvent, MonoField, Assembly and ParameterInfo,
 		// but for those we return null here.
@@ -363,6 +374,8 @@ namespace System
 			MethodInfo method = null;
 			if (obj is MonoProperty)
 				return GetBasePropertyDefinition ((MonoProperty) obj);
+			else if (obj is MonoEvent)
+				return GetBaseEventDefinition ((MonoEvent)obj);
 			else if (obj is MonoMethod)
 				method = (MethodInfo) obj;
 
@@ -375,7 +388,7 @@ namespace System
 			if (method == null || !method.IsVirtual)
 				return null;
 
-			MethodInfo baseMethod = method.GetBaseDefinition ();
+			MethodInfo baseMethod = method.GetBaseMethod ();
 			if (baseMethod == method)
 				return null;
 
@@ -389,8 +402,7 @@ namespace System
 				return new AttributeUsageAttribute (AttributeTargets.Class);
 
 			AttributeUsageAttribute usageAttribute = null;
-			object[] attribs = GetCustomAttributes (attributeType,
-				MonoCustomAttrs.AttributeUsageType, false);
+			object[] attribs = GetCustomAttributes (attributeType, typeof(AttributeUsageAttribute), false);
 			if (attribs.Length == 0)
 			{
 				// if no AttributeUsage was defined on the attribute level, then
@@ -422,7 +434,6 @@ namespace System
 			return ((AttributeUsageAttribute) attribs[0]);
 		}
 
-		private static readonly Type AttributeUsageType = typeof(AttributeUsageAttribute);
 		private static readonly AttributeUsageAttribute DefaultAttributeUsage =
 			new AttributeUsageAttribute (AttributeTargets.All);
 

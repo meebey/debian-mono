@@ -51,6 +51,12 @@ struct _GHashTable {
 	GDestroyNotify value_destroy_func, key_destroy_func;
 };
 
+typedef struct {
+	GHashTable *ht;
+	int slot_index;
+	Slot *slot;
+} Iter;
+
 static const guint prime_tbl[] = {
 	11, 19, 37, 73, 109, 163, 251, 367, 557, 823, 1237,
 	1861, 2777, 4177, 6247, 9371, 14057, 21089, 31627,
@@ -258,6 +264,37 @@ g_hash_table_insert_replace (GHashTable *hash, gpointer key, gpointer value, gbo
 	sanity_check (hash);
 }
 
+GList*
+g_hash_table_get_keys (GHashTable *hash)
+{
+	GHashTableIter iter;
+	GList *rv = NULL;
+	gpointer key;
+
+	g_hash_table_iter_init (&iter, hash);
+
+	while (g_hash_table_iter_next (&iter, &key, NULL))
+		rv = g_list_prepend (rv, key);
+
+	return g_list_reverse (rv);
+}
+
+GList*
+g_hash_table_get_values (GHashTable *hash)
+{
+	GHashTableIter iter;
+	GList *rv = NULL;
+	gpointer value;
+
+	g_hash_table_iter_init (&iter, hash);
+
+	while (g_hash_table_iter_next (&iter, NULL, &value))
+		rv = g_list_prepend (rv, value);
+
+	return g_list_reverse (rv);
+}
+
+
 guint
 g_hash_table_size (GHashTable *hash)
 {
@@ -292,8 +329,10 @@ g_hash_table_lookup_extended (GHashTable *hash, gconstpointer key, gpointer *ori
 	
 	for (s = hash->table [hashcode]; s != NULL; s = s->next){
 		if ((*equal)(s->key, key)){
-			*orig_key = s->key;
-			*value = s->value;
+			if (orig_key)
+				*orig_key = s->key;
+			if (value)
+				*value = s->value;
 			return TRUE;
 		}
 	}
@@ -332,6 +371,23 @@ g_hash_table_find (GHashTable *hash, GHRFunc predicate, gpointer user_data)
 				return s->value;
 	}
 	return NULL;
+}
+
+void
+g_hash_table_remove_all (GHashTable *hash)
+{
+	int i;
+	
+	g_return_if_fail (hash != NULL);
+
+	for (i = 0; i < hash->table_size; i++){
+		Slot *s;
+
+		while (hash->table [i]) {
+			s = hash->table [i];
+			g_hash_table_remove (hash, s->key);
+		}
+	}
 }
 
 gboolean
@@ -411,6 +467,37 @@ g_hash_table_foreach_remove (GHashTable *hash, GHRFunc func, gpointer user_data)
 	if (count > 0)
 		rehash (hash);
 	return count;
+}
+
+gboolean
+g_hash_table_steal (GHashTable *hash, gconstpointer key)
+{
+	GEqualFunc equal;
+	Slot *s, *last;
+	guint hashcode;
+	
+	g_return_val_if_fail (hash != NULL, FALSE);
+	sanity_check (hash);
+	equal = hash->key_equal_func;
+	
+	hashcode = ((*hash->hash_func)(key)) % hash->table_size;
+	last = NULL;
+	for (s = hash->table [hashcode]; s != NULL; s = s->next){
+		if ((*equal)(s->key, key)) {
+			if (last == NULL)
+				hash->table [hashcode] = s->next;
+			else
+				last->next = s->next;
+			g_free (s);
+			hash->in_use--;
+			sanity_check (hash);
+			return TRUE;
+		}
+		last = s;
+	}
+	sanity_check (hash);
+	return FALSE;
+	
 }
 
 guint
@@ -500,6 +587,47 @@ g_hash_table_print_stats (GHashTable *table)
 	printf ("Size: %d Table Size: %d Max Chain Length: %d at %d\n", table->in_use, table->table_size, max_chain_size, max_chain_index);
 }
 
+void
+g_hash_table_iter_init (GHashTableIter *it, GHashTable *hash_table)
+{
+	Iter *iter = (Iter*)it;
+
+	memset (iter, 0, sizeof (Iter));
+	iter->ht = hash_table;
+	iter->slot_index = -1;
+}
+
+gboolean g_hash_table_iter_next (GHashTableIter *it, gpointer *key, gpointer *value)
+{
+	Iter *iter = (Iter*)it;
+
+	GHashTable *hash = iter->ht;
+
+	g_assert (iter->slot_index != -2);
+	g_assert (sizeof (Iter) <= sizeof (GHashTableIter));
+
+	if (!iter->slot) {
+		while (TRUE) {
+			iter->slot_index ++;
+			if (iter->slot_index >= hash->table_size) {
+				iter->slot_index = -2;
+				return FALSE;
+			}
+			if (hash->table [iter->slot_index])
+				break;
+		}
+		iter->slot = hash->table [iter->slot_index];
+	}
+
+	if (key)
+		*key = iter->slot->key;
+	if (value)
+		*value = iter->slot->value;
+	iter->slot = iter->slot->next;
+
+	return TRUE;
+}
+
 gboolean
 g_direct_equal (gconstpointer v1, gconstpointer v2)
 {
@@ -515,13 +643,13 @@ g_direct_hash (gconstpointer v1)
 gboolean
 g_int_equal (gconstpointer v1, gconstpointer v2)
 {
-	return GPOINTER_TO_INT (v1) == GPOINTER_TO_INT (v2);
+	return *(gint *)v1 == *(gint *)v2;
 }
 
 guint
 g_int_hash (gconstpointer v1)
 {
-	return GPOINTER_TO_UINT(v1);
+	return *(guint *)v1;
 }
 
 gboolean

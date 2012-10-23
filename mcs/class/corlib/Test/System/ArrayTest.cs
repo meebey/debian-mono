@@ -11,10 +11,8 @@ using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Globalization;
-
-#if NET_2_0
+using System.Reflection;
 using System.Collections.Generic;
-#endif
 
 namespace MonoTests.System
 {
@@ -227,7 +225,23 @@ public class ArrayTest
 		Assert.AreEqual (-1, Array.BinarySearch (o, 0, 3, null, null), "O=a,i,i,o,c");
 	}
 
-	// TODO - testBinarySearch with explicit IComparer args
+	class TestComparer7 : IComparer<int>
+	{
+		public int Compare (int x, int y)
+		{
+			if (y != 7)
+				throw new ApplicationException ();
+
+			return x.CompareTo (y);
+		}
+	}
+
+	[Test]
+	public void BinarySearch_WithComparer ()
+	{
+		var a = new int[] { 2, 6, 9 };
+		Assert.AreEqual (-3, Array.BinarySearch (a, 7, new TestComparer7 ()));
+	}
 
 	[Test]
 	public void TestClear() {
@@ -301,6 +315,15 @@ public class ArrayTest
 
 		d1[0][0] = 'z';
 		Assert.AreEqual (d1[0], d2[0], "#D07");
+	}
+
+	[Test]
+	public void TestMemberwiseClone () {
+		int[] array = new int[] { 1, 2, 3 };
+		MethodBase mi = array.GetType ().GetMethod("MemberwiseClone",
+												   BindingFlags.Instance | BindingFlags.NonPublic);
+		int[] res = (int[])mi.Invoke (array, null);
+		Assert.AreEqual (3, res.Length);
 	}
 
 	[Test] public void TestIndexer ()
@@ -650,7 +673,7 @@ public class ArrayTest
 			}
 			Assert.IsTrue (errorThrown, "#F03a");
 		}
-#if NET_1_1
+
 		{
 			bool errorThrown = false;
 			try {
@@ -660,7 +683,6 @@ public class ArrayTest
 			}
 			Assert.IsTrue (errorThrown, "#F03b");
 		}
-#endif
 #if !TARGET_JVM // Arrays lower bounds are not supported for TARGET_JVM
 		{
 			bool errorThrown = false;
@@ -736,11 +758,7 @@ public class ArrayTest
 	}
 
 	[Test]
-#if NET_2_0
 	[ExpectedException (typeof (ArgumentNullException))]
-#else
-	[ExpectedException (typeof (NullReferenceException))]
-#endif
 	public void TestCreateInstance2b ()
 	{
 		Array.CreateInstance (typeof (Int32), (long[])null);
@@ -1201,11 +1219,7 @@ public class ArrayTest
 	}
 
 	[Test]
-#if NET_2_0
 	[ExpectedException (typeof (ArgumentNullException))]
-#else
-	[ExpectedException (typeof (NullReferenceException))]
-#endif
 	public void TestGetValueLongArray ()
 	{
 		char[] c = new Char[2];
@@ -1534,12 +1548,10 @@ public class ArrayTest
 			NUnit.Framework.Assert.Fail ("#1");
 		} catch (ArgumentOutOfRangeException) { }
 		
-#if NET_2_0		
 		try {
 			Array.LastIndexOf<short> (a, 16, -1);
 			NUnit.Framework.Assert.Fail ("#2");
 		} catch (ArgumentOutOfRangeException) { }
-#endif		
 	}
 
 	[Test]
@@ -1858,11 +1870,7 @@ public class ArrayTest
 	}
 
 	[Test]
-#if NET_2_0
 	[ExpectedException (typeof (ArgumentNullException))]
-#else
-	[ExpectedException (typeof (NullReferenceException))]
-#endif
 	public void TestSetValueLongArray ()
 	{
 		char[] c = new Char[2];
@@ -2310,6 +2318,32 @@ public class ArrayTest
 			Assert.AreEqual (4, i1[3], "#N90");
 			Assert.AreEqual (3, i1[4], "#N91");
 			Assert.AreEqual (6, i1[5], "#N92");
+		}
+
+		{
+			// #648828
+			double[] a = new double[115];
+			int[] b = new int[256];
+			Array.Sort<double, int> (a, b, 0, 115);
+		}
+
+		/* Check that ulong[] is not sorted as long[] */
+		{
+			string[] names = new string[] {
+				"A", "B", "C", "D", "E"
+			};
+
+			ulong[] arr = new ulong [] {
+				5,
+				unchecked((ulong)0xffffFFFF00000000),
+					0,
+						0x7FFFFFFFffffffff,
+						100
+						};
+
+			Array a = arr;
+			Array.Sort (a, names, null);
+			Assert.AreEqual (0, a.GetValue (0));
 		}
 	}
 
@@ -2794,7 +2828,6 @@ public class ArrayTest
 		Assert.IsTrue (!comparer.Called, "Called");
 	}
 
-#if NET_2_0
 	[Test]
 	[ExpectedException (typeof (ArgumentNullException))]
 	public void AsReadOnly_NullArray ()
@@ -2977,6 +3010,9 @@ public class ArrayTest
 		test = new object[] {null};
 		Assert.AreEqual (test.Contains (null), true, "array with null");
 
+		test = new object[] { 1, null};
+		Assert.IsTrue (test.Contains (null), "array with last null");
+		
 		test = new List<object>(test);
 		Assert.AreEqual (test.Contains (null), true, "List<object> with test");
 		
@@ -2986,8 +3022,35 @@ public class ArrayTest
 		test = new List<object>(test);
 		Assert.AreEqual (test.Contains (null), false, "array with test");
 	}
+	
+	[Test]
+	public void IListNull ()
+	{
+		IList<object> test;
+		
+		test = new List<object>();
+		Assert.AreEqual (-1, test.IndexOf (null), "list<o>");
+
+		test = new object[] {};
+		Assert.AreEqual (-1, test.IndexOf (null), "empty array");
+
+		test = new object[] {null};
+		Assert.AreEqual (0, test.IndexOf (null), "array with null");
+
+		test = new object[] { 1, null};
+		Assert.AreEqual (1, test.IndexOf (null), "array with last null");
+		
+		test = new List<object>(test);
+		Assert.AreEqual (1, test.IndexOf (null), "List<object> with test");
+		
+		test = new object[] {new object()};
+		Assert.AreEqual (-1, test.IndexOf (null), "array with object");
+
+		test = new List<object>(test);
+		Assert.AreEqual (-1, test.IndexOf (null), "array with test");
+	}
+	
 #endif // TARGET_JVM
-#endif
 
 	#region Bug 80299
 
@@ -3029,7 +3092,6 @@ public class ArrayTest
 
 	#endregion
 
-#if NET_2_0
 	[Test] // bug #322248
 	public void IEnumerator_Reset ()
 	{
@@ -3108,7 +3170,6 @@ public class ArrayTest
 
 		Assert.IsTrue (arr.IsReadOnly);
 	}
-#endif
 
 	[Test]
 	[ExpectedException (typeof (NotSupportedException))]
@@ -3344,6 +3405,39 @@ public class ArrayTest
 		IStructuralEquatable array = new int[] {1, 2, 3};
 		IStructuralComparable array2 = new int[] {1, 2, 3};
 		array.Equals (array2, EqualityComparer<long>.Default);
+	}
+
+	[Test]
+	[ExpectedException (typeof (ArgumentNullException))]	
+	public void IStructuralEquatable_GetHashCode_NullComparer ()
+	{
+		IStructuralEquatable a = new int[] { 1, 2 };
+		a.GetHashCode (null);
+	}
+
+	class TestComparer_GetHashCode : IEqualityComparer
+	{
+		public int Counter;
+
+		bool IEqualityComparer.Equals (object x, object y)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public int GetHashCode (object obj)
+		{
+			return Counter++;
+		}
+	}
+
+	[Test]
+	public void IStructuralEquatable_GetHashCode ()
+	{
+		IStructuralEquatable a = new int[] { 1, 2, 9 };
+
+		var c = new TestComparer_GetHashCode ();
+		a.GetHashCode (c);
+		Assert.AreEqual (3, c.Counter);		
 	}
 
 #endif

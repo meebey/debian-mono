@@ -83,7 +83,6 @@ namespace System.Windows.Forms {
 				if (dataMember == null)
 					dataMember = String.Empty;
 
-#if NET_2_0
 				ICurrencyManagerProvider cm_provider = dataSource as ICurrencyManagerProvider;
 				if (cm_provider != null) {
 					if (dataMember.Length == 0)
@@ -91,7 +90,6 @@ namespace System.Windows.Forms {
 
 					return cm_provider.GetRelatedCurrencyManager (dataMember);
 				}
-#endif
 
 				HashKey key = new HashKey (dataSource, dataMember);
 				BindingManagerBase res = managers [key] as BindingManagerBase;
@@ -212,19 +210,17 @@ namespace System.Windows.Forms {
 					managers.Remove (keys[i]);
 			}
 		}
-#if NET_2_0
+
 		[MonoTODO ("Stub, does nothing")]
 		public static void UpdateBinding (BindingContext newBindingContext, Binding binding)
 		{
 		}
-#endif
+
 		#endregion	// Protected Instance Methods
 
 		#region Events
-#if NET_2_0
 		[Browsable (false)]
 		[EditorBrowsable (EditorBrowsableState.Never)]
-#endif
 		public event CollectionChangeEventHandler CollectionChanged {
 			add { throw new NotImplementedException (); }
 			remove { /* nothing to do here.. */ }

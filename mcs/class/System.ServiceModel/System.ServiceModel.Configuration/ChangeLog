@@ -1,8 +1,3 @@
-2010-08-02  atsushieno  <atsushi@ximian.com>
-
-	Add build fix (not sure if it is correct; MSDN does not tell it
-	exists.)
-
 2010-07-30  Atsushi Enomoto  <atsushi@ximian.com>
 
 	*  EndpointCollectionElement.cs,

@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections.Generic;
 using System.Xml;
@@ -35,14 +33,21 @@ namespace Microsoft.Build.BuildEngine {
 	internal class BuildChoose {
 		
 		BuildWhen	otherwise;
-		Project		project;
-		XmlElement	xmlElement;
+		//Project		project;
+		//ImportedProject	importedProject;
+		//XmlElement	xmlElement;
 		List <BuildWhen>	whens;
 		
 		public BuildChoose (XmlElement xmlElement, Project project)
+			: this (xmlElement, project, null)
 		{
-			this.xmlElement = xmlElement;
-			this.project = project;
+		}
+
+		internal BuildChoose (XmlElement xmlElement, Project project, ImportedProject importedProject)
+		{
+			//this.xmlElement = xmlElement;
+			//this.project = project;
+			//this.importedProject = importedProject;
 			this.whens = new List <BuildWhen> ();
 
 			foreach (XmlNode xn in xmlElement.ChildNodes) {
@@ -65,6 +70,9 @@ namespace Microsoft.Build.BuildEngine {
 					otherwise = new BuildWhen (xe, project);
 				}
 			}
+
+			DefinedInFileName = importedProject != null ? importedProject.FullFileName :
+						project != null ? project.FullFileName : null;
 		}
 		
 		public void Evaluate ()
@@ -85,7 +93,7 @@ namespace Microsoft.Build.BuildEngine {
 			get { return whens; }
 			set { whens = value; }
 		}
+
+		internal string DefinedInFileName { get; private set; }
 	}
 }
-
-#endif

@@ -160,21 +160,25 @@ namespace System.Xml {
 		static XmlConvert ()
 		{
 			int l = defaultDateTimeFormats.Length;
-			roundtripDateTimeFormats = new string [l];
-			localDateTimeFormats = new string [l];
+			roundtripDateTimeFormats = new string [l * 2];
+			localDateTimeFormats = new string [l * 2];
 			utcDateTimeFormats = new string [l * 3];
-			unspecifiedDateTimeFormats = new string [l * 4];
+			unspecifiedDateTimeFormats = new string [l * 5];
 			for (int i = 0; i < l; i++) {
 				string s = defaultDateTimeFormats [i];
-				localDateTimeFormats [i] = s + "zzz";
-				roundtripDateTimeFormats [i] = s + 'K';
+				var z = s + 'Z';
+				localDateTimeFormats [i * 2] = s + (s [s.Length - 1] == 's' || s [s.Length - 1] == 'F' ? "zzz" : String.Empty);
+				localDateTimeFormats [i * 2 + 1] = z;
+				roundtripDateTimeFormats [i * 2] = s + 'K';
+				roundtripDateTimeFormats [i * 2 + 1] = z;
 				utcDateTimeFormats [i * 3] = s;
-				utcDateTimeFormats [i * 3 + 1] = s + 'Z';
+				utcDateTimeFormats [i * 3 + 1] = z;
 				utcDateTimeFormats [i * 3 + 2] = s + "zzz";
-				unspecifiedDateTimeFormats [i * 4] = s;
-				unspecifiedDateTimeFormats [i * 4 + 1] = localDateTimeFormats [i];
-				unspecifiedDateTimeFormats [i * 4 + 2] = roundtripDateTimeFormats [i];
-				unspecifiedDateTimeFormats [i * 4 + 3] = utcDateTimeFormats [i];
+				unspecifiedDateTimeFormats [i * 5] = s;
+				unspecifiedDateTimeFormats [i * 5 + 1] = z;
+				unspecifiedDateTimeFormats [i * 5 + 2] = localDateTimeFormats [i];
+				unspecifiedDateTimeFormats [i * 5 + 3] = roundtripDateTimeFormats [i];
+				unspecifiedDateTimeFormats [i * 5 + 4] = utcDateTimeFormats [i];
 			}
 		}
 #endif
@@ -363,22 +367,22 @@ namespace System.Xml {
 		}
 		
 #if NET_2_0
-		public static DateTime ToDateTime (string value, XmlDateTimeSerializationMode mode)
+		public static DateTime ToDateTime (string s, XmlDateTimeSerializationMode dateTimeOption)
 		{
 			DateTime dt;
-			switch (mode) {
+			switch (dateTimeOption) {
 			case XmlDateTimeSerializationMode.Local:
-				dt = ToDateTime (value, localDateTimeFormats);
-				return dt == DateTime.MinValue || dt == DateTime.MaxValue ? dt : dt.ToLocalTime ();
+				dt = ToDateTime (s, localDateTimeFormats);
+				return new DateTime (dt.Ticks, DateTimeKind.Local);
 			case XmlDateTimeSerializationMode.RoundtripKind:
-				return ToDateTime (value, roundtripDateTimeFormats, _defaultStyle | DateTimeStyles.RoundtripKind);
+				return ToDateTime (s, roundtripDateTimeFormats, _defaultStyle | DateTimeStyles.RoundtripKind);
 			case XmlDateTimeSerializationMode.Utc:
-				dt = ToDateTime (value, utcDateTimeFormats);
-				return dt == DateTime.MinValue || dt == DateTime.MaxValue ? dt : dt.ToUniversalTime ();
+				dt = ToDateTime (s, utcDateTimeFormats);
+				return new DateTime (dt.Ticks, DateTimeKind.Utc);
 			case XmlDateTimeSerializationMode.Unspecified:
-				return ToDateTime (value, unspecifiedDateTimeFormats);
+				return ToDateTime (s, unspecifiedDateTimeFormats);
 			default:
-				return ToDateTime (value, defaultDateTimeFormats);
+				return ToDateTime (s, defaultDateTimeFormats);
 			}
 		}
 #endif
@@ -399,7 +403,11 @@ namespace System.Xml {
 
 		private static DateTime ToDateTime (string s, string [] formats, DateTimeStyles style) 
 		{
-			return DateTime.ParseExact (s, formats, DateTimeFormatInfo.InvariantInfo, style);
+			try {
+				return DateTime.ParseExact (s, formats, DateTimeFormatInfo.InvariantInfo, style);
+			} catch (ArgumentOutOfRangeException) {
+				return DateTime.MinValue;
+			}
 		}
 		
 		public static Decimal ToDecimal(string s)
@@ -560,7 +568,7 @@ namespace System.Xml {
 			if (value.Days > 0)
 				builder.Append (value.Days).Append ('D');
 			long ticks = value.Ticks % TimeSpan.TicksPerMillisecond;
-			if (value.Days > 0 || value.Hours > 0 || value.Minutes > 0 || value.Seconds > 0 || value.Milliseconds > 0 || ticks > 0) {
+			if (value.Hours > 0 || value.Minutes > 0 || value.Seconds > 0 || value.Milliseconds > 0 || ticks > 0) {
 				builder.Append('T');
 				if (value.Hours > 0)
 					builder.Append (value.Hours).Append ('H');
@@ -622,11 +630,11 @@ namespace System.Xml {
 		}
 
 #if NET_2_0
-		public static string ToString (DateTime value, XmlDateTimeSerializationMode mode)
+		public static string ToString (DateTime value, XmlDateTimeSerializationMode dateTimeOption)
 		{
 			// Unlike usual DateTime formatting, it preserves
 			// MaxValue/MinValue as is.
-			switch (mode) {
+			switch (dateTimeOption) {
 			case XmlDateTimeSerializationMode.Local:
 				return (value == DateTime.MinValue ? DateTime.MinValue : value == DateTime.MaxValue ? value : value.ToLocalTime ()).ToString (
 					"yyyy-MM-ddTHH:mm:ss.FFFFFFFzzz",
@@ -800,37 +808,33 @@ namespace System.Xml {
 			
 		}
 
-		public static string VerifyNCName (string ncname)
+		public static string VerifyNCName (string name)
 		{
-			if (ncname == null || ncname.Length == 0)
-				throw new ArgumentNullException("ncname");
-
-			if (!XmlChar.IsNCName (ncname))
-				throw new XmlException ("'" + ncname + "' is not a valid XML NCName");
-			return ncname;
-		}
-
-#if NET_2_0
-		public static string VerifyTOKEN (string name)
-#else
-		internal static string VerifyTOKEN (string name)
-#endif
-		{
-			if (name == null)
+			if (name == null || name.Length == 0)
 				throw new ArgumentNullException("name");
 
-			if (name.Length == 0)
-				return name;
+			if (!XmlChar.IsNCName (name))
+				throw new XmlException ("'" + name + "' is not a valid XML NCName");
+			return name;
+		}
 
-			if (XmlChar.IsWhitespace (name [0]) ||
-				XmlChar.IsWhitespace (name [name.Length - 1]))
+		public static string VerifyTOKEN (string token)
+		{
+			if (token == null)
+				throw new ArgumentNullException("token");
+
+			if (token.Length == 0)
+				return token;
+
+			if (XmlChar.IsWhitespace (token [0]) ||
+				XmlChar.IsWhitespace (token [token.Length - 1]))
 				throw new XmlException ("Whitespace characters (#xA, #xD, #x9, #x20) are not allowed as leading or trailing whitespaces of xs:token.");
 
-			for (int i = 0; i < name.Length; i++)
-				if (XmlChar.IsWhitespace (name [i]) && name [i] != ' ')
-				throw new XmlException ("Either #xA, #xD or #x9 are not allowed inside xs:token.");
+			for (int i = 0; i < token.Length; i++)
+				if (XmlChar.IsWhitespace (token [i]) && token [i] != ' ')
+					throw new XmlException ("Either #xA, #xD or #x9 are not allowed inside xs:token.");
 
-			return name;
+			return token;
 		}
 
 #if NET_2_0
@@ -919,6 +923,53 @@ namespace System.Xml {
 			return new Uri (s, UriKind.RelativeOrAbsolute);
 		}
 
+#endif
+
+#if NET_4_0 || NET_2_1
+		public static bool IsNCNameChar (char ch)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static bool IsPublicIdChar (char ch)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static bool IsStartNCNameChar (char ch)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static bool IsWhitespaceChar (char ch)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static bool IsXmlChar (char ch)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static bool IsXmlSurrogatePair (char lowChar, char highChar)
+		{
+			throw new NotImplementedException ();
+		}
+		
+		public static string VerifyPublicId (string publicId)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static string VerifyWhitespace (string content)
+		{
+			throw new NotImplementedException ();
+		}
+
+		public static string VerifyXmlChars (string content)
+		{
+			throw new NotImplementedException ();
+		}
 #endif
 	}
 }

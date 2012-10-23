@@ -26,15 +26,15 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_4_0
+#if NET_4_0 || MOBILE
 
 namespace System
 {
 	public interface IObserver<in T>
 	{
 		void OnCompleted ();
-		void OnError (Exception exception);
-		void OnNext(T arg);
+		void OnError (Exception error);
+		void OnNext(T value);
 	}
 }
 

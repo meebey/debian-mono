@@ -264,7 +264,30 @@ add masterdoc support?
         <xs:element ref="threadsafe" />
         <xs:element ref="typeparam" />
         <xs:element ref="filterpriority" />
+        <xs:element ref="related" />
       </xs:choice>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="relatedType">
+    <xs:restriction base="xs:string">
+      <!-- External code/application samples -->
+      <xs:enumeration value="sample"/>
+      <!-- e.g. ECMA, OPC, OData, ... specs -->
+      <xs:enumeration value="specification"/>
+      <!-- e.g. Apple/Android documentation -->
+      <xs:enumeration value="externalDocumentation" />
+      <!-- e.g. a more in-depth article at docs.xamarin.com -->
+      <xs:enumeration value="article" />
+	  <!-- e.g. a small article describing succintly a feature -->
+	  <xs:enumeration value="recipe" />
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="related">
+    <xs:complexType mixed="true">
+      <xs:attribute name="type" type="relatedType" />
+      <xs:attribute name="href" type="xs:anyURI" />
     </xs:complexType>
   </xs:element>
 
@@ -488,6 +511,7 @@ add masterdoc support?
     <xs:complexType mixed="true">
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:element ref="block" />
+        <xs:element ref="i" />
         <xs:element ref="format" />
         <xs:element ref="see" />
         <xs:element ref="geq" />
@@ -508,8 +532,16 @@ add masterdoc support?
         <xs:element ref="theta" />
         <xs:element ref="typeparamref" />
         <xs:element ref="whitespace" />
+        <xs:element ref="img" />
       </xs:choice>
     </xs:complexType>
+  </xs:element>
+
+  <xs:element name="img">
+	<xs:complexType>
+	  <xs:attribute name="href" type="xs:string" use="required" />
+	  <xs:attribute name="class" type="xs:string" use="optional" />
+	</xs:complexType>
   </xs:element>
 
   <xs:element name="param">
@@ -603,6 +635,7 @@ add masterdoc support?
   <xs:element name="returns">
     <xs:complexType mixed="true">
       <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element ref="c" />
         <xs:element ref="format" />
         <xs:element ref="geq" />
         <xs:element ref="leq" />
@@ -746,7 +779,7 @@ add masterdoc support?
   <xs:element name="threadsafe">
     <xs:complexType>
      <xs:sequence>
-       <xs:element ref="para" minOccurs="1" />
+       <xs:element ref="para" minOccurs="1" maxOccurs="unbounded" />
      </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1052,5 +1085,57 @@ add masterdoc support?
     </xs:complexType>
   </xs:element>
 
+  <!--
+    ECMA 334 Annex E Documentation Comments support.
+    -->
+
+  <xs:element name="seealso">
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute ref="cref" />
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="doc">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="assembly">
+          <xs:complexType>
+            <xs:choice>
+              <xs:element name="name" type="xs:string" />
+            </xs:choice>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="members">
+          <xs:complexType>
+            <xs:choice minOccurs="0" maxOccurs="unbounded">
+              <xs:element name="member">
+                <xs:complexType>
+                  <xs:choice minOccurs="0" maxOccurs="unbounded">
+                    <xs:element ref="seealso" />
+                    <xs:element ref="example" />
+                    <xs:element ref="exception" />
+                    <xs:element ref="param" />
+                    <xs:element ref="permission" />
+                    <xs:element ref="PermissionSet" />
+                    <xs:element ref="remarks" />
+                    <xs:element ref="returns" />
+                    <xs:element ref="summary" />
+                    <xs:element ref="threadsafe" />
+                    <xs:element ref="typeparam" />
+                    <xs:element ref="value" />
+                  </xs:choice>
+                  <xs:attribute name="name" type="xs:string" />
+                </xs:complexType>
+              </xs:element>
+            </xs:choice>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
 </xs:schema>
 

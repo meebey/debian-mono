@@ -5,6 +5,7 @@
 //   Dick Porter (dick@ximian.com)
 //
 // (C) 2002
+// Copyright 2011 Xamarin Inc (http://www.xamarin.com).
 //
 
 //
@@ -40,8 +41,10 @@ using System.IO.IsolatedStorage;
 
 namespace System.IO
 {
-	unsafe internal sealed class MonoIO {
-		public static readonly FileAttributes
+	unsafe static class MonoIO {
+		public const int FileAlreadyExistsHResult = unchecked ((int) 0x80070000) | (int)MonoIOError.ERROR_FILE_EXISTS;
+
+		public const FileAttributes
 			InvalidFileAttributes = (FileAttributes)(-1);
 
 		public static readonly IntPtr
@@ -61,7 +64,7 @@ namespace System.IO
 				return new UnauthorizedAccessException ("Access to the path is denied.");
 			case MonoIOError.ERROR_FILE_EXISTS:
 				string message = "Cannot create a file that already exist.";
-				return new IOException (message, unchecked ((int) 0x80070000) | (int) error);
+				return new IOException (message, FileAlreadyExistsHResult);
 			default:
 				/* Add more mappings here if other
 				 * errors trigger the named but empty
@@ -82,7 +85,7 @@ namespace System.IO
 			// FIXME: add more exception mappings here
 			case MonoIOError.ERROR_FILE_NOT_FOUND:
 				message = String.Format ("Could not find file \"{0}\"", path);
-#if NET_2_1
+#if MOONLIGHT
 				return new IsolatedStorageException (message);
 #else
 				return new FileNotFoundException (message, path);
@@ -93,7 +96,7 @@ namespace System.IO
 				
 			case MonoIOError.ERROR_PATH_NOT_FOUND:
 				message = String.Format ("Could not find a part of the path \"{0}\"", path);
-#if NET_2_1
+#if MOONLIGHT
 				return new IsolatedStorageException (message);
 #else
 				return new DirectoryNotFoundException (message);

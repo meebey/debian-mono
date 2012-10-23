@@ -69,14 +69,6 @@ namespace System.ServiceModel.Channels.Security
 			this.message_to = messageTo;
 		}
 
-		public override SecurityRequestContext RequestContext {
-			get { return null; }
-		}
-
-		public override UniqueId RelatesTo {
-			get { return null; }
-		}
-
 		public override SecurityTokenParameters Parameters {
 			get { return security.InitiatorParameters; }
 		}
@@ -119,27 +111,17 @@ namespace System.ServiceModel.Channels.Security
 	internal class RecipientMessageSecurityGenerator : MessageSecurityGenerator
 	{
 		RecipientMessageSecurityBindingSupport security;
-		SecurityRequestContext req_ctx;
 
 		public RecipientMessageSecurityGenerator (
 			Message msg,
-			SecurityRequestContext requestContext,
+			SecurityMessageProperty requestSecProp,
 			RecipientMessageSecurityBindingSupport security)
 			: base (msg, security)
 		{
 			this.security = security;
-			req_ctx = requestContext;
 			SecurityMessageProperty secprop =
-				(SecurityMessageProperty) req_ctx.RequestMessage.Properties.Security.CreateCopy ();
+				(SecurityMessageProperty) requestSecProp.CreateCopy ();
 			msg.Properties.Security = secprop;
-		}
-
-		public override SecurityRequestContext RequestContext {
-			get { return req_ctx; }
-		}
-
-		public override UniqueId RelatesTo {
-			get { return req_ctx.RequestMessage.Headers.MessageId; }
 		}
 
 		public override SecurityTokenParameters Parameters {
@@ -236,12 +218,8 @@ namespace System.ServiceModel.Channels.Security
 		public abstract bool ShouldIncludeToken (SecurityTokenInclusionMode mode, bool isInitialized);
 
 		public bool ShouldOutputEncryptedKey {
-			get { return RequestContext == null || RequestContext.RequestMessage.Properties.Security.ProtectionToken == null; } //security.Element is AsymmetricSecurityBindingElement; }
+			get { return Direction == MessageDirection.Input || secprop.ProtectionToken == null; } //security.Element is AsymmetricSecurityBindingElement; }
 		}
-
-		public abstract UniqueId RelatesTo { get; }
-
-		public abstract SecurityRequestContext RequestContext { get; }
 
 		public Message SecureMessage ()
 		{
@@ -255,46 +233,27 @@ namespace System.ServiceModel.Channels.Security
 				security.SigningToken;
 			MessageProtectionOrder protectionOrder =
 				security.MessageProtectionOrder;
-			SecurityTokenSerializer serializer =
-				security.TokenSerializer;
 			SecurityBindingElement element =
 				security.Element;
 			SecurityAlgorithmSuite suite = element.DefaultAlgorithmSuite;
-
-// FIXME: remove this hack
-if (!ShouldOutputEncryptedKey)
-	encToken = new BinarySecretSecurityToken (secprop.EncryptionKey);
 
 			string messageId = "uuid-" + Guid.NewGuid ();
 			int identForMessageId = 1;
 			XmlDocument doc = new XmlDocument ();
 			doc.PreserveWhitespace = true;
+            var action = msg.Headers.Action;
 
-			UniqueId relatesTo = RelatesTo;
-			if (relatesTo != null)
-				msg.Headers.RelatesTo = relatesTo;
-			else // FIXME: probably it is always added when it is stateful ?
-				msg.Headers.MessageId = new UniqueId ("urn:" + messageId);
-
-			// FIXME: get correct ReplyTo value
-			if (Direction == MessageDirection.Input)
-				msg.Headers.ReplyTo = new EndpointAddress (Constants.WsaAnonymousUri);
-
-			if (MessageTo != null)
-				msg.Headers.To = MessageTo.Uri;
-
+			if (msg.Version.Addressing != AddressingVersion.None) {
+                AddAddressingToHeader (msg.Headers);
+			}
+				
 			// wss:Security
 			WSSecurityMessageHeader header =
-				new WSSecurityMessageHeader (serializer);
+                new WSSecurityMessageHeader (security.TokenSerializer);
 			msg.Headers.Add (header);
 			// 1. [Timestamp]
 			if (element.IncludeTimestamp) {
-				WsuTimestamp timestamp = new WsuTimestamp ();
-				timestamp.Id = messageId + "-" + identForMessageId++;
-				timestamp.Created = DateTime.Now;
-				// FIXME: on service side, use element.LocalServiceSettings.TimestampValidityDuration
-				timestamp.Expires = timestamp.Created.Add (element.LocalClientSettings.TimestampValidityDuration);
-				header.AddContent (timestamp);
+                AddTimestampToHeader (header, messageId + "-" + identForMessageId++);
 			}
 
 			XmlNamespaceManager nsmgr = new XmlNamespaceManager (doc.NameTable);
@@ -304,13 +263,10 @@ if (!ShouldOutputEncryptedKey)
 			nsmgr.AddNamespace ("o11", Constants.Wss11Namespace);
 
 			/*WrappedKey*/SecurityToken primaryToken = null;
-			DerivedKeySecurityToken dkeyToken = null;
 			SecurityToken actualToken = null;
 			SecurityKeyIdentifierClause actualClause = null;
-			Signature sig = null;
 
-			List<DerivedKeySecurityToken> derivedKeys =
-				new List<DerivedKeySecurityToken> ();
+			
 
 			SymmetricAlgorithm masterKey = new RijndaelManaged ();
 			masterKey.KeySize = suite.DefaultSymmetricKeyLength;
@@ -335,7 +291,6 @@ if (!ShouldOutputEncryptedKey)
 			SecurityKeyIdentifierClause encClause = ShouldOutputEncryptedKey ?
 				CounterParameters.CallCreateKeyIdentifierClause (encToken, !ShouldOutputEncryptedKey ? SecurityTokenReferenceStyle.Internal : includeEncToken ? Parameters.ReferenceStyle : SecurityTokenReferenceStyle.External) : null;
 
-			MessagePartSpecification sigSpec = SignaturePart;
 			MessagePartSpecification encSpec = EncryptionPart;
 
 			// encryption key (possibly also used for signing)
@@ -345,7 +300,7 @@ if (!ShouldOutputEncryptedKey)
 
 // FIXME: remove thid hack
 if (!ShouldOutputEncryptedKey)
-primaryToken = RequestContext.RequestMessage.Properties.Security.ProtectionToken.SecurityToken as WrappedKeySecurityToken;
+primaryToken = secprop.ProtectionToken.SecurityToken as WrappedKeySecurityToken;
 else
 			primaryToken =
 				// FIXME: remove this hack?
@@ -373,27 +328,11 @@ else
 
 			// generate derived key if needed
 			if (CounterParameters.RequireDerivedKeys) {
-				RijndaelManaged deriv = new RijndaelManaged ();
-				deriv.KeySize = suite.DefaultEncryptionKeyDerivationLength;
-				deriv.Mode = CipherMode.CBC;
-				deriv.Padding = PaddingMode.ISO10126;
-				deriv.GenerateKey ();
-				dkeyToken = new DerivedKeySecurityToken (
-					GenerateId (doc),
-					null, // algorithm
-					actualClause,
-					new InMemorySymmetricSecurityKey (actualKey.Key),
-					null, // name
-					null, // generation
-					null, // offset
-					deriv.Key.Length,
-					null, // label
-					deriv.Key);
-				derivedKeys.Add (dkeyToken);
-				actualToken = dkeyToken;
-				actualKey.Key = ((SymmetricSecurityKey) dkeyToken.SecurityKeys [0]).GetSymmetricKey ();
-				actualClause = new LocalIdKeyIdentifierClause (dkeyToken.Id);
-				header.AddContent (dkeyToken);
+                var dkeyToken = CreateDerivedKey (GenerateId (doc), actualClause, actualKey);
+                actualToken = dkeyToken;
+                actualKey.Key = ((SymmetricSecurityKey)dkeyToken.SecurityKeys [0]).GetSymmetricKey ();
+                actualClause = new LocalIdKeyIdentifierClause (dkeyToken.Id);
+                header.AddContent (dkeyToken);
 			}
 
 			ReferenceList refList = new ReferenceList ();
@@ -429,7 +368,6 @@ else
 
 			XmlElement body = doc.SelectSingleNode ("/s:Envelope/s:Body/*", nsmgr) as XmlElement;
 			string bodyId = null;
-			XmlElement secElem = null;
 			Collection<WSSignedXml> endorsedSignatures =
 				new Collection<WSSignedXml> ();
 			bool signatureProtection = (protectionOrder == MessageProtectionOrder.SignBeforeEncryptAndEncryptSignature);
@@ -445,110 +383,29 @@ else
 			case MessageProtectionOrder.SignBeforeEncrypt:
 			case MessageProtectionOrder.SignBeforeEncryptAndEncryptSignature:
 
-				// sign
-				// see clause 8 of WS-SecurityPolicy C.2.2
-				WSSignedXml sxml = new WSSignedXml (doc);
-				SecurityTokenReferenceKeyInfo sigKeyInfo;
+               
+                var sig = CreateSignature (doc, body, nsmgr, tokenInfos, 
+                    actualClause, actualKey, signToken, includeSigToken, 
+                    signatureProtection, header, endorsedSignatures, 
+                    ref bodyId);
 
-				sig = sxml.Signature;
-				sig.SignedInfo.CanonicalizationMethod =
-					suite.DefaultCanonicalizationAlgorithm;
-				foreach (XmlElement elem in doc.SelectNodes ("/s:Envelope/s:Header/o:Security/u:Timestamp", nsmgr))
-					CreateReference (sig, elem, elem.GetAttribute ("Id", Constants.WsuNamespace));
-				foreach (XmlElement elem in doc.SelectNodes ("/s:Envelope/s:Header/o:Security/o11:SignatureConfirmation", nsmgr))
-					CreateReference (sig, elem, elem.GetAttribute ("Id", Constants.WsuNamespace));
-				foreach (SupportingTokenInfo tinfo in tokenInfos)
-					if (tinfo.Mode != SecurityTokenAttachmentMode.Endorsing) {
-						XmlElement el = sxml.GetIdElement (doc, tinfo.Token.Id);
-						CreateReference (sig, el, el.GetAttribute ("Id", Constants.WsuNamespace));
-					}
-				XmlNodeList nodes = doc.SelectNodes ("/s:Envelope/s:Header/*", nsmgr);
-				for (int i = 0; i < msg.Headers.Count; i++) {
-					MessageHeaderInfo h = msg.Headers [i];
-					if (h.Name == "Security" && h.Namespace == Constants.WssNamespace)
-						secElem = nodes [i] as XmlElement;
-					else if (sigSpec.HeaderTypes.Count == 0 ||
-					    sigSpec.HeaderTypes.Contains (new XmlQualifiedName (h.Name, h.Namespace))) {
-						string id = GenerateId (doc);
-						h.Id = id;
-						CreateReference (sig, nodes [i] as XmlElement, id);
-					}
-				}
-				if (sigSpec.IsBodyIncluded) {
-					bodyId = GenerateId (doc);
-					CreateReference (sig, body.ParentNode as XmlElement, bodyId);
-				}
-
-				if (security.DefaultSignatureAlgorithm == SignedXml.XmlDsigHMACSHA1Url) {
-					// FIXME: use appropriate hash algorithm
-					sxml.ComputeSignature (new HMACSHA1 (actualKey.Key));
-					sigKeyInfo = new SecurityTokenReferenceKeyInfo (actualClause, serializer, doc);
-				}
-				else {
-					SecurityKeyIdentifierClause signClause =
-						CounterParameters.CallCreateKeyIdentifierClause (signToken, includeSigToken ? CounterParameters.ReferenceStyle : SecurityTokenReferenceStyle.External);
-					AsymmetricSecurityKey signKey = (AsymmetricSecurityKey) signToken.ResolveKeyIdentifierClause (signClause);
-					sxml.SigningKey = signKey.GetAsymmetricAlgorithm (security.DefaultSignatureAlgorithm, true);
-					sxml.ComputeSignature ();
-					sigKeyInfo = new SecurityTokenReferenceKeyInfo (signClause, serializer, doc);
-				}
-
-				sxml.KeyInfo = new KeyInfo ();
-				sxml.KeyInfo.AddClause (sigKeyInfo);
-
-				if (!signatureProtection)
-					header.AddContent (sig);
-
-				// endorse the signature with (signed)endorsing
-				// supporting tokens.
-
-				foreach (SupportingTokenInfo tinfo in tokenInfos) {
-					switch (tinfo.Mode) {
-					case SecurityTokenAttachmentMode.Endorsing:
-					case SecurityTokenAttachmentMode.SignedEndorsing:
-						if (sxml.Signature.Id == null) {
-							sig.Id = GenerateId (doc);
-							secElem.AppendChild (sxml.GetXml ());
-						}
-						WSSignedXml ssxml = new WSSignedXml (doc);
-						ssxml.Signature.SignedInfo.CanonicalizationMethod = suite.DefaultCanonicalizationAlgorithm;
-						CreateReference (ssxml.Signature, doc, sig.Id);
-						SecurityToken sst = tinfo.Token;
-						SecurityKey ssk = sst.SecurityKeys [0]; // FIXME: could be different?
-						SecurityKeyIdentifierClause tclause = new LocalIdKeyIdentifierClause (sst.Id); // FIXME: could be different?
-						if (ssk is SymmetricSecurityKey) {
-							SymmetricSecurityKey signKey = (SymmetricSecurityKey) ssk;
-							ssxml.ComputeSignature (signKey.GetKeyedHashAlgorithm (suite.DefaultSymmetricSignatureAlgorithm));
-						} else {
-							AsymmetricSecurityKey signKey = (AsymmetricSecurityKey) ssk;
-							ssxml.SigningKey = signKey.GetAsymmetricAlgorithm (suite.DefaultAsymmetricSignatureAlgorithm, true);
-							ssxml.ComputeSignature ();
-						}
-						ssxml.KeyInfo.AddClause (new SecurityTokenReferenceKeyInfo (tclause, serializer, doc));
-						if (!signatureProtection)
-							header.AddContent (ssxml.Signature);
-						endorsedSignatures.Add (ssxml);
-
-						break;
-					}
-				}
-
+				
 				// encrypt
 
 				WSEncryptedXml exml = new WSEncryptedXml (doc);
 
-				EncryptedData edata = Encrypt (body, actualKey, actualToken.Id, refList, actualClause, exml, doc);
+				EncryptedData edata = Encrypt (body, actualKey, actualToken.Id, refList, actualClause, exml, doc, EncryptedXml.XmlEncElementContentUrl);
 				EncryptedXml.ReplaceElement (body, edata, false);
 
 				// encrypt signature
 				if (signatureProtection) {
 					XmlElement sigxml = sig.GetXml ();
-					edata = Encrypt (sigxml, actualKey, actualToken.Id, refList, actualClause, exml, doc);
+					edata = Encrypt (sigxml, actualKey, actualToken.Id, refList, actualClause, exml, doc, EncryptedXml.XmlEncElementUrl);
 					header.AddContent (edata);
 
 					foreach (WSSignedXml ssxml in endorsedSignatures) {
 						sigxml = ssxml.GetXml ();
-						edata = Encrypt (sigxml, actualKey, actualToken.Id, refList, actualClause, exml, doc);
+						edata = Encrypt (sigxml, actualKey, actualToken.Id, refList, actualClause, exml, doc, EncryptedXml.XmlEncElementUrl);
 						header.AddContent (edata);
 					}
 
@@ -556,7 +413,7 @@ else
 						Collection<Wss11SignatureConfirmation> confs = header.FindAll<Wss11SignatureConfirmation> ();
 						int count = 0;
 						foreach (XmlElement elem in doc.SelectNodes ("/s:Envelope/s:Header/o:Security/o11:SignatureConfirmation", nsmgr)) {
-							edata = Encrypt (elem, actualKey, confs [count].Id, refList, actualClause, exml, doc);
+							edata = Encrypt (elem, actualKey, confs [count].Id, refList, actualClause, exml, doc, EncryptedXml.XmlEncElementUrl);
 							EncryptedXml.ReplaceElement (elem, edata, false);
 							header.Contents.Insert (header.Contents.IndexOf (confs [count]), edata);
 							header.Contents.Remove (confs [count++]);
@@ -564,11 +421,12 @@ else
 					}
 				}
 
+
 				// encrypt Encrypted supporting tokens
 				foreach (SupportingTokenInfo tinfo in tokenInfos) {
 					if (tinfo.Mode == SecurityTokenAttachmentMode.SignedEncrypted) {
 						XmlElement el = exml.GetIdElement (doc, tinfo.Token.Id);
-						tinfo.Encrypted = Encrypt (el, actualKey, actualToken.Id, refList, actualClause, exml, doc);
+						tinfo.Encrypted = Encrypt (el, actualKey, actualToken.Id, refList, actualClause, exml, doc, EncryptedXml.XmlEncElementUrl);
 						EncryptedXml.ReplaceElement (el, tinfo.Encrypted, false);
 						header.Contents.Insert (header.Contents.IndexOf (tinfo.Token), tinfo.Encrypted);
 						header.Contents.Remove (tinfo.Token);
@@ -577,7 +435,10 @@ else
 				break;
 			}
 
-			Message ret = new WSSecurityMessage (Message.CreateMessage (msg.Version, msg.Headers.Action, new XmlNodeReader (doc.SelectSingleNode ("/s:Envelope/s:Body/*", nsmgr) as XmlElement)), bodyId);
+
+            
+
+			Message ret = new WSSecurityMessage (Message.CreateMessage (msg.Version, action, new XmlNodeReader (doc.SelectSingleNode ("/s:Envelope/s:Body/*", nsmgr) as XmlElement)), bodyId);
 			ret.Properties.Security = (SecurityMessageProperty) secprop.CreateCopy ();
 			ret.Properties.Security.EncryptionKey = masterKey.Key;
 
@@ -591,7 +452,7 @@ else
 
 			ret.Headers.Clear ();
 			ret.Headers.CopyHeadersFrom (msg);
-
+            
 			// Header contents are:
 			//	- Timestamp
 			//	- SignatureConfirmation if required
@@ -620,6 +481,157 @@ else
 //Console.WriteLine (zzz.CreateMessage ());
 			return ret;
 		}
+
+        Signature CreateSignature (XmlDocument doc, XmlElement body, 
+                                           XmlNamespaceManager nsmgr,
+                                           SupportingTokenInfoCollection tokenInfos,
+                                           SecurityKeyIdentifierClause actualClause,
+                                           SymmetricAlgorithm actualKey,
+                                           SecurityToken signToken,
+                                           bool includeSigToken,
+                                           bool signatureProtection,
+                                           WSSecurityMessageHeader header,
+                                           Collection<WSSignedXml> endorsedSignatures,
+                                           ref string bodyId)
+        {
+            // sign
+            // see clause 8 of WS-SecurityPolicy C.2.2
+            WSSignedXml sxml = new WSSignedXml (doc);
+            SecurityTokenReferenceKeyInfo sigKeyInfo;
+            XmlElement secElem = null;
+            var sigSpec = SignaturePart;
+            var serializer = security.TokenSerializer;
+            var suite = security.Element.DefaultAlgorithmSuite;
+
+            var sig = sxml.Signature;
+            sig.SignedInfo.CanonicalizationMethod =
+                suite.DefaultCanonicalizationAlgorithm;
+            foreach (XmlElement elem in doc.SelectNodes ("/s:Envelope/s:Header/o:Security/u:Timestamp", nsmgr))
+                CreateReference(sig, elem, elem.GetAttribute ("Id", Constants.WsuNamespace));
+            foreach (XmlElement elem in doc.SelectNodes ("/s:Envelope/s:Header/o:Security/o11:SignatureConfirmation", nsmgr))
+                CreateReference(sig, elem, elem.GetAttribute ("Id", Constants.WsuNamespace));
+            foreach (SupportingTokenInfo tinfo in tokenInfos)
+                if (tinfo.Mode != SecurityTokenAttachmentMode.Endorsing) {
+                    XmlElement el = sxml.GetIdElement (doc, tinfo.Token.Id);
+                    CreateReference (sig, el, el.GetAttribute ("Id", Constants.WsuNamespace));
+                }
+            XmlNodeList nodes = doc.SelectNodes ("/s:Envelope/s:Header/*", nsmgr);
+            for (int i = 0; i < msg.Headers.Count; i++) {
+                MessageHeaderInfo h = msg.Headers [i];
+                if (h.Name == "Security" && h.Namespace == Constants.WssNamespace)
+                    secElem = nodes [i] as XmlElement;
+                else if ((sigSpec.HeaderTypes.Count == 0 ||
+                    sigSpec.HeaderTypes.Contains (new XmlQualifiedName(h.Name, h.Namespace))) &&
+                    (msg.Version.Addressing != AddressingVersion.None ||
+                    !String.Equals (h.Name, "Action", StringComparison.Ordinal))) {
+                    string id = GenerateId (doc);
+                    h.Id = id;
+                    CreateReference (sig, nodes [i] as XmlElement, id);
+                }
+            }
+            if (sigSpec.IsBodyIncluded) {
+                bodyId = GenerateId (doc);
+                CreateReference (sig, body.ParentNode as XmlElement, bodyId);
+            }
+
+
+            if (security.DefaultSignatureAlgorithm == SignedXml.XmlDsigHMACSHA1Url) {
+                // FIXME: use appropriate hash algorithm
+                sxml.ComputeSignature (new HMACSHA1(actualKey.Key));
+                sigKeyInfo = new SecurityTokenReferenceKeyInfo (actualClause, serializer, doc);
+            } else  {
+                SecurityKeyIdentifierClause signClause =
+                    CounterParameters.CallCreateKeyIdentifierClause (signToken, includeSigToken ? CounterParameters.ReferenceStyle : SecurityTokenReferenceStyle.External);
+                AsymmetricSecurityKey signKey = (AsymmetricSecurityKey)signToken.ResolveKeyIdentifierClause (signClause);
+                sxml.SigningKey = signKey.GetAsymmetricAlgorithm (security.DefaultSignatureAlgorithm, true);
+                sxml.ComputeSignature ();
+                sigKeyInfo = new SecurityTokenReferenceKeyInfo (signClause, serializer, doc);
+            }
+
+            sxml.KeyInfo = new KeyInfo ();
+            sxml.KeyInfo.AddClause (sigKeyInfo);
+
+            if (!signatureProtection)
+                header.AddContent (sig);
+
+            // endorse the signature with (signed)endorsing
+            // supporting tokens.
+
+            foreach (SupportingTokenInfo tinfo in tokenInfos) {
+                switch (tinfo.Mode) {
+                case SecurityTokenAttachmentMode.Endorsing:
+                case SecurityTokenAttachmentMode.SignedEndorsing:
+                    if (sxml.Signature.Id == null) {
+                        sig.Id = GenerateId (doc);
+                        secElem.AppendChild (sxml.GetXml ());
+                    }
+                    WSSignedXml ssxml = new WSSignedXml (doc);
+                    ssxml.Signature.SignedInfo.CanonicalizationMethod = suite.DefaultCanonicalizationAlgorithm;
+                    CreateReference (ssxml.Signature, doc, sig.Id);
+                    SecurityToken sst = tinfo.Token;
+                    SecurityKey ssk = sst.SecurityKeys [0]; // FIXME: could be different?
+                    SecurityKeyIdentifierClause tclause = new LocalIdKeyIdentifierClause (sst.Id); // FIXME: could be different?
+                    if (ssk is SymmetricSecurityKey) {
+                        SymmetricSecurityKey signKey = (SymmetricSecurityKey)ssk;
+                        ssxml.ComputeSignature (signKey.GetKeyedHashAlgorithm(suite.DefaultSymmetricSignatureAlgorithm));
+                    } else {
+                        AsymmetricSecurityKey signKey = (AsymmetricSecurityKey)ssk;
+                        ssxml.SigningKey = signKey.GetAsymmetricAlgorithm (suite.DefaultAsymmetricSignatureAlgorithm, true);
+                        ssxml.ComputeSignature ();
+                    }
+                    ssxml.KeyInfo.AddClause (new SecurityTokenReferenceKeyInfo (tclause, serializer, doc));
+                    if (!signatureProtection)
+                        header.AddContent (ssxml.Signature);
+                    endorsedSignatures.Add (ssxml);
+
+                    break;
+                }
+            }
+            return sig;
+        }
+
+        void AddAddressingToHeader (MessageHeaders headers)
+        {
+            // FIXME: get correct ReplyTo value
+            if (Direction == MessageDirection.Input)
+                headers.ReplyTo = new EndpointAddress (Constants.WsaAnonymousUri);
+
+            if (MessageTo != null)
+                headers.To = MessageTo.Uri;
+        }
+
+        DerivedKeySecurityToken CreateDerivedKey (string id, 
+                                                          SecurityKeyIdentifierClause actualClause, 
+                                                          SymmetricAlgorithm actualKey)
+        {
+            RijndaelManaged deriv = new RijndaelManaged ();
+            deriv.KeySize = security.Element.DefaultAlgorithmSuite.DefaultEncryptionKeyDerivationLength;
+            deriv.Mode = CipherMode.CBC;
+            deriv.Padding = PaddingMode.ISO10126;
+            deriv.GenerateKey ();
+            var dkeyToken = new DerivedKeySecurityToken (
+                id,
+                null, // algorithm
+                actualClause,
+                new InMemorySymmetricSecurityKey (actualKey.Key),
+                null, // name
+                null, // generation
+                null, // offset
+                deriv.Key.Length,
+                null, // label
+                deriv.Key);
+            return dkeyToken;
+        }
+
+        void AddTimestampToHeader (WSSecurityMessageHeader header, string id)
+        {
+            WsuTimestamp timestamp = new WsuTimestamp ();
+            timestamp.Id = id;
+            timestamp.Created = DateTime.Now;
+            // FIXME: on service side, use element.LocalServiceSettings.TimestampValidityDuration
+            timestamp.Expires = timestamp.Created.Add (security.Element.LocalClientSettings.TimestampValidityDuration);
+            header.AddContent (timestamp);
+        }
 
 		void CreateReference (Signature sig, XmlElement el, string id)
 		{
@@ -658,7 +670,7 @@ else
 			throw new Exception (String.Format ("INTERNAL ERROR: Invalid canonicalization URL: {0}", url));
 		}
 
-		EncryptedData Encrypt (XmlElement target, SymmetricAlgorithm actualKey, string ekeyId, ReferenceList refList, SecurityKeyIdentifierClause encClause, EncryptedXml exml, XmlDocument doc)
+		EncryptedData Encrypt (XmlElement target, SymmetricAlgorithm actualKey, string ekeyId, ReferenceList refList, SecurityKeyIdentifierClause encClause, EncryptedXml exml, XmlDocument doc, string elementType)
 		{
 			SecurityAlgorithmSuite suite = security.Element.DefaultAlgorithmSuite;
 			SecurityTokenSerializer serializer = security.TokenSerializer;
@@ -666,7 +678,7 @@ else
 			byte [] encrypted = exml.EncryptData (target, actualKey, false);
 			EncryptedData edata = new EncryptedData ();
 			edata.Id = GenerateId (doc);
-			edata.Type = EncryptedXml.XmlEncElementContentUrl;
+			edata.Type = elementType;
 			edata.EncryptionMethod = new EncryptionMethod (suite.DefaultEncryptionAlgorithm);
 			// FIXME: here wsse:DigestMethod should be embedded 
 			// inside EncryptionMethod. Since it is not possible 
@@ -700,7 +712,7 @@ else
 			string ret = msg.Headers.Action;
 			if (ret == null) {
 				HttpRequestMessageProperty reqprop =
-					msg.Properties ["Action"] as HttpRequestMessageProperty;
+                    msg.Properties[HttpRequestMessageProperty.Name] as HttpRequestMessageProperty;
 				if (reqprop != null)
 					ret = reqprop.Headers ["Action"];
 			}
@@ -748,8 +760,10 @@ else
 		{
 			var dic = Constants.SoapDictionary;
 			writer.WriteStartElement ("s", dic.Add ("Body"), dic.Add (Version.Envelope.Namespace));
-			if (body_id != null)
-				writer.WriteAttributeString ("Id", Constants.WsuNamespace, body_id);
+
+            if (body_id != null)
+				writer.WriteAttributeString ("u", "Id", Constants.WsuNamespace, body_id);
+            
 		}
 
 		protected override void OnWriteBodyContents (XmlDictionaryWriter w)

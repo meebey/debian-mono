@@ -26,8 +26,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0
-
 using System.ComponentModel;
 #if !NET_2_1
 using System.ComponentModel.Design.Serialization;
@@ -87,7 +85,6 @@ namespace System {
 #endif
 			}
 
-			Console.WriteLine ("Converting: '{0}' of type '{1}'", value, value.GetType ().Name);
 			if (!CanConvertFrom (context, value.GetType ()))
 				throw new NotSupportedException (Locale.GetText ("Cannot convert from value."));
 
@@ -151,5 +148,3 @@ namespace System {
 #endif
 	}
 }
-
-#endif

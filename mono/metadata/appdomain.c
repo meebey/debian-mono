@@ -8,19 +8,21 @@
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2012 Xamarin Inc
  */
 #undef ASSEMBLY_LOAD_DEBUG
 #include <config.h>
 #include <glib.h>
 #include <string.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <errno.h>
-#include <sys/stat.h>
+#include <time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 #ifdef HAVE_UTIME_H
 #include <utime.h>
@@ -73,7 +75,7 @@
  * Changes which are already detected at runtime, like the addition
  * of icalls, do not require an increment.
  */
-#define MONO_CORLIB_VERSION 93
+#define MONO_CORLIB_VERSION 107
 
 typedef struct
 {
@@ -816,7 +818,7 @@ void
 mono_set_private_bin_path_from_config (MonoDomain *domain)
 {
 	MonoError error;
-	gchar *config_file, *text;
+	gchar *config_file_name = NULL, *text = NULL, *config_file_path = NULL;
 	gsize len;
 	GMarkupParseContext *context;
 	RuntimeConfig runtime_config;
@@ -825,21 +827,23 @@ mono_set_private_bin_path_from_config (MonoDomain *domain)
 	if (!domain || !domain->setup || !domain->setup->configuration_file)
 		return;
 
-	config_file = mono_string_to_utf8_checked (domain->setup->configuration_file, &error); 
+	config_file_name = mono_string_to_utf8_checked (domain->setup->configuration_file, &error);
 	if (!mono_error_ok (&error)) {
 		mono_error_cleanup (&error);
-		return;
+		goto free_and_out;
 	}
 
-	if (!g_file_get_contents (config_file, &text, &len, NULL)) {
-		g_free (config_file);
-		return;
-	}
+	config_file_path = mono_portability_find_file (config_file_name, TRUE);
+	if (!config_file_path)
+		config_file_path = config_file_name;
+
+	if (!g_file_get_contents (config_file_path, &text, &len, NULL))
+		goto free_and_out;
 
 	runtime_config.runtime_count = 0;
 	runtime_config.assemblybinding_count = 0;
 	runtime_config.domain = domain;
-	runtime_config.filename = config_file;
+	runtime_config.filename = config_file_path;
 	
 	offset = 0;
 	if (len > 3 && text [0] == '\xef' && text [1] == (gchar) '\xbb' && text [2] == '\xbf')
@@ -849,8 +853,12 @@ mono_set_private_bin_path_from_config (MonoDomain *domain)
 	if (g_markup_parse_context_parse (context, text + offset, len - offset, NULL))
 		g_markup_parse_context_end_parse (context, NULL);
 	g_markup_parse_context_free (context);
+
+  free_and_out:
 	g_free (text);
-	g_free (config_file);
+	if (config_file_name != config_file_path)
+		g_free (config_file_name);
+	g_free (config_file_path);
 }
 
 MonoAppDomain *
@@ -990,7 +998,7 @@ add_assemblies_to_domain (MonoDomain *domain, MonoAssembly *ass, GHashTable *ht)
 		mono_assembly_addref (ass);
 		g_hash_table_insert (ht, ass, ass);
 		domain->domain_assemblies = g_slist_prepend (domain->domain_assemblies, ass);
-		mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_ASSEMBLY, "Assembly %s %p added to domain %s, ref_count=%d\n", ass->aname.name, ass, domain->friendly_name, ass->ref_count);
+		mono_trace (G_LOG_LEVEL_INFO, MONO_TRACE_ASSEMBLY, "Assembly %s[%p] added to domain %s, ref_count=%d", ass->aname.name, ass, domain->friendly_name, ass->ref_count);
 	}
 
 	if (ass->image->references) {
@@ -1093,7 +1101,7 @@ set_domain_search_path (MonoDomain *domain)
 	if (setup->private_bin_path) {
 		search_path = mono_string_to_utf8_checked (setup->private_bin_path, &error);
 		if (!mono_error_ok (&error)) { /*FIXME maybe we should bubble up the error.*/
-			g_warning ("Could not decode AppDomain search path since it contains invalid caracters");
+			g_warning ("Could not decode AppDomain search path since it contains invalid characters");
 			mono_error_cleanup (&error);
 			mono_domain_assemblies_unlock (domain);
 			return;
@@ -1475,10 +1483,22 @@ static gboolean
 private_file_needs_copying (const char *src, struct stat *sbuf_src, char *dest)
 {
 	struct stat sbuf_dest;
-	
-	if (stat (src, sbuf_src) == -1 || stat (dest, &sbuf_dest) == -1)
-		return TRUE;
+	gchar *real_src = mono_portability_find_file (src, TRUE);
 
+	if (!real_src)
+		real_src = (gchar*)src;
+	
+	if (stat (real_src, sbuf_src) == -1) {
+		time_t tnow = time (NULL);
+		memset (sbuf_src, 0, sizeof (*sbuf_src));
+		sbuf_src->st_mtime = tnow;
+		sbuf_src->st_atime = tnow;
+		return TRUE;
+	}
+
+	if (stat (dest, &sbuf_dest) == -1)
+		return TRUE;
+	
 	if (sbuf_src->st_size == sbuf_dest.st_size &&
 	    sbuf_src->st_mtime == sbuf_dest.st_mtime)
 		return FALSE;
@@ -2151,21 +2171,23 @@ clear_cached_vtable (MonoVTable *vtable)
 	MonoClass *klass = vtable->klass;
 	MonoDomain *domain = vtable->domain;
 	MonoClassRuntimeInfo *runtime_info;
+	void *data;
 
 	runtime_info = klass->runtime_info;
 	if (runtime_info && runtime_info->max_domain >= domain->domain_id)
 		runtime_info->domain_vtables [domain->domain_id] = NULL;
-	if (vtable->data && klass->has_static_refs)
-		mono_gc_free_fixed (vtable->data);
+	if (klass->has_static_refs && (data = mono_vtable_get_static_field_data (vtable)))
+		mono_gc_free_fixed (data);
 }
 
 static G_GNUC_UNUSED void
 zero_static_data (MonoVTable *vtable)
 {
 	MonoClass *klass = vtable->klass;
+	void *data;
 
-	if (vtable->data && klass->has_static_refs)
-		memset (vtable->data, 0, mono_class_data_size (klass));
+	if (klass->has_static_refs && (data = mono_vtable_get_static_field_data (vtable)))
+		mono_gc_bzero (data, mono_class_data_size (klass));
 }
 
 typedef struct unload_data {
@@ -2173,7 +2195,6 @@ typedef struct unload_data {
 	char *failure_reason;
 } unload_data;
 
-#ifdef HAVE_SGEN_GC
 static void
 deregister_reflection_info_roots_nspace_table (gpointer key, gpointer value, gpointer image)
 {
@@ -2237,7 +2258,6 @@ deregister_reflection_info_roots (MonoDomain *domain)
 	mono_domain_assemblies_unlock (domain);
 	mono_loader_unlock ();
 }
-#endif
 
 static guint32 WINAPI
 unload_thread_main (void *arg)
@@ -2293,9 +2313,10 @@ unload_thread_main (void *arg)
 #endif
 	for (i = 0; i < domain->class_vtable_array->len; ++i)
 		clear_cached_vtable (g_ptr_array_index (domain->class_vtable_array, i));
-#ifdef HAVE_SGEN_GC
 	deregister_reflection_info_roots (domain);
-#endif
+
+	mono_assembly_cleanup_domain_bindings (domain->domain_id);
+
 	mono_domain_unlock (domain);
 	mono_loader_unlock ();
 
@@ -2312,7 +2333,7 @@ unload_thread_main (void *arg)
 
 	mono_gc_collect (mono_gc_max_generation ());
 
-	mono_thread_detach  (thread);
+	mono_thread_detach (thread);
 
 	return 0;
 }

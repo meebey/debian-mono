@@ -1,10 +1,12 @@
 //
 // System.Net.HttpListener
 //
-// Author:
+// Authors:
 //	Gonzalo Paniagua Javier (gonzalo@novell.com)
+//	Marek Safar (marek.safar@gmail.com)
 //
 // Copyright (c) 2005 Novell, Inc. (http://www.novell.com)
+// Copyright 2011 Xamarin Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,10 +28,14 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0 && SECURITY_DEP
+#if SECURITY_DEP
 
 using System.Collections;
 using System.Threading;
+#if NET_4_5
+using System.Threading.Tasks;
+#endif
+
 //TODO: logging
 namespace System.Net {
 	public sealed class HttpListener : IDisposable {
@@ -45,11 +51,13 @@ namespace System.Net {
 		Hashtable registry;   // Dictionary<HttpListenerContext,HttpListenerContext> 
 		ArrayList ctx_queue;  // List<HttpListenerContext> ctx_queue;
 		ArrayList wait_queue; // List<ListenerAsyncResult> wait_queue;
+		Hashtable connections;
 
 		public HttpListener ()
 		{
 			prefixes = new HttpListenerPrefixCollection (this);
 			registry = new Hashtable ();
+			connections = Hashtable.Synchronized (new Hashtable ());
 			ctx_queue = new ArrayList ();
 			wait_queue = new ArrayList ();
 			auth_schemes = AuthenticationSchemes.Anonymous;
@@ -135,7 +143,7 @@ namespace System.Net {
 				return;
 			}
 
-			Close (false);
+			Close (true);
 			disposed = true;
 		}
 
@@ -150,22 +158,34 @@ namespace System.Net {
 		{
 			lock (registry) {
 				if (close_existing) {
-					foreach (HttpListenerContext context in registry.Keys) {
-						context.Connection.Close ();
-					}
-					registry.Clear (); // Just in case.
+					// Need to copy this since closing will call UnregisterContext
+					ICollection keys = registry.Keys;
+					var all = new HttpListenerContext [keys.Count];
+					keys.CopyTo (all, 0);
+					registry.Clear ();
+					for (int i = all.Length - 1; i >= 0; i--)
+						all [i].Connection.Close (true);
 				}
 
+				lock (connections.SyncRoot) {
+					ICollection keys = connections.Keys;
+					var conns = new HttpConnection [keys.Count];
+					keys.CopyTo (conns, 0);
+					connections.Clear ();
+					for (int i = conns.Length - 1; i >= 0; i--)
+						conns [i].Close (true);
+				}
 				lock (ctx_queue) {
-					foreach (HttpListenerContext context in ctx_queue)
-						context.Connection.Close ();
-
+					var ctxs = (HttpListenerContext []) ctx_queue.ToArray (typeof (HttpListenerContext));
 					ctx_queue.Clear ();
+					for (int i = ctxs.Length - 1; i >= 0; i--)
+						ctxs [i].Connection.Close (true);
 				}
 
 				lock (wait_queue) {
+					Exception exc = new ObjectDisposedException ("listener");
 					foreach (ListenerAsyncResult ares in wait_queue) {
-						ares.Complete ("Listener was closed.");
+						ares.Complete (exc);
 					}
 					wait_queue.Clear ();
 				}
@@ -205,6 +225,9 @@ namespace System.Net {
 			ListenerAsyncResult ares = asyncResult as ListenerAsyncResult;
 			if (ares == null)
 				throw new ArgumentException ("Wrong IAsyncResult.", "asyncResult");
+			if (ares.EndCalled)
+				throw new ArgumentException ("Cannot reuse this IAsyncResult");
+			ares.EndCalled = true;
 
 			if (!ares.IsCompleted)
 				ares.AsyncWaitHandle.WaitOne ();
@@ -234,7 +257,8 @@ namespace System.Net {
 			if (prefixes.Count == 0)
 				throw new InvalidOperationException ("Please, call AddPrefix before using this method.");
 
-			IAsyncResult ares = BeginGetContext (null, null);
+			ListenerAsyncResult ares = (ListenerAsyncResult) BeginGetContext (null, null);
+			ares.InGet = true;
 			return EndGetContext (ares);
 		}
 
@@ -264,6 +288,13 @@ namespace System.Net {
 			disposed = true;
 		}
 
+#if NET_4_5
+		public Task<HttpListenerContext> GetContextAsync ()
+		{
+			return Task<HttpListenerContext>.Factory.FromAsync (BeginGetContext, EndGetContext, null);
+		}
+#endif
+
 		internal void CheckDisposed ()
 		{
 			if (disposed)
@@ -283,38 +314,42 @@ namespace System.Net {
 
 		internal void RegisterContext (HttpListenerContext context)
 		{
-			try {
-				Monitor.Enter (registry);
+			lock (registry)
 				registry [context] = context;
-				Monitor.Enter (wait_queue);
-				Monitor.Enter (ctx_queue);
+
+			ListenerAsyncResult ares = null;
+			lock (wait_queue) {
 				if (wait_queue.Count == 0) {
-					ctx_queue.Add (context);
+					lock (ctx_queue)
+						ctx_queue.Add (context);
 				} else {
-					ListenerAsyncResult ares = (ListenerAsyncResult) wait_queue [0];
+					ares = (ListenerAsyncResult) wait_queue [0];
 					wait_queue.RemoveAt (0);
-					ares.Complete (context);
 				}
-			} finally {
-				Monitor.Exit (ctx_queue);
-				Monitor.Exit (wait_queue);
-				Monitor.Exit (registry);
 			}
+			if (ares != null)
+				ares.Complete (context);
 		}
 
 		internal void UnregisterContext (HttpListenerContext context)
 		{
-			try {
-				Monitor.Enter (registry);
-				Monitor.Enter (ctx_queue);
+			lock (registry)
+				registry.Remove (context);
+			lock (ctx_queue) {
 				int idx = ctx_queue.IndexOf (context);
 				if (idx >= 0)
 					ctx_queue.RemoveAt (idx);
-				registry.Remove (context);
-			} finally {
-				Monitor.Exit (ctx_queue);
-				Monitor.Exit (registry);
 			}
+		}
+
+		internal void AddConnection (HttpConnection cnc)
+		{
+			connections [cnc] = cnc;
+		}
+
+		internal void RemoveConnection (HttpConnection cnc)
+		{
+			connections.Remove (cnc);
 		}
 	}
 }

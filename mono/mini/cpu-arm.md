@@ -1,3 +1,5 @@
+# Copyright 2003-2011 Novell, Inc (http://www.novell.com)
+# Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
 # arm cpu description file
 # this file is read by genmdesc to pruduce a table with all the relevant information
 # about the cpu instructions that may be used by the regsiter allocator, the scheduler
@@ -46,14 +48,16 @@
 #
 # See the code in mini-x86.c for more details on how the specifiers are used.
 #
-memory_barrier: len:4
+memory_barrier: len:8 clob:a
 nop: len:4
 relaxed_nop: len:4
 break: len:4
 jmp: len:92
 br: len:4
 switch: src1:i len:8
-seq_point: len:38
+# See the comment in resume_from_signal_handler, we can't copy the fp regs from sigctx to MonoContext on linux,
+# since the corresponding sigctx structures are not well defined.
+seq_point: len:38 clob:c
 
 throw: src1:i len:24
 rethrow: src1:i len:20
@@ -91,7 +95,7 @@ vcall: len:20 clob:c
 vcall_reg: src1:i len:8 clob:c
 vcall_membase: src1:b len:12 clob:c
 iconst: dest:i len:16
-r4const: dest:f len:20
+r4const: dest:f len:24
 r8const: dest:f len:20
 label: len:0
 store_membase_imm: dest:b len:20
@@ -202,7 +206,7 @@ sbb_imm: dest:i src1:i len:12
 br_reg: src1:i len:8
 bigmul: len:8 dest:l src1:i src2:i
 bigmul_un: len:8 dest:l src1:i src2:i
-tls_get: len:8 dest:i
+tls_get: len:8 dest:i clob:c
 
 # 32 bit opcodes
 int_add: dest:i src1:i src2:i len:4
@@ -309,7 +313,7 @@ long_conv_to_ovf_i4_2: dest:i src1:i src2:i len:36
 vcall2: len:20 clob:c
 vcall2_reg: src1:i len:8 clob:c
 vcall2_membase: src1:b len:12 clob:c
-dyn_call: src1:i src2:i len:128 clob:c
+dyn_call: src1:i src2:i len:120 clob:c
 
 # This is different from the original JIT opcodes
 float_beq: len:20
@@ -322,3 +326,10 @@ float_bge: len:20
 float_bge_un: len:20
 float_ble: len:20
 float_ble_un: len:20
+
+liverange_start: len:0
+liverange_end: len:0
+gc_liveness_def: len:0
+gc_liveness_use: len:0
+gc_spill_slot_liveness_def: len:0
+gc_param_slot_liveness_def: len:0

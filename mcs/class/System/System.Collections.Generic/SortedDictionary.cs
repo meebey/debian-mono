@@ -35,13 +35,15 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Runtime.Serialization;
+using System.Security.Permissions;
 
 namespace System.Collections.Generic
 {
 	[Serializable]
 	[DebuggerDisplay ("Count={Count}")]
 	[DebuggerTypeProxy (typeof (CollectionDebuggerView<,>))]
-	public class SortedDictionary<TKey,TValue> : IDictionary<TKey,TValue>, ICollection<KeyValuePair<TKey,TValue>>, IEnumerable<KeyValuePair<TKey,TValue>>, IDictionary, ICollection, IEnumerable
+	public class SortedDictionary<TKey,TValue> : IDictionary<TKey,TValue>, ICollection<KeyValuePair<TKey,TValue>>, IEnumerable<KeyValuePair<TKey,TValue>>, IDictionary, ICollection, IEnumerable, ISerializable
 	{
 		class Node : RBTree.Node {
 			public TKey key;
@@ -76,6 +78,7 @@ namespace System.Collections.Generic
 			}
 		}
 
+		[Serializable]
 		class NodeHelper : RBTree.INodeHelper<TKey> {
 			public IComparer<TKey> cmp;
 
@@ -116,17 +119,29 @@ namespace System.Collections.Generic
 			tree = new RBTree (hlp);
 		}
 
-		public SortedDictionary (IDictionary<TKey,TValue> dic) : this (dic, null)
+		public SortedDictionary (IDictionary<TKey,TValue> dictionary) : this (dictionary, null)
 		{
 		}
 
-		public SortedDictionary (IDictionary<TKey,TValue> dic, IComparer<TKey> comparer) : this (comparer)
+		public SortedDictionary (IDictionary<TKey,TValue> dictionary, IComparer<TKey> comparer) : this (comparer)
 		{
-			if (dic == null)
-				throw new ArgumentNullException ();
-			foreach (KeyValuePair<TKey, TValue> entry in dic)
+			if (dictionary == null)
+				throw new ArgumentNullException ("dictionary");
+			
+			foreach (KeyValuePair<TKey, TValue> entry in dictionary)
 				Add (entry.Key, entry.Value);
 		}
+
+		protected SortedDictionary (SerializationInfo info, StreamingContext context)
+		{
+			hlp = (NodeHelper)info.GetValue("Helper", typeof(NodeHelper));
+			tree = new RBTree (hlp);
+
+			KeyValuePair<TKey, TValue> [] data = (KeyValuePair<TKey, TValue>[])info.GetValue("KeyValuePairs", typeof(KeyValuePair<TKey, TValue>[]));
+			foreach (KeyValuePair<TKey, TValue> entry in data)
+				Add(entry.Key, entry.Value);
+		}
+
 		#endregion
 
 		#region PublicProperty
@@ -194,19 +209,19 @@ namespace System.Collections.Generic
 			return false;
 		}
 
-		public void CopyTo (KeyValuePair<TKey,TValue>[] array, int arrayIndex)
+		public void CopyTo (KeyValuePair<TKey,TValue>[] array, int index)
 		{
 			if (Count == 0)
 				return;
 			if (array == null)
 				throw new ArgumentNullException ();
-			if (arrayIndex < 0 || array.Length <= arrayIndex)
+			if (index < 0 || array.Length <= index)
 				throw new ArgumentOutOfRangeException ();
-			if (array.Length - arrayIndex < Count)
+			if (array.Length - index < Count)
 				throw new ArgumentException ();
 
 			foreach (Node n in tree)
-				array [arrayIndex ++] = n.AsKV ();
+				array [index ++] = n.AsKV ();
 		}
 		
 		public Enumerator GetEnumerator ()
@@ -224,6 +239,18 @@ namespace System.Collections.Generic
 			Node n = (Node) tree.Lookup (key);
 			value = n == null ? default (TValue) : n.value;
 			return n != null;
+		}
+
+		[SecurityPermission (SecurityAction.LinkDemand, Flags=SecurityPermissionFlag.SerializationFormatter)]
+		public virtual void GetObjectData (SerializationInfo info, StreamingContext context)
+		{
+			if (info == null)
+				throw new ArgumentNullException ("info");
+
+			KeyValuePair<TKey, TValue> [] data = new KeyValuePair<TKey,TValue> [Count];
+			CopyTo (data, 0);
+			info.AddValue ("KeyValuePairs", data);
+			info.AddValue ("Helper", hlp);
 		}
 
 		#endregion
@@ -280,7 +307,7 @@ namespace System.Collections.Generic
 		{
 			TValue value;
 			return TryGetValue (item.Key, out value) &&
- 				EqualityComparer<TValue>.Default.Equals (item.Value, value) &&
+				EqualityComparer<TValue>.Default.Equals (item.Value, value) &&
 				Remove (item.Key);
 		}
 
@@ -385,9 +412,9 @@ namespace System.Collections.Generic
 		{
 			SortedDictionary<TKey,TValue> _dic;
 
-			public ValueCollection (SortedDictionary<TKey,TValue> dic)
+			public ValueCollection (SortedDictionary<TKey,TValue> dictionary)
 			{
-				_dic = dic;
+				_dic = dictionary;
 			}
 
 			void ICollection<TValue>.Add (TValue item)
@@ -405,18 +432,18 @@ namespace System.Collections.Generic
 				return _dic.ContainsValue (item);
 			}
 
-			public void CopyTo (TValue [] array, int arrayIndex)
+			public void CopyTo (TValue [] array, int index)
 			{
 				if (Count == 0)
 					return;
 				if (array == null)
 					throw new ArgumentNullException ();
-				if (arrayIndex < 0 || array.Length <= arrayIndex)
+				if (index < 0 || array.Length <= index)
 					throw new ArgumentOutOfRangeException ();
-				if (array.Length - arrayIndex < Count)
+				if (array.Length - index < Count)
 					throw new ArgumentException ();
 				foreach (Node n in _dic.tree)
-					array [arrayIndex++] = n.value;
+					array [index++] = n.value;
 			}
 
 			public int Count {
@@ -466,7 +493,7 @@ namespace System.Collections.Generic
 
 			IEnumerator IEnumerable.GetEnumerator ()
 			{
- 				return new Enumerator (_dic);
+				return new Enumerator (_dic);
 			}
 
 			public struct Enumerator : IEnumerator<TValue>,IEnumerator, IDisposable
@@ -475,10 +502,10 @@ namespace System.Collections.Generic
 
 				TValue current;
 
-				internal Enumerator (SortedDictionary<TKey,TValue> dic)
+				internal Enumerator (SortedDictionary<TKey,TValue> dictionary)
 					: this ()
 				{
-					host = dic.tree.GetEnumerator ();
+					host = dictionary.tree.GetEnumerator ();
 				}
 
 				public TValue Current {
@@ -520,9 +547,9 @@ namespace System.Collections.Generic
 		{
 			SortedDictionary<TKey,TValue> _dic;
 
-			public KeyCollection (SortedDictionary<TKey,TValue> dic)
+			public KeyCollection (SortedDictionary<TKey,TValue> dictionary)
 			{
-				_dic = dic;
+				_dic = dictionary;
 			}
 
 			void ICollection<TKey>.Add (TKey item)
@@ -545,18 +572,18 @@ namespace System.Collections.Generic
 				return GetEnumerator ();
 			}
 
-			public void CopyTo (TKey [] array, int arrayIndex)
+			public void CopyTo (TKey [] array, int index)
 			{
 				if (Count == 0)
 					return;
 				if (array == null)
 					throw new ArgumentNullException ();
-				if (arrayIndex < 0 || array.Length <= arrayIndex)
+				if (index < 0 || array.Length <= index)
 					throw new ArgumentOutOfRangeException ();
-				if (array.Length - arrayIndex < Count)
+				if (array.Length - index < Count)
 					throw new ArgumentException ();
 				foreach (Node n in _dic.tree)
-					array [arrayIndex++] = n.key;
+					array [index++] = n.key;
 			}
 
 			public int Count {
@@ -601,7 +628,7 @@ namespace System.Collections.Generic
 
 			IEnumerator IEnumerable.GetEnumerator ()
 			{
- 				return new Enumerator (_dic);
+				return new Enumerator (_dic);
 			}
 
 			public struct Enumerator : IEnumerator<TKey>, IEnumerator, IDisposable

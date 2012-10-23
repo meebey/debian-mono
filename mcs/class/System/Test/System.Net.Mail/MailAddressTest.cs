@@ -6,7 +6,7 @@
 //
 // (C) 2005 John Luke
 //
-#if NET_2_0
+
 using NUnit.Framework;
 using System;
 using System.Net.Mail;
@@ -107,7 +107,13 @@ namespace MonoTests.System.Net.Mail
 		}
 
 		[Test]
-		[Category ("NotWorking")]
+		[ExpectedException (typeof (ArgumentException))]
+		public void Constructor_Address_Empty ()
+		{
+			new MailAddress ("");
+		}
+
+		[Test]
 		public void Constructor0_Address_Invalid ()
 		{
 			try {
@@ -197,6 +203,17 @@ namespace MonoTests.System.Net.Mail
 				Assert.IsNull (ex.InnerException, "#H3");
 				Assert.IsNotNull (ex.Message, "#H4");
 			}
+			
+			try {
+				new MailAddress (" ");
+				Assert.Fail ("#I1");
+			} catch (FormatException ex) {
+				// The specified string is not in the form required for an
+				// e-mail address
+				Assert.AreEqual (typeof (FormatException), ex.GetType (), "#I2");
+				Assert.IsNull (ex.InnerException, "#I3");
+				Assert.IsNotNull (ex.Message, "#I4");
+			}
 		}
 
 		[Test]
@@ -246,6 +263,58 @@ namespace MonoTests.System.Net.Mail
 		}
 
 		[Test]
+		public void DisplayName_Precedence ()
+		{
+			var ma = new MailAddress ("Hola <foo@bar.com>");
+			Assert.AreEqual (ma.DisplayName, "Hola");
+			ma = new MailAddress ("Hola <foo@bar.com>", "Adios");
+			Assert.AreEqual (ma.DisplayName, "Adios");
+			ma = new MailAddress ("Hola <foo@bar.com>", "");
+			Assert.AreEqual (ma.DisplayName, "");
+		}
+
+		[Test]
+		[ExpectedException (typeof (FormatException))]
+		public void Address_Invalid ()
+		{
+			new MailAddress ("foobar");
+		}
+
+		[Test]
+		public void Address_QuoteFirst ()
+		{
+			new MailAddress ("\"Hola\" <foo@bar.com>");
+		}
+
+		[Test]
+		[ExpectedException (typeof (FormatException))]
+		public void Address_QuoteNotFirst ()
+		{
+			new MailAddress ("H\"ola\" <foo@bar.com>");
+		}
+
+		[Test]
+		[ExpectedException (typeof (FormatException))]
+		public void Address_NoClosingQuote ()
+		{
+			new MailAddress ("\"Hola <foo@bar.com>");
+		}
+
+		[Test]
+		[ExpectedException (typeof (FormatException))]
+		public void Address_NoUser ()
+		{
+			new MailAddress ("Hola <@bar.com>");
+		}
+
+		[Test]
+		[ExpectedException (typeof (FormatException))]
+		public void Address_NoUserNoHost ()
+		{
+			new MailAddress ("Hola <@>");
+		}
+
+		[Test]
 		public void Address ()
 		{
 			Assert.AreEqual ("foo@example.com", address.Address);
@@ -274,6 +343,20 @@ namespace MonoTests.System.Net.Mail
 		{
 			Assert.AreEqual ("\"Mr. Foo Bar\" <foo@example.com>", address.ToString ());
 		}
+
+		[Test]
+		public void EqualsTest ()
+		{
+			var n = new MailAddress ("Mr. Bar <a@example.com>");
+			var n2 = new MailAddress ("a@example.com", "Mr. Bar");
+			Assert.AreEqual (n, n2);
+		}
+		[Test]
+		public void EqualsTest2 ()
+		{
+			var n = new MailAddress ("Mr. Bar <a@example.com>");
+			var n2 = new MailAddress ("MR. BAR <a@EXAMPLE.com>");
+			Assert.AreEqual (n, n2);
+		}
 	}
 }
-#endif

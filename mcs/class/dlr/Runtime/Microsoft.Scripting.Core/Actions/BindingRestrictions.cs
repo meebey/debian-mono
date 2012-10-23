@@ -1,19 +1,19 @@
-/* ****************************************************************************
+﻿/* ****************************************************************************
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
  *
  * ***************************************************************************/
 
-#if CLR2
+#if !FEATURE_CORE_DLR
 using Microsoft.Scripting.Ast;
 #else
 using System.Linq.Expressions;
@@ -30,9 +30,7 @@ namespace System.Dynamic {
     /// <summary>
     /// Represents a set of binding restrictions on the <see cref="DynamicMetaObject"/>under which the dynamic binding is valid.
     /// </summary>
-#if !SILVERLIGHT
     [DebuggerTypeProxy(typeof(BindingRestrictionsProxy)), DebuggerDisplay("{DebugView}")]
-#endif
     public abstract class BindingRestrictions {
         /// <summary>
         /// Represents an empty set of binding restrictions. This field is read only.
@@ -282,7 +280,7 @@ namespace System.Dynamic {
             }
 
             public override int GetHashCode() {
-                return InstanceRestrictionHash ^ RuntimeHelpers.GetHashCode(_instance) ^ _expression.GetHashCode();
+                return InstanceRestrictionHash ^ ReferenceEqualityComparer<object>.Instance.GetHashCode(_instance) ^ _expression.GetHashCode();
             }
 
             internal override Expression GetExpression() {

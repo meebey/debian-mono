@@ -1342,7 +1342,7 @@ public class AssemblyNameTest {
 		const string assemblyVersion = "1.2.3.4";
 
 		an = new AssemblyName (assemblyName + ", Version=" + assemblyVersion + 
-				", Culture=" + assemblyCulture + ", PublicKeyToken=" + GetTokenString (pk_token1));
+				", Culture=" + assemblyCulture + ", PublicKeyToken=" + GetTokenString (pk_token1) + ",ProcessorArchitecture=X86");
 		Assert.IsNull (an.CodeBase, "CodeBase");
 		Assert.AreEqual (CultureInfo.InvariantCulture, an.CultureInfo, "CultureInfo");
 		Assert.IsNull (an.EscapedCodeBase, "EscapedCodeBase");
@@ -1352,7 +1352,7 @@ public class AssemblyNameTest {
 		Assert.AreEqual (AssemblyHashAlgorithm.None, an.HashAlgorithm, "HashAlgorithm");
 		Assert.IsNull (an.KeyPair, "KeyPair");
 		Assert.AreEqual (assemblyName, an.Name, "Name");
-		Assert.AreEqual (ProcessorArchitecture.None, an.ProcessorArchitecture, "PA");
+		Assert.AreEqual (ProcessorArchitecture.X86, an.ProcessorArchitecture, "PA");
 		Assert.AreEqual (new Version (assemblyVersion), an.Version, "Version");
 		Assert.AreEqual (AssemblyVersionCompatibility.SameMachine, 
 			an.VersionCompatibility, "VersionCompatibility");
@@ -1468,6 +1468,10 @@ public class AssemblyNameTest {
 		try {
 			new AssemblyName (assemblyName + ", Culture=aa-AA");
 			Assert.Fail ("#1");
+#if NET_4_0
+		} catch (CultureNotFoundException ex) {
+		}
+#else
 		} catch (ArgumentException ex) {
 			// Culture name 'aa-aa' is not supported
 			Assert.AreEqual (typeof (ArgumentException), ex.GetType (), "#2");
@@ -1476,6 +1480,7 @@ public class AssemblyNameTest {
 			Assert.IsNotNull (ex.ParamName, "#5");
 			Assert.AreEqual ("name", ex.ParamName, "#6");
 		}
+#endif
 	}
 
 	[Test] // ctor (String)
@@ -1991,6 +1996,16 @@ public class AssemblyNameTest {
 			Assert.IsNull (ex.InnerException, "#3");
 			Assert.IsNotNull (ex.Message, "#4");
 		}
+	}
+
+	[Test (Description="Xamarin bug #99 - whitespaces in key=value")]
+	public void WhiteSpaceInKeyValue ()
+	{
+		string nameWithSpaces = String.Format ("MySql.Data.Tests, PublicKey      = \t  {0},  Culture   =\tneutral, Version=\t1.2.3.4", GetTokenString (publicKey1));
+		string fullName = "MySql.Data.Tests, Version=1.2.3.4, Culture=neutral, PublicKeyToken=ce5276d8687ec6dc";
+		var an = new AssemblyName (nameWithSpaces);
+
+		Assert.AreEqual (fullName, an.FullName);
 	}
 #endif
 }

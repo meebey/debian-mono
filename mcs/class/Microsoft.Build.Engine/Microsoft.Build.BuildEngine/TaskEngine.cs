@@ -27,8 +27,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -82,7 +80,7 @@ namespace Microsoft.Build.BuildEngine {
 			this.task = task;
 			this.taskElement = taskElement;
 			this.taskType = taskType;
-			values = new Dictionary <string, object> (StringComparer.InvariantCultureIgnoreCase);
+			values = new Dictionary <string, object> (StringComparer.OrdinalIgnoreCase);
 			
 			foreach (KeyValuePair <string, string> de in parameters) {
 				currentProperty = taskType.GetProperty (de.Key, BindingFlags.Public | BindingFlags.Instance
@@ -177,10 +175,6 @@ namespace Microsoft.Build.BuildEngine {
 					throw new InvalidProjectFileException ("This is not output property.");
 				
 				o = propertyInfo.GetValue (task, null);
-				// FIXME: maybe we should throw an exception here?
-				if (o == null)
-					continue;
-				
 				if (itemName != String.Empty) {
 					PublishItemGroup (propertyInfo, o, itemName);
 				} else {
@@ -198,6 +192,11 @@ namespace Microsoft.Build.BuildEngine {
 					      object o,
 					      string propertyName)
 		{
+			if (o == null) {
+				parentProject.EvaluatedProperties.RemoveProperty (propertyName);
+				return;
+			}
+
 			BuildProperty bp;
 			try {
 				bp = ChangeType.ToBuildProperty (o, propertyInfo.PropertyType, propertyName);
@@ -214,6 +213,9 @@ namespace Microsoft.Build.BuildEngine {
 					       object o,
 					       string itemName)
 		{
+			if (o == null)
+				return;
+
 			BuildItemGroup newItems;
 			try {
 				newItems = ChangeType.ToBuildItemGroup (o, propertyInfo.PropertyType, itemName);
@@ -260,5 +262,3 @@ namespace Microsoft.Build.BuildEngine {
 		}
 	}
 }
-
-#endif

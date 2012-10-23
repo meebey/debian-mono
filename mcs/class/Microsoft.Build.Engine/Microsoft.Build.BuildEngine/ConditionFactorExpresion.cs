@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections;
 using System.Collections.Specialized;
@@ -77,7 +75,9 @@ namespace Microsoft.Build.BuildEngine {
 			else if (falseValues [evaluatedToken.Value] != null)
 				return false;
 			else
-				throw new InvalidProjectFileException ();
+				throw new ExpressionEvaluationException (
+						String.Format ("Expression \"{0}\" evaluated to \"{1}\" instead of a boolean value",
+								token.Value, evaluatedToken.Value));
 		}
 		
 		public override float NumberEvaluate (Project context)
@@ -123,9 +123,7 @@ namespace Microsoft.Build.BuildEngine {
 		{
 			Expression oe = new Expression ();
 			oe.Parse (token.Value, ParseOptions.AllowItemsMetadataAndSplit);
-			return new Token ((string) oe.ConvertTo (context, typeof (string)), token.Type);
+			return new Token ((string) oe.ConvertTo (context, typeof (string)), token.Type, token.Position);
 		}
 	}
 }
-
-#endif

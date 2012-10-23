@@ -44,7 +44,7 @@ namespace Tester
 {
 	static partial class Sequences
 	{
-		public static void Run (StringBuilder sb, string seqDir, string indent)
+		public static void Run (StringBuilder sb, string seqDir, string dataDir, string indent)
 		{
 			string[] files = Directory.GetFiles (seqDir, "*.seq");
 			if (files == null || files.Length == 0)
@@ -53,10 +53,10 @@ namespace Tester
 			int seqNum = 0;
 			Array.Sort <string> (files);
 			foreach (string f in files)
-				RunSequence (sb, indent, f, seqNum++);
+				RunSequence (sb, indent, dataDir, f, seqNum++);
 		}
 
-		static void RunSequence (StringBuilder sb, string initialIndent, string file, int seqNum)
+		static void RunSequence (StringBuilder sb, string initialIndent, string dataDir, string file, int seqNum)
 		{
 			Dictionary <Guid, int> cacheIndex;
 			List <CacheItem> cacheItems;
@@ -67,40 +67,51 @@ namespace Tester
 			if (edSequence == null || edSequence.Count == 0)
 				return;
 
-			string indent = initialIndent + "\t";
-			sb.SequenceMethodStart (initialIndent, file, seqNum);
-			sb.FormatList (indent, "list", cacheItems);
-			sb.Append (indent + "var queue = new CacheItemPriorityQueue ();\n");
-			sb.Append (indent + "CacheItem item;\n\n");
+
+			string listName = String.Format ("Sequence_{0:00000}.list", seqNum);
+			string testsName = String.Format ("Sequence_{0:00000}.tests", seqNum);
+			using (var sw = new StreamWriter (Path.Combine (dataDir, listName), false, Encoding.UTF8))
+				sw.FormatList (cacheItems);
 			
+			string indent = initialIndent + "\t";
 			int idx;
-			var pq = new PriorityQueueState ("list", "queue", "item");
-			foreach (EDSequenceEntry entry in edSequence) {
-				idx = cacheIndex [entry.Item.Guid];
+			var pq = new PriorityQueueState ();
+			using (var sw = new StreamWriter (Path.Combine (dataDir, testsName), false, Encoding.UTF8)) {
+				foreach (EDSequenceEntry entry in edSequence) {
+					idx = cacheIndex [entry.Item.Guid];
 
-				switch (entry.Type) {
-					case EDSequenceEntryType.Enqueue:
-						sb.FormatEnqueue (indent, pq, cacheItems, idx);
-						break;
+					switch (entry.Type) {
+						case EDSequenceEntryType.Enqueue:
+							sw.FormatEnqueue (pq, cacheItems, idx);
+							break;
 
-					case EDSequenceEntryType.Dequeue:
-						sb.FormatDequeue (indent, pq);
-						break;
+						case EDSequenceEntryType.Dequeue:
+							sw.FormatDequeue (pq);
+							break;
 
-					case EDSequenceEntryType.Disable:
-						sb.FormatDisableItem (indent, pq, cacheItems, idx);
-						break;
+						case EDSequenceEntryType.Disable:
+							sw.FormatDisableItem (pq, cacheItems, idx);
+							break;
 
-					case EDSequenceEntryType.Peek:
-						sb.FormatPeek (indent, pq);
-						break;
+						case EDSequenceEntryType.Peek:
+							sw.FormatPeek (pq);
+							break;
+
+						case EDSequenceEntryType.Update:
+							sw.FormatUpdate (pq, cacheItems, entry.Item, idx);
+							break;
+					}
 				}
-			}
 
-			sb.FormatQueueSize (indent, pq);
+				sw.FormatQueueSize (pq);
 
-			while (pq.Queue.Count > 0)
-				sb.FormatDequeue (indent, pq);
+				while (pq.Queue.Count > 0)
+					sw.FormatDequeue (pq);
+			}			
+			
+			sb.SequenceMethodStart (initialIndent, file, seqNum);
+ 			sb.AppendFormat ("{0}RunTest (\"{1}\", \"{2}\");", indent, testsName, listName);
+			sb.AppendLine ();
 			
 			sb.SequenceMethodEnd (initialIndent);
 		}
@@ -133,7 +144,8 @@ namespace Tester
 
 			if (cacheIndex.TryGetValue (guid, out idx))
 				return cacheItems [idx];
-			
+
+			bool attrFound;
 			var ret = new CacheItem ();
 
 			ret.Key = node.GetRequiredAttribute <string> ("key");
@@ -143,6 +155,7 @@ namespace Tester
 			ret.LastChange = node.GetRequiredAttribute <DateTime> ("lastChange");
 			ret.ExpiresAt = node.GetRequiredAttribute <long> ("expiresAt");
 			ret.Disabled = node.GetRequiredAttribute <bool> ("disabled");
+			ret.PriorityQueueIndex = -1;
 			ret.Guid = guid;
 
 			cacheItems.Add (ret);

@@ -28,8 +28,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0
-
 using System;
 using System.Collections;
 using System.Collections.Specialized;
@@ -108,7 +106,7 @@ namespace System.Diagnostics
 				return;
 			lock (((ICollection) listeners).SyncRoot) {
 				foreach (TraceListener tl in listeners)
-					tl.TraceData (null, Name, eventType, id, data);
+					tl.TraceData (new TraceEventCache(), Name, eventType, id, data);
 			}
 		}
 
@@ -120,7 +118,7 @@ namespace System.Diagnostics
 				return;
 			lock (((ICollection) listeners).SyncRoot) {
 				foreach (TraceListener tl in listeners)
-					tl.TraceData (null, Name, eventType, id, data);
+					tl.TraceData (new TraceEventCache(), Name, eventType, id, data);
 			}
 		}
 
@@ -131,7 +129,7 @@ namespace System.Diagnostics
 				return;
 			lock (((ICollection) listeners).SyncRoot) {
 				foreach (TraceListener tl in listeners)
-					tl.TraceEvent (null, Name, eventType, id);
+					tl.TraceEvent (new TraceEventCache(), Name, eventType, id);
 			}
 		}
 
@@ -143,7 +141,7 @@ namespace System.Diagnostics
 				return;
 			lock (((ICollection) listeners).SyncRoot) {
 				foreach (TraceListener tl in listeners)
-					tl.TraceEvent (null, Name, eventType, id, message);
+					tl.TraceEvent (new TraceEventCache(), Name, eventType, id, message);
 			}
 		}
 
@@ -155,7 +153,7 @@ namespace System.Diagnostics
 				return;
 			lock (((ICollection) listeners).SyncRoot) {
 				foreach (TraceListener tl in listeners)
-					tl.TraceEvent (null, Name, eventType, id, format, args);
+					tl.TraceEvent (new TraceEventCache(), Name, eventType, id, format, args);
 			}
 		}
 
@@ -179,7 +177,7 @@ namespace System.Diagnostics
 				return;
 			lock (((ICollection) listeners).SyncRoot) {
 				foreach (TraceListener tl in listeners)
-					tl.TraceTransfer (null, Name, id, message, relatedActivityId);
+					tl.TraceTransfer (new TraceEventCache(), Name, id, message, relatedActivityId);
 			}
 		}
 
@@ -190,4 +188,3 @@ namespace System.Diagnostics
 	}
 }
 
-#endif

@@ -12,8 +12,6 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Net;
 
-#if NET_2_0
-
 namespace System.Net
 {
 	public class FtpWebResponse : WebResponse
@@ -112,7 +110,7 @@ namespace System.Net
 			get {
 				return statusCode;
 			}
-			private set {
+			internal set {
 				statusCode = value;
 			}
 		}
@@ -121,7 +119,7 @@ namespace System.Net
 			get {
 				return statusDescription;
 			}
-			private set {
+			internal set {
 				statusDescription = value;
 			}
 		}
@@ -177,5 +175,4 @@ namespace System.Net
 	}
 }
 
-#endif
 

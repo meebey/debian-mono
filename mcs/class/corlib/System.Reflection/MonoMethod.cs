@@ -37,7 +37,7 @@ using System.Reflection.Emit;
 using System.Security;
 using System.Threading;
 using System.Text;
-
+using System.Diagnostics;
 
 namespace System.Reflection {
 	
@@ -53,6 +53,9 @@ namespace System.Reflection {
 
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		static extern void get_method_info (IntPtr handle, out MonoMethodInfo info);
+		
+		[MethodImplAttribute(MethodImplOptions.InternalCall)]
+		static extern int get_method_attributes (IntPtr handle);
 		
 		internal static MonoMethodInfo GetMethodInfo (IntPtr handle)
 		{
@@ -73,7 +76,7 @@ namespace System.Reflection {
 
 		internal static MethodAttributes GetAttributes (IntPtr handle)
 		{
-			return GetMethodInfo (handle).attrs;
+			return (MethodAttributes)get_method_attributes (handle);
 		}
 
 		internal static CallingConventions GetCallingConvention (IntPtr handle)
@@ -108,6 +111,7 @@ namespace System.Reflection {
 	 * the .NET reflection class hierarchy is so broken.
 	 */
 	[Serializable()]
+	[StructLayout (LayoutKind.Sequential)]
 	internal class MonoMethod : MethodInfo, ISerializable
 	{
 #pragma warning disable 649
@@ -182,6 +186,8 @@ namespace System.Reflection {
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		internal extern Object InternalInvoke (Object obj, Object[] parameters, out Exception exc);
 
+		[DebuggerHidden]
+		[DebuggerStepThrough]
 		public override Object Invoke (Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) 
 		{
 			if (binder == null)
@@ -237,8 +243,11 @@ namespace System.Reflection {
 		}
 
 		public override RuntimeMethodHandle MethodHandle { 
-			get {return new RuntimeMethodHandle (mhandle);} 
+			get {
+				return new RuntimeMethodHandle (mhandle);
+			} 
 		}
+		
 		public override MethodAttributes Attributes { 
 			get {
 				return MonoMethodInfo.GetAttributes (mhandle);
@@ -450,6 +459,7 @@ namespace System.Reflection {
 #endif
 	}
 	
+	[StructLayout (LayoutKind.Sequential)]
 	internal class MonoCMethod : ConstructorInfo, ISerializable
 	{
 #pragma warning disable 649		
@@ -481,6 +491,8 @@ namespace System.Reflection {
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		internal extern Object InternalInvoke (Object obj, Object[] parameters, out Exception exc);
 
+		[DebuggerHidden]
+		[DebuggerStepThrough]
 		public override Object Invoke (Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) 
 		{
 			if (binder == null)
@@ -534,13 +546,19 @@ namespace System.Reflection {
 			return (obj == null) ? o : null;
 		}
 
-		public override Object Invoke (BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
+		[DebuggerHidden]
+		[DebuggerStepThrough]
+		public override Object Invoke (BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+		{
 			return Invoke (null, invokeAttr, binder, parameters, culture);
 		}
 
 		public override RuntimeMethodHandle MethodHandle { 
-			get {return new RuntimeMethodHandle (mhandle);} 
+			get {
+				return new RuntimeMethodHandle (mhandle);
+			} 
 		}
+		
 		public override MethodAttributes Attributes { 
 			get {
 				return MonoMethodInfo.GetAttributes (mhandle);

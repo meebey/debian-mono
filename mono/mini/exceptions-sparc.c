@@ -183,7 +183,7 @@ throw_exception (MonoObject *exc, gpointer sp, gpointer ip, gboolean rethrow)
 		if (!rethrow)
 			mono_ex->stack_trace = NULL;
 	}
-	mono_handle_exception (&ctx, exc, ip, FALSE);
+	mono_handle_exception (&ctx, exc);
 	restore_context (&ctx);
 
 	g_assert_not_reached ();
@@ -333,29 +333,22 @@ mono_arch_get_throw_corlib_exception (MonoTrampInfo **info, gboolean aot)
  * the @lmf if necessary. @native_offset return the IP offset from the 
  * start of the function or -1 if that info is not available.
  */
-MonoJitInfo *
-mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, MonoJitInfo *res, MonoJitInfo *prev_ji, MonoContext *ctx, 
-			 MonoContext *new_ctx, MonoLMF **lmf, gboolean *managed)
+gboolean
+mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, 
+							 MonoJitInfo *ji, MonoContext *ctx, 
+							 MonoContext *new_ctx, MonoLMF **lmf,
+							 mgreg_t **save_locations,
+							 StackFrameInfo *frame)
 {
-	MonoJitInfo *ji;
-	gpointer ip = MONO_CONTEXT_GET_IP (ctx);
 	gpointer *window;
 
-	/* Avoid costly table lookup during stack overflow */
-	if (prev_ji && (ip > prev_ji->code_start && ((guint8*)ip < ((guint8*)prev_ji->code_start) + prev_ji->code_size)))
-		ji = prev_ji;
-	else
-		ji = mini_jit_info_table_find (domain, ip, NULL);
+	memset (frame, 0, sizeof (StackFrameInfo));
+	frame->ji = ji;
 
-	if (managed)
-		*managed = FALSE;
+	*new_ctx = *ctx;
 
 	if (ji != NULL) {
-		*new_ctx = *ctx;
-
-		if (managed)
-			if (!ji->method->wrapper_type)
-				*managed = TRUE;
+		frame->type = FRAME_TYPE_MANAGED;
 
 		if (*lmf && (MONO_CONTEXT_GET_BP (ctx) >= (gpointer)(*lmf)->ebp)) {
 			/* remove any unused lmf */
@@ -368,22 +361,21 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, MonoJitInf
 		new_ctx->sp = (gpointer*)(window [sparc_i6 - 16]);
 		new_ctx->fp = (gpointer*)(MONO_SPARC_WINDOW_ADDR (new_ctx->sp) [sparc_i6 - 16]);
 
-		return ji;
+		return TRUE;
 	}
 	else {
 		if (!(*lmf))
-			return NULL;
-
-		*new_ctx = *ctx;
+			return FALSE;
 
 		if (!(*lmf)->method)
-			return (gpointer)-1;
+			return FALSE;
 
-		if ((ji = mini_jit_info_table_find (domain, (gpointer)(*lmf)->ip, NULL))) {
-		} else {
-			memset (res, 0, MONO_SIZEOF_JIT_INFO);
-			res->method = (*lmf)->method;
-		}
+		ji = mini_jit_info_table_find (domain, (gpointer)(*lmf)->ip, NULL);
+		if (!ji)
+			return FALSE;
+
+		frame->ji = ji;
+		frame->type = FRAME_TYPE_MANAGED_TO_NATIVE;
 
 		new_ctx->ip = (*lmf)->ip;
 		new_ctx->sp = (*lmf)->sp;
@@ -391,20 +383,14 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls, MonoJitInf
 
 		*lmf = (*lmf)->previous_lmf;
 
-		return ji ? ji : res;
+		return TRUE;
 	}
-}
-
-gboolean
-mono_arch_has_unwind_info (gconstpointer addr)
-{
-	return FALSE;
 }
 
 #ifdef __linux__
 
 gboolean
-mono_arch_handle_exception (void *sigctx, gpointer obj, gboolean test_only)
+mono_arch_handle_exception (void *sigctx, gpointer obj)
 {
        MonoContext mctx;
        struct sigcontext *sc = sigctx;
@@ -421,7 +407,7 @@ mono_arch_handle_exception (void *sigctx, gpointer obj, gboolean test_only)
        window = (gpointer*)(((guint8*)mctx.sp) + MONO_SPARC_STACK_BIAS);
        mctx.fp = window [sparc_fp - 16];
 
-       mono_handle_exception (&mctx, obj, mctx.ip, test_only);
+       mono_handle_exception (&mctx, obj);
 
 #ifdef SPARCV9
        sc->sigc_regs.tpc = (unsigned long) mctx.ip;
@@ -457,7 +443,7 @@ mono_arch_ip_from_context (void *sigctx)
 #else /* !__linux__ */
 
 gboolean
-mono_arch_handle_exception (void *sigctx, gpointer obj, gboolean test_only)
+mono_arch_handle_exception (void *sigctx, gpointer obj)
 {
 	MonoContext mctx;
 	ucontext_t *ctx = (ucontext_t*)sigctx;
@@ -475,7 +461,7 @@ mono_arch_handle_exception (void *sigctx, gpointer obj, gboolean test_only)
 	window = (gpointer*)(((guint8*)mctx.sp) + MONO_SPARC_STACK_BIAS);
 	mctx.fp = window [sparc_fp - 16];
 
-	mono_handle_exception (&mctx, obj, mctx.ip, test_only);
+	mono_handle_exception (&mctx, obj);
 	
 	/* We can't use restore_context to return from a signal handler */
 	ctx->uc_mcontext.gregs [REG_PC] = mctx.ip;

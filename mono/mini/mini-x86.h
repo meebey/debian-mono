@@ -3,6 +3,15 @@
 
 #include <mono/arch/x86/x86-codegen.h>
 #include <mono/utils/mono-sigcontext.h>
+#include <mono/utils/mono-context.h>
+
+#ifdef __native_client_codegen__
+#define kNaClAlignmentX86 32
+#define kNaClAlignmentMaskX86 (kNaClAlignmentX86 - 1)
+
+#define kNaClLengthOfCallImm kx86NaClLengthOfCallImm
+#endif
+
 #ifdef HOST_WIN32
 #include <windows.h>
 /* use SIG* defines if possible */
@@ -10,20 +19,8 @@
 #include <signal.h>
 #endif
 
-/* sigcontext surrogate */
-struct sigcontext {
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
-	unsigned int ebp;
-	unsigned int esp;
-	unsigned int esi;
-	unsigned int edi;
-	unsigned int eip;
-};
+typedef void (* MonoW32ExceptionHandler) (int _dummy, EXCEPTION_POINTERS *info, void *context);
 
-typedef void (* MonoW32ExceptionHandler) (int _dummy, EXCEPTION_RECORD *info, void *context);
 void win32_seh_init(void);
 void win32_seh_cleanup(void);
 void win32_seh_set_handler(int type, MonoW32ExceptionHandler handler);
@@ -59,12 +56,6 @@ struct sigcontext {
 #undef MONO_ARCH_USE_SIGACTION
 #endif
 
-#if defined(__native_client_codegen__) || defined(__native_client__)
-#define NACL_SIZE(a, b) (b)
-#else
-#define NACL_SIZE(a, b) (a)
-#endif
-
 #ifndef HOST_WIN32
 
 #ifdef HAVE_WORKING_SIGALTSTACK
@@ -83,7 +74,6 @@ struct sigcontext {
 #endif /* HAVE_WORKING_SIGALTSTACK */
 #endif /* !HOST_WIN32 */
 
-#define MONO_ARCH_SUPPORT_SIMD_INTRINSICS 1
 #define MONO_ARCH_SUPPORT_TASKLETS 1
 
 #ifndef DISABLE_SIMD
@@ -92,7 +82,11 @@ struct sigcontext {
 #endif
 
 /* we should lower this size and make sure we don't call heavy stack users in the segv handler */
+#if defined(__APPLE__)
+#define MONO_ARCH_SIGNAL_STACK_SIZE MINSIGSTKSZ
+#else
 #define MONO_ARCH_SIGNAL_STACK_SIZE (16 * 1024)
+#endif
 #define MONO_ARCH_HAVE_RESTORE_STACK_SUPPORT 1
 
 #define MONO_ARCH_CPU_SPEC x86_desc
@@ -146,6 +140,11 @@ struct sigcontext {
 /*This is the max size of the locals area of a given frame. I think 1MB is a safe default for now*/
 #define MONO_ARCH_MAX_FRAME_SIZE 0x100000
 
+/*This is how much a try block must be extended when is is preceeded by a Monitor.Enter() call.
+It's 4 bytes as this is how many bytes + 1 that 'add 0x10, %esp' takes. It is used to pop the arguments from
+the monitor.enter call and must be already protected.*/
+#define MONO_ARCH_MONITOR_ENTER_ADJUSTMENT 4
+
 struct MonoLMF {
 	/* 
 	 * If the lowest bit is set to 1, then this is a trampoline LMF frame.
@@ -168,59 +167,8 @@ struct MonoLMF {
 typedef struct {
 	gboolean need_stack_frame_inited;
 	gboolean need_stack_frame;
+	int sp_fp_offset, param_area_size;
 } MonoCompileArch;
-
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
-# define SC_EAX sc_eax
-# define SC_EBX sc_ebx
-# define SC_ECX sc_ecx
-# define SC_EDX sc_edx
-# define SC_EBP sc_ebp
-# define SC_EIP sc_eip
-# define SC_ESP sc_esp
-# define SC_EDI sc_edi
-# define SC_ESI sc_esi
-#elif defined(__HAIKU__)
-# define SC_EAX regs.eax
-# define SC_EBX regs._reserved_2[2]
-# define SC_ECX regs.ecx
-# define SC_EDX regs.edx
-# define SC_EBP regs.ebp
-# define SC_EIP regs.eip
-# define SC_ESP regs.esp
-# define SC_EDI regs._reserved_2[0]
-# define SC_ESI regs._reserved_2[1]
-#else
-# define SC_EAX eax
-# define SC_EBX ebx
-# define SC_ECX ecx
-# define SC_EDX edx
-# define SC_EBP ebp
-# define SC_EIP eip
-# define SC_ESP esp
-# define SC_EDI edi
-# define SC_ESI esi
-#endif
-
-typedef struct {
-	guint32 eax;
-	guint32 ebx;
-	guint32 ecx;
-	guint32 edx;
-	guint32 ebp;
-	guint32 esp;
-    guint32 esi;
-	guint32 edi;
-	guint32 eip;
-} MonoContext;
-
-#define MONO_CONTEXT_SET_IP(ctx,ip) do { (ctx)->eip = (long)(ip); } while (0); 
-#define MONO_CONTEXT_SET_BP(ctx,bp) do { (ctx)->ebp = (long)(bp); } while (0); 
-#define MONO_CONTEXT_SET_SP(ctx,sp) do { (ctx)->esp = (long)(sp); } while (0); 
-
-#define MONO_CONTEXT_GET_IP(ctx) ((gpointer)((ctx)->eip))
-#define MONO_CONTEXT_GET_BP(ctx) ((gpointer)((ctx)->ebp))
-#define MONO_CONTEXT_GET_SP(ctx) ((gpointer)((ctx)->esp))
 
 #define MONO_CONTEXT_SET_LLVM_EXC_REG(ctx, exc) do { (ctx)->eax = (gsize)exc; } while (0)
 
@@ -248,14 +196,7 @@ typedef struct {
 
 #endif
 
-/*
- * This structure is an extension of MonoLMF and contains extra information.
- */
-typedef struct {
-	struct MonoLMF lmf;
-	gboolean debugger_invoke;
-	MonoContext ctx; /* if debugger_invoke is TRUE */
-} MonoLMFExt;
+#define MONO_ARCH_INIT_TOP_LMF_ENTRY(lmf) do { (lmf)->ebp = -1; } while (0)
 
 /* Enables OP_LSHL, OP_LSHL_IMM, OP_LSHR, OP_LSHR_IMM, OP_LSHR_UN, OP_LSHR_UN_IMM */
 #define MONO_ARCH_NO_EMULATE_LONG_SHIFT_OPS
@@ -274,16 +215,17 @@ typedef struct {
 #define MONO_ARCH_HAVE_TLS_GET (mono_x86_have_tls_get ())
 #define MONO_ARCH_IMT_REG X86_EDX
 #define MONO_ARCH_VTABLE_REG X86_EDX
-#define MONO_ARCH_RGCTX_REG X86_EDX
+#define MONO_ARCH_RGCTX_REG MONO_ARCH_IMT_REG
 #define MONO_ARCH_HAVE_GENERALIZED_IMT_THUNK 1
 #define MONO_ARCH_HAVE_LIVERANGE_OPS 1
 #define MONO_ARCH_HAVE_XP_UNWIND 1
 #define MONO_ARCH_HAVE_SIGCTX_TO_MONOCTX 1
-#if defined(__linux__)
+#if defined(__linux__) || defined (__APPLE__)
 #define MONO_ARCH_MONITOR_OBJECT_REG X86_EAX
 #endif
-#define MONO_ARCH_HAVE_STATIC_RGCTX_TRAMPOLINE 1
+#if !defined(__native_client_codegen__)
 #define MONO_ARCH_HAVE_FULL_AOT_TRAMPOLINES 1
+#endif
 #define MONO_ARCH_GOT_REG X86_EBX
 #define MONO_ARCH_HAVE_GET_TRAMPOLINES 1
 
@@ -295,13 +237,11 @@ typedef struct {
 
 #define MONO_ARCH_HAVE_DECOMPOSE_LONG_OPTS 1
 
-#if !defined(__APPLE__) || defined(__native_client_codegen__)
+#ifndef TARGET_WIN32
 #define MONO_ARCH_AOT_SUPPORTED 1
 #endif
 
-#if defined(__linux__) || defined(__sun)
 #define MONO_ARCH_ENABLE_MONITOR_IL_FASTPATH 1
-#endif
 
 #define MONO_ARCH_GSHARED_SUPPORTED 1
 #define MONO_ARCH_HAVE_LLVM_IMT_TRAMPOLINE 1
@@ -312,11 +252,19 @@ typedef struct {
 #define MONO_ARCH_SOFT_DEBUG_SUPPORTED 1
 #endif
 
-#define MONO_ARCH_HAVE_FIND_JIT_INFO_EXT 1
 #define MONO_ARCH_HAVE_EXCEPTIONS_INIT 1
 #define MONO_ARCH_HAVE_HANDLER_BLOCK_GUARD 1
 
 #define MONO_ARCH_HAVE_CARD_TABLE_WBARRIER 1
+#define MONO_ARCH_HAVE_SETUP_RESUME_FROM_SIGNAL_HANDLER_CTX 1
+#define MONO_ARCH_GC_MAPS_SUPPORTED 1
+#define MONO_ARCH_HAVE_CONTEXT_SET_INT_REG 1
+#define MONO_ARCH_HAVE_SETUP_ASYNC_CALLBACK 1
+
+gboolean
+mono_x86_tail_call_supported (MonoMethodSignature *caller_sig, MonoMethodSignature *callee_sig) MONO_INTERNAL;
+
+#define MONO_ARCH_USE_OP_TAIL_CALL(caller_sig, callee_sig) mono_x86_tail_call_supported (caller_sig, callee_sig)
 
 /* Used for optimization, not complete */
 #define MONO_ARCH_IS_OP_MEMBASE(opcode) ((opcode) == OP_X86_PUSH_MEMBASE)

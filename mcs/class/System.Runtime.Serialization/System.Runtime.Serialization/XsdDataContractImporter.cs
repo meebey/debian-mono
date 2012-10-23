@@ -1,10 +1,12 @@
 //
 // XsdDataContractImporter.cs
 //
-// Author:
+// Authors:
 //	Atsushi Enomoto <atsushi@ximian.com>
+//      Martin Baulig <martin.baulig@xamarin.com>
 //
 // Copyright (C) 2010 Novell, Inc.  http://www.novell.com
+//               2012 Xamarin, Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,6 +31,7 @@
 using System;
 using System.CodeDom;
 using System.CodeDom.Compiler;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -37,9 +40,11 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 
+using QName = System.Xml.XmlQualifiedName;
+
 namespace System.Runtime.Serialization
 {
-	[MonoTODO ("Support ImportXmlType option; support arrays; CanImport is not up to date with Import")]
+	[MonoTODO ("support arrays")]
 	public class XsdDataContractImporter
 	{
 		static readonly XmlQualifiedName qname_anytype = new XmlQualifiedName ("anyType", XmlSchema.Namespace);
@@ -60,6 +65,7 @@ namespace System.Runtime.Serialization
 		public CodeCompileUnit CodeCompileUnit { get; private set; }
 
 		CodeDomProvider code_provider = CodeDomProvider.CreateProvider ("csharp");
+		Dictionary<CodeNamespace,CodeIdentifiers> identifiers_table = new Dictionary<CodeNamespace,CodeIdentifiers> ();
 		ImportOptions import_options;
 
 		public ImportOptions Options {
@@ -68,6 +74,66 @@ namespace System.Runtime.Serialization
 				import_options = value;
 				code_provider = value.CodeProvider ?? code_provider;
 			}
+		}
+
+		void GenerateXmlType (XmlQualifiedName qname)
+		{
+			var cns = GetCodeNamespace (qname.Namespace);
+			var td = new CodeTypeDeclaration () {
+				Name = GetUniqueName (CodeIdentifier.MakeValid (qname.Name), cns),
+				TypeAttributes = GenerateInternal ? TypeAttributes.NotPublic : TypeAttributes.Public,
+				IsPartial = true };
+			cns.Types.Add (td);
+			td.BaseTypes.Add (new CodeTypeReference (typeof (IXmlSerializable)));
+
+			var thisNodes = new CodePropertyReferenceExpression (new CodeThisReferenceExpression (), "Nodes"); // property this.Nodes
+			var xmlSerializableServices = new CodeTypeReferenceExpression (typeof (XmlSerializableServices)); // static XmlSerializableServices.
+			var qnameType = new CodeTypeReference (typeof (XmlQualifiedName));
+
+			// XmlQualifiedName qname = new XmlQualifiedName ({qname.Name}, {qname.Namespace});
+			td.Members.Add (new CodeMemberField () { Name = "qname", Type = qnameType, InitExpression = new CodeObjectCreateExpression (qnameType, new CodePrimitiveExpression (qname.Name), new CodePrimitiveExpression (qname.Namespace)) });
+
+			// public XmlNode[] Nodes { get; set; }
+			td.Members.Add (new CodeMemberProperty () { Name = "Nodes", Type = new CodeTypeReference (typeof (XmlNode [])), Attributes = (GenerateInternal ? MemberAttributes.Assembly : MemberAttributes.Public) | MemberAttributes.Final, HasGet = true, HasSet = true });
+
+			// public void ReadXml(XmlReader reader) {
+			var read = new CodeMemberMethod () { Name = "ReadXml", Attributes = (GenerateInternal ? MemberAttributes.Assembly : MemberAttributes.Public) | MemberAttributes.Final };
+			read.Parameters.Add (new CodeParameterDeclarationExpression (new CodeTypeReference (typeof (XmlReader)), "reader"));
+			//   this.Nodes = XmlSerializableServices.ReadXml(reader);
+			read.Statements.Add (
+				new CodeAssignStatement (thisNodes,
+					new CodeMethodInvokeExpression (
+						new CodeMethodReferenceExpression (xmlSerializableServices, "ReadXml"),
+						new CodeArgumentReferenceExpression ("reader"))));
+			// }
+			td.Members.Add (read);
+
+			// public void WriteXml(XmlWriter writer) {
+			var write = new CodeMemberMethod () { Name = "WriteXml",Attributes = (GenerateInternal ? MemberAttributes.Assembly : MemberAttributes.Public) | MemberAttributes.Final };
+			write.Parameters.Add (new CodeParameterDeclarationExpression (new CodeTypeReference (typeof (XmlWriter)), "writer"));
+			//   XmlSerializableServices.WriteXml(writer, this.Nodes);
+			write.Statements.Add (
+				new CodeMethodInvokeExpression (
+					new CodeMethodReferenceExpression (xmlSerializableServices, "WriteXml"),
+					new CodeArgumentReferenceExpression ("writer"),
+					thisNodes));
+			// }
+			td.Members.Add (write);
+
+			// public XmlSchema GetSchema () { return null; }
+			var getSchema = new CodeMemberMethod () { Name = "GetSchema", Attributes = (GenerateInternal ? MemberAttributes.Assembly : MemberAttributes.Public) | MemberAttributes.Final, ReturnType = new CodeTypeReference (typeof (XmlSchema)) };
+			getSchema.Statements.Add (new CodeMethodReturnStatement (new CodePrimitiveExpression (null)));
+			td.Members.Add (getSchema);
+
+			// public static XmlQualifiedName ExportSchema (XmlSchemaSet schemas) {
+			var export = new CodeMemberMethod () { Name = "ExportSchema", Attributes = (GenerateInternal ? MemberAttributes.Assembly : MemberAttributes.Public) | MemberAttributes.Final | MemberAttributes.Static, ReturnType = qnameType };
+			export.Parameters.Add (new CodeParameterDeclarationExpression (new CodeTypeReference (typeof (XmlSchemaSet)), "schemas"));
+			//   XmlSerializableServices.AddDefaultSchema (schemas);
+			export.Statements.Add (new CodeMethodInvokeExpression (xmlSerializableServices, "AddDefaultSchema", new CodeArgumentReferenceExpression ("schemas")));
+			//   return qname;
+			export.Statements.Add (new CodeMethodReturnStatement (new CodeFieldReferenceExpression (new CodeThisReferenceExpression (), "qname")));
+			// }
+			td.Members.Add (export);
 		}
 
 		// CanImport
@@ -112,23 +178,196 @@ namespace System.Runtime.Serialization
 			if (!schemas.IsCompiled)
 				schemas.Compile ();
 
-			if (!schemas.GlobalTypes.Contains (typeName))
-				throw new InvalidDataContractException (String.Format ("Type {0} is not found in the schemas", typeName));
+			if (IsPredefinedType (typeName))
+				return true; // while it just ignores...
 
-			return CanImport (schemas, schemas.GlobalTypes [typeName] as XmlSchemaComplexType);
+			if (!schemas.GlobalTypes.Contains (typeName))
+				return false;
+
+			return CanImport (schemas, schemas.GlobalTypes [typeName] as XmlSchemaType);
 		}
 
 		public bool CanImport (XmlSchemaSet schemas, XmlSchemaElement element)
 		{
 			if (schemas == null)
 				throw new ArgumentNullException ("schemas");
+			if (element == null)
+				throw new ArgumentNullException ("element");
 
 			if (!schemas.IsCompiled)
 				schemas.Compile ();
 
-			return CanImport (schemas, element.ElementSchemaType as XmlSchemaComplexType);
+			if (element.ElementSchemaType != null)
+				return CanImport (schemas, element.ElementSchemaType as XmlSchemaType);
+			else if (element.SchemaTypeName != null && !element.SchemaTypeName.Equals (QName.Empty))
+				return CanImport (schemas, element.SchemaTypeName);
+			else
+				// anyType
+				return true;
 		}
 
+
+#if true // new
+		bool CanImport (XmlSchemaSet schemas, XmlSchemaType type)
+		{
+			if (IsPredefinedType (type.QualifiedName))
+				return true;
+
+			var st = type as XmlSchemaSimpleType;
+			if (st != null) {
+				return CanImportSimpleType (schemas, st);
+			} else {
+				var ct = (XmlSchemaComplexType) type;
+				var sc = ct.ContentModel as XmlSchemaSimpleContent;
+				if (sc != null) {
+					if (sc.Content is XmlSchemaSimpleContentExtension)
+						return false;
+				}
+				if (!CanImportComplexType (schemas, ct))
+					return false;
+				return true;
+			}
+		}
+
+		bool CanImportSimpleType (XmlSchemaSet schemas, XmlSchemaSimpleType type)
+		{
+			var scl = type.Content as XmlSchemaSimpleTypeList;
+			if (scl != null) {
+				if (scl.ItemType == null)
+					return false;
+				var itemType = scl.ItemType as XmlSchemaSimpleType;
+				var ir = itemType.Content as XmlSchemaSimpleTypeRestriction;
+				if (ir == null)
+					return false;
+				return true; // as enum
+			}
+			var scr = type.Content as XmlSchemaSimpleTypeRestriction;
+			if (scr != null)
+				return true; // as enum
+
+			return false;
+		}
+
+		bool CanImportComplexType (XmlSchemaSet schemas, XmlSchemaComplexType type)
+		{
+			foreach (XmlSchemaAttribute att in type.AttributeUses.Values)
+				if (att.Use != XmlSchemaUse.Optional || att.QualifiedName.Namespace != KnownTypeCollection.MSSimpleNamespace)
+					return false;
+
+			CodeTypeReference baseClrType = null;
+			var particle = type.Particle;
+			if (type.ContentModel != null) {
+				var xsscr = type.ContentModel.Content as XmlSchemaSimpleContentRestriction;
+				if (xsscr != null) {
+					if (xsscr.BaseType != null) {
+						if (!CanImport (schemas, xsscr.BaseType))
+							return false;
+					} else {
+						if (!CanImport (schemas, xsscr.BaseTypeName))
+							return false;
+					}
+					// The above will result in an error, but make sure to show we don't support it.
+					return false;
+				}
+				var xscce = type.ContentModel.Content as XmlSchemaComplexContentExtension;
+				if (xscce != null) {
+					if (!CanImport (schemas, xscce.BaseTypeName))
+						return false;
+					baseClrType = GetCodeTypeReferenceInternal (xscce.BaseTypeName, false);
+
+					var baseInfo = GetTypeInfo (xscce.BaseTypeName, false);
+					particle = xscce.Particle;
+				}
+				var xsccr = type.ContentModel.Content as XmlSchemaComplexContentRestriction;
+				if (xsccr != null)
+					return false;
+			}
+
+			var seq = particle as XmlSchemaSequence;
+			if (seq == null && particle != null)
+				return false;
+
+			if (seq != null) {
+
+			if (seq.Items.Count == 1 && seq.Items [0] is XmlSchemaAny && type.Parent is XmlSchemaElement) {
+
+				// looks like it is not rejected (which contradicts the error message on .NET). See XsdDataContractImporterTest.ImportTestX32(). Also ImporTestX13() for Parent check.
+
+			} else {
+
+			foreach (var child in seq.Items)
+				if (!(child is XmlSchemaElement))
+					return false;
+
+			bool isDictionary = false;
+			if (type.Annotation != null) {
+				foreach (var ann in type.Annotation.Items) {
+					var ai = ann as XmlSchemaAppInfo;
+					if (ai != null && ai.Markup != null &&
+					    ai.Markup.Length > 0 &&
+					    ai.Markup [0].NodeType == XmlNodeType.Element &&
+					    ai.Markup [0].LocalName == "IsDictionary" &&
+					    ai.Markup [0].NamespaceURI == KnownTypeCollection.MSSimpleNamespace)
+						isDictionary = true;
+				}
+			}
+
+			if (seq.Items.Count == 1) {
+				var pt = (XmlSchemaParticle) seq.Items [0];
+				var xe = pt as XmlSchemaElement;
+				if (pt.MaxOccursString == "unbounded") {
+					// import as a collection contract.
+					if (pt is XmlSchemaAny) {
+					} else if (isDictionary) {
+						var kvt = xe.ElementSchemaType as XmlSchemaComplexType;
+						var seq2 = kvt != null ? kvt.Particle as XmlSchemaSequence : null;
+						var k = seq2 != null && seq2.Items.Count == 2 ? seq2.Items [0] as XmlSchemaElement : null;
+						var v = seq2 != null && seq2.Items.Count == 2 ? seq2.Items [1] as XmlSchemaElement : null;
+						if (k == null || v == null)
+							return false;
+						if (!CanImport (schemas, k.ElementSchemaType))
+							return false;
+						if (!CanImport (schemas, v.ElementSchemaType))
+							return false;
+						
+						return true;
+					} else if (type.QualifiedName.Namespace == KnownTypeCollection.MSArraysNamespace &&
+						   IsPredefinedType (xe.ElementSchemaType.QualifiedName)) {
+						// then this CodeTypeDeclaration is to be removed, and CodeTypeReference to this type should be an array instead.
+						return true;
+					}
+					else
+						if (!CanImport (schemas, xe.ElementSchemaType))
+							return false;
+					return true;
+				}
+			}
+			if (isDictionary)
+				return false;
+
+			// import as a (normal) contract.
+			var elems = new List<XmlSchemaElement> ();
+			foreach (XmlSchemaElement xe in seq.Items) {
+				if (xe.MaxOccurs != 1)
+					return false;
+
+				if (elems.Any (e => e.QualifiedName.Name == xe.QualifiedName.Name))
+					return false;
+
+				elems.Add (xe);
+			}
+			foreach (var xe in elems) {
+				// import property type in prior.
+				if (!CanImport (schemas, xe.ElementSchemaType.QualifiedName))
+					return false;
+			}
+
+			} // if (seq contains only an xs:any)
+			} // if (seq != 0)
+
+			return true;
+		}
+#else
 		bool CanImport (XmlSchemaSet schemas, XmlSchemaComplexType type)
 		{
 			if (type == null || type.QualifiedName.Namespace == XmlSchema.Namespace) // xs:anyType -> not supported.
@@ -147,6 +386,7 @@ namespace System.Runtime.Serialization
 
 			return true;
 		}
+#endif
 
 		// Import
 
@@ -180,6 +420,9 @@ namespace System.Runtime.Serialization
 			if (typeName == null)
 				throw new ArgumentNullException ("typeName");
 
+			if (!schemas.IsCompiled)
+				schemas.Compile ();
+
 			if (IsPredefinedType (typeName))
 				return;
 
@@ -198,6 +441,9 @@ namespace System.Runtime.Serialization
 
 			var elname = element.QualifiedName;
 
+			if (IsPredefinedType (element.SchemaTypeName))
+				return elname;
+
 			switch (elname.Namespace) {
 			case KnownTypeCollection.MSSimpleNamespace:
 				switch (elname.Name) {
@@ -209,14 +455,40 @@ namespace System.Runtime.Serialization
 				break;
 			}
 
+			if (!CanImport (schemas, element) && Options != null && Options.ImportXmlType) {
+				var qn = element.QualifiedName;
+				GenerateXmlType (qn);
+				return qn;
+			}
+
+			if (element.ElementSchemaType != null) {
+				if (IsCollectionType (element.ElementSchemaType))
+					elname = element.ElementSchemaType.QualifiedName;
+			}
+
 			// FIXME: use element to fill nillable and arrays.
-			var qname = element.SchemaType != null ? element.QualifiedName : element.ElementSchemaType.QualifiedName;
-			Import (schemas, element.ElementSchemaType, qname);
+			var qname =
+				elname != null && !elname.Equals (QName.Empty) ? elname :
+				element.ElementSchemaType != null ? element.ElementSchemaType.QualifiedName :
+				qname_anytype;
+
+			if (element.ElementSchemaType != null)
+				Import (schemas, element.ElementSchemaType, qname);
+			else if (element.SchemaTypeName != null && !element.SchemaTypeName.Equals (QName.Empty))
+				Import (schemas, schemas.GlobalTypes [element.SchemaTypeName] as XmlSchemaType, qname);
+			// otherwise it is typeless == anyType.
+			else
+				Import (schemas, XmlSchemaType.GetBuiltInComplexType (qname_anytype), qname);
+
 			return qname;
 		}
 
 		void Import (XmlSchemaSet schemas, XmlSchemaType type)
 		{
+			if (!CanImport (schemas, type) && Options != null && Options.ImportXmlType) {
+				GenerateXmlType (type.QualifiedName);
+				return;
+			}
 			Import (schemas, type, type.QualifiedName);
 		}
 
@@ -232,16 +504,27 @@ namespace System.Runtime.Serialization
 			DoImport (schemas, type, qname);
 		}
 
+		string GetUniqueName (string name, CodeNamespace cns)
+		{
+			CodeIdentifiers i;
+			if (!identifiers_table.TryGetValue (cns, out i)) {
+				i = new CodeIdentifiers ();
+				identifiers_table.Add (cns, i);
+			}
+			return i.AddUnique (name, null);
+		}
+
 		void DoImport (XmlSchemaSet schemas, XmlSchemaType type, XmlQualifiedName qname)
 		{
 			CodeNamespace cns = null;
 			CodeTypeReference clrRef;
-			cns = GetCodeNamespace (qname);
+			cns = GetCodeNamespace (qname.Namespace);
 			clrRef = new CodeTypeReference (cns.Name.Length > 0 ? cns.Name + "." + qname.Name : qname.Name);
 
 			var td = new CodeTypeDeclaration () {
-				Name = CodeIdentifier.MakeValid (qname.Name),
-				TypeAttributes = GenerateInternal ? TypeAttributes.NotPublic : TypeAttributes.Public };
+				Name = GetUniqueName (CodeIdentifier.MakeValid (qname.Name), cns),
+				TypeAttributes = GenerateInternal ? TypeAttributes.NotPublic : TypeAttributes.Public,
+				IsPartial = true };
 			cns.Types.Add (td);
 
 			var info = new TypeImportInfo () { ClrType = clrRef, XsdType = type,  XsdTypeName = qname };
@@ -262,13 +545,13 @@ namespace System.Runtime.Serialization
 					if (cns.Types.Count == 0)
 						CodeCompileUnit.Namespaces.Remove (cns);
 				}
-			}
 
-			foreach (var impinfo in imported_types)
-				for (; impinfo.KnownTypeOutputIndex < impinfo.KnownClrTypes.Count; impinfo.KnownTypeOutputIndex++)
-					td.CustomAttributes.Add (new CodeAttributeDeclaration (
-						new CodeTypeReference (typeof (KnownTypeAttribute)),
-						new CodeAttributeArgument (new CodeTypeOfExpression (impinfo.KnownClrTypes [impinfo.KnownTypeOutputIndex]))));
+				foreach (var impinfo in imported_types)
+					for (; impinfo.KnownTypeOutputIndex < impinfo.KnownClrTypes.Count; impinfo.KnownTypeOutputIndex++)
+						td.CustomAttributes.Add (new CodeAttributeDeclaration (
+							new CodeTypeReference (typeof (KnownTypeAttribute)),
+							new CodeAttributeArgument (new CodeTypeOfExpression (impinfo.KnownClrTypes [impinfo.KnownTypeOutputIndex]))));
+			}
 		}
 
 		static readonly string ass_name = typeof (DataContractAttribute).Assembly.GetName ().Name;
@@ -382,7 +665,43 @@ namespace System.Runtime.Serialization
 		}
 
 		// Returns false if it should remove the imported type.
-		// FIXME: also support ImportXmlType
+		bool IsCollectionType (XmlSchemaType type)
+		{
+			var complex = type as XmlSchemaComplexType;
+			if (complex == null)
+				return false;
+
+			var seq = complex.Particle as XmlSchemaSequence;
+			if (seq == null)
+				return false;
+
+			if (seq.Items.Count == 1 && seq.Items [0] is XmlSchemaAny && complex.Parent is XmlSchemaElement)
+				return false;
+
+			if (type.Annotation != null) {
+				foreach (var ann in type.Annotation.Items) {
+					var ai = ann as XmlSchemaAppInfo;
+					if (ai != null && ai.Markup != null &&
+					    ai.Markup.Length > 0 &&
+					    ai.Markup [0].NodeType == XmlNodeType.Element &&
+					    ai.Markup [0].LocalName == "IsDictionary" &&
+					    ai.Markup [0].NamespaceURI == KnownTypeCollection.MSSimpleNamespace)
+						return true;
+				}
+			}
+					
+			if (seq.Items.Count != 1)
+				return false;
+
+			var pt = (XmlSchemaParticle) seq.Items [0];
+			var xe = pt as XmlSchemaElement;
+			if (pt.MaxOccursString != "unbounded")
+				return false;
+
+			return !(pt is XmlSchemaAny);
+		}
+
+		// Returns false if it should remove the imported type.
 		bool ImportComplexType (CodeTypeDeclaration td, XmlSchemaSet schemas, XmlSchemaComplexType type, XmlQualifiedName qname)
 		{
 			foreach (XmlSchemaAttribute att in type.AttributeUses.Values)
@@ -424,6 +743,12 @@ namespace System.Runtime.Serialization
 
 			if (seq != null) {
 
+			if (seq.Items.Count == 1 && seq.Items [0] is XmlSchemaAny && type.Parent is XmlSchemaElement) {
+
+				// looks like it is not rejected (which contradicts the error message on .NET). See XsdDataContractImporterTest.ImportTestX32(). Also ImporTestX13() for Parent check.
+
+			} else {
+
 			foreach (var child in seq.Items)
 				if (!(child is XmlSchemaElement))
 					throw new InvalidDataContractException (String.Format ("Only local element is allowed as the content of the sequence of the top-level content of a complex type '{0}'. Other particles (sequence, choice, all, any, group ref) are not supported.", qname));
@@ -441,35 +766,49 @@ namespace System.Runtime.Serialization
 				}
 			}
 
+			/*
+			 * Collection Type Support:
+			 * 
+			 * We need to distinguish between normal array/dictionary collections and
+			 * custom collection types which use [CollectionDataContract].
+			 * 
+			 * The name of a normal collection type starts with "ArrayOf" and uses the
+			 * element type's namespace.  We use the collection type directly and don't
+			 * generate a proxy class for these.
+			 * 
+			 * The collection type (and the base class or a custom collection's proxy type)
+			 * is dermined by 'ImportOptions.ReferencedCollectionTypes'.  The default is to
+			 * use an array for list collections and Dictionary<,> for dictionaries.
+			 * 
+			 * Note that my implementation currently only checks for generic type definitions
+			 * in the 'ImportOptions.ReferencedCollectionTypes' - it looks for something that
+			 * implements IEnumerable<T> or IDictionary<K,V>.  This is not complete, but it's
+			 * all that's necessary to support different collection types in a GUI.
+			 * 
+			 * Simply use
+			 *     var options = new ImportOptions ();
+			 *     options.ReferencedCollectionTypes.Add (typeof (LinkedList<>));
+			 *     options.ReferencedCollectionTypes.Add (typeof (SortedList<,>));
+			 * to configure these; see XsdDataContractImportTest2.cs for some examples.
+			 * 
+			 */
+
 			if (seq.Items.Count == 1) {
-				var xe = (XmlSchemaElement) seq.Items [0];
-				if (xe.MaxOccursString == "unbounded") {
+				var pt = (XmlSchemaParticle) seq.Items [0];
+				var xe = pt as XmlSchemaElement;
+				if (pt.MaxOccursString == "unbounded") {
 					// import as a collection contract.
-					if (isDictionary) {
+					if (pt is XmlSchemaAny) {
+					} else if (isDictionary) {
 						var kvt = xe.ElementSchemaType as XmlSchemaComplexType;
 						var seq2 = kvt != null ? kvt.Particle as XmlSchemaSequence : null;
 						var k = seq2 != null && seq2.Items.Count == 2 ? seq2.Items [0] as XmlSchemaElement : null;
 						var v = seq2 != null && seq2.Items.Count == 2 ? seq2.Items [1] as XmlSchemaElement : null;
 						if (k == null || v == null)
 							throw new InvalidDataContractException (String.Format ("Invalid Dictionary contract type '{0}'. A Dictionary schema type must have a sequence particle which contains exactly two schema elements for key and value.", type.QualifiedName));
-						Import (schemas, k.ElementSchemaType);
-						Import (schemas, v.ElementSchemaType);
-						td.BaseTypes.Add (new CodeTypeReference ("System.Collections.Generic.Dictionary", GetCodeTypeReference (k.ElementSchemaType.QualifiedName), GetCodeTypeReference (v.ElementSchemaType.QualifiedName)));
-						AddTypeAttributes (td, type, xe, k, v);
-						return true;
-					} else if (type.QualifiedName.Namespace == KnownTypeCollection.MSArraysNamespace &&
-						   IsPredefinedType (xe.ElementSchemaType.QualifiedName)) {
-						// then this CodeTypeDeclaration is to be removed, and CodeTypeReference to this type should be an array instead.
-						var cti = imported_types.First (i => i.XsdType == type);
-						cti.ClrType = new CodeTypeReference (GetCodeTypeReference (xe.ElementSchemaType.QualifiedName), 1);
-					
-						return false;
+						return ImportCollectionType (td, schemas, type, k, v);
 					}
-					else
-						Import (schemas, xe.ElementSchemaType);
-					td.BaseTypes.Add (new CodeTypeReference ("System.Collections.Generic.List", GetCodeTypeReference (xe.ElementSchemaType.QualifiedName)));
-					AddTypeAttributes (td, type, xe);
-					return true;
+					return ImportCollectionType (td, schemas, type, xe);
 				}
 			}
 			if (isDictionary)
@@ -492,12 +831,99 @@ namespace System.Runtime.Serialization
 				AddProperty (td, xe);
 			}
 
+			} // if (seq contains only an xs:any)
 			} // if (seq != 0)
 
 			AddTypeAttributes (td, type);
 			AddExtensionData (td);
 
 			return true;
+		}
+
+		bool ImportCollectionType (CodeTypeDeclaration td, XmlSchemaSet schemas,
+		                           XmlSchemaComplexType type,
+		                           XmlSchemaElement key, XmlSchemaElement value)
+		{
+			Import (schemas, key.ElementSchemaType);
+			Import (schemas, value.ElementSchemaType);
+			var keyType = GetCodeTypeReference (key.ElementSchemaType.QualifiedName);
+			var valueType = GetCodeTypeReference (value.ElementSchemaType.QualifiedName);
+
+			var collectionType = GetDictionaryCollectionType ();
+			var baseTypeName = collectionType != null ?
+				collectionType.FullName : "System.Collections.Generic.Dictionary";
+
+			if (type.QualifiedName.Name.StartsWith ("ArrayOf")) {
+				// Standard collection, use the collection type instead of
+				// creating a proxy class.
+				var cti = imported_types.First (i => i.XsdType == type);
+				cti.ClrType = new CodeTypeReference (baseTypeName, keyType, valueType);
+				return false;
+			}
+
+			td.BaseTypes.Add (new CodeTypeReference (baseTypeName, keyType, valueType));
+			AddTypeAttributes (td, type, key);
+			AddTypeAttributes (td, type, value);
+			return true;
+		}
+
+		bool ImportCollectionType (CodeTypeDeclaration td, XmlSchemaSet schemas,
+		                           XmlSchemaComplexType type, XmlSchemaElement xe)
+		{
+			Import (schemas, xe.ElementSchemaType);
+			var element = GetCodeTypeReference (xe.ElementSchemaType.QualifiedName);
+
+			var collectionType = GetListCollectionType ();
+
+			if (type.QualifiedName.Name.StartsWith ("ArrayOf")) {
+				// Standard collection, use the collection type instead of
+				// creating a proxy class.
+				var cti = imported_types.First (i => i.XsdType == type);
+				if (collectionType != null)
+					cti.ClrType = new CodeTypeReference (collectionType.FullName, element);
+				else
+					cti.ClrType = new CodeTypeReference (element, 1);
+				return false;
+			}
+
+			var baseTypeName = collectionType != null ?
+				collectionType.FullName : "System.Collections.Generic.List";
+
+			td.BaseTypes.Add (new CodeTypeReference (baseTypeName, element));
+			AddTypeAttributes (td, type, xe);
+			return true;
+		}
+
+		bool ImplementsInterface (Type type, Type iface)
+		{
+			foreach (var i in type.GetInterfaces ()) {
+				if (i.Equals (iface))
+					return true;
+				if (i.IsGenericType && i.GetGenericTypeDefinition ().Equals (iface))
+					return true;
+			}
+
+			return false;
+		}
+
+		Type GetListCollectionType ()
+		{
+			if (import_options == null)
+				return null;
+			var listTypes = import_options.ReferencedCollectionTypes.Where (
+				t => t.IsGenericTypeDefinition && t.GetGenericArguments ().Length == 1 &&
+				ImplementsInterface (t, typeof (IEnumerable<>)));
+			return listTypes.FirstOrDefault ();
+		}
+
+		Type GetDictionaryCollectionType ()
+		{
+			if (import_options == null)
+				return null;
+			var dictTypes = import_options.ReferencedCollectionTypes.Where (
+				t => t.IsGenericTypeDefinition && t.GetGenericArguments ().Length == 2 &&
+				ImplementsInterface (t, typeof (IDictionary<,>)));
+			return dictTypes.FirstOrDefault ();
 		}
 
 		static readonly CodeExpression this_expr = new CodeThisReferenceExpression ();
@@ -531,27 +957,22 @@ namespace System.Runtime.Serialization
 
 		bool IsPredefinedType (XmlQualifiedName qname)
 		{
-			// FIXME: support char, guid and duration (MSSimpleNamespace); fix GetPrimitiveTypeFromName() first and then this at a time.
+			if (qname == null)
+				return false;
 			switch (qname.Namespace) {
 			case KnownTypeCollection.MSSimpleNamespace:
-				switch (qname.Name) {
-				case "char":
-				case "guid":
-				case "duration":
-					return true;
-				}
-				return false;
+				return KnownTypeCollection.GetPrimitiveTypeFromName (qname) != null;
 			case XmlSchema.Namespace:
-				return KnownTypeCollection.GetPrimitiveTypeFromName (qname.Name) != null;
+				return XmlSchemaType.GetBuiltInSimpleType (qname) != null || XmlSchemaType.GetBuiltInComplexType (qname) != null;
 			}
 			return false;
 		}
 
-		CodeNamespace GetCodeNamespace (XmlQualifiedName name)
+		CodeNamespace GetCodeNamespace (string xmlns)
 		{
 			string ns = null;
-			if (Options == null || !Options.Namespaces.TryGetValue (name.Namespace, out ns))
-				ns = GetCodeNamespaceFromXmlns (name.Namespace);
+			if (Options == null || !Options.Namespaces.TryGetValue (xmlns, out ns))
+				ns = GetCodeNamespaceFromXmlns (xmlns);
 
 			foreach (CodeNamespace cns in CodeCompileUnit.Namespaces)
 				if (cns.Name == ns)
@@ -590,7 +1011,8 @@ namespace System.Runtime.Serialization
 
 		TypeImportInfo GetTypeInfo (XmlQualifiedName typeName, bool throwError)
 		{
-			var info = imported_types.FirstOrDefault (i => i.XsdTypeName.Equals (typeName));
+			var info = imported_types.FirstOrDefault (
+				i => i.XsdTypeName.Equals (typeName) || i.XsdType.QualifiedName.Equals (typeName));
 			if (info == null) {
 				if (throwError)
 					throw new InvalidOperationException (String.Format ("schema type '{0}' has not been imported yet. Import it first.", typeName));
@@ -611,15 +1033,11 @@ namespace System.Runtime.Serialization
 
 			switch (typeName.Namespace) {
 			case XmlSchema.Namespace:
-				return new CodeTypeReference (KnownTypeCollection.GetPrimitiveTypeFromName (typeName.Name));
 			case KnownTypeCollection.MSSimpleNamespace:
-				switch (typeName.Name) {
-				case "guid":
-					return new CodeTypeReference (typeof (Guid));
-				case "duration":
-					return new CodeTypeReference (typeof (TimeSpan));
-				}
-				break;
+				var pt = KnownTypeCollection.GetPrimitiveTypeFromName (typeName);
+				if (pt == null)
+					throw new ArgumentException (String.Format ("Invalid type name in a predefined namespace: {0}", typeName));
+				return new CodeTypeReference (pt);
 			}
 
 			var info = GetTypeInfo (typeName, throwError);

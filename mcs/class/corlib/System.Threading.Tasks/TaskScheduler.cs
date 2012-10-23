@@ -1,10 +1,12 @@
 // 
 // TaskScheduler.cs
 //  
-// Author:
+// Authors:
 //       Jérémie "Garuma" Laval <jeremie.laval@gmail.com>
+//       Marek Safar <marek.safar@gmail.com>
 // 
 // Copyright (c) 2009 Jérémie "Garuma" Laval
+// Copyright 2012 Xamarin, Inc (http://www.xamarin.com)
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,16 +26,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
-using System;
-using System.Threading;
+#if NET_4_0 || MOBILE
+
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace System.Threading.Tasks
 {
+	[DebuggerDisplay ("Id={Id}")]
+	[DebuggerTypeProxy (typeof (TaskSchedulerDebuggerView))]
 	public abstract class TaskScheduler
 	{
-		static TaskScheduler defaultScheduler = new Scheduler ();
+		sealed class TaskSchedulerDebuggerView
+		{
+			readonly TaskScheduler scheduler;
+
+			public TaskSchedulerDebuggerView (TaskScheduler scheduler)
+			{
+				this.scheduler = scheduler;
+			}
+
+			public IEnumerable<Task> ScheduledTasks {
+				get {
+					return scheduler.GetScheduledTasks ();
+				}
+			}
+		}
+
+		static readonly TaskScheduler defaultScheduler = new TpScheduler ();
 		
 		[ThreadStatic]
 		static TaskScheduler currentScheduler;
@@ -47,11 +67,14 @@ namespace System.Threading.Tasks
 		{
 			this.id = Interlocked.Increment (ref lastId);
 		}
-
-		// FIXME: Probably not correct
+		
 		public static TaskScheduler FromCurrentSynchronizationContext ()
 		{
-			return Current;
+			var syncCtx = SynchronizationContext.Current;
+			if (syncCtx == null)
+				throw new InvalidOperationException ("The current SynchronizationContext is null and cannot be used as a TaskScheduler");
+
+			return new SynchronizationContextScheduler (syncCtx);
 		}
 		
 		public static TaskScheduler Default  {
@@ -83,22 +106,45 @@ namespace System.Threading.Tasks
 				return Environment.ProcessorCount;
 			}
 		}
-		
+
 		protected abstract IEnumerable<Task> GetScheduledTasks ();
 		protected internal abstract void QueueTask (Task task);
+
 		protected internal virtual bool TryDequeue (Task task)
 		{
-			throw new NotSupportedException ();
+			return false;
 		}
 
 		internal protected bool TryExecuteTask (Task task)
 		{
-			throw new NotSupportedException ();
+			if (task.IsCompleted)
+				return false;
+
+			if (task.Status == TaskStatus.WaitingToRun) {
+				task.Execute ();
+				if (task.WaitOnChildren ())
+					task.Wait ();
+
+				return true;
+			}
+
+			return false;
 		}
 
 		protected abstract bool TryExecuteTaskInline (Task task, bool taskWasPreviouslyQueued);
-		
-		internal UnobservedTaskExceptionEventArgs FireUnobservedEvent (AggregateException e)
+
+		internal bool RunInline (Task task, bool taskWasPreviouslyQueued)
+		{
+			if (!TryExecuteTaskInline (task, taskWasPreviouslyQueued))
+				return false;
+
+			if (!task.IsCompleted)
+				throw new InvalidOperationException ("The TryExecuteTaskInline call to the underlying scheduler succeeded, but the task body was not invoked");
+
+			return true;
+		}
+
+		internal static UnobservedTaskExceptionEventArgs FireUnobservedEvent (Task task, AggregateException e)
 		{
 			UnobservedTaskExceptionEventArgs args = new UnobservedTaskExceptionEventArgs (e);
 			
@@ -106,7 +152,7 @@ namespace System.Threading.Tasks
 			if (temp == null)
 				return args;
 			
-			temp (this, args);
+			temp (task, args);
 			
 			return args;
 		}

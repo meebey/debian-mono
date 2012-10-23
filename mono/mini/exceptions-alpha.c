@@ -271,7 +271,7 @@ static void throw_exception(MonoException *exc, unsigned long RA,
 	mono_ex->stack_trace = NULL;
     }
 
-  mono_handle_exception (&ctx, exc, (gpointer)RA, FALSE);
+  mono_handle_exception (&ctx, exc);
 
   restore_context(&ctx);
 
@@ -565,18 +565,15 @@ mono_arch_get_throw_corlib_exception (void)
 /*                                                                  */
 /* Parameters   - ctx       - Saved processor state                 */
 /*                obj       - The exception object                  */
-/*                test_only - Only test if the exception is caught, */
-/*                            but don't call handlers               */
 /*                                                                  */
 /*------------------------------------------------------------------*/
 
 gboolean
-mono_arch_handle_exception (void *uc, gpointer obj, gboolean test_only)
+mono_arch_handle_exception (void *uc, gpointer obj)
 {
   ALPHA_DEBUG("mono_arch_handle_exception");
 
-  return mono_handle_exception (uc, obj, mono_arch_ip_from_context(uc),
-				test_only);
+  return mono_handle_exception (uc, obj);
 }
 
 /*========================= End of Function ========================*/
@@ -782,6 +779,7 @@ mono_arch_find_jit_info (MonoDomain *domain, MonoJitTlsData *jit_tls,
                          MonoJitInfo *res, MonoJitInfo *prev_ji,
 						 MonoContext *ctx,
                          MonoContext *new_ctx, MonoLMF **lmf,
+						 mgreg_t **save_locations,
                          gboolean *managed)
 {
   MonoJitInfo *ji;

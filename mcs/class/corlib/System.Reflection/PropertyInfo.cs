@@ -70,13 +70,6 @@ namespace System.Reflection {
 		
 		public abstract ParameterInfo[] GetIndexParameters();
 
-#if ONLY_1_1
-		public new Type GetType ()
-		{
-			return base.GetType ();
-		}
-#endif
-
 		public MethodInfo GetSetMethod()
 		{
 			return GetSetMethod (false);
@@ -90,7 +83,16 @@ namespace System.Reflection {
 		{
 			return GetValue(obj, BindingFlags.Default, null, index, null);
 		}
-		
+
+#if NET_4_5
+		[DebuggerHidden]
+		[DebuggerStepThrough]
+		public object GetValue (object obj)
+		{
+			return GetValue(obj, BindingFlags.Default, null, null, null);
+		}
+#endif
+
 		public abstract object GetValue (object obj, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture);
 		
 		[DebuggerHidden]
@@ -99,7 +101,16 @@ namespace System.Reflection {
 		{
 			SetValue (obj, value, BindingFlags.Default, null, index, null);
 		}
-		
+
+#if NET_4_5
+		[DebuggerHidden]
+		[DebuggerStepThrough]
+		public void SetValue (object obj, object value)
+		{
+			SetValue (obj, value, BindingFlags.Default, null, null, null);
+		}
+#endif
+
 		public abstract void SetValue (object obj, object value, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture);
 
 		public virtual Type[] GetOptionalCustomModifiers () {
@@ -110,7 +121,8 @@ namespace System.Reflection {
 			return Type.EmptyTypes;
 		}
 
-		NotImplementedException CreateNIE () {
+		static NotImplementedException CreateNIE ()
+		{
 			return new NotImplementedException ();
 		}
 
@@ -125,7 +137,7 @@ namespace System.Reflection {
 #if NET_4_0
 		public override bool Equals (object obj)
 		{
-			return obj == this;
+			return obj == (object) this;
 		}
 
 		public override int GetHashCode ()

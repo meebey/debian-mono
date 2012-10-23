@@ -46,6 +46,7 @@ namespace System.Reflection.Emit {
 	[ComVisible (true)]
 	[ComDefaultInterface (typeof (_ModuleBuilder))]
 	[ClassInterface (ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public class ModuleBuilder : Module, _ModuleBuilder {
 
 #pragma warning disable 169, 414
@@ -108,12 +109,9 @@ namespace System.Reflection.Emit {
 #else
 				Assembly asm = Assembly.LoadWithPartialName ("Mono.CompilerServices.SymbolWriter");
 				if (asm == null)
-					throw new ExecutionEngineException ("The assembly for default symbol writer cannot be loaded");
+					throw new TypeLoadException ("The assembly for default symbol writer cannot be loaded");
 
-				Type t = asm.GetType ("Mono.CompilerServices.SymbolWriter.SymbolWriterImpl");
-				if (t == null)
-					throw new ExecutionEngineException ("The type that implements the default symbol writer interface cannot be found");
-
+				Type t = asm.GetType ("Mono.CompilerServices.SymbolWriter.SymbolWriterImpl", true);
 				symbolWriter = (ISymbolWriter) Activator.CreateInstance (t, new object[] { this });
 #endif
 				string fileName = fqname;
@@ -604,6 +602,8 @@ namespace System.Reflection.Emit {
 		{
 			if (con == null)
 				throw new ArgumentNullException ("con");
+			if (con.DeclaringType.Module != this)
+				throw new InvalidOperationException ("The constructor is not in this module");
 			return new MethodToken (GetToken (con));
 		}
 
@@ -656,7 +656,7 @@ namespace System.Reflection.Emit {
 		private static extern int getUSIndex (ModuleBuilder mb, string str);
 
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
-		private static extern int getToken (ModuleBuilder mb, object obj);
+		private static extern int getToken (ModuleBuilder mb, object obj, bool create_open_instance);
 
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		private static extern int getMethodToken (ModuleBuilder mb, MethodInfo method,
@@ -674,7 +674,11 @@ namespace System.Reflection.Emit {
 		}
 
 		internal int GetToken (MemberInfo member) {
-			return getToken (this, member);
+			return getToken (this, member, true);
+		}
+
+		internal int GetToken (MemberInfo member, bool create_open_instance) {
+			return getToken (this, member, create_open_instance);
 		}
 
 		internal int GetToken (MethodInfo method, Type[] opt_param_types) {
@@ -682,7 +686,7 @@ namespace System.Reflection.Emit {
 		}
 
 		internal int GetToken (SignatureHelper helper) {
-			return getToken (this, helper);
+			return getToken (this, helper, true);
 		}
 
 		/*
@@ -821,7 +825,7 @@ namespace System.Reflection.Emit {
 			throw new NotImplementedException ();
 		}
 
-#if NET_4_0 || MOONLIGHT
+#if NET_4_0 || MOONLIGHT || MOBILE
 		public override	Assembly Assembly {
 			get { return assemblyb; }
 		}
@@ -916,6 +920,51 @@ namespace System.Reflection.Emit {
 				return Type.GetTypeFromHandle (new RuntimeTypeHandle (handle));
 		}
 
+		public override bool Equals (object obj)
+		{
+			return base.Equals (obj);
+		}
+
+		public override int GetHashCode ()
+		{
+			return base.GetHashCode ();
+		}
+
+		public override bool IsDefined (Type attributeType, bool inherit)
+		{
+			return base.IsDefined (attributeType, inherit);
+		}
+
+		public override object[] GetCustomAttributes (bool inherit)
+		{
+			return base.GetCustomAttributes (inherit);
+		}
+
+		public override object[] GetCustomAttributes (Type attributeType, bool inherit)
+		{
+			return base.GetCustomAttributes (attributeType, inherit);
+		}
+
+		public override FieldInfo GetField (string name, BindingFlags bindingAttr)
+		{
+			return base.GetField (name, bindingAttr);
+		}
+
+		public override FieldInfo[] GetFields (BindingFlags bindingFlags)
+		{
+			return base.GetFields (bindingFlags);
+		}
+
+		public override MethodInfo[] GetMethods (BindingFlags bindingFlags)
+		{
+			return base.GetMethods (bindingFlags);
+		}
+
+		public override int MetadataToken {
+			get {
+				return base.MetadataToken;
+			}
+		}
 #endif
 	}
 
@@ -931,8 +980,8 @@ namespace System.Reflection.Emit {
 			return mb.GetToken (str);
 		}
 
-		public int GetToken (MemberInfo member) {
-			return mb.GetToken (member);
+		public int GetToken (MemberInfo member, bool create_open_instance) {
+			return mb.GetToken (member, create_open_instance);
 		}
 
 		public int GetToken (MethodInfo method, Type[] opt_param_types) {

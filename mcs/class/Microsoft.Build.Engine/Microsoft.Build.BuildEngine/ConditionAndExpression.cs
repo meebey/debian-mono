@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Xml;
 
@@ -72,7 +70,9 @@ namespace Microsoft.Build.BuildEngine {
 		
 		public override bool CanEvaluateToBool (Project context)
 		{
-			return left.CanEvaluateToBool (context) && right.CanEvaluateToBool (context);
+			// Short-circuiting, check only left expr, right
+			// would be required only if left == true
+			return left.CanEvaluateToBool (context);
 		}
 		
 		public override bool CanEvaluateToNumber (Project context)
@@ -86,5 +86,3 @@ namespace Microsoft.Build.BuildEngine {
 		}
 	}
 }
-
-#endif

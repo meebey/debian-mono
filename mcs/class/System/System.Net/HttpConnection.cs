@@ -2,9 +2,10 @@
 // System.Net.HttpConnection
 //
 // Author:
-//	Gonzalo Paniagua Javier (gonzalo@novell.com)
+//	Gonzalo Paniagua Javier (gonzalo.mono@gmail.com)
 //
-// Copyright (c) 2005 Novell, Inc. (http://www.novell.com)
+// Copyright (c) 2005-2009 Novell, Inc. (http://www.novell.com)
+// Copyright (c) 2012 Xamarin, Inc. (http://xamarin.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -32,6 +33,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Mono.Security.Protocol.Tls;
@@ -39,6 +41,7 @@ using Mono.Security.Protocol.Tls;
 namespace System.Net {
 	sealed class HttpConnection
 	{
+		static AsyncCallback onread_cb = new AsyncCallback (OnRead);
 		const int BufferSize = 8192;
 		Socket sock;
 		Stream stream;
@@ -51,10 +54,16 @@ namespace System.Net {
 		RequestStream i_stream;
 		ResponseStream o_stream;
 		bool chunked;
-		int chunked_uses;
+		int reuses;
 		bool context_bound;
 		bool secure;
 		AsymmetricAlgorithm key;
+		int s_timeout = 90000; // 90k ms for first request, 15k ms from then on
+		Timer timer;
+		IPEndPoint local_ep;
+		HttpListener last_listener;
+		int [] client_cert_errors;
+		X509Certificate2 client_cert;
 
 		public HttpConnection (Socket sock, EndPointListener epl, bool secure, X509Certificate2 cert, AsymmetricAlgorithm key)
 		{
@@ -65,11 +74,33 @@ namespace System.Net {
 			if (secure == false) {
 				stream = new NetworkStream (sock, false);
 			} else {
-				SslServerStream ssl_stream = new SslServerStream (new NetworkStream (sock, false), cert, false, false);
+				SslServerStream ssl_stream = new SslServerStream (new NetworkStream (sock, false), cert, false, true, false);
 				ssl_stream.PrivateKeyCertSelectionDelegate += OnPVKSelection;
+				ssl_stream.ClientCertValidationDelegate += OnClientCertificateValidation;
 				stream = ssl_stream;
 			}
+			timer = new Timer (OnTimeout, null, Timeout.Infinite, Timeout.Infinite);
 			Init ();
+		}
+
+		internal int [] ClientCertificateErrors {
+			get { return client_cert_errors; }
+		}
+
+		internal X509Certificate2 ClientCertificate {
+			get { return client_cert; }
+		}
+
+		bool OnClientCertificateValidation (X509Certificate certificate, int[] errors)
+		{
+			if (certificate == null)
+				return true;
+			X509Certificate2 cert = certificate as X509Certificate2;
+			if (cert == null)
+				cert = new X509Certificate2 (certificate.GetRawCertData ());
+			client_cert = cert;
+			client_cert_errors = errors;
+			return true;
 		}
 
 		AsymmetricAlgorithm OnPVKSelection (X509Certificate certificate, string targetHost)
@@ -91,12 +122,22 @@ namespace System.Net {
 			context = new HttpListenerContext (this);
 		}
 
-		public int ChunkedUses {
-			get { return chunked_uses; }
+		public bool IsClosed {
+			get { return (sock == null); }
+		}
+
+		public int Reuses {
+			get { return reuses; }
 		}
 
 		public IPEndPoint LocalEndPoint {
-			get { return (IPEndPoint) sock.LocalEndPoint; }
+			get {
+				if (local_ep != null)
+					return local_ep;
+
+				local_ep = (IPEndPoint) sock.LocalEndPoint;
+				return local_ep;
+			}
 		}
 
 		public IPEndPoint RemoteEndPoint {
@@ -112,14 +153,25 @@ namespace System.Net {
 			set { prefix = value; }
 		}
 
+		void OnTimeout (object unused)
+		{
+			CloseSocket ();
+			Unbind ();
+		}
+
 		public void BeginReadRequest ()
 		{
 			if (buffer == null)
 				buffer = new byte [BufferSize];
 			try {
-				stream.BeginRead (buffer, 0, BufferSize, OnRead, this);
+				if (reuses == 1)
+					s_timeout = 15000;
+				timer.Change (s_timeout, Timeout.Infinite);
+				stream.BeginRead (buffer, 0, BufferSize, onread_cb, this);
 			} catch {
-				sock.Close (); // stream disposed
+				timer.Change (Timeout.Infinite, Timeout.Infinite);
+				CloseSocket ();
+				Unbind ();
 			}
 		}
 
@@ -151,9 +203,15 @@ namespace System.Net {
 			return o_stream;
 		}
 
-		void OnRead (IAsyncResult ares)
+		static void OnRead (IAsyncResult ares)
 		{
 			HttpConnection cnc = (HttpConnection) ares.AsyncState;
+			cnc.OnReadInternal (ares);
+		}
+
+		void OnReadInternal (IAsyncResult ares)
+		{
+			timer.Change (Timeout.Infinite, Timeout.Infinite);
 			int nread = -1;
 			try {
 				nread = stream.EndRead (ares);
@@ -166,15 +224,18 @@ namespace System.Net {
 			} catch {
 				if (ms != null && ms.Length > 0)
 					SendError ();
-				if (sock != null)
-					sock.Close ();
+				if (sock != null) {
+					CloseSocket ();
+					Unbind ();
+				}
 				return;
 			}
 
 			if (nread == 0) {
 				//if (ms.Length > 0)
 				//	SendError (); // Why bother?
-				sock.Close ();
+				CloseSocket ();
+				Unbind ();
 				return;
 			}
 
@@ -191,11 +252,28 @@ namespace System.Net {
 				if (!epl.BindContext (context)) {
 					SendError ("Invalid host", 400);
 					Close (true);
+					return;
 				}
+				HttpListener listener = context.Listener;
+				if (last_listener != listener) {
+					RemoveConnection ();
+					listener.AddConnection (this);
+					last_listener = listener;
+				}
+
 				context_bound = true;
+				listener.RegisterContext (context);
 				return;
 			}
-			stream.BeginRead (buffer, 0, BufferSize, OnRead, cnc);
+			stream.BeginRead (buffer, 0, BufferSize, onread_cb, this);
+		}
+
+		void RemoveConnection ()
+		{
+			if (last_listener == null)
+				epl.RemoveConnection (this);
+			else
+				last_listener.RemoveConnection (this);
 		}
 
 		enum InputState {
@@ -280,7 +358,7 @@ namespace System.Net {
 		string ReadLine (byte [] buffer, int offset, int len, ref int used)
 		{
 			if (current_line == null)
-				current_line = new StringBuilder ();
+				current_line = new StringBuilder (128);
 			int last = offset + len;
 			used = 0;
 			for (int i = offset; i < last && line_state != LineState.LF; i++) {
@@ -343,35 +421,55 @@ namespace System.Net {
 			Close (false);
 		}
 
+		void CloseSocket ()
+		{
+			if (sock == null)
+				return;
+
+			try {
+				sock.Close ();
+			} catch {
+			} finally {
+				sock = null;
+			}
+			RemoveConnection ();
+		}
+
 		internal void Close (bool force_close)
 		{
 			if (sock != null) {
 				Stream st = GetResponseStream ();
-				st.Close ();
+				if (st != null)
+					st.Close ();
+
 				o_stream = null;
 			}
 
 			if (sock != null) {
-				force_close |= (context.Request.Headers ["connection"] == "close");
+				force_close |= !context.Request.KeepAlive;
+				if (!force_close)
+					force_close = (context.Response.Headers ["connection"] == "close");
+				/*
 				if (!force_close) {
-					int status_code = context.Response.StatusCode;
-					bool conn_close = (status_code == 400 || status_code == 408 || status_code == 411 ||
-							status_code == 413 || status_code == 414 || status_code == 500 ||
-							status_code == 503);
+//					bool conn_close = (status_code == 400 || status_code == 408 || status_code == 411 ||
+//							status_code == 413 || status_code == 414 || status_code == 500 ||
+//							status_code == 503);
 
 					force_close |= (context.Request.ProtocolVersion <= HttpVersion.Version10);
 				}
+				*/
 
 				if (!force_close && context.Request.FlushInput ()) {
 					if (chunked && context.Response.ForceCloseChunked == false) {
 						// Don't close. Keep working.
-						chunked_uses++;
+						reuses++;
 						Unbind ();
 						Init ();
 						BeginReadRequest ();
 						return;
 					}
 
+					reuses++;
 					Unbind ();
 					Init ();
 					BeginReadRequest ();
@@ -381,12 +479,15 @@ namespace System.Net {
 				Socket s = sock;
 				sock = null;
 				try {
-					s.Shutdown (SocketShutdown.Both);
+					if (s != null)
+						s.Shutdown (SocketShutdown.Both);
 				} catch {
 				} finally {
-					s.Close ();
+					if (s != null)
+						s.Close ();
 				}
 				Unbind ();
+				RemoveConnection ();
 				return;
 			}
 		}

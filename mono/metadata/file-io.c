@@ -7,6 +7,7 @@
  *
  * Copyright 2001-2003 Ximian, Inc (http://www.ximian.com)
  * Copyright 2004-2009 Novell, Inc (http://www.novell.com)
+ * Copyright 2012 Xamarin Inc (http://www.xamarin.com)
  */
 
 #include <config.h>
@@ -31,6 +32,7 @@
 #include <mono/metadata/appdomain.h>
 #include <mono/metadata/marshal.h>
 #include <mono/utils/strenc.h>
+#include <utils/mono-io-portability.h>
 
 #undef DEBUG
 
@@ -173,21 +175,13 @@ static gint64 convert_filetime (const FILETIME *filetime)
 	return (gint64)ticks;
 }
 
-static void convert_win32_file_attribute_data (const WIN32_FILE_ATTRIBUTE_DATA *data, const gunichar2 *name, MonoIOStat *stat)
+static void convert_win32_file_attribute_data (const WIN32_FILE_ATTRIBUTE_DATA *data, MonoIOStat *stat)
 {
-	int len;
-	
 	stat->attributes = data->dwFileAttributes;
 	stat->creation_time = convert_filetime (&data->ftCreationTime);
 	stat->last_access_time = convert_filetime (&data->ftLastAccessTime);
 	stat->last_write_time = convert_filetime (&data->ftLastWriteTime);
 	stat->length = ((gint64)data->nFileSizeHigh << 32) | data->nFileSizeLow;
-
-	len = 0;
-	while (name [len])
-		++ len;
-
-	MONO_STRUCT_SETREF (stat, name, mono_string_new_utf16 (mono_domain_get (), name, len));
 }
 
 /* Managed file attributes have nearly but not quite the same values
@@ -330,30 +324,37 @@ ves_icall_System_IO_MonoIO_GetFileSystemEntries (MonoString *path,
 	HANDLE find_handle;
 	GPtrArray *names;
 	gchar *utf8_path, *utf8_result, *full_name;
+	gint32 attributes;
 	
 	MONO_ARCH_SAVE_REGS;
 
+	result = NULL;
 	*error = ERROR_SUCCESS;
 
 	domain = mono_domain_get ();
 	mask = convert_attrs (mask);
+	attributes = get_file_attributes (mono_string_chars (path));
+	if (attributes != -1) {
+		if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+			*error = ERROR_INVALID_NAME;
+			goto leave;
+		}
+	} else {
+		*error = GetLastError ();
+		goto leave;
+	}
 	
-	find_handle = FindFirstFile (mono_string_chars (path_with_pattern),
-				     &data);
+	find_handle = FindFirstFile (mono_string_chars (path_with_pattern), &data);
 	if (find_handle == INVALID_HANDLE_VALUE) {
 		gint32 find_error = GetLastError ();
 		
-		if (find_error == ERROR_FILE_NOT_FOUND) {
+		if (find_error == ERROR_FILE_NOT_FOUND || find_error == ERROR_NO_MORE_FILES) {
 			/* No files, so just return an empty array */
-			result = mono_array_new (domain,
-						 mono_defaults.string_class,
-						 0);
-
-			return(result);
+			goto leave;
 		}
 		
 		*error = find_error;
-		return(NULL);
+		goto leave;
 	}
 
 	utf8_path = get_search_dir (path_with_pattern);
@@ -393,7 +394,12 @@ ves_icall_System_IO_MonoIO_GetFileSystemEntries (MonoString *path,
 	}
 	g_ptr_array_free (names, TRUE);
 	g_free (utf8_path);
-	
+
+leave:
+	// If there's no array and no error, then return an empty array.
+	if (result == NULL && *error == ERROR_SUCCESS)
+		result = mono_array_new (domain, mono_defaults.string_class, 0);
+
 	return result;
 }
 
@@ -722,9 +728,7 @@ ves_icall_System_IO_MonoIO_GetFileStat (MonoString *path, MonoIOStat *stat,
 	result = get_file_attributes_ex (mono_string_chars (path), &data);
 
 	if (result) {
-		convert_win32_file_attribute_data (&data,
-						   mono_string_chars (path),
-						   stat);
+		convert_win32_file_attribute_data (&data, stat);
 	} else {
 		*error=GetLastError ();
 		memset (stat, 0, sizeof (MonoIOStat));
@@ -1097,7 +1101,10 @@ ves_icall_System_IO_MonoIO_get_AltDirectorySeparatorChar ()
 #if defined (TARGET_WIN32)
 	return (gunichar2) '/';	/* forward slash */
 #else
-	return (gunichar2) '/';	/* slash, same as DirectorySeparatorChar */
+	if (IS_PORTABILITY_SET)
+		return (gunichar2) '\\';	/* backslash */
+	else
+		return (gunichar2) '/';	/* forward slash */
 #endif
 }
 
@@ -1209,3 +1216,35 @@ void ves_icall_System_IO_MonoIO_Unlock (HANDLE handle, gint64 position,
 	}
 }
 
+//Support for io-layer free mmap'd files.
+
+#if (defined (__MACH__) && defined (TARGET_ARM)) || defined (TARGET_ANDROID)
+
+gint64
+mono_filesize_from_path (MonoString *string)
+{
+	struct stat buf;
+	gint64 res;
+	char *path = mono_string_to_utf8 (string);
+	
+	if (stat (path, &buf) == -1)
+		res = -1;
+	else
+		res = (gint64)buf.st_size;
+
+	g_free (path);
+	return res;
+}
+
+gint64
+mono_filesize_from_fd (int fd)
+{
+	struct stat buf;
+
+	if (fstat (fd, &buf) == -1)
+		return (gint64)-1;
+
+	return (gint64)buf.st_size;
+}
+
+#endif

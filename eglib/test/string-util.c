@@ -174,6 +174,16 @@ test_split ()
 	
 	g_strfreev (v);
 
+	v = g_strsplit ("value=", "=", 2);
+	if (strcmp (v [0], "value") != 0)
+		return FAILED ("Invalid value 18; expected 'value', got '%s'", v [0]);
+	if (strcmp (v [1], "") != 0)
+		return FAILED ("Invalid value 19; expected '', got '%s'", v [1]);
+	if (v [2] != NULL)
+		return FAILED ("Expected only 2 elements (6)");
+
+	g_strfreev (v);
+
 	return OK;
 }
 
@@ -296,27 +306,37 @@ test_split_set ()
 RESULT
 test_strreverse ()
 {
+	RESULT res = OK;
 	gchar *a = g_strdup ("onetwothree");
 	gchar *a_target = "eerhtowteno";
 	gchar *b = g_strdup ("onetwothre");
 	gchar *b_target = "erhtowteno";
+	gchar *c = g_strdup ("");
+	gchar *c_target = "";
 
 	g_strreverse (a);
 	if (strcmp (a, a_target)) {
-		g_free (b);
-		g_free (a);
-		return FAILED("strreverse failed. Expecting: '%s' and got '%s'\n", a, a_target);
+		res = FAILED("strreverse failed. Expecting: '%s' and got '%s'\n", a, a_target);
+		goto cleanup;
 	}
 
 	g_strreverse (b);
 	if (strcmp (b, b_target)) {
-		g_free (b);
-		g_free (a);
-		return FAILED("strreverse failed. Expecting: '%s' and got '%s'\n", b, b_target);
+		res = FAILED("strreverse failed. Expecting: '%s' and got '%s'\n", b, b_target);
+		goto cleanup;
 	}
+
+	g_strreverse (c);
+	if (strcmp (c, c_target)) {
+		res = FAILED("strreverse failed. Expecting: '%s' and got '%s'\n", b, b_target);
+		goto cleanup;
+	}
+
+cleanup:
+	g_free (c);
 	g_free (b);
 	g_free (a);
-	return OK;
+	return res;
 }
 
 RESULT
@@ -404,6 +424,8 @@ test_strstrip ()
 RESULT
 test_filename_to_uri ()
 {
+#ifdef G_OS_WIN32
+#else
 	char *s;
 
 	urit ("/a", "file:///a");
@@ -422,6 +444,7 @@ test_filename_to_uri ()
 	urit ("/@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", "file:///@ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
 	errit ("a");
 	errit ("./hola");
+#endif
 	
 	return OK;
 }
@@ -433,6 +456,8 @@ test_filename_to_uri ()
 RESULT
 test_filename_from_uri ()
 {
+#ifdef G_OS_WIN32
+#else
 	char *s;
 
 	fileit ("file:///a", "/a");
@@ -446,6 +471,7 @@ test_filename_from_uri ()
 	ferrit ("file:///%");
 	ferrit ("file:///%0");
 	ferrit ("file:///%jj");
+#endif
 	
 	return OK;
 }
@@ -621,6 +647,30 @@ test_ascii_strdown ()
 	return OK;
 }
 
+RESULT
+test_strdupv ()
+{
+	gchar **one;
+	gchar **two;
+	gint len;
+
+	one = g_strdupv (NULL);
+	if (one)
+		return FAILED ("Should have been NULL");
+
+	one = g_malloc (sizeof (gchar *));
+	*one = NULL;
+	two = g_strdupv (one);
+	if (!two)
+		FAILED ("Should have been not NULL");
+	len = g_strv_length (two);
+	if (len)
+		FAILED ("Should have been 0");
+	g_strfreev (two);
+	g_strfreev (one);
+	return NULL;
+}
+
 static Test strutil_tests [] = {
 	{"g_strfreev", test_strfreev},
 	{"g_strconcat", test_concat},
@@ -639,6 +689,7 @@ static Test strutil_tests [] = {
 	{"g_strescape", test_strescape},
 	{"g_ascii_strncasecmp", test_ascii_strncasecmp },
 	{"g_ascii_strdown", test_ascii_strdown },
+	{"g_strdupv", test_strdupv },
 	{NULL, NULL}
 };
 

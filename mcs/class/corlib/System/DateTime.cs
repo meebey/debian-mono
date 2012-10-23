@@ -1,13 +1,15 @@
 //
 // System.DateTime.cs
 //
-// author:
+// Authors:
 //   Marcel Narings (marcel@narings.nl)
 //   Martin Baulig (martin@gnome.org)
 //   Atsushi Enomoto (atsushi@ximian.com)
+//   Marek Safar (marek.safar@gmail.com)
 //
 //   (C) 2001 Marcel Narings
 // Copyright (C) 2004-2006 Novell, Inc (http://www.novell.com)
+// Copyright (C) 2012 Xamarin Inc (http://www.xamarin.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,7 +31,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -53,7 +55,7 @@ namespace System
 		// memory usage from 16 to 8 bytes, see bug: 592221.   This also fixes the
 		// 622127 issue and simplifies the code in reflection.c to encode DateTimes
 		//
-		public long encoded;
+		long encoded;
 		const long TicksMask = 0x3fffffffffffffff;
 		const long KindMask = unchecked ((long) 0xc000000000000000);
 		const int KindShift = 62;
@@ -89,9 +91,11 @@ namespace System
 		// try combinations of these patterns. The algorithm also looks for
 		// day of the week, AM/PM GMT and Z independently of the patterns.
 		private static readonly string[] ParseTimeFormats = new string [] {
+			"H:m:s.fff zzz",
 			"H:m:s.fffffffzzz",
 			"H:m:s.fffffff",
 			"H:m:s.ffffff",
+			"H:m:s.ffffffzzz",
 			"H:m:s.fffff",
 			"H:m:s.ffff",
 			"H:m:s.fff",
@@ -185,6 +189,16 @@ namespace System
 			"yy/MMM/d",
 			"d/yy/MMM",
 			"yy/d/MMM",
+		};
+		
+		private static readonly string[] ParseGenericYearMonthDayFormats = new string [] {
+			"yyyy/M/dT",
+			"yyyy/M/d",
+			"M/yyyy/dT",
+			"M/yyyy/d",
+			"yyyy'\u5E74'M'\u6708'd'\u65E5",
+			"yyyy'-'M'-'dT",
+			"yyyy'-'M'-'d",
 		};
 
 		// Patterns influenced by the MonthDayPattern in DateTimeFormatInfo.
@@ -649,7 +663,7 @@ namespace System
 
 		public static DateTime FromBinary (long dateData)
 		{
-			switch ((ulong)dateData >> 62) {
+			switch ((ulong)dateData >> KindShift) {
 			case 1: // Utc
 				return new DateTime (dateData & TicksMask, DateTimeKind.Utc);
 			case 0: // Unspecified
@@ -704,7 +718,7 @@ namespace System
 			if (fileTime < 0)
 				throw new ArgumentOutOfRangeException ("fileTime", "< 0");
 
-			return new DateTime (w32file_epoch + fileTime);
+			return new DateTime (w32file_epoch + fileTime, DateTimeKind.Utc);
 		}
 
 		public static DateTime FromOADate (double d)
@@ -750,10 +764,10 @@ namespace System
 		{
 			DateTimeFormatInfo info = (DateTimeFormatInfo) provider.GetFormat (typeof(DateTimeFormatInfo));
 //			return GetDateTimeFormats (info.GetAllDateTimePatterns ());
-			ArrayList al = new ArrayList ();
+			var l = new List<string> ();
 			foreach (char c in "dDgGfFmMrRstTuUyY")
-				al.AddRange (GetDateTimeFormats (c, info));
-			return al.ToArray (typeof (string)) as string [];
+				l.AddRange (GetDateTimeFormats (c, info));
+			return l.ToArray ();
 		}
 
 		public string[] GetDateTimeFormats(char format,IFormatProvider provider	)
@@ -847,7 +861,7 @@ namespace System
 			DateTimeFormatInfo dfi = DateTimeFormatInfo.GetInstance (provider);
 
 			// Try first all the combinations of ParseAllDateFormats & ParseTimeFormats
-			string[] allDateFormats = YearMonthDayFormats (dfi, setExceptionOnError, ref exception);
+			string[] allDateFormats = YearMonthDayFormats (dfi);
 			if (allDateFormats == null){
 				result = MinValue;
 				return false;
@@ -926,16 +940,13 @@ namespace System
 			return ParseExact (s, format, provider, DateTimeStyles.None);
 		}
 
-		private static string[] YearMonthDayFormats (DateTimeFormatInfo dfi, bool setExceptionOnError, ref Exception exc)
+		private static string[] YearMonthDayFormats (DateTimeFormatInfo dfi)
 		{
 			int dayIndex = dfi.ShortDatePattern.IndexOf('d');
 			int monthIndex = dfi.ShortDatePattern.IndexOf('M');
 			int yearIndex = dfi.ShortDatePattern.IndexOf('y');
-			if (dayIndex == -1 || monthIndex == -1 || yearIndex == -1){
-				if (setExceptionOnError)
-					exc = new FormatException (Locale.GetText("Order of year, month and date is not defined by {0}", dfi.ShortDatePattern));
-				return null;
-			}
+			if (dayIndex == -1 || monthIndex == -1 || yearIndex == -1)
+				return ParseGenericYearMonthDayFormats;
 
 			if (yearIndex < monthIndex)
 				if (monthIndex < dayIndex)
@@ -944,9 +955,7 @@ namespace System
 					return ParseYearDayMonthFormats;
 				else {
 					// The year cannot be between the date and the month
-					if (setExceptionOnError)
-						exc = new FormatException (Locale.GetText("Order of date, year and month defined by {0} is not supported", dfi.ShortDatePattern));
-					return null;
+					return ParseGenericYearMonthDayFormats;
 				}
 			else if (dayIndex < monthIndex)
 				return ParseDayMonthYearFormats;
@@ -954,9 +963,7 @@ namespace System
 				return ParseMonthDayYearFormats;
 			else {
 				// The year cannot be between the month and the date
-				if (setExceptionOnError)
-					exc = new FormatException (Locale.GetText("Order of month, year and date defined by {0} is not supported", dfi.ShortDatePattern));
-				return null;
+				return ParseGenericYearMonthDayFormats;
 			}
 		}
 
@@ -1178,6 +1185,7 @@ namespace System
 			int ampm = -1;
 			int tzsign = -1, tzoffset = -1, tzoffmin = -1;
 			bool isFirstPart = true;
+			bool format_with_24_hours = false;
 
 			for (; ; )
 			{
@@ -1419,7 +1427,7 @@ namespace System
 					if (hour >= 24)
 						return false;
 
-//					ampm = -2;
+					format_with_24_hours = true;
 					break;
 				case 'm':
 					if (minute != -1)
@@ -1570,6 +1578,27 @@ namespace System
 
 					num = 0;
 					break;
+				case '.':
+					if (s[valuePos] == '.') {
+						num = 0;
+						num_parsed = 1;
+						break;
+					}
+
+					// '.FFF....' can be mapped to nothing
+					if (pos + 1 < len && chars[pos + 1] == 'F') {
+						++pos;
+						while (pos < len && chars[pos + 1] == 'F') {
+							++pos;
+						}
+
+						num = 0;
+						num_parsed = 0;
+						break;
+					}
+
+					return false;
+
 				default:
 					if (s [valuePos] != chars [pos])
 							return false;
@@ -1661,12 +1690,21 @@ namespace System
 				else
 					year = DateTime.Today.Year;
 			}
-
-			if (ampm == 0 && hour == 12)
-				hour = 0;
-
-			if (ampm == 1 && (!flexibleTwoPartsParsing || hour < 12))
-				hour = hour + 12;
+			
+			if (ampm == 0) { // AM designator
+				if (hour >= 12 && format_with_24_hours && exact)
+					return false;
+				
+				if (hour == 12)
+					hour = 0;
+			} else if (ampm == 1) {	// PM designator
+				if (hour < 12) {
+					if (format_with_24_hours && exact)
+						return false;
+					
+					hour += 12;
+				}
+			}
 			
 			// For anything out of range 
 			// return false
@@ -1887,6 +1925,9 @@ namespace System
 
 		public long ToFileTimeUtc()
 		{
+			if (Kind == DateTimeKind.Local)
+				return ToFileTime ();
+
 			if (Ticks < w32file_epoch) {
 				throw new ArgumentOutOfRangeException("file time is not valid");
 			}

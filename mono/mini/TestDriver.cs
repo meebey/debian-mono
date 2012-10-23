@@ -17,7 +17,7 @@ public class TestDriver {
 
 	static public int RunTests (Type type, string[] args) {
 		int failed = 0, ran = 0;
-		int result, expected, elen;
+		int result, expected;
 		int i, j, iterations;
 		string name;
 		MethodInfo[] methods;
@@ -29,9 +29,9 @@ public class TestDriver {
 		iterations = 1;
 
 		var exclude = new Dictionary<string, string> ();
-		List<string> new_args = new List<string> ();
+		List<string> run_only = new List<string> ();
 		if (args != null && args.Length > 0) {
-			for (j = 0; j < args.Length; j++) {
+			for (j = 0; j < args.Length;) {
 				if (args [j] == "--time") {
 					do_timings = true;
 					j ++;
@@ -40,11 +40,16 @@ public class TestDriver {
 					j += 2;
 				} else if ((args [j] == "-v") || (args [j] == "--verbose")) {
 					verbose = true;
+					j += 1;
 				} else if (args [j] == "--exclude") {
 					exclude [args [j + 1]] = args [j + 1];
 					j += 2;
+				} else if (args [j] == "--run-only") {
+					run_only.Add (args [j + 1]);
+					j += 2;
 				} else {
-					new_args.Add (args [j]);
+					Console.WriteLine ("Unknown argument: " + args [j]);
+					return 1;
 				}
 			}
 		}
@@ -55,10 +60,10 @@ public class TestDriver {
 				name = methods [i].Name;
 				if (!name.StartsWith ("test_", StringComparison.Ordinal))
 					continue;
-				if (new_args.Count > 0) {
+				if (run_only.Count > 0) {
 					bool found = false;
-					for (j = 0; j < new_args.Count; j++) {
-						if (name.EndsWith (new_args [j])) {
+					for (j = 0; j < run_only.Count; j++) {
+						if (name.EndsWith (run_only [j])) {
 							found = true;
 							break;
 						}

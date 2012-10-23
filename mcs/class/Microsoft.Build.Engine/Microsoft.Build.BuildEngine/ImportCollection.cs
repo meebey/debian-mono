@@ -26,8 +26,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -37,19 +35,19 @@ namespace Microsoft.Build.BuildEngine {
 	public class ImportCollection : ICollection, IEnumerable {
 		
 		GroupingCollection groupingCollection;
-		Dictionary <string, object> filenames;
+		Dictionary <string, Import> filenames;
 		
 		internal ImportCollection (GroupingCollection groupingCollection)
 		{
 			this.groupingCollection = groupingCollection;
-			filenames = new Dictionary <string, object> ();
+			filenames = new Dictionary <string, Import> ();
 		}
 		
 		internal void Add (Import import)
 		{
 			if (!filenames.ContainsKey (import.EvaluatedProjectPath)) {
 				groupingCollection.Add (import);
-				filenames.Add (import.EvaluatedProjectPath, null);
+				filenames.Add (import.EvaluatedProjectPath, import);
 			}
 		}
 		
@@ -77,6 +75,11 @@ namespace Microsoft.Build.BuildEngine {
 		{
 			return filenames.ContainsKey (import.EvaluatedProjectPath);
 		}
+
+		internal bool TryGetImport (Import keyImport, out Import valueImport)
+		{
+			return filenames.TryGetValue (keyImport.EvaluatedProjectPath, out valueImport);
+		}
 		
 		public void CopyTo (Import[] array, int index)
 		{
@@ -101,5 +104,3 @@ namespace Microsoft.Build.BuildEngine {
 		}
 	}
 }
-
-#endif

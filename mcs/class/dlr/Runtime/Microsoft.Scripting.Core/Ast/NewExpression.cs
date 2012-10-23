@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -20,23 +20,17 @@ using System.Diagnostics;
 using System.Dynamic.Utils;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Microsoft.Scripting.Utils;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
 #else
 namespace System.Linq.Expressions {
 #endif
-
     /// <summary>
     /// Represents a constructor call.
     /// </summary>
-#if !SILVERLIGHT
     [DebuggerTypeProxy(typeof(Expression.NewExpressionProxy))]
-#endif
     public class NewExpression : Expression, IArgumentProvider {
         private readonly ConstructorInfo _constructor;
         private IList<Expression> _arguments;
@@ -213,7 +207,7 @@ namespace System.Linq.Expressions {
             }
             ConstructorInfo ci = null;
             if (!type.IsValueType) {
-                ci = type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, System.Type.EmptyTypes, null);
+                ci = type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, ReflectionUtils.EmptyTypes, null);
                 if (ci == null) {
                     throw Error.TypeMissingDefaultConstructor(type);
                 }
@@ -247,9 +241,7 @@ namespace System.Linq.Expressions {
                     Type memberType;
                     ValidateAnonymousTypeMember(ref member, out memberType);
                     if (!TypeUtils.AreReferenceAssignable(memberType, arg.Type)) {
-                        if (TypeUtils.IsSameOrSubclass(typeof(LambdaExpression), memberType) && memberType.IsAssignableFrom(arg.GetType())) {
-                            arg = Expression.Quote(arg);
-                        } else {
+                        if (!TryQuote(memberType, ref arg)) {
                             throw Error.ArgumentTypeDoesNotMatchMember(arg.Type, memberType);
                         }
                     }
@@ -259,9 +251,7 @@ namespace System.Linq.Expressions {
                         pType = pType.GetElementType();
                     }
                     if (!TypeUtils.AreReferenceAssignable(pType, arg.Type)) {
-                        if (TypeUtils.IsSameOrSubclass(typeof(LambdaExpression), pType) && pType.IsAssignableFrom(arg.Type)) {
-                            arg = Expression.Quote(arg);
-                        } else {
+                        if (!TryQuote(pType, ref arg)) {
                             throw Error.ExpressionTypeDoesNotMatchConstructorParameter(arg.Type, pType);
                         }
                     }
@@ -307,7 +297,7 @@ namespace System.Linq.Expressions {
                         throw Error.ArgumentMustBeInstanceMember();
                     }
                     memberType = field.FieldType;
-                    break;
+                    return;
                 case MemberTypes.Property:
                     PropertyInfo pi = member as PropertyInfo;
                     if (!pi.CanRead) {
@@ -317,20 +307,20 @@ namespace System.Linq.Expressions {
                         throw Error.ArgumentMustBeInstanceMember();
                     }
                     memberType = pi.PropertyType;
-                    break;
+                    return;
                 case MemberTypes.Method:
                     MethodInfo method = member as MethodInfo;
                     if (method.IsStatic) {
                         throw Error.ArgumentMustBeInstanceMember();
                     }
-
                     PropertyInfo prop = GetProperty(method);
                     member = prop;
                     memberType = prop.PropertyType;
-                    break;
+                    return;
                 default:
                     throw Error.ArgumentMustBeFieldInfoOrPropertInfoOrMethod();
             }
+            // don't add code here, we've already returned
         }
     }
 }

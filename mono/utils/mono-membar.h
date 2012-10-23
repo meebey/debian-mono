@@ -10,9 +10,11 @@
 #ifndef _MONO_UTILS_MONO_MEMBAR_H_
 #define _MONO_UTILS_MONO_MEMBAR_H_
 
+#include <config.h>
+
 #include <glib.h>
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(TARGET_AMD64)
 #ifndef _MSC_VER
 static inline void mono_memory_barrier (void)
 {
@@ -46,7 +48,7 @@ static inline void mono_memory_write_barrier (void)
 	_WriteBarrier ();
 }
 #endif
-#elif defined(__i386__)
+#elif defined(__i386__) || defined(TARGET_X86)
 #ifndef _MSC_VER
 static inline void mono_memory_barrier (void)
 {
@@ -129,7 +131,9 @@ static inline void mono_memory_write_barrier (void)
 #elif defined(__arm__)
 static inline void mono_memory_barrier (void)
 {
-	__asm__ __volatile__ ("" : : : "memory");
+#ifdef HAVE_ARMV6
+	__asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory");
+#endif
 }
 
 static inline void mono_memory_read_barrier (void)

@@ -24,8 +24,6 @@
 //
 
 
-#if NET_2_0
-
 using System;
 using System.ComponentModel;
 
@@ -469,6 +467,7 @@ Example */
 			*/
 		}
 
+		[MonoTODO("Actually calculate width")]
 		public virtual int GetPreferredWidth (DataGridViewAutoSizeColumnMode autoSizeColumnMode, bool fixedHeight) {
 			switch (autoSizeColumnMode) {
 			case DataGridViewAutoSizeColumnMode.NotSet:
@@ -477,10 +476,10 @@ Example */
 				throw new ArgumentException("AutoSizeColumnMode is invalid");
 			}
 			if (fixedHeight) {
-				return 0;
+				return MinimumWidth;
 			}
 			else {
-				return 0;
+				return MinimumWidth;
 			}
 		}
 
@@ -523,4 +522,3 @@ Example */
 	}
 }
 
-#endif

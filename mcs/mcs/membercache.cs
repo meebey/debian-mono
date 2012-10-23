@@ -8,14 +8,12 @@
 //
 // Copyright 2001 Ximian, Inc (http://www.ximian.com)
 // Copyright 2004-2010 Novell, Inc
+// Copyright 2011 Xamarin Inc
 //
 //
 
 using System;
-using System.Text;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Linq;
 
 namespace Mono.CSharp {
 
@@ -41,11 +39,13 @@ namespace Mono.CSharp {
 		ArrayType = 1 << 19,
 		PointerType = 1 << 20,
 		InternalCompilerType = 1 << 21,
+		MissingType = 1 << 22,
+		Void = 1 << 23,
+		Namespace = 1 << 24,
 
 		NestedMask = Class | Struct | Delegate | Enum | Interface,
 		GenericMask = Method | Class | Struct | Delegate | Interface,
-		MaskType = Constructor | Event | Field | Method | Property | Indexer | Operator | Destructor | NestedMask,
-		All = MaskType
+		MaskType = Constructor | Event | Field | Method | Property | Indexer | Operator | Destructor | NestedMask
 	}
 
 	[Flags]
@@ -59,7 +59,10 @@ namespace Mono.CSharp {
 		// Exclude static
 		InstanceOnly = 1 << 2,
 
-		NoAccessors = 1 << 3
+		NoAccessors = 1 << 3,
+
+		// Member has to be override
+		OverrideOnly = 1 << 4
 	}
 
 	public struct MemberFilter : IEquatable<MemberSpec>
@@ -68,17 +71,7 @@ namespace Mono.CSharp {
 		public readonly MemberKind Kind;
 		public readonly AParametersCollection Parameters;
 		public readonly TypeSpec MemberType;
-
-		int arity; // -1 to ignore the check
-
-		private MemberFilter (string name, MemberKind kind)
-		{
-			Name = name;
-			Kind = kind;
-			Parameters = null;
-			MemberType = null;
-			arity = -1;
-		}
+		public readonly int Arity; // -1 to ignore the check
 
 		public MemberFilter (MethodSpec m)
 		{
@@ -86,7 +79,7 @@ namespace Mono.CSharp {
 			Kind = MemberKind.Method;
 			Parameters = m.Parameters;
 			MemberType = m.ReturnType;
-			arity = m.Arity;
+			Arity = m.Arity;
 		}
 
 		public MemberFilter (string name, int arity, MemberKind kind, AParametersCollection param, TypeSpec type)
@@ -95,12 +88,12 @@ namespace Mono.CSharp {
 			Kind = kind;
 			Parameters = param;
 			MemberType = type;
-			this.arity = arity;
+			this.Arity = arity;
 		}
 
 		public static MemberFilter Constructor (AParametersCollection param)
 		{
-			return new MemberFilter (System.Reflection.ConstructorInfo.ConstructorName, 0, MemberKind.Constructor, param, null);
+			return new MemberFilter (Mono.CSharp.Constructor.ConstructorName, 0, MemberKind.Constructor, param, null);
 		}
 
 		public static MemberFilter Property (string name, TypeSpec type)
@@ -128,7 +121,7 @@ namespace Mono.CSharp {
 				return false;
 
 			// Check arity when not disabled
-			if (arity >= 0 && arity != other.Arity)
+			if (Arity >= 0 && Arity != other.Arity)
 				return false;
 
 			if (Parameters != null) {
@@ -168,6 +161,7 @@ namespace Mono.CSharp {
 	//
 	public class MemberCache
 	{
+		[Flags]
 		enum StateFlags
 		{
 			HasConversionOperator = 1 << 1,
@@ -177,7 +171,7 @@ namespace Mono.CSharp {
 		readonly Dictionary<string, IList<MemberSpec>> member_hash;
 		Dictionary<string, MemberSpec[]> locase_members;
 		IList<MethodSpec> missing_abstract;
-		StateFlags state;
+		StateFlags state;	// TODO: Move to TypeSpec or ITypeDefinition
 
 		public static readonly string IndexerNameAlias = "<this>";
 
@@ -205,6 +199,40 @@ namespace Mono.CSharp {
 		public MemberCache (TypeContainer container)
 			: this ()				// TODO: Optimize the size
 		{
+		}
+
+		//
+		// For cases where we need to union cache members
+		//
+		public void AddBaseType (TypeSpec baseType)
+		{
+			var cache = baseType.MemberCache;
+
+			IList<MemberSpec> list;
+			foreach (var entry in cache.member_hash) {
+				if (!member_hash.TryGetValue (entry.Key, out list)) {
+					if (entry.Value.Count == 1) {
+						list = entry.Value;
+					} else {
+						list = new List<MemberSpec> (entry.Value);
+					}
+
+					member_hash.Add (entry.Key, list);
+					continue;
+				}
+
+				foreach (var ce in entry.Value) {
+					if (list.Contains (ce))
+						continue;
+
+					if (list is MemberSpec[]) {
+						list = new List<MemberSpec> () { list [0] };
+						member_hash[entry.Key] = list;
+					}
+
+					list.Add (ce);
+				}
+			}
 		}
 
 		//
@@ -250,7 +278,7 @@ namespace Mono.CSharp {
 			// Explicit names cannot be looked-up but can be used for
 			// collision checking (no name mangling needed)
 			if (imb.IsExplicitImpl)
-				AddMember (exlicitName, ms);
+				AddMember (exlicitName, ms, false);
 			else
 				AddMember (ms);
 		}
@@ -260,23 +288,35 @@ namespace Mono.CSharp {
 		//
 		public void AddMember (MemberSpec ms)
 		{
-			AddMember (GetLookupName (ms), ms);
+			AddMember (GetLookupName (ms), ms, false);
 		}
 
-		void AddMember (string name, MemberSpec member)
+		void AddMember (string name, MemberSpec member, bool removeHiddenMembers)
 		{
 			if (member.Kind == MemberKind.Operator) {
 				var dt = member.DeclaringType;
-				if (dt == TypeManager.string_type || dt == TypeManager.delegate_type || dt == TypeManager.multicast_delegate_type) {
-					// Some core types have user operators but they cannot be used as normal
-					// user operators as they are predefined and therefore having different
-					// rules (e.g. binary operators) by not setting the flag we hide them for
-					// user conversions
-					// TODO: Should I do this for all core types ?
-				} else if (name == Operator.GetMetadataName (Operator.OpType.Implicit) || name == Operator.GetMetadataName (Operator.OpType.Explicit)) {
-					state |= StateFlags.HasConversionOperator;
-				} else {
-					state |= StateFlags.HasUserOperator;
+
+				//
+				// Some core types have user operators but they cannot be used like normal
+				// user operators as they are predefined and therefore having different
+				// rules (e.g. binary operators) by not setting the flag we hide them for
+				// user conversions
+				//
+				if (!BuiltinTypeSpec.IsPrimitiveType (dt)) {
+					switch (dt.BuiltinType) {
+					case BuiltinTypeSpec.Type.String:
+					case BuiltinTypeSpec.Type.Delegate:
+					case BuiltinTypeSpec.Type.MulticastDelegate:
+						break;
+					default:
+						if (name == Operator.GetMetadataName (Operator.OpType.Implicit) || name == Operator.GetMetadataName (Operator.OpType.Explicit)) {
+							state |= StateFlags.HasConversionOperator;
+						} else {
+							state |= StateFlags.HasUserOperator;
+						}
+
+						break;
+					}
 				}
 			}
 
@@ -286,17 +326,22 @@ namespace Mono.CSharp {
 				return;
 			}
 
-			if (member.DeclaringType.IsInterface) {
+			if (removeHiddenMembers && member.DeclaringType.IsInterface) {
 				if (AddInterfaceMember (member, ref list))
 					member_hash[name] = list;
 			} else {
-				if (list is MemberSpec[]) {
+				if (list.Count == 1) {
 					list = new List<MemberSpec> () { list[0] };
 					member_hash[name] = list;
 				}
 
 				list.Add (member);
 			}
+		}
+
+		public void AddMemberImported (MemberSpec ms)
+		{
+			AddMember (GetLookupName (ms), ms, true);
 		}
 
 		//
@@ -325,8 +370,8 @@ namespace Mono.CSharp {
 						continue;
 				}
 
-				if (member.DeclaringType.ImplementsInterface (entry.DeclaringType)) {
-					if (existing is MemberSpec[]) {
+				if (member.DeclaringType.ImplementsInterface (entry.DeclaringType, false)) {
+					if (existing.Count == 1) {
 						existing = new MemberSpec[] { member };
 						return true;
 					}
@@ -336,11 +381,11 @@ namespace Mono.CSharp {
 				}
 
 				if ((entry.DeclaringType == member.DeclaringType && entry.IsAccessor == member.IsAccessor) ||
-					entry.DeclaringType.ImplementsInterface (member.DeclaringType))
+					entry.DeclaringType.ImplementsInterface (member.DeclaringType, false))
 					return false;
 			}
 
-			if (existing is MemberSpec[]) {
+			if (existing.Count == 1) {
 				existing = new List<MemberSpec> () { existing[0], member };
 				return true;
 			}
@@ -362,6 +407,9 @@ namespace Mono.CSharp {
 							continue;
 
 						if ((restrictions & BindingRestriction.NoAccessors) != 0 && entry.IsAccessor)
+							continue;
+
+						if ((restrictions & BindingRestriction.OverrideOnly) != 0 && (entry.Modifiers & Modifiers.OVERRIDE) == 0)
 							continue;
 
 						if (!filter.Equals (entry))
@@ -387,12 +435,15 @@ namespace Mono.CSharp {
 		// A special method to work with member lookup only. It returns a list of all members named @name
 		// starting from @container. It's very performance sensitive
 		//
-		public static IList<MemberSpec> FindMembers (TypeSpec container, string name, bool declaredOnly)
+		// declaredOnlyClass cannot be used interfaces. Manual filtering is required because names are
+		// compacted
+		//
+		public static IList<MemberSpec> FindMembers (TypeSpec container, string name, bool declaredOnlyClass)
 		{
 			IList<MemberSpec> applicable;
 
 			do {
-				if (container.MemberCache.member_hash.TryGetValue (name, out applicable) || declaredOnly)
+				if (container.MemberCache.member_hash.TryGetValue (name, out applicable) || declaredOnlyClass)
 					return applicable;
 
 				container = container.BaseType;
@@ -416,7 +467,7 @@ namespace Mono.CSharp {
 				// based on type definition
 				var tc = container.MemberDefinition as TypeContainer;
 				if (tc != null)
-					tc.DefineType ();
+					tc.DefineContainer ();
 
 				if (container.MemberCacheTypes.member_hash.TryGetValue (name, out applicable)) {
 					for (int i = applicable.Count - 1; i >= 0; i--) {
@@ -447,7 +498,7 @@ namespace Mono.CSharp {
 		//
 		// Looks for extension methods with defined name and extension type
 		//
-		public List<MethodSpec> FindExtensionMethods (TypeSpec invocationType, TypeSpec extensionType, string name, int arity)
+		public List<MethodSpec> FindExtensionMethods (IMemberContext invocationContext, TypeSpec extensionType, string name, int arity)
 		{
 			IList<MemberSpec> entries;
 			if (!member_hash.TryGetValue (name, out entries))
@@ -462,12 +513,13 @@ namespace Mono.CSharp {
 				if (!ms.IsExtensionMethod)
 					continue;
 
-				if (!ms.IsAccessible (invocationType))
+				if (!ms.IsAccessible (invocationContext))
 					continue;
 
-				// TODO: CodeGen.Assembly.Builder
-				if ((ms.DeclaringType.Modifiers & Modifiers.INTERNAL) != 0 &&
-					!TypeManager.IsThisOrFriendAssembly (CodeGen.Assembly.Builder, ms.Assembly))
+				//
+				// Extension methods cannot be nested hence checking parent is enough
+				//
+				if ((ms.DeclaringType.Modifiers & Modifiers.INTERNAL) != 0 && !ms.DeclaringType.MemberDefinition.IsInternalAsPublic (invocationContext.Module.DeclaringAssembly))
 					continue;
 
 				if (candidates == null)
@@ -482,19 +534,26 @@ namespace Mono.CSharp {
 		// Returns base members of @member member if no exact match is found @bestCandidate returns
 		// the best match
 		//
-		public static MemberSpec FindBaseMember (MemberCore member, out MemberSpec bestCandidate)
+		public static MemberSpec FindBaseMember (MemberCore member, out MemberSpec bestCandidate, ref bool overrides)
 		{
 			bestCandidate = null;
 			var container = member.Parent.PartialContainer.Definition;
-			if (!container.IsInterface)
+			if (!container.IsInterface) {
 				container = container.BaseType;
 
+				// It can happen for a user definition of System.Object
+				if (container == null)
+					return null;
+			}
+
 			string name = GetLookupName (member);
-			IList<MemberSpec> applicable;
 			var member_param = member is IParametersMember ? ((IParametersMember) member).Parameters : null;
 
 			var mkind = GetMemberCoreKind (member);
 			bool member_with_accessors = mkind == MemberKind.Indexer || mkind == MemberKind.Property;
+
+			IList<MemberSpec> applicable;
+			MemberSpec ambig_candidate = null;
 
 			do {
 				if (container.MemberCache.member_hash.TryGetValue (name, out applicable)) {
@@ -504,89 +563,76 @@ namespace Mono.CSharp {
 						if ((entry.Modifiers & Modifiers.PRIVATE) != 0)
 							continue;
 
-						if ((entry.Modifiers & Modifiers.AccessibilityMask) == Modifiers.INTERNAL) {
-							if (!TypeManager.IsThisOrFriendAssembly (member.Assembly, entry.Assembly))
-								continue;
-						}
+						if ((entry.Modifiers & Modifiers.AccessibilityMask) == Modifiers.INTERNAL &&
+							!entry.DeclaringType.MemberDefinition.IsInternalAsPublic (member.Module.DeclaringAssembly))
+							continue;
 
 						//
-						// Is the member of same type ?
+						// Isn't the member of same kind ?
 						//
 						if ((entry.Kind & ~MemberKind.Destructor & mkind & MemberKind.MaskType) == 0) {
 							// Destructors are ignored as they cannot be overridden by user
 							if ((entry.Kind & MemberKind.Destructor) != 0)
 								continue;
 
-							// Only different arity methods hide
+							// A method with different arity does not hide base member
 							if (mkind != MemberKind.Method && member.MemberName.Arity != entry.Arity)
 								continue;
-							
-							if ((member_param == null || !(entry is IParametersMember))) {
-								bestCandidate = entry;
-								return null;
-							}
 
+							bestCandidate = entry;
+							return null;
+						}
+
+						//
+						// Same kind of different arity is valid
+						//
+						if (member.MemberName.Arity != entry.Arity) {
 							continue;
 						}
 
-						if (entry.Kind != mkind) {
-							if (bestCandidate == null)
-								bestCandidate = entry;
-
-							continue;
-						}
-
-						if (member_param != null) {
-							// Check arity match
-							int arity = member.MemberName.Arity;
-							if (arity != entry.Arity)
-								continue;
-
-							var pm = entry as IParametersMember;
-							AParametersCollection entry_parameters;
-							if (pm == null) {
-								if (entry.Kind != MemberKind.Delegate)
-									continue;
-
-								// TODO: I don't have DelegateSpec
-								entry_parameters = Delegate.GetParameters (member.Compiler, (TypeSpec) entry);
-							} else {
-								entry_parameters = pm.Parameters;
-							}
-
+						if ((entry.Kind & mkind & (MemberKind.Method | MemberKind.Indexer)) != 0) {
 							if (entry.IsAccessor != member is AbstractPropertyEventMethod)
 								continue;
 
-							if (!TypeSpecComparer.Override.IsEqual (entry_parameters, member_param))
+							var pm = entry as IParametersMember;
+							if (!TypeSpecComparer.Override.IsEqual (pm.Parameters, member_param))
 								continue;
 						}
 
 						//
-						// Skip override members with accessors they may not fully implement the base member
+						// Skip override for member with accessors. It may not fully implement the base member
+						// but keep flag we found an implementation in case the base member is abstract
 						//
-						if (member_with_accessors) {
-							if ((entry.Modifiers & (Modifiers.OVERRIDE | Modifiers.SEALED)) == Modifiers.OVERRIDE) {
-								//
-								// Set candidate to member override to flag we found an implementation
-								//
-								bestCandidate = entry;
-								continue;
-							}
-						} else {
+						if (member_with_accessors && ((entry.Modifiers & (Modifiers.OVERRIDE | Modifiers.SEALED)) == Modifiers.OVERRIDE)) {
+							//
+							// Set candidate to override implementation to flag we found an implementation
+							//
+							overrides = true;
+							continue;
+						}
+
+						//
+						// For members with parameters we can encounter an ambiguous candidates (they match exactly)
+						// because generic type parameters could be inflated into same types
+						//
+						if (ambig_candidate == null && (entry.Kind & mkind & (MemberKind.Method | MemberKind.Indexer)) != 0) {
 							bestCandidate = null;
+							ambig_candidate = entry;
+							continue;
 						}
 
+						bestCandidate = ambig_candidate;
 						return entry;
 					}
 				}
 
-				if (container.IsInterface)
+				if (container.IsInterface || ambig_candidate != null)
 					break;
 
 				container = container.BaseType;
 			} while (container != null);
 
-			return null;
+			return ambig_candidate;
 		}
 
 		//
@@ -638,7 +684,45 @@ namespace Mono.CSharp {
 			throw new NotImplementedException (member.GetType ().ToString ());
 		}
 
-		public static IList<MemberSpec> GetCompletitionMembers (TypeSpec container, string name)
+		public static List<FieldSpec> GetAllFieldsForDefiniteAssignment (TypeSpec container)
+		{
+			List<FieldSpec> fields = null;
+			foreach (var entry in container.MemberCache.member_hash) {
+				foreach (var name_entry in entry.Value) {
+					if (name_entry.Kind != MemberKind.Field)
+						continue;
+
+					if ((name_entry.Modifiers & Modifiers.STATIC) != 0)
+						continue;
+
+					//
+					// Fixed size buffers are not subject to definite assignment checking
+					//
+					if (name_entry is FixedFieldSpec || name_entry is ConstSpec)
+						continue;
+
+					var fs = (FieldSpec) name_entry;
+
+					//
+					// LAMESPEC: Very bizzare hack, definitive assignment is not done
+					// for imported non-public reference fields except array. No idea what the
+					// actual csc rule is
+					//
+					if (!fs.IsPublic && container.MemberDefinition.IsImported && (!fs.MemberType.IsArray && TypeSpec.IsReferenceType (fs.MemberType)))
+						continue;
+
+					if (fields == null)
+						fields = new List<FieldSpec> ();
+
+					fields.Add (fs);
+					break;
+				}
+			}
+
+			return fields ?? new List<FieldSpec> (0);
+		}
+
+		public static IList<MemberSpec> GetCompletitionMembers (IMemberContext ctx, TypeSpec container, string name)
 		{
 			var matches = new List<MemberSpec> ();
 			foreach (var entry in container.MemberCache.member_hash) {
@@ -649,7 +733,7 @@ namespace Mono.CSharp {
 					if ((name_entry.Kind & (MemberKind.Constructor | MemberKind.Destructor | MemberKind.Operator)) != 0)
 						continue;
 
-					if (!name_entry.IsAccessible (InternalType.FakeInternalType))
+					if (!name_entry.IsAccessible (ctx))
 						continue;
 
 					if (name == null || name_entry.Name.StartsWith (name)) {
@@ -664,7 +748,7 @@ namespace Mono.CSharp {
 		//
 		// Returns members of @iface only, base members are ignored
 		//
-		public static IList<MethodSpec> GetInterfaceMethods (TypeSpec iface)
+		public static List<MethodSpec> GetInterfaceMethods (TypeSpec iface)
 		{
 			//
 			// MemberCache flatten interfaces, therefore in cases like this one
@@ -707,7 +791,7 @@ namespace Mono.CSharp {
 			while (true) {
 				foreach (var entry in abstract_type.MemberCache.member_hash) {
 					foreach (var name_entry in entry.Value) {
-						if ((name_entry.Modifiers & Modifiers.ABSTRACT) == 0)
+						if ((name_entry.Modifiers & (Modifiers.ABSTRACT | Modifiers.OVERRIDE)) != Modifiers.ABSTRACT)
 							continue;
 
 						if (name_entry.Kind != MemberKind.Method)
@@ -756,6 +840,12 @@ namespace Mono.CSharp {
 						if ((item.Modifiers & (Modifiers.OVERRIDE | Modifiers.VIRTUAL)) == 0)
 							continue;
 
+						//
+						// Abstract override does not override anything
+						//
+						if ((item.Modifiers & Modifiers.ABSTRACT) != 0)
+							continue;
+
 						if (filter.Equals (item)) {
 							--not_implemented_count;
 							abstract_methods [i] = null;
@@ -790,9 +880,9 @@ namespace Mono.CSharp {
 
 			if (ms.Kind == MemberKind.Constructor) {
 				if (ms.IsStatic)
-					return ConstructorInfo.TypeConstructorName;
+					return Constructor.TypeConstructorName;
 
-				return ConstructorInfo.ConstructorName;
+				return Constructor.ConstructorName;
 			}
 
 			return ms.Name;
@@ -804,7 +894,7 @@ namespace Mono.CSharp {
 				return IndexerNameAlias;
 
 			if (mc is Constructor)
-				return ConstructorInfo.ConstructorName;
+				return mc.IsStatic ? Constructor.TypeConstructorName : Constructor.ConstructorName;
 
 			return mc.MemberName.Name;
 		}
@@ -824,29 +914,37 @@ namespace Mono.CSharp {
 					 (mc.state & StateFlags.HasUserOperator) != 0) {
 
 					if (mc.member_hash.TryGetValue (Operator.GetMetadataName (op), out applicable)) {
-						int match_count = 0;
-						for (int i = 0; i < applicable.Count; ++i) {
-							if (applicable[i].Kind == MemberKind.Operator) {
-								++match_count;
-								continue;
-							}
-
-							// Handles very rare case where a method exists with same name as operator (op_xxxx)
-							if (found == null) {
-								found = new List<MemberSpec> ();
-								found.Add (applicable [i]);
-							} else {
-								var prev = found as List<MemberSpec>;
-								if (prev == null) {
-									prev = new List<MemberSpec> (found.Count + 1);
-									prev.AddRange (found);
-								}
-
-								prev.Add (applicable[i]);
+						int i;
+						for (i = 0; i < applicable.Count; ++i) {
+							if (applicable[i].Kind != MemberKind.Operator) {
+								break;
 							}
 						}
 
-						if (match_count > 0 && match_count == applicable.Count) {
+						//
+						// Handles very rare case where a method with same name as operator (op_xxxx) exists
+						// and we have to resize the applicable list
+						//
+						if (i != applicable.Count) {
+							for (i = 0; i < applicable.Count; ++i) {
+								if (applicable[i].Kind != MemberKind.Operator) {
+									continue;
+								}
+
+								if (found == null) {
+									found = new List<MemberSpec> ();
+									found.Add (applicable[i]);
+								} else {
+									var prev = found as List<MemberSpec>;
+									if (prev == null) {
+										prev = new List<MemberSpec> (found.Count + 1);
+										prev.AddRange (found);
+									}
+
+									prev.Add (applicable[i]);
+								}
+							}
+						} else {
 							if (found == null) {
 								found = applicable;
 							} else {
@@ -906,7 +1004,7 @@ namespace Mono.CSharp {
 		public void InflateMembers (MemberCache cacheToInflate, TypeSpec inflatedType, TypeParameterInflator inflator)
 		{
 			var inflated_member_hash = cacheToInflate.member_hash;
-			Dictionary<MethodSpec, MethodSpec> accessor_relation = null;
+			Dictionary<MemberSpec, MethodSpec> accessor_relation = null;
 			List<MemberSpec> accessor_members = null;
 
 			// Copy member specific flags when all members were added
@@ -942,10 +1040,10 @@ namespace Mono.CSharp {
 
 					if (member.DeclaringType != inflatedType) {
 						//
-						// Don't inflate non generic interface members
+						// Don't inflate top-level non-generic interface members
 						// merged into generic interface
 						//
-						if (!member.DeclaringType.IsGeneric) {
+						if (!member.DeclaringType.IsGeneric && !member.DeclaringType.IsNested) {
 							inflated_members [i] = member;
 							continue;
 						}
@@ -982,8 +1080,8 @@ namespace Mono.CSharp {
 
 					if (member.IsAccessor) {
 						if (accessor_relation == null)
-							accessor_relation = new Dictionary<MethodSpec, MethodSpec> ();
-						accessor_relation.Add ((MethodSpec) member, (MethodSpec) inflated);
+							accessor_relation = new Dictionary<MemberSpec, MethodSpec> ();
+						accessor_relation.Add (member, (MethodSpec) inflated);
 					}
 				}
 			}
@@ -1008,6 +1106,53 @@ namespace Mono.CSharp {
 		}
 
 		//
+		// Removes hidden base members of an interface. For compiled interfaces we cannot
+		// do name filtering during Add (as we do for import) because we need all base
+		// names to be valid during type definition.
+		// Add replaces hidden base member with current one which means any name collision
+		// (CS0108) of non-first name would be unnoticed because the name was replaced
+		// with the one from compiled type
+		//
+		public void RemoveHiddenMembers (TypeSpec container)
+		{
+			foreach (var entry in member_hash) {
+				var values = entry.Value;
+
+				int container_members_start_at = 0;
+				while (values[container_members_start_at].DeclaringType != container && ++container_members_start_at < entry.Value.Count);
+
+				if (container_members_start_at == 0 || container_members_start_at == values.Count)
+					continue;
+
+				for (int i = 0; i < container_members_start_at; ++i) {
+					var member = values[i];
+
+					if (!container.ImplementsInterface (member.DeclaringType, false))
+						continue;
+
+					var member_param = member is IParametersMember ? ((IParametersMember) member).Parameters : ParametersCompiled.EmptyReadOnlyParameters;
+
+					for (int ii = container_members_start_at; ii < values.Count; ++ii) {
+						var container_entry = values[ii];
+
+						if (container_entry.Arity != member.Arity)
+							continue;
+
+						if (container_entry is IParametersMember) {
+							if (!TypeSpecComparer.Override.IsEqual (((IParametersMember) container_entry).Parameters, member_param))
+								continue;
+						}
+
+						values.RemoveAt (i);
+						--container_members_start_at;
+						--ii;
+						--i;
+					}
+				}
+			}
+		}
+
+		//
 		// Checks all appropriate container members for CLS compliance
 		//
 		public void VerifyClsCompliance (TypeSpec container, Report report)
@@ -1018,8 +1163,9 @@ namespace Mono.CSharp {
 			if (container.BaseType == null) {
 				locase_members = new Dictionary<string, MemberSpec[]> (member_hash.Count); // StringComparer.OrdinalIgnoreCase);
 			} else {
-				container.BaseType.MemberCache.VerifyClsCompliance (container.BaseType, report);
-				locase_members = new Dictionary<string, MemberSpec[]> (container.BaseType.MemberCache.locase_members); //, StringComparer.OrdinalIgnoreCase);
+				var btype = container.BaseType.GetDefinition ();
+				btype.MemberCache.VerifyClsCompliance (btype, report);
+				locase_members = new Dictionary<string, MemberSpec[]> (btype.MemberCache.locase_members); //, StringComparer.OrdinalIgnoreCase);
 			}
 
 			var is_imported_type = container.MemberDefinition.IsImported;
@@ -1035,13 +1181,17 @@ namespace Mono.CSharp {
 					if ((name_entry.Kind & MemberKind.MaskType) == 0)
 						continue;
 
-					if (name_entry.MemberDefinition.IsNotCLSCompliant ())
+					if (name_entry.MemberDefinition.CLSAttributeValue == false)
 					    continue;
 
-					IParametersMember p_a = name_entry as IParametersMember;
-					if (p_a != null && !name_entry.IsAccessor) {
-						if (!is_imported_type) {
+					IParametersMember p_a = null;
+					if (!is_imported_type) {
+						p_a = name_entry as IParametersMember;
+						if (p_a != null && !name_entry.IsAccessor) {
 							var p_a_pd = p_a.Parameters;
+							//
+							// Check differing overloads in @container
+							//
 							for (int ii = i + 1; ii < entry.Value.Count; ++ii) {
 								var checked_entry = entry.Value[ii];
 								IParametersMember p_b = checked_entry as IParametersMember;
@@ -1056,24 +1206,7 @@ namespace Mono.CSharp {
 
 								var res = ParametersCompiled.IsSameClsSignature (p_a.Parameters, p_b.Parameters);
 								if (res != 0) {
-									var last = GetLaterDefinedMember (checked_entry, name_entry);
-									if (last == checked_entry.MemberDefinition) {
-										report.SymbolRelatedToPreviousError (name_entry);
-									} else {
-										report.SymbolRelatedToPreviousError (checked_entry);
-									}
-
-									if ((res & 1) != 0) {
-										report.Warning (3006, 1, last.Location,
-												"Overloaded method `{0}' differing only in ref or out, or in array rank, is not CLS-compliant",
-												name_entry.GetSignatureForError ());
-									}
-
-									if ((res & 2) != 0) {
-										report.Warning (3007, 1, last.Location,
-											"Overloaded method `{0}' differing only by unnamed array types is not CLS-compliant",
-											name_entry.GetSignatureForError ());
-									}
+									ReportOverloadedMethodClsDifference (name_entry, checked_entry, res, report);
 								}
 							}
 						}
@@ -1091,11 +1224,26 @@ namespace Mono.CSharp {
 					} else {
 						bool same_names_only = true;
 						foreach (var f in found) {
-							if (f.Name == name_entry.Name)
-								continue;
+							if (f.Name == name_entry.Name) {
+								if (p_a != null) {
+									IParametersMember p_b = f as IParametersMember;
+									if (p_b == null)
+										continue;
 
-//							if (f.IsAccessor && name_entry.IsAccessor)
-//								continue;
+									if (p_a.Parameters.Count != p_b.Parameters.Count)
+										continue;
+
+									if (f.IsAccessor)
+										continue;
+
+									var res = ParametersCompiled.IsSameClsSignature (p_a.Parameters, p_b.Parameters);
+									if (res != 0) {
+										ReportOverloadedMethodClsDifference (f, name_entry, res, report);
+									}
+								}
+
+								continue;
+							}
 
 							same_names_only = false;
 							if (!is_imported_type) {
@@ -1134,10 +1282,35 @@ namespace Mono.CSharp {
 			if (mc_b == null)
 				return mc_a;
 
+			if (a.DeclaringType.MemberDefinition != b.DeclaringType.MemberDefinition)
+				return mc_b;
+
 			if (mc_a.Location.File != mc_a.Location.File)
 				return mc_b;
 
 			return mc_b.Location.Row > mc_a.Location.Row ? mc_b : mc_a;
+		}
+
+		static void ReportOverloadedMethodClsDifference (MemberSpec a, MemberSpec b, int res, Report report)
+		{
+			var last = GetLaterDefinedMember (a, b);
+			if (last == a.MemberDefinition) {
+				report.SymbolRelatedToPreviousError (b);
+			} else {
+				report.SymbolRelatedToPreviousError (a);
+			}
+
+			if ((res & 1) != 0) {
+				report.Warning (3006, 1, last.Location,
+						"Overloaded method `{0}' differing only in ref or out, or in array rank, is not CLS-compliant",
+						last.GetSignatureForError ());
+			}
+
+			if ((res & 2) != 0) {
+				report.Warning (3007, 1, last.Location,
+					"Overloaded method `{0}' differing only by unnamed array types is not CLS-compliant",
+					last.GetSignatureForError ());
+			}
 		}
 
 		public bool CheckExistingMembersOverloads (MemberCore member, AParametersCollection parameters)
@@ -1182,8 +1355,10 @@ namespace Mono.CSharp {
 						type_a = parameters.Types [ii];
 						type_b = p_types [ii];
 
-						if ((pd.FixedParameters [ii].ModFlags & Parameter.Modifier.ISBYREF) !=
-							(parameters.FixedParameters [ii].ModFlags & Parameter.Modifier.ISBYREF))
+						var a_byref = (pd.FixedParameters[ii].ModFlags & Parameter.Modifier.RefOutMask) != 0;
+						var b_byref = (parameters.FixedParameters[ii].ModFlags & Parameter.Modifier.RefOutMask) != 0;
+
+						if (a_byref != b_byref)
 							break;
 
 					} while (TypeSpecComparer.Override.IsEqual (type_a, type_b) && ii-- != 0);
@@ -1202,7 +1377,9 @@ namespace Mono.CSharp {
 					//
 					if (pd != null && member is MethodCore) {
 						ii = method_param_count;
-						while (ii-- != 0 && parameters.FixedParameters[ii].ModFlags == pd.FixedParameters[ii].ModFlags &&
+						while (ii-- != 0 &&
+							(parameters.FixedParameters[ii].ModFlags & Parameter.Modifier.ModifierMask) ==
+							(pd.FixedParameters[ii].ModFlags & Parameter.Modifier.ModifierMask) &&
 							parameters.ExtensionMethodType == pd.ExtensionMethodType) ;
 
 						if (ii >= 0) {

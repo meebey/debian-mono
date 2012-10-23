@@ -1,22 +1,3 @@
-2010-08-28  Atsushi Eno  <atsushi@ximian.com>
-
-	ISerializable type didn't iterate all base types to pick up all
-	target fields.
-
-2010-08-28  Atsushi Eno  <atsushi@ximian.com>
-
-	Use XmlConvert.EncodeLocalName() to not introduce xml syntax
-	violation for not-WF member names.
-
-2010-08-06  Atsushi Eno  <atsushi@ximian.com>
-
-	For IXmlSerializable types it should first try static GetSchema()
-	for QName. WS-DD uses it.
-
-2010-08-06  Atsushi Eno  <atsushi@ximian.com>
-
-	KnownTypes should return the actual types.
-
 2010-07-06  Atsushi Enomoto  <atsushi@ximian.com>
 
 	* SerializationMap.cs : add OnDeserializing/OnDeserialized support.

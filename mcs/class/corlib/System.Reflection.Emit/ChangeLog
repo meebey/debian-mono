@@ -1,32 +1,3 @@
-2010-09-20  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	Report the broken type name instead of assembly's.
-
-2010-09-20  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	Use List<Exception> instead of ArrayList to make things prettier.
-
-2010-09-20  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* AssemblyBuilder.cs (GetTypes): Raise ReflectionTypeLoadException
-	if any type was not finished.
-
-2010-09-15  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* TypeBuilder.cs (GetTypeCodeInternal): New method that handles
-	enums correctly.
-
-	This change is required because calling into the runtime with
-	incomplete TypeBuilders cause the runtime to crash.
-
-2010-08-31  Rodrigo Kumpera  <kumpera@gmail.com>
-
-	* TypeBuilder.cs (DefineDefaultConstructor): If the resolved type
-	is either typeof (object) or typeof (ValueType) we backout to the
-	non resolved type as it might be one of the corlib's typebuilders.
-
-	In mcs/mcs:
-
 2010-06-22  Jb Evain  <jbevain@novell.com>
 
 	* ModuleBuilder.cs

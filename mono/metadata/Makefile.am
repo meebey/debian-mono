@@ -28,19 +28,45 @@ unix_sources = \
 platform_sources = $(unix_sources)
 endif
 
+if SHARED_MONO
+if SUPPORT_BOEHM
 bin_PROGRAMS = pedump
+endif
+endif
 
 #
 # libtool is not capable of creating static/shared versions of the same
 # convenience lib, so we have to do it ourselves
 #
 if SUPPORT_SGEN
-sgen_libraries = libmonoruntimesgen.la libmonoruntimesgen-static.la 
+if SHARED_MONO
+shared_sgen_libraries = libmonoruntimesgen.la 
+endif
+sgen_libraries = $(shared_sgen_libraries) libmonoruntimesgen-static.la 
 endif
 
-noinst_LTLIBRARIES = libmonoruntime.la libmonoruntime-static.la $(sgen_libraries)
+if SUPPORT_BOEHM
+if SHARED_MONO
+shared_boehm_libraries = libmonoruntime.la
+endif
+boehm_libraries = $(shared_boehm_libraries) libmonoruntime-static.la
+endif
 
-INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CFLAGS) $(GLIB_CFLAGS) -DMONO_BINDIR=\"$(bindir)/\" -DMONO_ASSEMBLIES=\"$(assembliesdir)\" -DMONO_CFG_DIR=\"$(confdir)\"
+if MOONLIGHT
+moonlight_libraries = libmonoruntimemoon.la
+moon-do-build: libmonoruntime-static.la libmonoruntimemoon.la
+moon-do-clean:
+	-test -z "libmonoruntime-static.la" || rm -f libmonoruntime-static.la
+	-test -z "libmonoruntimemoon.la" || rm -f libmonoruntimemoon.la
+endif
+
+if DISABLE_EXECUTABLES
+noinst_LTLIBRARIES = $(shared_sgen_libraries) $(shared_boehm_libraries)
+else
+noinst_LTLIBRARIES = $(boehm_libraries) $(sgen_libraries) $(moonlight_libraries)
+endif
+
+AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/mono $(LIBGC_CPPFLAGS) $(GLIB_CFLAGS) -DMONO_BINDIR=\"$(bindir)/\" -DMONO_ASSEMBLIES=\"$(assembliesdir)\" -DMONO_CFG_DIR=\"$(confdir)\"
 
 #
 # Make sure any prefix changes are updated in the binaries too.
@@ -61,13 +87,7 @@ null_sources = \
 	console-null.c
 
 sgen_sources = \
-	sgen-cardtable.c	\
-	sgen-gray.c		\
-	sgen-pinning.c		\
-	sgen-pinning-stats.c	\
-	sgen-los.c		\
-	sgen-protocol.c		\
-	sgen-workers.c
+	sgen-fin-weak-hash.c
 
 libmonoruntime_la_SOURCES = \
 	$(platform_sources)	\
@@ -125,6 +145,8 @@ libmonoruntime_la_SOURCES = \
 	mono-basic-block.c	\
 	mono-basic-block.h	\
 	mono-config.c		\
+	mono-cq.c		\
+	mono-cq.h		\
 	mono-debug.h		\
 	mono-debug.c		\
 	mono-debug-debugger.h	\
@@ -168,19 +190,53 @@ libmonoruntime_la_SOURCES = \
 	security-manager.h	\
 	sgen-os-posix.c		\
 	sgen-os-mach.c		\
+	sgen-os-win32.c		\
 	sgen-gc.c		\
 	sgen-internal.c		\
+	sgen-pinned-allocator.c	\
 	sgen-marksweep.c	\
 	sgen-marksweep-fixed.c	\
 	sgen-marksweep-par.c	\
 	sgen-marksweep-fixed-par.c	\
 	sgen-major-copying.c	\
+	sgen-los.c		\
+	sgen-protocol.c \
+	sgen-bridge.c		\
+	sgen-bridge.h		\
+	sgen-toggleref.c		\
+	sgen-toggleref.h		\
 	sgen-gc.h		\
+	sgen-conf.h		\
 	sgen-archdep.h		\
+	sgen-cardtable.c	\
+	sgen-cardtable.h	\
+	sgen-ssb.c	\
+	sgen-ssb.h	\
+	sgen-pinning.c	\
+	sgen-pinning.h	\
+	sgen-pinning-stats.c	\
+	sgen-workers.c	\
+	sgen-workers.h	\
+	sgen-gray.c	\
+	sgen-gray.h	\
 	sgen-major-copy-object.h \
+	sgen-minor-copy-object.h \
+	sgen-copy-object.h \
 	sgen-major-scan-object.h \
+	sgen-minor-scan-object.h \
 	sgen-protocol.h		\
 	sgen-scan-object.h	\
+	sgen-nursery-allocator.c	\
+	sgen-hash-table.c	\
+	sgen-hash-table.h	\
+	sgen-descriptor.c		\
+	sgen-descriptor.h		\
+	sgen-alloc.c		\
+	sgen-debug.c		\
+	sgen-simple-nursery.c	\
+	sgen-split-nursery.c	\
+	sgen-memory-governor.c	\
+	sgen-memory-governor.h	\
 	string-icalls.c 	\
 	string-icalls.h 	\
 	sysmath.h		\
@@ -196,6 +252,15 @@ libmonoruntime_la_SOURCES = \
 	wrapper-types.h
 
 libmonoruntime_la_CFLAGS = $(BOEHM_DEFINES)
+
+if MOONLIGHT
+libmonoruntimemoon_la_SOURCES = $(libmonoruntime_la_SOURCES)
+if MOONLIGHT_BOEHM
+libmonoruntimemoon_la_CFLAGS = $(MOONLIGHT_DEFINES) $(BOEHM_DEFINES)
+else
+libmonoruntimemoon_la_CFLAGS = $(MOONLIGHT_DEFINES) $(SGEN_DEFINES)
+endif
+endif
 
 libmonoruntimesgen_la_SOURCES = $(libmonoruntime_la_SOURCES)
 libmonoruntimesgen_la_CFLAGS = $(SGEN_DEFINES)
@@ -227,6 +292,7 @@ libmonoruntimeinclude_HEADERS = \
 	mono-config.h		\
 	mono-debug.h		\
 	mono-gc.h		\
+	sgen-bridge.h		\
 	object.h		\
 	opcodes.h		\
 	profiler.h		\
@@ -247,15 +313,20 @@ else
 PEDUMP_DTRACE_OBJECT = 
 endif
 
+if SHARED_MONO
+if SUPPORT_BOEHM
 pedump_SOURCES =		\
 	pedump.c
 
 pedump_LDADD = libmonoruntime.la ../io-layer/libwapi.la ../utils/libmonoutils.la \
-	$(LIBGC_LIBS) $(GLIB_LIBS) -lm $(PEDUMP_DTRACE_OBJECT)
+	$(LIBGC_LIBS) $(GLIB_LIBS) -lm $(LIBICONV) $(PEDUMP_DTRACE_OBJECT)
 
 if PLATFORM_DARWIN
 pedump_LDFLAGS=-framework CoreFoundation
 endif
+endif
+endif
 
-EXTRA_DIST = make-bundle.pl sample-bundle $(win32_sources) $(unix_sources) $(null_sources) $(sgen_sources) runtime.h
+EXTRA_DIST = make-bundle.pl sample-bundle $(win32_sources) $(unix_sources) $(null_sources) $(sgen_sources) runtime.h \
+		tpool-poll.c tpool-epoll.c tpool-kqueue.c
 

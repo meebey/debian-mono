@@ -36,13 +36,14 @@ namespace System.Reflection {
 	[ComDefaultInterfaceAttribute (typeof (_EventInfo))]
 	[Serializable]
 	[ClassInterface(ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public abstract class EventInfo : MemberInfo, _EventInfo {
 		AddEventAdapter cached_add_event;
 
 		public abstract EventAttributes Attributes {get;}
 
 		public
-#if NET_4_0
+#if NET_4_0 || MOONLIGHT
 		virtual
 #endif
 		Type EventHandlerType {
@@ -62,7 +63,7 @@ namespace System.Reflection {
 		}
 
 		public
-#if NET_4_0
+#if NET_4_0 || MOONLIGHT
 		virtual
 #endif
 		bool IsMulticast {get {return true;}}
@@ -78,7 +79,7 @@ namespace System.Reflection {
 		[DebuggerHidden]
 		[DebuggerStepThrough]
 		public
-#if NET_4_0
+#if NET_4_0 || MOONLIGHT
 		virtual
 #endif
 		void AddEventHandler (object target, Delegate handler)
@@ -125,7 +126,7 @@ namespace System.Reflection {
 		[DebuggerHidden]
 		[DebuggerStepThrough]
 		public
-#if NET_4_0
+#if NET_4_0 || MOONLIGHT
 		virtual
 #endif
 		void RemoveEventHandler (object target, Delegate handler)
@@ -140,7 +141,7 @@ namespace System.Reflection {
 #if NET_4_0
 		public override bool Equals (object obj)
 		{
-			return obj == this;
+			return obj == (object) this;
 		}
 
 		public override int GetHashCode ()

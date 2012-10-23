@@ -4,10 +4,12 @@
 // Author:
 //   Matt Kimball (matt@kimball.net)
 //   Dick Porter (dick@ximian.com)
+//   Marek Safar (marek.safar@gmail.com)
 //
 
 //
 // Copyright (C) 2004 Novell, Inc (http://www.novell.com)
+// Copyright 2011 Xamarin Inc.
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -44,7 +46,8 @@ namespace System.IO {
 		byte[] m_buffer;
 
 		Decoder decoder;
-		char [] charBuffer;
+		char[] charBuffer;
+		byte[] charByteBuffer;
 		
 		//
 		// 128 chars should cover most strings in one grab.
@@ -52,12 +55,28 @@ namespace System.IO {
 		const int MaxBufferSize = 128;
 
 		
-		private bool m_disposed = false;
-
-		public BinaryReader(Stream input) : this(input, Encoding.UTF8UnmarkedUnsafe) {
+		private bool m_disposed;
+		
+		public BinaryReader(Stream input) 
+			: this(input, Encoding.UTF8UnmarkedUnsafe)
+		{
 		}
-
-		public BinaryReader(Stream input, Encoding encoding) {
+		
+#if NET_4_5
+		readonly bool leave_open;
+		
+		public BinaryReader(Stream input, Encoding encoding)
+			: this (input, encoding, false)
+		{
+		}
+		
+		public BinaryReader(Stream input, Encoding encoding, bool leaveOpen)
+#else
+		const bool leave_open = false;
+		
+		public BinaryReader(Stream input, Encoding encoding)
+#endif
+		{
 			if (input == null || encoding == null) 
 				throw new ArgumentNullException(Locale.GetText ("Input or Encoding is a null reference."));
 			if (!input.CanRead)
@@ -65,8 +84,14 @@ namespace System.IO {
 
 			m_stream = input;
 			m_encoding = encoding;
+#if NET_4_5
+			leave_open = leaveOpen;
+#endif
 			decoder = encoding.GetDecoder ();
-			m_buffer = new byte [32];
+			
+			// internal buffer size is documented to be between 16 and the value
+			// returned by GetMaxByteCount for the specified encoding
+			m_buffer = new byte [Math.Max (16, encoding.GetMaxByteCount (1))];
 		}
 
 		public virtual Stream BaseStream {
@@ -82,7 +107,7 @@ namespace System.IO {
 		
 		protected virtual void Dispose (bool disposing)
 		{
-			if (disposing && m_stream != null)
+			if (disposing && m_stream != null && !leave_open)
 				m_stream.Close ();
 
 			m_disposed = true;
@@ -92,7 +117,7 @@ namespace System.IO {
 			charBuffer = null;
 		}
 
-#if NET_4_0
+#if NET_4_0 || NET_2_1
 		public void Dispose ()
 #else
 		void IDisposable.Dispose() 
@@ -103,13 +128,13 @@ namespace System.IO {
 
 		protected virtual void FillBuffer (int numBytes)
 		{
+			if (numBytes > m_buffer.Length)
+				throw new ArgumentOutOfRangeException ("numBytes");
 			if (m_disposed)
 				throw new ObjectDisposedException ("BinaryReader", "Cannot read from a closed BinaryReader.");
 			if (m_stream==null)
 				throw new IOException("Stream is invalid");
 			
-			CheckBuffer(numBytes);
-
 			/* Cope with partial reads */
 			int pos=0;
 
@@ -469,9 +494,10 @@ namespace System.IO {
 			if (len == 0)
 				return String.Empty;
 			
-			
-			if (charBuffer == null)
-				charBuffer = new char [MaxBufferSize];
+			if (charByteBuffer == null) {
+				charBuffer = new char [m_encoding.GetMaxByteCount (MaxBufferSize)];
+				charByteBuffer = new byte [MaxBufferSize];
+			}
 
 			//
 			// We read the string here in small chunks. Also, we
@@ -479,13 +505,13 @@ namespace System.IO {
 			//
 			StringBuilder sb = null;
 			do {
-				int readLen = (len > MaxBufferSize)
-						? MaxBufferSize
-						: len;
+				int readLen = Math.Min (MaxBufferSize, len);
 				
-				FillBuffer (readLen);
+				int n = m_stream.Read (charByteBuffer, 0, readLen);
+				if (n == 0)
+					throw new EndOfStreamException();
 				
-				int cch = decoder.GetChars (m_buffer, 0, readLen, charBuffer, 0);
+				int cch = decoder.GetChars (charByteBuffer, 0, n, charBuffer, 0);
 
 				if (sb == null && readLen == len) // ok, we got out the easy way, dont bother with the sb
 					return new String (charBuffer, 0, cch);

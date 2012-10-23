@@ -26,8 +26,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0
-
 using NUnit.Framework;
 
 using System;
@@ -213,7 +211,6 @@ namespace MonoTests.System
 		}
 
 		[Test] // TryCreate (Uri, String, Uri)
-		[Category ("NotWorking")]
 		public void TryCreate2 ()
 		{
 			Uri baseUri = new Uri (absolute);
@@ -253,7 +250,6 @@ namespace MonoTests.System
 		}
 
 		[Test] // TryCreate (Uri, Uri, Uri)
-		[Category ("NotWorking")]
 		public void TryCreate3 ()
 		{
 			Uri baseUri = new Uri (absolute);
@@ -292,8 +288,16 @@ namespace MonoTests.System
 			Uri baseUri = new Uri (absolute);
 			try {
 				Uri.TryCreate (baseUri, (Uri) null, out uri);
-				Assert.Fail ();
-			} catch (NullReferenceException) {
+#if NET_4_0
+				Assert.IsNull (uri);
+#else
+				Assert.Fail ("throw NRE under FX 2.0");
+#endif
+			}
+			catch (NullReferenceException) {
+#if NET_4_0
+				Assert.Fail ("does not throw NRE under FX 4.0");
+#endif
 			}
 		}
 
@@ -410,8 +414,14 @@ namespace MonoTests.System
 			try {
 				http.IsBaseOf (null);
 				Assert.Fail ();
-			} catch (NullReferenceException) {
 			}
+#if NET_4_0
+			catch (ArgumentNullException) {
+			}
+#else
+			catch (NullReferenceException) {
+			}
+#endif
 		}
 
 		[Test] 
@@ -429,6 +439,8 @@ namespace MonoTests.System
 			Uri uri11 = new Uri ("mailto:xxx@xxx.com?subject=hola");
 			Uri uri12 = new Uri ("mailto:xxx@mail.xxx.com?subject=hola");
 			Uri uri13 = new Uri ("mailto:xxx@xxx.com/foo/bar");
+			Uri uri14 = new Uri ("http://www.contoso.com/test1/");
+			Uri uri15 = new Uri ("http://www.contoso.com/");
 
 			AssertRelativeUri ("foo/bar/index.htm#fragment", uri1, uri2, "#A");
 			AssertRelativeUri ("../../index.htm?x=2", uri2, uri1, "#B");
@@ -460,35 +472,31 @@ namespace MonoTests.System
 			Assert.IsTrue (relativeUri.IsAbsoluteUri, "#N1");
 			Assert.AreEqual (uri5.ToString (), relativeUri.ToString (), "#N2");
 			Assert.AreEqual (uri5.OriginalString, relativeUri.OriginalString, "#N3");
+
+			AssertRelativeUri ("../", uri14, uri15, "#O");
 		}
 
 		[Test]
-		[Category ("NotDotNet")] // https://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=299942
-		public void MakeRelativeUri_Uri_Null_Mono ()
+		public void MakeRelativeUri_Uri_Null ()
 		{
 			Uri uri = new Uri ("http://test.com");
 			try {
 				uri.MakeRelativeUri ((Uri) null);
 				Assert.Fail ("#1");
-			} catch (ArgumentNullException ex) {
+			}
+#if NET_4_0
+			catch (ArgumentNullException ex) {
 				Assert.AreEqual (typeof (ArgumentNullException), ex.GetType (), "#2");
 				Assert.IsNull (ex.InnerException, "#3");
 				Assert.IsNotNull (ex.Message, "#4");
 				Assert.IsNotNull (ex.ParamName, "#5");
 				Assert.AreEqual ("uri", ex.ParamName, "#6");
 			}
-		}
-
-		[Test]
-		[Category ("NotWorking")] // https://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=299942
-		public void MakeRelativeUri_Uri_Null_MS ()
-		{
-			Uri uri = new Uri ("http://test.com");
-			try {
-				uri.MakeRelativeUri ((Uri) null);
-				Assert.Fail ("#1");
-			} catch (NullReferenceException) {
+#else
+			catch (NullReferenceException) {
+				// https://connect.microsoft.com/VisualStudio/feedback/ViewFeedback.aspx?FeedbackID=299942
 			}
+#endif
 		}
 
 		[Test] // LAMESPEC: see bug #321113
@@ -500,7 +508,7 @@ namespace MonoTests.System
 
 			Uri a = new Uri ("http://www.mono-project.com:808/foo");
 			Uri b = new Uri (a, "../docs?queryyy#% %20%23%25bar");
-			//Assert.AreEqual ("http://www.mono-project.com:808/docs?queryyy#% %20%23%25bar", b.OriginalString, "#2");
+			Assert.AreEqual ("http://www.mono-project.com:808/docs?queryyy#% %20%23%25bar", b.OriginalString, "#2");
 
 			Uri c = new Uri ("http://www.mono-project.com:808/foo");
 			Uri d = new Uri (a, "../docs?queryyy#%20%23%25bar");
@@ -620,7 +628,19 @@ namespace MonoTests.System
 			{
 			}
 		}
+
+		[Test]
+		public void DomainLabelLength ()
+		{
+			UriHostNameType type = Uri.CheckHostName ("3.141592653589793238462643383279502884197169399375105820974944592.com");
+			Assert.AreEqual (UriHostNameType.Dns, type, "DomainLabelLength#1");
+			type = Uri.CheckHostName ("3141592653589793238462643383279502884197169399375105820974944592.com");
+			Assert.AreEqual (UriHostNameType.Unknown, type, "DomainLabelLength#2");
+			type = Uri.CheckHostName ("3.1415926535897932384626433832795028841971693993751058209749445923.com");
+			Assert.AreEqual (UriHostNameType.Unknown, type, "DomainLabelLength#2");
+			type = Uri.CheckHostName ("3.141592653589793238462643383279502884197169399375105820974944592._om");
+			Assert.AreEqual (UriHostNameType.Unknown, type, "DomainLabelLength#3");
+		}
 	}
 }
 
-#endif

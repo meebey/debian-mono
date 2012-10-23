@@ -50,7 +50,7 @@ namespace System.Reflection
 		public abstract MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase[] match, Type[] types, ParameterModifier[] modifiers);
 		public abstract PropertyInfo SelectProperty( BindingFlags bindingAttr, PropertyInfo[] match, Type returnType, Type[] indexes, ParameterModifier[] modifiers);
 
-		static Binder default_binder = new Default ();
+		static readonly Binder default_binder = new Default ();
 
 		internal static Binder DefaultBinder {
 			get {
@@ -163,9 +163,48 @@ namespace System.Reflection
 							types [i] = args [i].GetType ();
 					}
 				}
-				MethodBase selected = SelectMethod (bindingAttr, match, types, modifiers, true);
+
+				MethodBase selected = null;
+				if (names != null) {
+					foreach (var m in match) {
+						var parameters = m.GetParameters ();
+						int i;
+
+						/*
+						 * Find the corresponding parameter for each parameter name,
+						 * reorder types/modifiers array during the search.
+						 */
+						Type[] newTypes = (Type[])types.Clone ();
+						ParameterModifier[] newModifiers = modifiers != null ? (ParameterModifier[])modifiers.Clone () : null;
+						for (i = 0; i < names.Length; ++i) {
+							/* Find the corresponding parameter */
+							int nindex = -1;
+							for (int j = 0; j < parameters.Length; ++j) {
+								if (parameters [j].Name == names [i]) {
+									nindex = j;
+									break;
+								}
+							}
+							if (nindex == -1)
+								break;
+							if (i < newTypes.Length && nindex < types.Length)
+								newTypes [i] = types [nindex];
+							if (modifiers != null && i < newModifiers.Length && nindex < modifiers.Length)
+								newModifiers [i] = modifiers [nindex];
+						}
+						if (i < names.Length)
+							continue;
+
+						selected = SelectMethod (bindingAttr, new MethodBase [] { m }, newTypes, newModifiers, true, args);
+						if (selected != null)
+							break;
+					}
+				} else {
+					selected = SelectMethod (bindingAttr, match, types, modifiers, true, args);
+				}
+
 				state = null;
-				if (names != null)
+				if (selected != null && names != null)
 					ReorderParameters (names, ref args, selected);
 
 				if (selected != null) {
@@ -182,22 +221,31 @@ namespace System.Reflection
 			static void AdjustArguments (MethodBase selected, ref object [] args)
 			{
 				var parameters = selected.GetParameters ();
-				if (parameters.Length == 0)
+				var parameters_length = parameters.Length;
+				if (parameters_length == 0)
 					return;
 
 				var last_parameter = parameters [parameters.Length - 1];
+				Type last_parameter_type = last_parameter.ParameterType;
 				if (!Attribute.IsDefined (last_parameter, typeof (ParamArrayAttribute)))
 					return;
 
-				var adjusted = new object [parameters.Length];
-				Array.Copy (args, adjusted, parameters.Length - 1);
-
-				var param_args_count = args.Length + 1 - parameters.Length;
-				var params_args = Array.CreateInstance (last_parameter.ParameterType.GetElementType (), param_args_count);
-
+				var args_length = args.Length;
+				var param_args_count = args_length + 1 - parameters_length;
+				var first_vararg_index = args_length - param_args_count;
+				if (first_vararg_index < args_length) {
+					var first_vararg = args [first_vararg_index];
+					if (first_vararg != null && first_vararg.GetType () == last_parameter_type)
+						return;
+				}
+				
+				var params_args = Array.CreateInstance (last_parameter_type.GetElementType (), param_args_count);
 				for (int i = 0; i < param_args_count; i++)
-					params_args.SetValue (args [args.Length - param_args_count + i], i);
+					params_args.SetValue (args [first_vararg_index + i], i);
 
+				var adjusted = new object [parameters_length];
+				Array.Copy (args, adjusted, parameters_length - 1);
+				
 				adjusted [adjusted.Length - 1] = params_args;
 				args = adjusted;
 			}
@@ -403,10 +451,10 @@ namespace System.Reflection
 			public override MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase [] match, Type [] types, ParameterModifier [] modifiers)
 			{
 				return SelectMethod (bindingAttr, match, types, modifiers,
-					false);
+					false, null);
 			}
 
-			MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase[] match, Type[] types, ParameterModifier[] modifiers, bool allowByRefMatch)
+			MethodBase SelectMethod (BindingFlags bindingAttr, MethodBase[] match, Type[] types, ParameterModifier[] modifiers, bool allowByRefMatch, object[] parameters)
 			{
 				MethodBase m;
 				int i, j;
@@ -479,7 +527,35 @@ namespace System.Reflection
 						result = m;
 				}
 
-				return result;
+				if (result != null || parameters == null || types.Length != parameters.Length)
+					return result;
+
+				// Xamarin-5278: try with parameters that are COM objects
+				// REVIEW: do we also need to implement best method match?
+				for (i = 0; i < match.Length; ++i) {
+					m = match [i];
+					ParameterInfo[] methodArgs = m.GetParameters ();
+					if (methodArgs.Length != types.Length)
+						continue;
+					for (j = 0; j < types.Length; ++j) {
+						var requiredType = methodArgs [j].ParameterType;
+						if (types [j] == requiredType)
+							continue;
+						if (types [j] == typeof (__ComObject) && requiredType.IsInterface) {
+							var iface = Marshal.GetComInterfaceForObject (parameters [j], requiredType);
+							if (iface != IntPtr.Zero) {
+								// the COM object implements the desired interface
+								Marshal.Release (iface);
+								continue;
+							}
+						}
+						break;
+					}
+
+					if (j == types.Length)
+						return m;
+				}
+				return null;
 			}
 
 			MethodBase GetBetterMethod (MethodBase m1, MethodBase m2, Type [] types)

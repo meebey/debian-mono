@@ -25,8 +25,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if NET_2_0
-
 using System;
 using System.IO;
 using System.Text;
@@ -47,15 +45,21 @@ namespace Microsoft.Build.BuildEngine
 			else
 				return String.Format (unformatted, args);
 		}
-		
+
 		public static void LogError (this Engine engine, string message,
+				     params object[] messageArgs)
+		{
+			engine.LogErrorWithFilename (null, message, messageArgs);
+		}
+
+		public static void LogErrorWithFilename (this Engine engine, string filename, string message,
 				     params object[] messageArgs)
 		{
 			if (message == null)
 				throw new ArgumentNullException ("message");
 				
 			BuildErrorEventArgs beea = new BuildErrorEventArgs (
-				null, null, null, 0, 0, 0, 0, FormatString (message, messageArgs),
+				null, null, filename, 0, 0, 0, 0, FormatString (message, messageArgs),
 				null, null);
 			engine.EventSource.FireErrorRaised (engine, beea);
 		}
@@ -179,5 +183,3 @@ namespace Microsoft.Build.BuildEngine
 		}
 	}
 }
-
-#endif

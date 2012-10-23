@@ -68,6 +68,7 @@ System.Threading/LockRecursionPolicy.cs
 System.Threading/ReaderWriterLockSlim.cs
 System.Threading/ThreadLockState.cs
 System.Threading/ReaderWriterLockSlimExtensions.cs
+System.Threading.Tasks/TaskExtensions.cs
 
 System.Linq.Expressions/Extensions.cs
 System.Linq.Expressions/ExpressionTransformer.cs
@@ -198,6 +199,7 @@ System.IO/HandleInheritability.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Compiler/StackSpiller.Generated.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Compiler/StackSpiller.Temps.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Compiler/SymbolDocumentGenerator.cs
+../dlr/Runtime/Microsoft.Scripting.Core/Compiler/SymbolGuids.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Compiler/VariableBinder.cs
 
 ../dlr/Runtime/Microsoft.Scripting.Core/Utils/CacheDict.cs
@@ -209,6 +211,7 @@ System.IO/HandleInheritability.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Utils/ReadOnlyCollectionBuilder.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Utils/ReadOnlyDictionary.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Utils/ReferenceEqualityComparer.cs
+../dlr/Runtime/Microsoft.Scripting.Core/Utils/ReflectionUtils.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Utils/TrueReadOnlyCollection.cs
 ../dlr/Runtime/Microsoft.Scripting.Core/Utils/TypeExtensions.cs
 System.Linq.Parallel/ParallelQueryEnumerator.cs
@@ -227,6 +230,7 @@ System.Linq.Parallel/ConcurrentLookup.cs
 System.Linq.Parallel/ConcurrentGrouping.cs
 System.Linq.Parallel/ReverseList.cs
 System.Linq.Parallel/ParallelExecuter.cs
+System.Linq.Parallel/TemporaryArea.cs
 System.Linq/ParallelQuery.cs
 System.Linq.Parallel.QueryNodes/QueryWhereNode.cs
 System.Linq.Parallel.QueryNodes/QueryCastNode.cs
@@ -256,7 +260,5 @@ System.Linq.Parallel/IVisitableNode.cs
 System.Linq.Parallel/QueryCheckerVisitor.cs
 System.Linq.Parallel/QueryIsOrderedVisitor.cs
 System.Linq.Parallel/QueryOptions.cs
-../corlib/System.Collections.Concurrent/Partitioners/EnumerablePartitioner.cs
-../corlib/System.Collections.Concurrent/ConcurrentSkipList.cs
+../corlib/System.Collections.Concurrent.Partitioners/EnumerablePartitioner.cs
 ../corlib/System.Threading/AtomicBoolean.cs
-

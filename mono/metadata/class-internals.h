@@ -1,3 +1,6 @@
+/* 
+ * Copyright 2012 Xamarin Inc
+ */
 #ifndef __MONO_METADATA_CLASS_INTERBALS_H__
 #define __MONO_METADATA_CLASS_INTERBALS_H__
 
@@ -17,8 +20,6 @@
 
 extern gboolean mono_print_vtable;
 
-typedef void     (*MonoStackWalkImpl) (MonoStackWalk func, gboolean do_il_offset, gpointer user_data);
-
 typedef struct _MonoMethodWrapper MonoMethodWrapper;
 typedef struct _MonoMethodInflated MonoMethodInflated;
 typedef struct _MonoMethodPInvoke MonoMethodPInvoke;
@@ -29,6 +30,13 @@ typedef struct _MonoMethodPInvoke MonoMethodPInvoke;
  * This prop applies to class, method, property, event, assembly and image.
  */
 #define MONO_PROP_DYNAMIC_CATTR 0x1000
+
+#ifdef ENABLE_ICALL_EXPORT
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
+#define ICALL_EXPORT
+#else
+#define ICALL_EXPORT static
+#endif
 
 typedef enum {
 #define WRAPPER(e,n) MONO_WRAPPER_ ## e,
@@ -199,7 +207,8 @@ enum {
 	MONO_EXCEPTION_FIELD_ACCESS = 10,
 	MONO_EXCEPTION_GENERIC_SHARING_FAILED = 11,
 	MONO_EXCEPTION_BAD_IMAGE = 12,
-	MONO_EXCEPTION_OBJECT_SUPPLIED = 13 /*The exception object is already created.*/
+	MONO_EXCEPTION_OBJECT_SUPPLIED = 13, /*The exception object is already created.*/
+	MONO_EXCEPTION_OUT_OF_MEMORY = 14
 	/* add other exception type */
 };
 
@@ -213,47 +222,6 @@ typedef struct {
 } MonoClassRuntimeInfo;
 
 #define MONO_SIZEOF_CLASS_RUNTIME_INFO (sizeof (MonoClassRuntimeInfo) - MONO_ZERO_LEN_ARRAY * SIZEOF_VOID_P)
-
-enum {
-	MONO_RGCTX_INFO_STATIC_DATA,
-	MONO_RGCTX_INFO_KLASS,
-	MONO_RGCTX_INFO_VTABLE,
-	MONO_RGCTX_INFO_TYPE,
-	MONO_RGCTX_INFO_REFLECTION_TYPE,
-	MONO_RGCTX_INFO_METHOD,
-	MONO_RGCTX_INFO_GENERIC_METHOD_CODE,
-	MONO_RGCTX_INFO_CLASS_FIELD,
-	MONO_RGCTX_INFO_METHOD_RGCTX,
-	MONO_RGCTX_INFO_METHOD_CONTEXT,
-	MONO_RGCTX_INFO_REMOTING_INVOKE_WITH_CHECK,
-	MONO_RGCTX_INFO_METHOD_DELEGATE_CODE
-};
-
-typedef struct _MonoRuntimeGenericContextOtherInfoTemplate {
-	int info_type;
-	gpointer data;
-	struct _MonoRuntimeGenericContextOtherInfoTemplate *next;
-} MonoRuntimeGenericContextOtherInfoTemplate;
-
-typedef struct {
-	MonoClass *next_subclass;
-	MonoRuntimeGenericContextOtherInfoTemplate *other_infos;
-	GSList *method_templates;
-} MonoRuntimeGenericContextTemplate;
-
-typedef struct {
-	MonoVTable *class_vtable; /* must be the first element */
-	MonoGenericInst *method_inst;
-	gpointer infos [MONO_ZERO_LEN_ARRAY];
-} MonoMethodRuntimeGenericContext;
-
-#define MONO_SIZEOF_METHOD_RUNTIME_GENERIC_CONTEXT (sizeof (MonoMethodRuntimeGenericContext) - MONO_ZERO_LEN_ARRAY * SIZEOF_VOID_P)
-
-#define MONO_RGCTX_SLOT_MAKE_RGCTX(i)	(i)
-#define MONO_RGCTX_SLOT_MAKE_MRGCTX(i)	((i) | 0x80000000)
-#define MONO_RGCTX_SLOT_INDEX(s)	((s) & 0x7fffffff)
-#define MONO_RGCTX_SLOT_IS_MRGCTX(s)	(((s) & 0x80000000) ? TRUE : FALSE)
-
 
 #define MONO_CLASS_PROP_EXCEPTION_DATA 0
 
@@ -348,6 +316,9 @@ struct _MonoClass {
 	guint simd_type : 1; /* class is a simd intrinsic type */
 	guint is_generic : 1; /* class is a generic type definition */
 	guint is_inflated : 1; /* class is a generic instance */
+	/* next byte */
+	guint has_finalize_inited    : 1; /* has_finalize is initialized */
+	guint fields_inited : 1; /* fields is initialized */
 
 	guint8     exception_type;	/* MONO_EXCEPTION_* */
 
@@ -441,6 +412,7 @@ int mono_class_interface_match (const uint8_t *bitmap, int id) MONO_INTERNAL;
 
 #define MONO_CLASS_IMPLEMENTS_INTERFACE(k,uiid) (((uiid) <= (k)->max_interface_id) && mono_class_interface_match ((k)->interface_bitmap, (uiid)))
 
+#define MONO_VTABLE_AVAILABLE_GC_BITS 4
 
 int mono_class_interface_offset (MonoClass *klass, MonoClass *itf);
 int mono_class_interface_offset_with_variance (MonoClass *klass, MonoClass *itf, gboolean *non_exact_match) MONO_INTERNAL;
@@ -456,7 +428,6 @@ struct MonoVTable {
 	 */
 	void *gc_descr; 	
 	MonoDomain *domain;  /* each object/vtable belongs to exactly one domain */
-        gpointer    data; /* to store static class data */
         gpointer    type; /* System.Type type for klass */
 	guint8     *interface_bitmap;
 	guint16     max_interface_id;
@@ -464,9 +435,14 @@ struct MonoVTable {
 	guint remote          : 1; /* class is remotely activated */
 	guint initialized     : 1; /* cctor has been run */
 	guint init_failed     : 1; /* cctor execution failed */
+	guint has_static_fields : 1; /* pointer to the data stored at the end of the vtable array */
+	guint gc_bits         : MONO_VTABLE_AVAILABLE_GC_BITS; /* Those bits are reserved for the usaged of the GC */
+
 	guint32     imt_collisions_bitmap;
 	MonoRuntimeGenericContext *runtime_generic_context;
 	/* do not add any fields after vtable, the structure is dynamically extended */
+	/* vtable contains function pointers to methods or their trampolines, at the
+	 end there may be a slot containing the pointer to the static fields */
 	gpointer    vtable [MONO_ZERO_LEN_ARRAY];	
 };
 
@@ -530,6 +506,13 @@ struct _MonoGenericClass {
 	guint is_dynamic  : 1;		/* We're a MonoDynamicGenericClass */
 	guint is_tb_open  : 1;		/* This is the fully open instantiation for a type_builder. Quite ugly, but it's temporary.*/
 	MonoClass *cached_class;	/* if present, the MonoClass corresponding to the instantiation.  */
+
+	/* 
+	 * The image set which owns this generic class. Memory owned by the generic class
+	 * including cached_class should be allocated from the mempool of the image set,
+	 * so it is easy to free.
+	 */
+	MonoImageSet *owner;
 };
 
 /*
@@ -538,10 +521,6 @@ struct _MonoGenericClass {
  */
 struct _MonoDynamicGenericClass {
 	MonoGenericClass generic_class;
-	int count_methods;
-	MonoMethod **methods;
-	int count_ctors;
-	MonoMethod **ctors;
 	int count_fields;
 	MonoClassField *fields;
 	guint initialized;
@@ -557,6 +536,8 @@ struct _MonoDynamicGenericClass {
 struct _MonoGenericParam {
 	MonoGenericContainer *owner;	/* Type or method this parameter was defined in. */
 	guint16 num;
+	/* For internal runtime use, used to make different versions of the same param */
+	guint16 serial;
 	/* 
 	 * If owner is NULL, or owner is 'owned' by this gparam,
 	 * then this is the image whose mempool this struct was allocated from.
@@ -662,7 +643,35 @@ typedef struct {
 	char *msg; /* If kind == BAD_IMAGE */
 } MonoLoaderError;
 
-#define mono_class_has_parent(klass,parent) (((klass)->idepth >= (parent)->idepth) && ((klass)->supertypes [(parent)->idepth - 1] == (parent)))
+void
+mono_class_setup_supertypes (MonoClass *klass) MONO_INTERNAL;
+
+void
+mono_class_setup_fields_locking (MonoClass *class) MONO_INTERNAL;
+
+/* WARNING
+ * Only call this function if you can ensure both @klass and @parent
+ * have supertype information initialized.
+ * This can be accomplished by mono_class_setup_supertypes or mono_class_init.
+ * If unsure, use mono_class_has_parent.
+ */
+static inline gboolean
+mono_class_has_parent_fast (MonoClass *klass, MonoClass *parent)
+{
+	return (klass->idepth >= parent->idepth) && (klass->supertypes [parent->idepth - 1] == parent);
+}
+
+static inline gboolean
+mono_class_has_parent (MonoClass *klass, MonoClass *parent)
+{
+	if (G_UNLIKELY (!klass->supertypes))
+		mono_class_setup_supertypes (klass);
+
+	if (G_UNLIKELY (!parent->supertypes))
+		mono_class_setup_supertypes (parent);
+
+	return mono_class_has_parent_fast (klass, parent);
+}
 
 typedef struct {
 	MonoVTable *default_vtable;
@@ -711,10 +720,6 @@ typedef struct {
 	gulong generics_sharable_methods;
 	gulong generics_unsharable_methods;
 	gulong generics_shared_methods;
-	gulong minor_gc_count;
-	gulong major_gc_count;
-	gulong minor_gc_time_usecs;
-	gulong major_gc_time_usecs;
 	gboolean enabled;
 } MonoStats;
 
@@ -844,7 +849,7 @@ extern MonoStats mono_stats MONO_INTERNAL;
 typedef gpointer (*MonoTrampoline)       (MonoMethod *method);
 typedef gpointer (*MonoJumpTrampoline)       (MonoDomain *domain, MonoMethod *method, gboolean add_sync_wrapper);
 typedef gpointer (*MonoRemotingTrampoline)       (MonoDomain *domain, MonoMethod *method, MonoRemotingTarget target);
-typedef gpointer (*MonoDelegateTrampoline)       (MonoClass *klass);
+typedef gpointer (*MonoDelegateTrampoline)       (MonoDomain *domain, MonoClass *klass);
 
 typedef gpointer (*MonoLookupDynamicToken) (MonoImage *image, guint32 token, gboolean valid_token, MonoClass **handle_class, MonoGenericContext *context);
 
@@ -865,7 +870,7 @@ void
 mono_class_setup_interface_offsets (MonoClass *klass) MONO_INTERNAL;
 
 void
-mono_class_setup_vtable_general (MonoClass *klass, MonoMethod **overrides, int onum) MONO_INTERNAL;
+mono_class_setup_vtable_general (MonoClass *klass, MonoMethod **overrides, int onum, GList *in_setup) MONO_INTERNAL;
 
 void
 mono_class_setup_vtable (MonoClass *klass) MONO_INTERNAL;
@@ -878,9 +883,6 @@ mono_class_setup_mono_type (MonoClass *klass) MONO_INTERNAL;
 
 void
 mono_class_setup_parent    (MonoClass *klass, MonoClass *parent) MONO_INTERNAL;
-
-void
-mono_class_setup_supertypes (MonoClass *klass) MONO_INTERNAL;
 
 MonoMethod*
 mono_class_get_method_by_index (MonoClass *class, int index) MONO_INTERNAL;
@@ -915,6 +917,9 @@ mono_class_needs_cctor_run (MonoClass *klass, MonoMethod *caller) MONO_INTERNAL;
 
 gboolean
 mono_class_field_is_special_static (MonoClassField *field) MONO_INTERNAL;
+
+guint32
+mono_class_field_get_special_static_type (MonoClassField *field) MONO_INTERNAL;
 
 gboolean
 mono_class_has_special_static_fields (MonoClass *klass) MONO_INTERNAL;
@@ -1138,9 +1143,6 @@ mono_icall_cleanup         (void) MONO_INTERNAL;
 gpointer
 mono_method_get_wrapper_data (MonoMethod *method, guint32 id) MONO_INTERNAL;
 
-void
-mono_install_stack_walk (MonoStackWalkImpl func) MONO_INTERNAL;
-
 gboolean
 mono_metadata_has_generic_params (MonoImage *image, guint32 token) MONO_INTERNAL;
 
@@ -1218,9 +1220,6 @@ gboolean
 mono_generic_class_is_generic_type_definition (MonoGenericClass *gklass) MONO_INTERNAL;
 
 MonoMethod*
-mono_method_get_declaring_generic_method (MonoMethod *method) MONO_INTERNAL;
-
-MonoMethod*
 mono_class_get_method_generic (MonoClass *klass, MonoMethod *method) MONO_INTERNAL;
 
 MonoType*
@@ -1274,6 +1273,9 @@ mono_class_is_assignable_from_slow (MonoClass *target, MonoClass *candidate) MON
 gboolean
 mono_class_has_variant_generic_params (MonoClass *klass) MONO_INTERNAL;
 
+gboolean
+mono_class_is_variant_compatible (MonoClass *klass, MonoClass *oklass, gboolean check_for_reference_conv) MONO_INTERNAL;
+
 gboolean mono_is_corlib_image (MonoImage *image) MONO_INTERNAL;
 
 MonoType*
@@ -1281,4 +1283,17 @@ mono_field_get_type_checked (MonoClassField *field, MonoError *error) MONO_INTER
 
 MonoClassField*
 mono_class_get_fields_lazy (MonoClass* klass, gpointer *iter) MONO_INTERNAL;
+
+gboolean
+mono_class_check_vtable_constraints (MonoClass *class, GList *in_setup) MONO_INTERNAL;
+
+gboolean
+mono_class_has_finalizer (MonoClass *klass) MONO_INTERNAL;
+
+void
+mono_unload_interface_id (MonoClass *class) MONO_INTERNAL;
+
+GPtrArray*
+mono_class_get_methods_by_name (MonoClass *klass, const char *name, guint32 bflags, gboolean ignore_case, gboolean allow_ctors, MonoException **ex) MONO_INTERNAL;
+
 #endif /* __MONO_METADATA_CLASS_INTERBALS_H__ */

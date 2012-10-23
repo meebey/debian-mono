@@ -40,6 +40,8 @@ namespace System.ServiceModel.Description
 	public abstract class MetadataImporter
 	{
 		KeyedByTypeCollection<IPolicyImportExtension> policy_extensions;
+		Collection<MetadataConversionError> errors = new Collection<MetadataConversionError> ();
+		Dictionary<Object,Object> state = new Dictionary<Object, Object> ();
 
 		internal MetadataImporter (IEnumerable<IPolicyImportExtension> policyImportExtensions)
 		{
@@ -54,8 +56,9 @@ namespace System.ServiceModel.Description
 			policy_extensions.Add (new MessageEncodingBindingElementImporter ());
 		}
 
+		[MonoTODO ("Not in use yet")]
 		public Collection<MetadataConversionError> Errors {
-			get { throw new NotImplementedException (); }
+			get { return errors; }
 		}
 
 		public KeyedByTypeCollection<IPolicyImportExtension> PolicyImportExtensions {
@@ -63,7 +66,7 @@ namespace System.ServiceModel.Description
 		}
 
 		public Dictionary<Object,Object> State {
-			get { throw new NotImplementedException (); }
+			get { return state; }
 		}
 
 		public Dictionary<XmlQualifiedName,ContractDescription> KnownContracts {
@@ -73,5 +76,15 @@ namespace System.ServiceModel.Description
 		public abstract Collection<ContractDescription> ImportAllContracts ();
 
 		public abstract ServiceEndpointCollection ImportAllEndpoints ();
+
+		internal T GetState<T> () where T : class, new ()
+		{
+			object value;
+			if (!state.TryGetValue (typeof(T), out value)) {
+				value = new T ();
+				state.Add (typeof(T), value);
+			}
+			return (T) value;
+		}
 	}
 }

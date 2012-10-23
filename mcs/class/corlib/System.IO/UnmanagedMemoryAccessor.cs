@@ -27,7 +27,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
+#if NET_4_0 || MOBILE
 
 using System;
 using System.Runtime.InteropServices;
@@ -35,9 +35,12 @@ using System.Security.Permissions;
 
 namespace System.IO
 {
+	[MonoTODO ("Offset is ignored")]
 	public class UnmanagedMemoryAccessor : IDisposable {
 		SafeBuffer buffer;
+#pragma warning disable 414
 		long offset;
+#pragma warning restore
 		long capacity;
 		bool canwrite, canread;
 
@@ -64,8 +67,6 @@ namespace System.IO
 				throw new ArgumentOutOfRangeException ("offset");
 			if (capacity < 0)
 				throw new ArgumentOutOfRangeException ("capacity");
-			if (offset + capacity < 0)
-				throw new InvalidOperationException ();
 
 			if (access == FileAccess.Read || access == FileAccess.ReadWrite)
 				canread = true;
@@ -274,8 +275,8 @@ namespace System.IO
 				throw new ArgumentOutOfRangeException ();
 			
 			long left = capacity - position;
-			var slots = (int)(left / Marshal.SizeOf (typeof (T)));
-			
+			var slots = Math.Min (count, (int)(left / Marshal.SizeOf (typeof (T))));
+
 			buffer.ReadArray ((ulong) position, array, offset, slots);
 			return slots;
 		}

@@ -38,6 +38,18 @@ using System.IO;
 
 namespace System.Configuration {
 
+	// For configuration document, use this XmlDocument instead of the standard one. This ignores xmlns attribute for MS.
+	internal class ConfigurationXmlDocument : XmlDocument
+	{
+		public override XmlElement CreateElement (string prefix, string localName, string namespaceURI)
+		{
+			if (namespaceURI == "http://schemas.microsoft.com/.NetConfiguration/v2.0")
+				return base.CreateElement (String.Empty, localName, String.Empty);
+			else
+				return base.CreateElement (prefix, localName, namespaceURI);
+		}
+	}
+
 	public sealed class Configuration
 	{		
 		Configuration parent;
@@ -100,7 +112,7 @@ namespace System.Configuration {
 			if (relativePath.StartsWith (relConfigPath, StringComparison.Ordinal))
 				relativePath = relativePath.Substring (relConfigPath.Length);
 
-			ConfigurationLocation loc = Locations.Find (relativePath);
+			ConfigurationLocation loc = Locations.FindBest (relativePath);
 			if (loc == null)
 				return parentConfig;
 			
@@ -288,7 +300,7 @@ namespace System.Configuration {
 			sec.RawXml = xml;
 			sec.Reset (parentSection);
 
-			if (xml != null && xml == data) {
+			if (xml != null) {
 				XmlTextReader r = new ConfigXmlTextReader (new StringReader (xml), FilePath);
 				sec.DeserializeSection (r);
 				r.Close ();
@@ -326,7 +338,7 @@ namespace System.Configuration {
 		internal void CreateSection (SectionGroupInfo group, string name, ConfigurationSection sec)
 		{
 			if (group.HasChild (name))
-				throw new ConfigurationException ("Cannot add a ConfigurationSection. A section or section group already exists with the name '" + name + "'");
+				throw new ConfigurationErrorsException ("Cannot add a ConfigurationSection. A section or section group already exists with the name '" + name + "'");
 				
 			if (!HasFile && !sec.SectionInformation.AllowLocation)
 				throw new ConfigurationErrorsException ("The configuration section <" + name + "> cannot be defined inside a <location> element."); 
@@ -348,7 +360,7 @@ namespace System.Configuration {
 		
 		internal void CreateSectionGroup (SectionGroupInfo parentGroup, string name, ConfigurationSectionGroup sec)
 		{
-			if (parentGroup.HasChild (name)) throw new ConfigurationException ("Cannot add a ConfigurationSectionGroup. A section or section group already exists with the name '" + name + "'");
+			if (parentGroup.HasChild (name)) throw new ConfigurationErrorsException ("Cannot add a ConfigurationSectionGroup. A section or section group already exists with the name '" + name + "'");
 			if (sec.Type == null) sec.Type = system.Host.GetConfigTypeName (sec.GetType ());
 			sec.SetName (name);
 
@@ -529,7 +541,7 @@ namespace System.Configuration {
 		private void ThrowException (string text, XmlReader reader)
 		{
 			IXmlLineInfo li = reader as IXmlLineInfo;
-			throw new ConfigurationException (text, streamName, li != null ? li.LineNumber : 0);
+			throw new ConfigurationErrorsException (text, streamName, li != null ? li.LineNumber : 0);
 		}
 	}
 }

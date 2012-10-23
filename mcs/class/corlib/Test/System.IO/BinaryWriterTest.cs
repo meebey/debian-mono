@@ -16,7 +16,17 @@ namespace MonoTests.System.IO {
 
 [TestFixture]
 public class BinaryWriterTest {
-	
+	sealed class MyBinaryWriter : BinaryWriter
+	{
+		public MyBinaryWriter (Stream stream)
+			: base (stream)
+		{ }
+
+		public void WriteLeb128 (int value)
+		{
+			base.Write7BitEncodedInt (value);
+		}
+	}
 	
 	string TempFolder = Path.Combine (Path.GetTempPath (), "MonoTests.System.IO.Tests");
 	
@@ -512,11 +522,126 @@ public class BinaryWriterTest {
 		Assert.AreEqual (0, bytes [9], "test#11");		
 	}
 
+	[Test]
+	public void Write7BitEncodedIntTest ()
+	{
+		MemoryStream stream = new MemoryStream ();
+		var writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (5);
+
+		Assert.AreEqual (new byte[] { 5 }, stream.ToArray (), "#1");
+
+		stream = new MemoryStream ();
+		writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (int.MaxValue);
+
+		Assert.AreEqual (new byte[] { 255, 255, 255, 255, 7 }, stream.ToArray (), "#2");
+
+		stream = new MemoryStream ();
+		writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (128);
+
+		Assert.AreEqual (new byte[] { 128, 1 }, stream.ToArray (), "#3");
+
+		stream = new MemoryStream ();
+		writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (-1025);
+
+		Assert.AreEqual (new byte[] { 255, 247, 255, 255, 15 }, stream.ToArray (), "#4");
+
+		stream = new MemoryStream ();
+		writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (int.MinValue);
+
+		Assert.AreEqual (new byte[] { 128, 128, 128, 128, 8 }, stream.ToArray (), "#5");
+
+		stream = new MemoryStream ();
+		writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (-1);
+
+		Assert.AreEqual (new byte[] { 255, 255, 255, 255, 15 }, stream.ToArray (), "#6");
+
+		stream = new MemoryStream ();
+		writer = new MyBinaryWriter (stream);
+		writer.WriteLeb128 (0);
+
+		Assert.AreEqual (new byte[] { 0 }, stream.ToArray (), "#7");
+	}
+
+	[Test]
+	public void BaseStreamCallsFlush ()
+	{
+		FlushStream stream = new FlushStream ();
+		BinaryWriter writer = new BinaryWriter (stream);
+		Stream s = writer.BaseStream;
+		Assert.IsTrue (stream.FlushCalled);
+	}
+
 	private void DeleteFile (string path)
 	{
 		if (File.Exists (path))
 			File.Delete (path);
 	}
+
+	class FlushStream : Stream
+	{
+		public bool FlushCalled;
+
+		public override bool CanRead {
+			get { return true; }
+		}
+
+		public override bool CanSeek {
+                        get { return true; }
+                }
+
+                public override bool CanWrite {
+                        get { return true; }
+                }
+
+		public override long Length {
+			get { return 0; }
+		}
+
+		public override long Position {
+			get { return 0; }
+			set { }
+		}
+
+		public override void Flush ()
+		{
+			FlushCalled = true;
+		}
+
+		public override int Read (byte[] buffer, int offset, int count)
+		{
+			return 0;
+		}
+
+		public override int ReadByte ()
+		{
+			return -1;
+		}
+
+		public override long Seek (long offset, SeekOrigin origin)
+		{
+			return 0;
+		}
+
+		public override void SetLength (long value)
+		{
+		}
+
+		public override void Write (byte[] buffer, int offset, int count)
+		{
+		}
+
+		public override void WriteByte (byte value)
+		{
+		}
+	}
+
+
 }
 
 }

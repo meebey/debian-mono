@@ -1,10 +1,12 @@
 // 
 // TaskCompletionSource.cs
 //  
-// Author:
+// Authors:
 //       Jérémie "Garuma" Laval <jeremie.laval@gmail.com>
+//       Marek Safar <marek.safar@gmail.com>
 // 
 // Copyright (c) 2009 Jérémie "Garuma" Laval
+// Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +26,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#if NET_4_0
+#if NET_4_0 || MOBILE
 using System;
 using System.Collections.Generic;
 
@@ -32,97 +34,93 @@ namespace System.Threading.Tasks
 {
 	public class TaskCompletionSource<TResult>
 	{
-		Task<TResult> source;
+		readonly Task<TResult> source;
 
 		public TaskCompletionSource ()
+			: this (null, TaskCreationOptions.None)
 		{
-			source = new Task<TResult> (null);
 		}
 		
 		public TaskCompletionSource (object state)
+			: this (state, TaskCreationOptions.None)
 		{
-			source = new Task<TResult> (null, state);
 		}
 		
-		public TaskCompletionSource (TaskCreationOptions options)
+		public TaskCompletionSource (TaskCreationOptions creationOptions)
+			: this (null, creationOptions)
 		{
-			source = new Task<TResult> (null, options);
 		}
 		
-		public TaskCompletionSource (object state, TaskCreationOptions options)
+		public TaskCompletionSource (object state, TaskCreationOptions creationOptions)
 		{
-			source = new Task<TResult> (null, state, options);
+			if ((creationOptions & System.Threading.Tasks.Task.WorkerTaskNotSupportedOptions) != 0)
+				throw new ArgumentOutOfRangeException ("creationOptions");
+
+			source = new Task<TResult> (TaskActionInvoker.Empty, state, CancellationToken.None, creationOptions, null);
+			source.SetupScheduler (TaskScheduler.Current);
 		}
 		
 		public void SetCanceled ()
 		{
-			if (!ApplyOperation (TaskStatus.Canceled, source.CancelReal))
+			if (!TrySetCanceled ())
 				ThrowInvalidException ();
 		}
 		
-		public void SetException (Exception e)
+		public void SetException (Exception exception)
 		{
-			SetException (new Exception[] { e });
+			if (exception == null)
+				throw new ArgumentNullException ("exception");
+			
+			SetException (new Exception[] { exception });
 		}
 		
-		public void SetException (IEnumerable<Exception> e)
+		public void SetException (IEnumerable<Exception> exceptions)
 		{
-			if (!ApplyOperation (TaskStatus.Faulted, () => source.Exception = new AggregateException (e)))
+			if (!TrySetException (exceptions))
 				ThrowInvalidException ();
 		}
 		
 		public void SetResult (TResult result)
 		{
-			if (!ApplyOperation (TaskStatus.RanToCompletion, () => source.Result = result))
+			if (!TrySetResult (result))
 				ThrowInvalidException ();
 		}
 				
-		void ThrowInvalidException ()
+		static void ThrowInvalidException ()
 		{
 			throw new InvalidOperationException ("The underlying Task is already in one of the three final states: RanToCompletion, Faulted, or Canceled.");
 		}
 		
 		public bool TrySetCanceled ()
 		{
-			return ApplyOperation (TaskStatus.Canceled, source.CancelReal);
+			return source.TrySetCanceled ();
 		}
 		
-		public bool TrySetException (Exception e)
+		public bool TrySetException (Exception exception)
 		{
-			return TrySetException (new Exception[] { e });
+			if (exception == null)
+				throw new ArgumentNullException ("exception");
+			
+			return TrySetException (new Exception[] { exception });
 		}
 		
-		
-		public bool TrySetException (IEnumerable<Exception> e)
+		public bool TrySetException (IEnumerable<Exception> exceptions)
 		{
-			return ApplyOperation (TaskStatus.Faulted, () => source.Exception = new AggregateException (e));
+			if (exceptions == null)
+				throw new ArgumentNullException ("exceptions");
+
+			var aggregate = new AggregateException (exceptions);
+			if (aggregate.InnerExceptions.Count == 0)
+				throw new ArgumentNullException ("exceptions");
+
+			return source.TrySetException (aggregate);
 		}
 		
 		public bool TrySetResult (TResult result)
 		{
-			return ApplyOperation (TaskStatus.RanToCompletion, () => source.Result = result);
+			return source.TrySetResult (result);
 		}
-				
-		bool ApplyOperation (TaskStatus newStatus, Action action)
-		{
-			if (CheckInvalidState ())
-				return false;
-			
-			if (action != null)
-				action ();
-			source.Status = newStatus;
-			
-			return true;
-		}
-		
-		bool CheckInvalidState ()
-		{
-			return source.Status == TaskStatus.RanToCompletion ||
-				   source.Status == TaskStatus.Faulted || 
-				   source.Status == TaskStatus.Canceled;
-					
-		}
-		
+
 		public Task<TResult> Task {
 			get {
 				return source;

@@ -1,10 +1,12 @@
 //
 // System.Net.HttpListenerRequest
 //
-// Author:
-//	Gonzalo Paniagua Javier (gonzalo@novell.com)
+// Authors:
+//	Gonzalo Paniagua Javier (gonzalo.mono@gmail.com)
+//	Marek Safar (marek.safar@gmail.com)
 //
 // Copyright (c) 2005 Novell, Inc. (http://www.novell.com)
+// Copyright (c) 2011-2012 Xamarin, Inc. (http://xamarin.com)
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,7 +28,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0 && SECURITY_DEP
+#if SECURITY_DEP
 
 using System.Collections;
 using System.Collections.Specialized;
@@ -34,12 +36,28 @@ using System.Globalization;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+#if NET_4_0
+using System.Security.Authentication.ExtendedProtection;
+#endif
+#if NET_4_5
+using System.Threading.Tasks;
+#endif
+using Mono.Security.Protocol.Tls;
+
 namespace System.Net {
 	public sealed class HttpListenerRequest
 	{
+#if NET_4_0
+		class Context : TransportContext
+		{
+			public override ChannelBinding GetChannelBinding (ChannelBindingKind kind)
+			{
+				throw new NotImplementedException ();
+			}
+		}
+#endif
+
 		string [] accept_types;
-//		int client_cert_error;
-//		bool no_get_certificate;
 		Encoding content_encoding;
 		long content_length;
 		bool cl_set;
@@ -50,21 +68,22 @@ namespace System.Net {
 		Version version;
 		NameValueCollection query_string; // check if null is ok, check if read-only, check case-sensitiveness
 		string raw_url;
-		Guid identifier;
 		Uri url;
 		Uri referrer;
 		string [] user_languages;
 		HttpListenerContext context;
 		bool is_chunked;
+		bool ka_set;
+		bool keep_alive;
+		delegate X509Certificate2 GCCDelegate ();
+		GCCDelegate gcc_delegate;
+
 		static byte [] _100continue = Encoding.ASCII.GetBytes ("HTTP/1.1 100 Continue\r\n\r\n");
-		static readonly string [] no_body_methods = new string [] {
-			"GET", "HEAD", "DELETE" };
 
 		internal HttpListenerRequest (HttpListenerContext context)
 		{
 			this.context = context;
 			headers = new WebHeaderCollection ();
-			input_stream = Stream.Null;
 			version = HttpVersion.Version10;
 		}
 
@@ -111,10 +130,12 @@ namespace System.Net {
 
 		void CreateQueryString (string query)
 		{
-			query_string = new NameValueCollection ();
-			if (query == null || query.Length == 0)
+			if (query == null || query.Length == 0) {
+				query_string = new NameValueCollection (1);
 				return;
+			}
 
+			query_string = new NameValueCollection ();
 			if (query [0] == '?')
 				query = query.Substring (1);
 			string [] components = query.Split ('&');
@@ -158,8 +179,7 @@ namespace System.Net {
 
 			string base_uri = String.Format ("{0}://{1}:{2}",
 								(IsSecureConnection) ? "https" : "http",
-								host,
-								LocalEndPoint.Port);
+								host, LocalEndPoint.Port);
 
 			if (!Uri.TryCreate (base_uri + path, UriKind.Absolute, out url)){
 				context.ErrorMessage = "Invalid url: " + base_uri + path;
@@ -168,32 +188,25 @@ namespace System.Net {
 
 			CreateQueryString (url.Query);
 
-			string t_encoding = null;
 			if (version >= HttpVersion.Version11) {
-				t_encoding = Headers ["Transfer-Encoding"];
+				string t_encoding = Headers ["Transfer-Encoding"];
+				is_chunked = (t_encoding != null && String.Compare (t_encoding, "chunked", StringComparison.OrdinalIgnoreCase) == 0);
 				// 'identity' is not valid!
-				if (t_encoding != null && t_encoding != "chunked") {
+				if (t_encoding != null && !is_chunked) {
 					context.Connection.SendError (null, 501);
 					return;
 				}
 			}
 
-			is_chunked = (t_encoding == "chunked");
-
-			foreach (string m in no_body_methods)
-				if (string.Compare (method, m, StringComparison.InvariantCultureIgnoreCase) == 0)
-					return;
-
 			if (!is_chunked && !cl_set) {
-				context.Connection.SendError (null, 411);
-				return;
+				if (String.Compare (method, "POST", StringComparison.OrdinalIgnoreCase) == 0 ||
+				    String.Compare (method, "PUT", StringComparison.OrdinalIgnoreCase) == 0) {
+					context.Connection.SendError (null, 411);
+					return;
+				}
 			}
 
-			if (is_chunked || content_length > 0) {
-				input_stream = context.Connection.GetRequestStream (is_chunked, content_length);
-			}
-
-			if (Headers ["Expect"] == "100-continue") {
+			if (String.Compare (Headers ["Expect"], "100-continue", StringComparison.OrdinalIgnoreCase) == 0) {
 				ResponseStream output = context.Connection.GetResponseStream ();
 				output.InternalWrite (_100continue, 0, _100continue.Length);
 			}
@@ -258,22 +271,22 @@ namespace System.Net {
 						if (str.Length == 0)
 							continue;
 						if (str.StartsWith ("$Version")) {
-							version = Int32.Parse (Unquote (str.Substring (str.IndexOf ("=") + 1)));
+							version = Int32.Parse (Unquote (str.Substring (str.IndexOf ('=') + 1)));
 						} else if (str.StartsWith ("$Path")) {
 							if (current != null)
-								current.Path = str.Substring (str.IndexOf ("=") + 1).Trim ();
+								current.Path = str.Substring (str.IndexOf ('=') + 1).Trim ();
 						} else if (str.StartsWith ("$Domain")) {
 							if (current != null)
-								current.Domain = str.Substring (str.IndexOf ("=") + 1).Trim ();
+								current.Domain = str.Substring (str.IndexOf ('=') + 1).Trim ();
 						} else if (str.StartsWith ("$Port")) {
 							if (current != null)
-								current.Port = str.Substring (str.IndexOf ("=") + 1).Trim ();
+								current.Port = str.Substring (str.IndexOf ('=') + 1).Trim ();
 						} else {
 							if (current != null) {
 								cookies.Add (current);
 							}
 							current = new Cookie ();
-							int idx = str.IndexOf ("=");
+							int idx = str.IndexOf ('=');
 							if (idx > 0) {
 								current.Name = str.Substring (0, idx).Trim ();
 								current.Value =  str.Substring (idx + 1).Trim ();
@@ -305,7 +318,10 @@ namespace System.Net {
 			while (true) {
 				// TODO: test if MS has a timeout when doing this
 				try {
-					if (InputStream.Read (bytes, 0, length) <= 0)
+					IAsyncResult ares = InputStream.BeginRead (bytes, 0, length, null, null);
+					if (!ares.IsCompleted && !ares.AsyncWaitHandle.WaitOne (100))
+						return false;
+					if (InputStream.EndRead (ares) <= 0)
 						return true;
 				} catch {
 					return false;
@@ -317,15 +333,14 @@ namespace System.Net {
 			get { return accept_types; }
 		}
 
-		[MonoTODO ("Always returns 0")]
 		public int ClientCertificateError {
 			get {
-/*				
-				if (no_get_certificate)
-					throw new InvalidOperationException (
-						"Call GetClientCertificate() before calling this method.");
-				return client_cert_error;
-*/
+				HttpConnection cnc = context.Connection;
+				if (cnc.ClientCertificate == null)
+					throw new InvalidOperationException ("No client certificate");
+				int [] errors = cnc.ClientCertificateErrors;
+				if (errors != null && errors.Length > 0)
+					return errors [0];
 				return 0;
 			}
 		}
@@ -368,7 +383,16 @@ namespace System.Net {
 		}
 
 		public Stream InputStream {
-			get { return input_stream; }
+			get {
+				if (input_stream == null) {
+					if (is_chunked || content_length > 0)
+						input_stream = context.Connection.GetRequestStream (is_chunked, content_length);
+					else
+						input_stream = Stream.Null;
+				}
+
+				return input_stream;
+			}
 		}
 
 		[MonoTODO ("Always returns false")]
@@ -385,7 +409,26 @@ namespace System.Net {
 		}
 
 		public bool KeepAlive {
-			get { return false; }
+			get {
+				if (ka_set)
+					return keep_alive;
+
+				ka_set = true;
+				// 1. Connection header
+				// 2. Protocol (1.1 == keep-alive by default)
+				// 3. Keep-Alive header
+				string cnc = headers ["Connection"];
+				if (!String.IsNullOrEmpty (cnc)) {
+					keep_alive = (0 == String.Compare (cnc, "keep-alive", StringComparison.OrdinalIgnoreCase));
+				} else if (version == HttpVersion.Version11) {
+					keep_alive = true;
+				} else {
+					cnc = headers ["keep-alive"];
+					if (!String.IsNullOrEmpty (cnc))
+						keep_alive = (0 != String.Compare (cnc, "closed", StringComparison.OrdinalIgnoreCase));
+				}
+				return keep_alive;
+			}
 		}
 
 		public IPEndPoint LocalEndPoint {
@@ -408,8 +451,9 @@ namespace System.Net {
 			get { return context.Connection.RemoteEndPoint; }
 		}
 
+		[MonoTODO ("Always returns Guid.Empty")]
 		public Guid RequestTraceIdentifier {
-			get { return identifier; }
+			get { return Guid.Empty; }
 		}
 
 		public Uri Url {
@@ -436,23 +480,55 @@ namespace System.Net {
 			get { return user_languages; }
 		}
 
-		public IAsyncResult BeginGetClientCertificate (AsyncCallback requestCallback, Object state)
+		public IAsyncResult BeginGetClientCertificate (AsyncCallback requestCallback, object state)
 		{
-			return null;
+			if (gcc_delegate == null)
+				gcc_delegate = new GCCDelegate (GetClientCertificate);
+			return gcc_delegate.BeginInvoke (requestCallback, state);
 		}
-#if SECURITY_DEP
+
 		public X509Certificate2 EndGetClientCertificate (IAsyncResult asyncResult)
 		{
-			return null;
-			// set no_client_certificate once done.
+			if (asyncResult == null)
+				throw new ArgumentNullException ("asyncResult");
+
+			if (gcc_delegate == null)
+				throw new InvalidOperationException ();
+
+			return gcc_delegate.EndInvoke (asyncResult);
 		}
 
 		public X509Certificate2 GetClientCertificate ()
 		{
-			// set no_client_certificate once done.
+			return context.Connection.ClientCertificate;
+		}
 
-			// InvalidOp if call in progress.
-			return null;
+#if NET_4_0
+		[MonoTODO]
+		public string ServiceName {
+			get {
+				return null;
+			}
+		}
+		
+		public TransportContext TransportContext {
+			get {
+				return new Context ();
+			}
+		}
+#endif
+		
+#if NET_4_5
+		[MonoTODO]
+		public bool IsWebSocketRequest {
+			get {
+				return false;
+			}
+		}
+
+		public Task<X509Certificate2> GetClientCertificateAsync ()
+		{
+			return Task<X509Certificate2>.Factory.FromAsync (BeginGetClientCertificate, EndGetClientCertificate, null);
 		}
 #endif
 	}

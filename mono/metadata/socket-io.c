@@ -13,6 +13,10 @@
 
 #ifndef DISABLE_SOCKETS
 
+#ifdef __APPLE__
+#define __APPLE_USE_RFC_3542
+#endif
+
 #include <glib.h>
 #include <string.h>
 #include <stdlib.h>
@@ -45,7 +49,9 @@
 #include <mono/metadata/class-internals.h>
 #include <mono/metadata/threadpool-internals.h>
 #include <mono/metadata/domain-internals.h>
+#include <mono/utils/mono-threads.h>
 
+#include <time.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -69,20 +75,20 @@
 #include <sys/un.h>
 #endif
 
+#ifdef HAVE_GETIFADDRS
+// <net/if.h> must be included before <ifaddrs.h>
+#include <ifaddrs.h>
+#endif
+
 #include "mono/io-layer/socket-wrappers.h"
 
-#ifdef HOST_WIN32
+#if defined(HOST_WIN32)
 /* This is a kludge to make this file build under cygwin:
  * w32api/ws2tcpip.h has definitions for some AF_INET6 values and
  * prototypes for some but not all required functions (notably
  * inet_ntop() is missing), but the libws2_32 library is missing the
  * actual implementations of these functions.
  */
-#undef AF_INET6
-#endif
-
-#ifdef PLATFORM_ANDROID
-// not yet actually implemented...
 #undef AF_INET6
 #endif
 
@@ -553,6 +559,7 @@ static gint32 convert_sockopt_level_and_name(MonoSocketOptionLevel mono_level,
 
 		switch(mono_name) {
 		case SocketOptionName_IpTimeToLive:
+		case SocketOptionName_HopLimit:
 			*system_name = IPV6_UNICAST_HOPS;
 			break;
 		case SocketOptionName_MulticastInterface:
@@ -659,14 +666,16 @@ static MonoImage *get_socket_assembly (void)
 {
 	static const char *version = NULL;
 	static gboolean moonlight;
-	static MonoImage *socket_assembly = NULL;
+	MonoDomain *domain = mono_domain_get ();
 	
 	if (version == NULL) {
 		version = mono_get_runtime_info ()->framework_version;
 		moonlight = !strcmp (version, "2.1");
 	}
 	
-	if (socket_assembly == NULL) {
+	if (domain->socket_assembly == NULL) {
+		MonoImage *socket_assembly;
+
 		if (moonlight) {
 			socket_assembly = mono_image_loaded ("System.Net");
 			if (!socket_assembly) {
@@ -690,9 +699,11 @@ static MonoImage *get_socket_assembly (void)
 				}
 			}
 		}
+
+		domain->socket_assembly = socket_assembly;
 	}
 	
-	return(socket_assembly);
+	return domain->socket_assembly;
 }
 
 #ifdef AF_INET6
@@ -897,22 +908,47 @@ void ves_icall_System_Net_Sockets_Socket_Listen_internal(SOCKET sock,
 	}
 }
 
+#ifdef AF_INET6
+// Check whether it's ::ffff::0:0.
+static gboolean
+is_ipv4_mapped_any (const struct in6_addr *addr)
+{
+	int i;
+	
+	for (i = 0; i < 10; i++) {
+		if (addr->s6_addr [i])
+			return FALSE;
+	}
+	if ((addr->s6_addr [10] != 0xff) || (addr->s6_addr [11] != 0xff))
+		return FALSE;
+	for (i = 12; i < 16; i++) {
+		if (addr->s6_addr [i])
+			return FALSE;
+	}
+	return TRUE;
+}
+#endif
+
 static MonoObject *create_object_from_sockaddr(struct sockaddr *saddr,
 					       int sa_size, gint32 *error)
 {
 	MonoDomain *domain = mono_domain_get ();
 	MonoObject *sockaddr_obj;
-	MonoClass *sockaddr_class;
-	MonoClassField *field;
 	MonoArray *data;
 	MonoAddressFamily family;
 
 	/* Build a System.Net.SocketAddress object instance */
-	sockaddr_class=mono_class_from_name_cached (get_socket_assembly (), "System.Net", "SocketAddress");
-	sockaddr_obj=mono_object_new(domain, sockaddr_class);
+	if (!domain->sockaddr_class) {
+		domain->sockaddr_class=mono_class_from_name (get_socket_assembly (), "System.Net", "SocketAddress");
+		g_assert (domain->sockaddr_class);
+	}
+	sockaddr_obj=mono_object_new(domain, domain->sockaddr_class);
 	
 	/* Locate the SocketAddress data buffer in the object */
-	field=mono_class_get_field_from_name_cached (sockaddr_class, "data");
+	if (!domain->sockaddr_data_field) {
+		domain->sockaddr_data_field=mono_class_get_field_from_name (domain->sockaddr_class, "data");
+		g_assert (domain->sockaddr_data_field);
+	}
 
 	/* Make sure there is space for the family and size bytes */
 #ifdef HAVE_SYS_UN_H
@@ -960,7 +996,7 @@ static MonoObject *create_object_from_sockaddr(struct sockaddr *saddr,
 		mono_array_set(data, guint8, 6, (address>>8) & 0xff);
 		mono_array_set(data, guint8, 7, (address) & 0xff);
 	
-		mono_field_set_value (sockaddr_obj, field, data);
+		mono_field_set_value (sockaddr_obj, domain->sockaddr_data_field, data);
 
 		return(sockaddr_obj);
 #ifdef AF_INET6
@@ -976,10 +1012,17 @@ static MonoObject *create_object_from_sockaddr(struct sockaddr *saddr,
 
 		mono_array_set(data, guint8, 2, (port>>8) & 0xff);
 		mono_array_set(data, guint8, 3, (port) & 0xff);
-
-		for(i=0; i<16; i++) {
-			mono_array_set(data, guint8, 8+i,
-				       sa_in->sin6_addr.s6_addr[i]);
+		
+		if (is_ipv4_mapped_any (&sa_in->sin6_addr)) {
+			// Map ::ffff:0:0 to :: (bug #5502)
+			for(i=0; i<16; i++) {
+				mono_array_set(data, guint8, 8+i, 0);
+			}
+		} else {
+			for(i=0; i<16; i++) {
+				mono_array_set(data, guint8, 8+i,
+					       sa_in->sin6_addr.s6_addr[i]);
+			}
 		}
 
 		mono_array_set(data, guint8, 24, sa_in->sin6_scope_id & 0xff);
@@ -990,7 +1033,7 @@ static MonoObject *create_object_from_sockaddr(struct sockaddr *saddr,
 		mono_array_set(data, guint8, 27,
 			       (sa_in->sin6_scope_id >> 24) & 0xff);
 
-		mono_field_set_value (sockaddr_obj, field, data);
+		mono_field_set_value (sockaddr_obj, domain->sockaddr_data_field, data);
 
 		return(sockaddr_obj);
 #endif
@@ -1002,7 +1045,7 @@ static MonoObject *create_object_from_sockaddr(struct sockaddr *saddr,
 			mono_array_set (data, guint8, i+2, saddr->sa_data[i]);
 		}
 		
-		mono_field_set_value (sockaddr_obj, field, data);
+		mono_field_set_value (sockaddr_obj, domain->sockaddr_data_field, data);
 
 		return sockaddr_obj;
 #endif
@@ -1012,52 +1055,92 @@ static MonoObject *create_object_from_sockaddr(struct sockaddr *saddr,
 	}
 }
 
-extern MonoObject *ves_icall_System_Net_Sockets_Socket_LocalEndPoint_internal(SOCKET sock, gint32 *error)
+static int
+get_sockaddr_size (int family)
 {
-	gchar sa[32];	/* sockaddr in not big enough for sockaddr_in6 */
+	int size;
+
+	size = 0;
+	if (family == AF_INET) {
+		size = sizeof (struct sockaddr_in);
+#ifdef AF_INET6
+	} else if (family == AF_INET6) {
+		size = sizeof (struct sockaddr_in6);
+#endif
+#ifdef HAVE_SYS_UN_H
+	} else if (family == AF_UNIX) {
+		size = sizeof (struct sockaddr_un);
+#endif
+	}
+	return size;
+}
+
+extern MonoObject *ves_icall_System_Net_Sockets_Socket_LocalEndPoint_internal(SOCKET sock, gint32 af, gint32 *error)
+{
+	gchar *sa;
 	socklen_t salen;
 	int ret;
+	MonoObject *result;
 	
 	MONO_ARCH_SAVE_REGS;
 
 	*error = 0;
 	
-	salen=sizeof(sa);
+	salen = get_sockaddr_size (convert_family (af));
+	if (salen == 0) {
+		*error = WSAEAFNOSUPPORT;
+		return NULL;
+	}
+	sa = (salen <= 128) ? alloca (salen) : g_malloc0 (salen);
 	ret = _wapi_getsockname (sock, (struct sockaddr *)sa, &salen);
 	
 	if(ret==SOCKET_ERROR) {
 		*error = WSAGetLastError ();
+		if (salen > 128)
+			g_free (sa);
 		return(NULL);
 	}
 	
 	LOGDEBUG (g_message("%s: bound to %s port %d", __func__, inet_ntoa(((struct sockaddr_in *)&sa)->sin_addr), ntohs(((struct sockaddr_in *)&sa)->sin_port)));
 
-	return(create_object_from_sockaddr((struct sockaddr *)sa, salen,
-					   error));
+	result = create_object_from_sockaddr((struct sockaddr *)sa, salen, error);
+	if (salen > 128)
+		g_free (sa);
+	return result;
 }
 
-extern MonoObject *ves_icall_System_Net_Sockets_Socket_RemoteEndPoint_internal(SOCKET sock, gint32 *error)
+extern MonoObject *ves_icall_System_Net_Sockets_Socket_RemoteEndPoint_internal(SOCKET sock, gint32 af, gint32 *error)
 {
-	gchar sa[32];	/* sockaddr in not big enough for sockaddr_in6 */
+	gchar *sa;
 	socklen_t salen;
 	int ret;
+	MonoObject *result;
 	
 	MONO_ARCH_SAVE_REGS;
 
 	*error = 0;
 	
-	salen=sizeof(sa);
+	salen = get_sockaddr_size (convert_family (af));
+	if (salen == 0) {
+		*error = WSAEAFNOSUPPORT;
+		return NULL;
+	}
+	sa = (salen <= 128) ? alloca (salen) : g_malloc0 (salen);
+	/* Note: linux returns just 2 for AF_UNIX. Always. */
 	ret = _wapi_getpeername (sock, (struct sockaddr *)sa, &salen);
-	
 	if(ret==SOCKET_ERROR) {
 		*error = WSAGetLastError ();
+		if (salen > 128)
+			g_free (sa);
 		return(NULL);
 	}
 	
 	LOGDEBUG (g_message("%s: connected to %s port %d", __func__, inet_ntoa(((struct sockaddr_in *)&sa)->sin_addr), ntohs(((struct sockaddr_in *)&sa)->sin_port)));
 
-	return(create_object_from_sockaddr((struct sockaddr *)sa, salen,
-					   error));
+	result = create_object_from_sockaddr((struct sockaddr *)sa, salen, error);
+	if (salen > 128)
+		g_free (sa);
+	return result;
 }
 
 static struct sockaddr *create_sockaddr_from_object(MonoObject *saddr_obj,
@@ -1790,8 +1873,18 @@ void ves_icall_System_Net_Sockets_Socket_GetSocketOption_obj_internal(SOCKET soc
 
 	*error = 0;
 	
-	ret=convert_sockopt_level_and_name(level, name, &system_level,
-					   &system_name);
+#if !defined(SO_EXCLUSIVEADDRUSE) && defined(SO_REUSEADDR)
+	if (level == SocketOptionLevel_Socket && name == SocketOptionName_ExclusiveAddressUse) {
+		system_level = SOL_SOCKET;
+		system_name = SO_REUSEADDR;
+		ret = 0;
+	} else
+#endif
+	{
+
+		ret = convert_sockopt_level_and_name (level, name, &system_level, &system_name);
+	}
+
 	if(ret==-1) {
 		*error = WSAENOPROTOOPT;
 		return;
@@ -1898,9 +1991,12 @@ void ves_icall_System_Net_Sockets_Socket_GetSocketOption_obj_internal(SOCKET soc
 #endif
 
 	default:
+#if !defined(SO_EXCLUSIVEADDRUSE) && defined(SO_REUSEADDR)
+		if (level == SocketOptionLevel_Socket && name == SocketOptionName_ExclusiveAddressUse)
+			val = val ? 0 : 1;
+#endif
 		obj = int_to_object (domain, val);
 	}
-
 	*obj_val=obj;
 }
 
@@ -1966,8 +2062,8 @@ static struct in6_addr ipaddress_to_struct_in6_addr(MonoObject *ipaddr)
 #ifndef s6_addr16
 	for(i=0; i<8; i++) {
 		guint16 s = mono_array_get (data, guint16, i);
-		in6addr.s6_addr[2 * i] = (s >> 8) & 0xff;
-		in6addr.s6_addr[2 * i + 1] = s & 0xff;
+		in6addr.s6_addr[2 * i + 1] = (s >> 8) & 0xff;
+		in6addr.s6_addr[2 * i] = s & 0xff;
 	}
 #else
 	for(i=0; i<8; i++)
@@ -1976,6 +2072,42 @@ static struct in6_addr ipaddress_to_struct_in6_addr(MonoObject *ipaddr)
 	return(in6addr);
 }
 #endif /* AF_INET6 */
+#endif
+
+#if defined(HAVE_GETIFADDRS) && defined(HAVE_IF_NAMETOINDEX)
+static int
+get_local_interface_id (int family)
+{
+	struct ifaddrs *ifap = NULL, *ptr;
+	int idx = 0;
+	
+	if (getifaddrs (&ifap)) {
+		return 0;
+	}
+	
+	for (ptr = ifap; ptr; ptr = ptr->ifa_next) {
+		if (!ptr->ifa_addr || !ptr->ifa_name)
+			continue;
+		if (ptr->ifa_addr->sa_family != family)
+			continue;
+		if ((ptr->ifa_flags & IFF_LOOPBACK) != 0)
+			continue;
+		if ((ptr->ifa_flags & IFF_MULTICAST) == 0)
+			continue;
+			
+		idx = if_nametoindex (ptr->ifa_name);
+		break;
+	}
+	
+	freeifaddrs (ifap);
+	return idx;
+}
+#else
+static int
+get_local_interface_id (int family)
+{
+	return 0;
+}
 #endif
 
 void ves_icall_System_Net_Sockets_Socket_SetSocketOption_internal(SOCKET sock, gint32 level, gint32 name, MonoObject *obj_val, MonoArray *byte_val, gint32 int_val, gint32 *error)
@@ -2015,6 +2147,15 @@ void ves_icall_System_Net_Sockets_Socket_SetSocketOption_internal(SOCKET sock, g
 
 	ret=convert_sockopt_level_and_name(level, name, &system_level,
 					   &system_name);
+
+#if !defined(SO_EXCLUSIVEADDRUSE) && defined(SO_REUSEADDR)
+	if (level == SocketOptionLevel_Socket && name == SocketOptionName_ExclusiveAddressUse) {
+		system_name = SO_REUSEADDR;
+		int_val = int_val ? 0 : 1;
+		ret = 0;
+	}
+#endif
+
 	if(ret==-1) {
 		*error = WSAENOPROTOOPT;
 		return;
@@ -2064,7 +2205,22 @@ void ves_icall_System_Net_Sockets_Socket_SetSocketOption_internal(SOCKET sock, g
 
 				field=mono_class_get_field_from_name(obj_val->vtable->klass, "ifIndex");
 				mreq6.ipv6mr_interface =*(guint64 *)(((char *)obj_val)+field->offset);
-
+				
+#if defined(__APPLE__)
+				/*
+				* Bug #5504:
+				*
+				* Mac OS Lion doesn't allow ipv6mr_interface = 0.
+				*
+				* Tests on Windows and Linux show that the multicast group is only
+				* joined on one NIC when interface = 0, so we simply use the interface
+				* id from the first non-loopback interface (this is also what
+				* Dns.GetHostName (string.Empty) would return).
+				*/
+				if (!mreq6.ipv6mr_interface)
+					mreq6.ipv6mr_interface = get_local_interface_id (AF_INET6);
+#endif
+					
 				ret = _wapi_setsockopt (sock, system_level,
 							system_name, &mreq6,
 							sizeof (mreq6));
@@ -2319,6 +2475,76 @@ get_local_ips (int family, int *nips)
 	}
 
 	g_free (ifc.ifc_buf);
+	return result;
+}
+#elif defined(HAVE_GETIFADDRS)
+static gboolean
+is_loopback (int family, void *ad)
+{
+	char *ptr = (char *) ad;
+
+	if (family == AF_INET) {
+		return (ptr [0] == 127);
+	}
+#ifdef AF_INET6
+	else {
+		return (IN6_IS_ADDR_LOOPBACK ((struct in6_addr *) ptr));
+	}
+#endif
+	return FALSE;
+}
+
+static void *
+get_local_ips (int family, int *nips)
+{
+	struct ifaddrs *ifap = NULL, *ptr;
+	int addr_size, offset, count, i;
+	char *result, *tmp_ptr;
+
+	*nips = 0;
+	if (family == AF_INET) {
+		addr_size = sizeof (struct in_addr);
+		offset = G_STRUCT_OFFSET (struct sockaddr_in, sin_addr);
+#ifdef AF_INET6
+	} else if (family == AF_INET6) {
+		addr_size = sizeof (struct in6_addr);
+		offset = G_STRUCT_OFFSET (struct sockaddr_in6, sin6_addr);
+#endif
+	} else {
+		return NULL;
+	}
+	
+	if (getifaddrs (&ifap)) {
+		return NULL;
+	}
+	
+	count = 0;
+	for (ptr = ifap; ptr; ptr = ptr->ifa_next) {
+		if (!ptr->ifa_addr)
+			continue;
+		if (ptr->ifa_addr->sa_family != family)
+			continue;
+		if (is_loopback (family, ((char *) ptr->ifa_addr) + offset))
+			continue;
+		count++;
+	}
+		
+	result = g_malloc (addr_size * count);
+	tmp_ptr = result;
+	for (i = 0, ptr = ifap; ptr; ptr = ptr->ifa_next) {
+		if (!ptr->ifa_addr)
+			continue;
+		if (ptr->ifa_addr->sa_family != family)
+			continue;
+		if (is_loopback (family, ((char *) ptr->ifa_addr) + offset))
+			continue;
+			
+		memcpy (tmp_ptr, ((char *) ptr->ifa_addr) + offset, addr_size);
+		tmp_ptr += addr_size;
+	}
+	
+	freeifaddrs (ifap);
+	*nips = count;
 	return result;
 }
 #else
@@ -2739,6 +2965,7 @@ addrinfo_to_IPHostEntry(struct addrinfo *info, MonoString **h_name,
 		mono_array_setref (*h_addr_list, addr_index, addr_string);
 
 		if(!i) {
+			i++;
 			if (ai->ai_canonname != NULL) {
 				*h_name=mono_string_new(domain, ai->ai_canonname);
 			} else {
@@ -2771,19 +2998,23 @@ MonoBoolean ves_icall_System_Net_Dns_GetHostByName_internal(MonoString *host, Mo
 	MONO_ARCH_SAVE_REGS;
 	
 	hostname=mono_string_to_utf8 (host);
-	if (*hostname == '\0')
+	if (*hostname == '\0') {
 		add_local_ips = TRUE;
+		*h_name = host;
+	}
 #ifdef HAVE_SIOCGIFCONF
 	if (!add_local_ips && gethostname (this_hostname, sizeof (this_hostname)) != -1) {
-		if (!strcmp (hostname, this_hostname))
+		if (!strcmp (hostname, this_hostname)) {
 			add_local_ips = TRUE;
+			*h_name = host;
+		}
 	}
 #endif
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = get_family_hint ();
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
+	hints.ai_flags = AI_CANONNAME;
 
 	if (*hostname && getaddrinfo(hostname, NULL, &hints, &info) == -1) {
 		return(FALSE);
@@ -3081,5 +3312,19 @@ void mono_network_cleanup(void)
 	WSACleanup();
 }
 
+void
+icall_cancel_blocking_socket_operation (MonoThread *thread)
+{
+	MonoInternalThread *internal = thread->internal_thread;
+	
+	if (mono_thread_info_new_interrupt_enabled ()) {
+		mono_thread_info_abort_socket_syscall_for_close ((MonoNativeThreadId)(gsize)internal->tid);
+	} else {
+#ifndef HOST_WIN32
+		internal->ignore_next_signal = TRUE;
+		mono_thread_kill (internal, mono_thread_get_abort_signal ());		
+#endif
+	}
+}
 
 #endif /* #ifndef DISABLE_SOCKETS */

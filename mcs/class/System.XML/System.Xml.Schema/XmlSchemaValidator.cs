@@ -2,9 +2,10 @@
 // XmlSchemaValidator.cs
 //
 // Author:
-//	Atsushi Enomoto  <atsushi@ximian.com>
+//	Atsushi Enomoto  <atsushi@xamarin.com>
 //
 // (C)2004 Novell Inc,
+// Copyright (C) 2012 Xamarin Inc.
 //
 
 //
@@ -95,13 +96,13 @@ namespace System.Xml.Schema
 		public XmlSchemaValidator (
 			XmlNameTable nameTable,
 			XmlSchemaSet schemas,
-			IXmlNamespaceResolver nsResolver,
-			ValidationFlags options)
+			IXmlNamespaceResolver namespaceResolver,
+			ValidationFlags validationFlags)
 		{
 			this.nameTable = nameTable;
 			this.schemas = schemas;
-			this.nsResolver = nsResolver;
-			this.options = options;
+			this.nsResolver = namespaceResolver;
+			this.options = validationFlags;
 		}
 
 		#region Fields
@@ -128,6 +129,7 @@ namespace System.Xml.Schema
 		ValidationFlags options;
 
 		// Validation state
+		bool initial = true;
 		Transition transition;
 		XsdParticleStateManager state;
 
@@ -260,19 +262,19 @@ namespace System.Xml.Schema
 				typeof (XmlSchemaParticle));
 		}
 
-		public void GetUnspecifiedDefaultAttributes (ArrayList defaultAttributeList)
+		public void GetUnspecifiedDefaultAttributes (ArrayList defaultAttributes)
 		{
-			if (defaultAttributeList == null)
-				throw new ArgumentNullException ("defaultAttributeList");
+			if (defaultAttributes == null)
+				throw new ArgumentNullException ("defaultAttributes");
 
 			if (transition != Transition.StartTag)
 				throw new InvalidOperationException ("Method 'GetUnsoecifiedDefaultAttributes' works only when the validator state is inside a start tag.");
 			foreach (XmlSchemaAttribute attr
 				in GetExpectedAttributes ())
 				if (attr.ValidatedDefaultValue != null || attr.ValidatedFixedValue != null)
-					defaultAttributeList.Add (attr);
+					defaultAttributes.Add (attr);
 
-			defaultAttributeList.AddRange (defaultAttributes);
+			defaultAttributes.AddRange (defaultAttributes);
 		}
 
 		// State Controller
@@ -322,7 +324,7 @@ namespace System.Xml.Schema
 
 		// I guess it is for validation error recovery
 		[MonoTODO] // FIXME: Find out how XmlSchemaInfo is used.
-		public void SkipToEndElement (XmlSchemaInfo info)
+		public void SkipToEndElement (XmlSchemaInfo schemaInfo)
 		{
 			CheckState (Transition.Content);
 			if (schemas.Count == 0)
@@ -332,13 +334,13 @@ namespace System.Xml.Schema
 
 		public object ValidateAttribute (
 			string localName,
-			string ns,
+			string namespaceUri,
 			string attributeValue,
-			XmlSchemaInfo info)
+			XmlSchemaInfo schemaInfo)
 		{
 			if (attributeValue == null)
 				throw new ArgumentNullException ("attributeValue");
-			return ValidateAttribute (localName, ns, delegate () { return attributeValue; }, info);
+			return ValidateAttribute (localName, namespaceUri, delegate () { return attributeValue; }, schemaInfo);
 		}
 
 		// I guess this weird XmlValueGetter is for such case that
@@ -349,75 +351,93 @@ namespace System.Xml.Schema
 		// AttDeriv
 		public object ValidateAttribute (
 			string localName,
-			string ns,
+			string namespaceUri,
 			XmlValueGetter attributeValue,
-			XmlSchemaInfo info)
+			XmlSchemaInfo schemaInfo)
 		{
 			if (localName == null)
 				throw new ArgumentNullException ("localName");
-			if (ns == null)
-				throw new ArgumentNullException ("ns");
+			if (namespaceUri == null)
+				throw new ArgumentNullException ("namespaceUri");
 			if (attributeValue == null)
 				throw new ArgumentNullException ("attributeValue");
 
-			CheckState (Transition.StartTag);
+			SetCurrentInfo (schemaInfo);
+			try {
 
-			QName qname = new QName (localName, ns);
+			bool wasInitial = initial;
+			if (initial)
+				initial = false;
+			else
+				CheckState (Transition.StartTag);
+
+			QName qname = new QName (localName, namespaceUri);
 			if (occuredAtts.Contains (qname))
 				throw new InvalidOperationException (String.Format ("Attribute '{0}' has already been validated in the same element.", qname));
 			occuredAtts.Add (qname);
 
-			if (ns == XmlNamespaceManager.XmlnsXmlns)
+			if (namespaceUri == XmlNamespaceManager.XmlnsXmlns)
 				return null;
 
 			if (schemas.Count == 0)
 				return null;
 
+			if (wasInitial) {
+				var xa = startType as XmlSchemaAttribute;
+				if (xa == null)
+					return null;
+				return AssessAttributeLocallyValid (xa, schemaInfo, attributeValue);
+			}
+
 			if (Context.Element != null && Context.XsiType == null) {
 
 				// 3.3.4 Element Locally Valid (Type) - attribute
 				if (Context.ActualType is ComplexType)
-					return AssessAttributeElementLocallyValidType (localName, ns, attributeValue, info);
+					return AssessAttributeElementLocallyValidType (localName, namespaceUri, attributeValue, schemaInfo);
 				else
 					HandleError ("Current simple type cannot accept attributes other than schema instance namespace.");
 			}
 			return null;
+			
+			} finally {
+				current_info = null;
+			}
 		}
 
 		// StartTagOpenDeriv
 		public void ValidateElement (
 			string localName,
-			string ns,
-			XmlSchemaInfo info)
+			string namespaceUri,
+			XmlSchemaInfo schemaInfo)
 		{
-			ValidateElement (localName, ns, info, null, null, null, null);
+			ValidateElement (localName, namespaceUri, schemaInfo, null, null, null, null);
 		}
 
 		public void ValidateElement (
 			string localName,
-			string ns,
-			XmlSchemaInfo info,
+			string namespaceUri,
+			XmlSchemaInfo schemaInfo,
 			string xsiType,
 			string xsiNil,
-			string schemaLocation,
-			string noNsSchemaLocation)
+			string xsiSchemaLocation,
+			string xsiNoNamespaceSchemaLocation)
 		{
 			if (localName == null)
 				throw new ArgumentNullException ("localName");
-			if (ns == null)
-				throw new ArgumentNullException ("ns");
-			SetCurrentInfo (info);
+			if (namespaceUri == null)
+				throw new ArgumentNullException ("namespaceUri");
+			SetCurrentInfo (schemaInfo);
 			try {
 
 			CheckState (Transition.Content);
 			transition = Transition.StartTag;
 
-			if (schemaLocation != null)
-				HandleSchemaLocation (schemaLocation);
-			if (noNsSchemaLocation != null)
-				HandleNoNSSchemaLocation (noNsSchemaLocation);
+			if (xsiSchemaLocation != null)
+				HandleSchemaLocation (xsiSchemaLocation);
+			if (xsiNoNamespaceSchemaLocation != null)
+				HandleNoNSSchemaLocation (xsiNoNamespaceSchemaLocation);
 
-			elementQNameStack.Add (new XmlQualifiedName (localName, ns));
+			elementQNameStack.Add (new XmlQualifiedName (localName, namespaceUri));
 
 			if (schemas.Count == 0)
 				return;
@@ -431,26 +451,26 @@ namespace System.Xml.Schema
 			// If there is no schema information, then no validation is performed.
 			if (skipValidationDepth < 0 || depth <= skipValidationDepth) {
 				if (shouldValidateCharacters)
-					ValidateEndSimpleContent (null);
+					ValidateEndSimpleContent (null, null);
 
-				AssessOpenStartElementSchemaValidity (localName, ns);
+				AssessOpenStartElementSchemaValidity (localName, namespaceUri);
 			}
 
 			if (xsiNil != null)
-				HandleXsiNil (xsiNil, info);
+				HandleXsiNil (xsiNil, schemaInfo);
 			if (xsiType != null)
 				HandleXsiType (xsiType);
 
 			if (xsiNilDepth < depth)
 				shouldValidateCharacters = true;
 
-			if (info != null) {
-				info.IsNil = xsiNilDepth >= 0;
-				info.SchemaElement = Context.Element;
-				info.SchemaType = Context.ActualSchemaType;
-				info.SchemaAttribute = null;
-				info.IsDefault = false;
-				info.MemberType = null;
+			if (schemaInfo != null) {
+				schemaInfo.IsNil = xsiNilDepth >= 0;
+				schemaInfo.SchemaElement = Context.Element;
+				schemaInfo.SchemaType = Context.ActualSchemaType;
+				schemaInfo.SchemaAttribute = null;
+				schemaInfo.IsDefault = false;
+				schemaInfo.MemberType = null;
 				// FIXME: supply Validity (really useful?)
 			}
 
@@ -459,9 +479,9 @@ namespace System.Xml.Schema
 			}
 		}
 
-		public object ValidateEndElement (XmlSchemaInfo info)
+		public object ValidateEndElement (XmlSchemaInfo schemaInfo)
 		{
-			return ValidateEndElement (info, null);
+			return ValidateEndElement (schemaInfo, null);
 		}
 
 		// The return value is typed primitive, if supplied.
@@ -469,18 +489,17 @@ namespace System.Xml.Schema
 		// represented by current simple content type. (try passing
 		// some kind of object to this method to check the behavior.)
 		// EndTagDeriv
-		[MonoTODO] // FIXME: Handle 'var' parameter.
-		public object ValidateEndElement (XmlSchemaInfo info,
-			object var)
+		public object ValidateEndElement (XmlSchemaInfo schemaInfo,
+			object typedValue)
 		{
-			SetCurrentInfo (info);
+			SetCurrentInfo (schemaInfo);
 			try {
 
 			// If it is going to validate an empty element, then
 			// first validate end of attributes.
 			if (transition == Transition.StartTag) {
 				current_info = null;
-				ValidateEndOfAttributes (info);
+				ValidateEndOfAttributes (schemaInfo);
 			}
 
 			CheckState (Transition.Content);
@@ -498,7 +517,7 @@ namespace System.Xml.Schema
 			if (depth == skipValidationDepth)
 				skipValidationDepth = -1;
 			else if (skipValidationDepth < 0 || depth <= skipValidationDepth)
-				ret = AssessEndElementSchemaValidity (info);
+				ret = AssessEndElementSchemaValidity (schemaInfo, typedValue);
 			return ret;
 
 			} finally {
@@ -508,10 +527,10 @@ namespace System.Xml.Schema
 
 		// StartTagCloseDeriv
 		// FIXME: fill validity inside this invocation.
-		public void ValidateEndOfAttributes (XmlSchemaInfo info)
+		public void ValidateEndOfAttributes (XmlSchemaInfo schemaInfo)
 		{
 			try {
-				SetCurrentInfo (info);
+				SetCurrentInfo (schemaInfo);
 
 				CheckState (Transition.StartTag);
 				transition = Transition.Content;
@@ -519,7 +538,7 @@ namespace System.Xml.Schema
 					return;
 
 				if (skipValidationDepth < 0 || depth <= skipValidationDepth)
-					AssessCloseStartElementSchemaValidity (info);
+					AssessCloseStartElementSchemaValidity (schemaInfo);
 				depth++;
 			} finally {
 				current_info = null;
@@ -530,19 +549,19 @@ namespace System.Xml.Schema
 		// LAMESPEC: It should also receive XmlSchemaInfo so that
 		// a validator application can receive simple type or
 		// or content type validation errors.
-		public void ValidateText (string value)
+		public void ValidateText (string elementValue)
 		{
-			if (value == null)
-				throw new ArgumentNullException ("value");
-			ValidateText (delegate () { return value; });
+			if (elementValue == null)
+				throw new ArgumentNullException ("elementValue");
+			ValidateText (delegate () { return elementValue; });
 		}
 
 		// TextDeriv ... without text. Maybe typed check is done by
 		// ValidateAtomicValue().
-		public void ValidateText (XmlValueGetter getter)
+		public void ValidateText (XmlValueGetter elementValue)
 		{
-			if (getter == null)
-				throw new ArgumentNullException ("getter");
+			if (elementValue == null)
+				throw new ArgumentNullException ("elementValue");
 
 			CheckState (Transition.Content);
 			if (schemas.Count == 0)
@@ -565,20 +584,20 @@ namespace System.Xml.Schema
 				}
 			}
 
-			ValidateCharacters (getter);
+			ValidateCharacters (elementValue);
 		}
 
-		public void ValidateWhitespace (string value)
+		public void ValidateWhitespace (string elementValue)
 		{
-			if (value == null)
-				throw new ArgumentNullException ("value");
-			ValidateWhitespace (delegate () { return value; });
+			if (elementValue == null)
+				throw new ArgumentNullException ("elementValue");
+			ValidateWhitespace (delegate () { return elementValue; });
 		}
 
 		// TextDeriv. It should do the same as ValidateText() in our actual implementation (whitespaces are conditioned).
-		public void ValidateWhitespace (XmlValueGetter getter)
+		public void ValidateWhitespace (XmlValueGetter elementValue)
 		{
-			ValidateText (getter);
+			ValidateText (elementValue);
 		}
 
 		#endregion
@@ -648,6 +667,7 @@ namespace System.Xml.Schema
 
 		private void CheckState (Transition expected)
 		{
+			initial = false;
 			if (transition != expected) {
 				if (transition == Transition.None)
 					throw new InvalidOperationException ("Initialize() must be called before processing validation.");
@@ -866,6 +886,11 @@ namespace System.Xml.Schema
 		// 3.2.4 Attribute Locally Valid and 3.4.4
 		private object AssessAttributeLocallyValid (XsAttribute attr, XmlSchemaInfo info, XmlValueGetter getter)
 		{
+			if (info != null) {
+				info.SchemaAttribute = attr;
+				info.SchemaType = attr.AttributeSchemaType;
+			}
+
 			// 2. - 4.
 			if (attr.AttributeType == null)
 				HandleError ("Attribute type is missing for " + attr.QualifiedName);
@@ -885,9 +910,17 @@ namespace System.Xml.Schema
 				}
 
 				// check part of 3.14.4 StringValid
-				SimpleType st = attr.AttributeType as SimpleType;
-				if (st != null)
-					ValidateRestrictedSimpleTypeValue (st, ref dt, new XmlAtomicValue (parsedValue, attr.AttributeSchemaType).Value);
+				SimpleType st = attr.AttributeSchemaType;
+				if (st != null) {
+					string xav = null;
+					try {
+						xav = new XmlAtomicValue (parsedValue, attr.AttributeSchemaType).Value;
+					} catch (Exception ex) {
+						HandleError (String.Format ("Failed to convert attribute value to type {0}", st.QualifiedName), ex);
+					}
+					if (xav != null)
+						ValidateRestrictedSimpleTypeValue (st, ref dt, xav);
+				}
 
 				if (attr.ValidatedFixedValue != null) {
 					if (!XmlSchemaUtil.AreSchemaDatatypeEqual (attr.AttributeSchemaType, attr.ValidatedFixedTypedValue, attr.AttributeSchemaType, parsedValue))
@@ -920,9 +953,9 @@ namespace System.Xml.Schema
 		}
 
 		private object AssessEndElementSchemaValidity (
-			XmlSchemaInfo info)
+			XmlSchemaInfo info, object var)
 		{
-			object ret = ValidateEndSimpleContent (info);
+			object ret = ValidateEndSimpleContent (info, var);
 
 			ValidateEndElementParticle ();	// validate against childrens' state.
 
@@ -967,23 +1000,59 @@ namespace System.Xml.Schema
 
 
 		// Utility for missing validation completion related to child items.
-		private object ValidateEndSimpleContent (XmlSchemaInfo info)
+		private object ValidateEndSimpleContent (XmlSchemaInfo info, object var)
 		{
 			object ret = null;
 			if (shouldValidateCharacters)
-				ret = ValidateEndSimpleContentCore (info);
+				ret = ValidateEndSimpleContentCore (info, var);
 			shouldValidateCharacters = false;
 			storedCharacters.Length = 0;
 			return ret;
 		}
 
-		private object ValidateEndSimpleContentCore (XmlSchemaInfo info)
+		private object ValidateEndSimpleContentCore (XmlSchemaInfo info, object var)
 		{
 			if (Context.ActualType == null)
 				return null;
 
-			string value = storedCharacters.ToString ();
+			XsDatatype dt = Context.ActualType as XsDatatype;
+			SimpleType st = Context.ActualType as SimpleType;
+
+			XmlSchemaContentType contentType = XmlSchemaContentType.TextOnly;
+
+			if (dt == null) {
+				if (st != null) {
+					dt = st.Datatype;
+				} else {
+					ComplexType ct = Context.ActualType as ComplexType;
+					var ctsm = ct.ContentModel as XmlSchemaSimpleContent;
+					if (ctsm != null) {
+						var scr = ctsm.Content as XmlSchemaSimpleContentRestriction;
+						if (scr != null)
+							st = FindSimpleBaseType (scr.BaseType ?? FindType (scr.BaseTypeName));
+						var sce = ctsm.Content as XmlSchemaSimpleContentExtension;
+						if (sce != null)
+							st = FindSimpleBaseType (FindType (sce.BaseTypeName));
+					}
+
+					dt = ct.Datatype;
+					contentType = ct.ContentType;
+				}
+			}
+
+			string value = var != null ? dt.ValueConverter.ToString (var) : storedCharacters.ToString ();
 			object ret = null;
+
+			switch (contentType) {
+			case XmlSchemaContentType.ElementOnly:
+				if (value.Length > 0 && !XmlChar.IsWhitespace (value))
+					HandleError ("Character content not allowed in an elementOnly model.");
+				break;
+			case XmlSchemaContentType.Empty:
+				if (value.Length > 0)
+					HandleError ("Character content not allowed in an empty model.");
+				break;
+			}
 
 			if (value.Length == 0) {
 				// 3.3.4 Element Locally Valid (Element) 5.1.2
@@ -993,26 +1062,6 @@ namespace System.Xml.Schema
 				}					
 			}
 
-			XsDatatype dt = Context.ActualType as XsDatatype;
-			SimpleType st = Context.ActualType as SimpleType;
-			if (dt == null) {
-				if (st != null) {
-					dt = st.Datatype;
-				} else {
-					ComplexType ct = Context.ActualType as ComplexType;
-					dt = ct.Datatype;
-					switch (ct.ContentType) {
-					case XmlSchemaContentType.ElementOnly:
-						if (value.Length > 0 && !XmlChar.IsWhitespace (value))
-							HandleError ("Character content not allowed in an elementOnly model.");
-						break;
-					case XmlSchemaContentType.Empty:
-						if (value.Length > 0)
-							HandleError ("Character content not allowed in an empty model.");
-						break;
-					}
-				}
-			}
 			if (dt != null) {
 				// 3.3.4 Element Locally Valid (Element) :: 5.2.2.2. Fixed value constraints
 				if (Context.Element != null && Context.Element.ValidatedFixedValue != null)
@@ -1041,6 +1090,16 @@ namespace System.Xml.Schema
 			}
 
 			return ret;
+		}
+
+		SimpleType FindSimpleBaseType (XmlSchemaType xt)
+		{
+			var st = xt as SimpleType;
+			if (st != null)
+				return st;
+			if (xt == null)
+				return null;
+			return FindSimpleBaseType (xt.BaseXmlSchemaType);
 		}
 
 		// 3.14.4 String Valid 
@@ -1143,7 +1202,7 @@ namespace System.Xml.Schema
 				try {
 					ret = validatedDatatype.ParseValue (value, nameTable, nsResolver);
 				} catch (Exception ex) { // It is inevitable and bad manner.
-					HandleError (String.Format ("Invalidly typed data was specified."), ex);
+					HandleError ("Invalidly typed data was specified", ex);
 				}
 			}
 			return ret;

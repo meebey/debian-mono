@@ -177,7 +177,7 @@ namespace System.Reflection.Emit {
 	internal interface TokenGenerator {
 		int GetToken (string str);
 
-		int GetToken (MemberInfo member);
+		int GetToken (MemberInfo member, bool create_open_instance);
 
 		int GetToken (MethodInfo method, Type[] opt_param_types);
 
@@ -187,6 +187,7 @@ namespace System.Reflection.Emit {
 	[ComVisible (true)]
 	[ComDefaultInterface (typeof (_ILGenerator))]
 	[ClassInterface (ClassInterfaceType.None)]
+	[StructLayout (LayoutKind.Sequential)]
 	public class ILGenerator: _ILGenerator {
 		private struct LabelFixup {
 			public int offset;    // The number of bytes between pos and the
@@ -206,7 +207,6 @@ namespace System.Reflection.Emit {
 			public int maxStack; 
 		}
 		
-		static readonly Type void_type = typeof (void);
 		#region Sync with reflection.h
 		private byte[] code;
 		private int code_len;
@@ -516,7 +516,7 @@ namespace System.Reflection.Emit {
 		[ComVisible (true)]
 		public virtual void Emit (OpCode opcode, ConstructorInfo con)
 		{
-			int token = token_gen.GetToken (con);
+			int token = token_gen.GetToken (con, true);
 			make_room (6);
 			ll_emit (opcode);
 			if (con.DeclaringType.Module == module)
@@ -549,7 +549,7 @@ namespace System.Reflection.Emit {
 		
 		public virtual void Emit (OpCode opcode, FieldInfo field)
 		{
-			int token = token_gen.GetToken (field);
+			int token = token_gen.GetToken (field, true);
 			make_room (6);
 			ll_emit (opcode);
 			if (field.DeclaringType.Module == module)
@@ -729,7 +729,7 @@ namespace System.Reflection.Emit {
 			if ((meth is DynamicMethod) && ((opcode == OpCodes.Ldftn) || (opcode == OpCodes.Ldvirtftn) || (opcode == OpCodes.Ldtoken)))
 				throw new ArgumentException ("Ldtoken, Ldftn and Ldvirtftn OpCodes cannot target DynamicMethods.");
 
-			int token = token_gen.GetToken (meth);
+			int token = token_gen.GetToken (meth, true);
 			make_room (6);
 			ll_emit (opcode);
 			Type declaringType = meth.DeclaringType;
@@ -739,7 +739,7 @@ namespace System.Reflection.Emit {
 					add_token_fixup (meth);
 			}
 			emit_int (token);
-			if (meth.ReturnType != void_type)
+			if (meth.ReturnType != typeof (void))
 				cur_stack ++;
 
 			if (opcode.StackBehaviourPop == StackBehaviour.Varpop)
@@ -757,7 +757,7 @@ namespace System.Reflection.Emit {
 					add_token_fixup (method);
 			}
 			emit_int (token);
-			if (method.ReturnType != void_type)
+			if (method.ReturnType != typeof (void))
 				cur_stack ++;
 
 			if (opcode.StackBehaviourPop == StackBehaviour.Varpop)
@@ -811,7 +811,7 @@ namespace System.Reflection.Emit {
 
 			make_room (6);
 			ll_emit (opcode);
-			emit_int (token_gen.GetToken (cls));
+			emit_int (token_gen.GetToken (cls, opcode != OpCodes.Ldtoken));
 		}
 
 		[MonoLimitation ("vararg methods are not supported")]
@@ -838,7 +838,9 @@ namespace System.Reflection.Emit {
 
 		public virtual void EmitCalli (OpCode opcode, CallingConvention unmanagedCallConv, Type returnType, Type[] parameterTypes)
 		{
-			SignatureHelper helper = SignatureHelper.GetMethodSigHelper (module, 0, unmanagedCallConv, returnType, parameterTypes);
+			// GetMethodSigHelper expects a ModuleBuilder or null, and module might be
+			// a normal module when using dynamic methods.
+			SignatureHelper helper = SignatureHelper.GetMethodSigHelper (module as ModuleBuilder, 0, unmanagedCallConv, returnType, parameterTypes);
 			Emit (opcode, helper);
 		}
 
@@ -847,7 +849,7 @@ namespace System.Reflection.Emit {
 			if (optionalParameterTypes != null)
 				throw new NotImplementedException ();
 
-			SignatureHelper helper = SignatureHelper.GetMethodSigHelper (module, callingConvention, 0, returnType, parameterTypes);
+			SignatureHelper helper = SignatureHelper.GetMethodSigHelper (module as ModuleBuilder, callingConvention, 0, returnType, parameterTypes);
 			Emit (opcode, helper);
 		}
 		
@@ -949,7 +951,7 @@ namespace System.Reflection.Emit {
 				if (locals != null) {
 					foreach (LocalBuilder local in locals) {
 						if (local.Name != null && local.Name.Length > 0) {
-							SignatureHelper sighelper = SignatureHelper.GetLocalVarSigHelper (module);
+							SignatureHelper sighelper = SignatureHelper.GetLocalVarSigHelper (module as ModuleBuilder);
 							sighelper.AddArgument (local.LocalType);
 							byte[] signature = sighelper.GetSignature ();
 							symbolWriter.DefineLocalVariable (local.Name, FieldAttributes.Public, signature, SymAddressKind.ILOffset, local.position, 0, 0, local.StartOffset, local.EndOffset);
@@ -1003,6 +1005,31 @@ namespace System.Reflection.Emit {
 			}
 		}
 
+		// Used by DynamicILGenerator
+		internal void SetCode (byte[] code, int max_stack) {
+			// Make a copy to avoid possible security problems
+			this.code = (byte[])code.Clone ();
+			this.code_len = code.Length;
+			this.max_stack = max_stack;
+			this.cur_stack = 0;
+		}
+
+		internal unsafe void SetCode (byte *code, int code_size, int max_stack) {
+			// Make a copy to avoid possible security problems
+			this.code = new byte [code_size];
+			for (int i = 0; i < code_size; ++i)
+				this.code [i] = code [i];
+			this.code_len = code_size;
+			this.max_stack = max_stack;
+			this.cur_stack = 0;
+		}
+
+		internal TokenGenerator TokenGenerator {
+			get {
+				return token_gen;
+			}
+		}
+
 		// Still used by symbolwriter
 		[Obsolete ("Use ILOffset", true)]
 		internal static int Mono_GetCurrentOffset (ILGenerator ig)
@@ -1010,7 +1037,7 @@ namespace System.Reflection.Emit {
 			return ig.code_len;
 		}	
 
-#if NET_4_0 || BOOTSTRAP_NET_4_0
+#if NET_4_0 || MOBILE
 		public
 #else
 		internal

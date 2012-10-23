@@ -2,11 +2,11 @@
  *
  * Copyright (c) Microsoft Corporation. 
  *
- * This source code is subject to terms and conditions of the Microsoft Public License. A 
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0. A 
  * copy of the license can be found in the License.html file at the root of this distribution. If 
- * you cannot locate the  Microsoft Public License, please send an email to 
+ * you cannot locate the  Apache License, Version 2.0, please send an email to 
  * dlr@microsoft.com. By using this source code in any fashion, you are agreeing to be bound 
- * by the terms of the Microsoft Public License.
+ * by the terms of the Apache License, Version 2.0.
  *
  * You must not remove this notice, or any other, from this software.
  *
@@ -21,11 +21,7 @@ using System.Dynamic.Utils;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-#if SILVERLIGHT
-using System.Core;
-#endif
-
-#if CLR2
+#if !FEATURE_CORE_DLR
 namespace Microsoft.Scripting.Ast {
 #else
 namespace System.Linq.Expressions {
@@ -33,9 +29,7 @@ namespace System.Linq.Expressions {
     /// <summary>
     /// Represents a call to either static or an instance method.
     /// </summary>
-#if !SILVERLIGHT
     [DebuggerTypeProxy(typeof(Expression.MethodCallExpressionProxy))]
-#endif
     public class MethodCallExpression : Expression, IArgumentProvider {
         private readonly MethodInfo _method;
 
@@ -890,9 +884,7 @@ namespace System.Linq.Expressions {
             }
             TypeUtils.ValidateType(pType);
             if (!TypeUtils.AreReferenceAssignable(pType, arg.Type)) {
-                if (TypeUtils.IsSameOrSubclass(typeof(LambdaExpression), pType) && pType.IsAssignableFrom(arg.GetType())) {
-                    arg = Expression.Quote(arg);
-                } else {
+                if (!TryQuote(pType, ref arg)) {
                     // Throw the right error for the node we were given
                     switch (nodeKind) {
                         case ExpressionType.New:
@@ -908,6 +900,20 @@ namespace System.Linq.Expressions {
                 }
             }
             return arg;
+        }
+
+        // Attempts to auto-quote the expression tree. Returns true if it succeeded, false otherwise.
+        private static bool TryQuote(Type parameterType, ref Expression argument) {
+            // We used to allow quoting of any expression, but the behavior of
+            // quote (produce a new tree closed over parameter values), only
+            // works consistently for lambdas
+            Type quoteable = typeof(LambdaExpression);
+            if (TypeUtils.IsSameOrSubclass(quoteable, parameterType) &&
+                parameterType.IsAssignableFrom(argument.GetType())) {
+                argument = Expression.Quote(argument);
+                return true;
+            }
+            return false;
         }
 
         private static MethodInfo FindMethod(Type type, string methodName, Type[] typeArgs, Expression[] args, BindingFlags flags) {
