@@ -159,12 +159,12 @@ mono_sgen_CFLAGS = $(AM_CFLAGS)
 # link was done
 if SUPPORT_BOEHM
 buildver.h: libmini-static.la
-	@echo "const char *build_date = \"`date`\";" > buildver.h
+	@echo "const char *build_date;" > buildver.h
 mono-main.$(OBJEXT): buildver.h
 endif
 
 buildver-sgen.h: libmini-static.la
-	@echo "const char *build_date = \"`date`\";" > buildver-sgen.h
+	@echo "const char *build_date;" > buildver-sgen.h
 mono_sgen-main.$(OBJEXT): buildver-sgen.h
 
 if DTRACE_G_REQUIRED
