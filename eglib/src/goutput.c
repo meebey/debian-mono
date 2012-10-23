@@ -5,6 +5,8 @@
  *   Miguel de Icaza (miguel@novell.com)
  *
  * (C) 2006 Novell, Inc.
+ * Copyright 2011 Xamarin Inc.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -24,6 +26,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <glib.h>
@@ -111,26 +114,25 @@ g_log_set_fatal_mask (const gchar *log_domain, GLogLevelFlags fatal_mask)
 void
 g_logv (const gchar *log_domain, GLogLevelFlags log_level, const gchar *format, va_list args)
 {
+#if PLATFORM_ANDROID
+	__android_log_vprint (to_android_priority (log_level), log_domain, format, args);
+#else
 	char *msg;
 	
-	vasprintf (&msg, format, args);
-#if PLATFORM_ANDROID
-	__android_log_print (to_android_priority (log_level), 
-		/* TODO: provide a proper app name */
-		"mono", "%s%s%s",
-		log_domain != NULL ? log_domain : "",
-		log_domain != NULL ? ": " : "",
-		msg);
-#else
+	if (vasprintf (&msg, format, args) < 0)
+		return;
+	
 	printf ("%s%s%s\n",
 		log_domain != NULL ? log_domain : "",
 		log_domain != NULL ? ": " : "",
 		msg);
-#endif
 	free (msg);
 	if (log_level & fatal){
 		fflush (stdout);
 		fflush (stderr);
+	}
+#endif
+	if (log_level & fatal){
 		abort ();
 	}
 }

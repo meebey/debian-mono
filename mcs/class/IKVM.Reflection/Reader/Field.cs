@@ -80,63 +80,37 @@ namespace IKVM.Reflection.Reader
 
 		public override void __GetDataFromRVA(byte[] data, int offset, int length)
 		{
-			int rid = index + 1;
-			// TODO binary search?
-			for (int i = 0; i < module.FieldRVA.records.Length; i++)
+			int rva = this.__FieldRVA;
+			if (rva == 0)
 			{
-				if (module.FieldRVA.records[i].Field == rid)
-				{
-					int rva = module.FieldRVA.records[i].RVA;
-					if (rva == 0)
-					{
-						// C++ assemblies can have fields that have an RVA that is zero
-						Array.Clear(data, offset, length);
-						return;
-					}
-					module.SeekRVA(rva);
-					while (length > 0)
-					{
-						int read = module.stream.Read(data, offset, length);
-						if (read == 0)
-						{
-							// C++ assemblies can have fields that have an RVA that lies outside of the file
-							break;
-						}
-						offset += read;
-						length -= read;
-					}
-					return;
-				}
+				// C++ assemblies can have fields that have an RVA that is zero
+				Array.Clear(data, offset, length);
+				return;
 			}
-			throw new InvalidOperationException();
+			module.__ReadDataFromRVA(rva, data, offset, length);
 		}
 
-		internal override IList<CustomAttributeData> GetCustomAttributesData(Type attributeType)
+		public override int __FieldRVA
 		{
-			List<CustomAttributeData> list = module.GetCustomAttributes(this.MetadataToken, attributeType);
-			if ((this.Attributes & FieldAttributes.HasFieldMarshal) != 0
-				&& (attributeType == null || attributeType.IsAssignableFrom(module.universe.System_Runtime_InteropServices_MarshalAsAttribute)))
+			get
 			{
-				list.Add(MarshalSpec.GetMarshalAsAttribute(module, this.MetadataToken));
-			}
-			if (declaringType.IsExplicitLayout
-				&& (attributeType == null || attributeType.IsAssignableFrom(module.universe.System_Runtime_InteropServices_FieldOffsetAttribute)))
-			{
-				int rid = index + 1;
-				// TODO use binary search?
-				for (int i = 0; i < module.FieldLayout.records.Length; i++)
+				foreach (int i in module.FieldRVA.Filter(index + 1))
 				{
-					if (module.FieldLayout.records[i].Field == rid)
-					{
-						ConstructorInfo constructor = module.universe.System_Runtime_InteropServices_FieldOffsetAttribute.GetConstructor(new Type[] { module.universe.System_Int32 });
-						list.Add(new CustomAttributeData(constructor,
-							new object[] { module.FieldLayout.records[i].Offset },
-							null));
-						break;
-					}
+					return module.FieldRVA.records[i].RVA;
 				}
+				throw new InvalidOperationException();
 			}
-			return list;
+		}
+
+		public override bool __TryGetFieldOffset(out int offset)
+		{
+			foreach (int i in this.Module.FieldLayout.Filter(index + 1))
+			{
+				offset = this.Module.FieldLayout.records[i].Offset;
+				return true;
+			}
+			offset = 0;
+			return false;
 		}
 
 		internal override FieldSignature FieldSignature
@@ -147,6 +121,16 @@ namespace IKVM.Reflection.Reader
 		internal override int ImportTo(Emit.ModuleBuilder module)
 		{
 			return module.ImportMethodOrField(declaringType, this.Name, this.FieldSignature);
+		}
+
+		internal override int GetCurrentToken()
+		{
+			return this.MetadataToken;
+		}
+
+		internal override bool IsBaked
+		{
+			get { return true; }
 		}
 	}
 }

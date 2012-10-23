@@ -12,6 +12,9 @@
 /* Define to 1 if you have the `getpwuid_r' function. */
 #undef HAVE_GETPWUID_R
 
+/* Define if you have the iconv() function and it works. */
+#undef HAVE_ICONV
+
 /* Define to 1 if you have the <iconv.h> header file. */
 #undef HAVE_ICONV_H
 
@@ -38,6 +41,9 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `stpcpy' function. */
+#undef HAVE_STPCPY
 
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
@@ -72,6 +78,9 @@
 /* Define to 1 if you have the `vasprintf' function. */
 #undef HAVE_VASPRINTF
 
+/* Define as const if the declaration of iconv() needs const. */
+#undef ICONV_CONST
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
@@ -96,6 +105,9 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* Targeting the Android platform */
+#undef PLATFORM_ANDROID
 
 /* The size of `int', as computed by sizeof. */
 #undef SIZEOF_INT

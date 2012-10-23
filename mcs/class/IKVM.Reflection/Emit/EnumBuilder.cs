@@ -27,20 +27,36 @@ using System.Text;
 
 namespace IKVM.Reflection.Emit
 {
-	public sealed class EnumBuilder : Type
+	public sealed class EnumBuilder : TypeInfo
 	{
 		private readonly TypeBuilder typeBuilder;
 		private readonly FieldBuilder fieldBuilder;
 
 		internal EnumBuilder(TypeBuilder typeBuilder, FieldBuilder fieldBuilder)
+			: base(typeBuilder)
 		{
 			this.typeBuilder = typeBuilder;
 			this.fieldBuilder = fieldBuilder;
 		}
 
-		public override Type UnderlyingSystemType
+		public override string __Name
 		{
-			get { return typeBuilder.UnderlyingSystemType; }
+			get { return typeBuilder.__Name; }
+		}
+
+		public override string __Namespace
+		{
+			get { return typeBuilder.__Namespace; }
+		}
+
+		public override string Name
+		{
+			get { return typeBuilder.Name; }
+		}
+
+		public override string FullName
+		{
+			get { return typeBuilder.FullName; }
 		}
 
 		public override Type BaseType
@@ -93,6 +109,11 @@ namespace IKVM.Reflection.Emit
 		public override Type GetEnumUnderlyingType()
 		{
 			return fieldBuilder.FieldType;
+		}
+
+		internal override bool IsBaked
+		{
+			get { return typeBuilder.IsBaked; }
 		}
 	}
 }

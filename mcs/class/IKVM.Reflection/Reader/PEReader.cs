@@ -98,11 +98,6 @@ namespace IKVM.Reflection.Reader
 		public const WORD IMAGE_SUBSYSTEM_WINDOWS_GUI = 2;
 		public const WORD IMAGE_SUBSYSTEM_WINDOWS_CUI = 3;
 
-		public const WORD IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE = 0x0040;
-		public const WORD IMAGE_DLLCHARACTERISTICS_NX_COMPAT = 0x0100;
-		public const WORD IMAGE_DLLCHARACTERISTICS_NO_SEH = 0x0400;
-		public const WORD IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000;
-
 		public WORD Magic;
 		public BYTE MajorLinkerVersion;
 		public BYTE MinorLinkerVersion;
@@ -206,6 +201,12 @@ namespace IKVM.Reflection.Reader
 		{
 			VirtualAddress = br.ReadUInt32();
 			Size = br.ReadUInt32();
+		}
+
+		internal void Write(IKVM.Reflection.Writer.MetadataWriter mw)
+		{
+			mw.Write(VirtualAddress);
+			mw.Write(Size);
 		}
 	}
 
@@ -313,6 +314,22 @@ namespace IKVM.Reflection.Reader
 				}
 			}
 			throw new BadImageFormatException();
+		}
+
+		internal bool GetSectionInfo(int rva, out string name, out int characteristics)
+		{
+			for (int i = 0; i < sections.Length; i++)
+			{
+				if (rva >= sections[i].VirtualAddress && rva < sections[i].VirtualAddress + sections[i].VirtualSize)
+				{
+					name = sections[i].Name;
+					characteristics = (int)sections[i].Characteristics;
+					return true;
+				}
+			}
+			name = null;
+			characteristics = 0;
+			return false;
 		}
 	}
 }

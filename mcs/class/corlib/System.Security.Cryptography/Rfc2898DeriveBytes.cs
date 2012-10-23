@@ -33,9 +33,9 @@ using System.Text;
 
 using Mono.Security.Cryptography;
 
-namespace System.Security.Cryptography { 
+namespace System.Security.Cryptography {
 
-	[ComVisible (true)]
+    [ComVisible (true)]
 	public class Rfc2898DeriveBytes : DeriveBytes {
 
 		private const int defaultIterations = 1000;
@@ -155,6 +155,13 @@ namespace System.Security.Cryptography {
 				Buffer.BlockCopy (_buffer, _pos, result, 0, count);
 				if (count >= cb)
 					return result;
+
+                // If we are going to go over the boundaries
+                // of the result on our l-1 iteration, reduce
+                // l to compensate.
+                if (((l-1) * 20 + count) > result.Length)
+                    l--;
+
 				_pos = 0;
 				rpos = count;
 			}
@@ -180,6 +187,15 @@ namespace System.Security.Cryptography {
 			_pos = 0;
 			_f = 0;
 		}
+#if NET_4_0
+		protected override void Dispose (bool disposing)
+		{
+			Array.Clear (_buffer, 0, _buffer.Length);
+			Array.Clear (_salt, 0, _salt.Length);
+			_hmac.Clear ();
+			base.Dispose (disposing);
+		}
+#endif
 	} 
 }
 

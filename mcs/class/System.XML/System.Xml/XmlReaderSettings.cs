@@ -28,8 +28,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 //
 
-#if NET_2_0
-
 using System;
 using System.IO;
 using System.Net;
@@ -60,11 +58,16 @@ namespace System.Xml
 		private ValidationType validationType;
 #endif
 		private XmlResolver xmlResolver;
-#if NET_4_0
+#if NET_4_0 || NET_2_1
 		private DtdProcessing dtdProcessing;
 #endif
 		private long maxCharactersFromEntities;
 		private long maxCharactersInDocument;
+
+#if NET_4_5
+		private bool isReadOnly;
+		private bool isAsync;
+#endif
 
 		public XmlReaderSettings ()
 		{
@@ -77,7 +80,11 @@ namespace System.Xml
 
 		public XmlReaderSettings Clone ()
 		{
-			return (XmlReaderSettings) MemberwiseClone ();
+			var clone = (XmlReaderSettings) MemberwiseClone ();
+#if NET_4_5
+			clone.isReadOnly = false;
+#endif
+			return clone;
 		}
 
 		public void Reset ()
@@ -102,6 +109,9 @@ namespace System.Xml
 			validationType = ValidationType.None;
 			xmlResolver = new XmlUrlResolver ();
 #endif
+#if NET_4_5
+			isAsync = false;
+#endif
 		}
 
 		public bool CheckCharacters {
@@ -118,7 +128,7 @@ namespace System.Xml
 			get { return conformance; }
 			set { conformance = value; }
 		}
-#if NET_4_0
+#if NET_4_0 || NET_2_1
 		public DtdProcessing DtdProcessing {
 			get { return dtdProcessing; }
 			set {
@@ -163,6 +173,9 @@ namespace System.Xml
 			set { linePositionOffset = value; }
 		}
 
+#if NET_4_0
+		[ObsoleteAttribute("Use DtdProcessing property instead")]
+#endif
 		public bool ProhibitDtd {
 			get { return prohibitDtd; }
 			set { prohibitDtd = value; }
@@ -219,7 +232,30 @@ namespace System.Xml
 			internal get { return xmlResolver; }
 			set { xmlResolver = value; }
 		}
+
+#if NET_4_5
+		internal void SetReadOnly ()
+		{
+			isReadOnly = true;
+		}
+
+		/*
+		 * FIXME: The .NET 4.5 runtime throws an exception when attempting to
+		 *        modify any of the properties after the XmlReader has been constructed.
+		 */
+		void EnsureWritability ()
+		{
+			if (isReadOnly)
+				throw new InvalidOperationException ("XmlReaderSettings in read-only");
+		}
+
+		public bool Async {
+			get { return isAsync; }
+			set {
+				EnsureWritability ();
+				isAsync = value;
+			}
+		}
+#endif
 	}
 }
-
-#endif

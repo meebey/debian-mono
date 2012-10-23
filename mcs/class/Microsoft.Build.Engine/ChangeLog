@@ -1,35 +1,3 @@
-2011-02-11  Ankit Jain  <radical@corewars.org>
-
-	[xbuild] Update Utilities.FromMSBuildPath from monodevelop.
-
-	Updating FromMSBuildPath also fixes a bug on windows.
-
-2011-01-26  Ankit Jain  <radical@corewars.org>
-
-	[xbuild] Improve error messages for condition evaluation.
-
-	Also, add new ExpressionEvaluationException class. Wrap
-	Expression*Exceptions in InvalidProjectFileException with info
-	about the full condition being evaluated.
-
-2011-01-11  Ankit Jain  <radical@corewars.org>
-
-	[xbuild] Fix bug #663180, second part.
-
-	Fix the way RunningOnMac is detected (use `uname`=="Darwin"),
-	thanks to Michael Hutchinson. And use
-	"/Library/Frameworks/Mono.framework/External/pkgconfig" as a
-	search path for pkg-config files on MacOSX.
-
-2010-09-15  Marek Safar  <marek.safar@gmail.com>
-
-	[637935] Fixed 3.5 version of msbuild dlls to reference 3.5
-	version of the engine
-
-	MONO_PATH does not work for subsequent dlls, so have to workaround
-	it by using full path for dlls in 3.5 profile which does not have
-	it's own mscorlib
-
 2010-07-09  Ankit Jain  <jankit@novell.com>
 
 	* Microsoft.Build.Engine.dll.sources: Add

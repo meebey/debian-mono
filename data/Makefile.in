@@ -35,26 +35,29 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@INSTALL_4_0_TRUE@am__append_1 = net_4_0
+@INSTALL_4_0_TRUE@am__append_1 = net_4_0 net_4_5
 subdir = data
 DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
-	$(srcdir)/cecil.pc.in $(srcdir)/config.in \
-	$(srcdir)/dotnet.pc.in $(srcdir)/dotnet35.pc.in \
-	$(srcdir)/mint.pc.in $(srcdir)/mono-2.pc.in \
-	$(srcdir)/mono-cairo.pc.in $(srcdir)/mono-lineeditor.pc.in \
-	$(srcdir)/mono-nunit.pc.in $(srcdir)/mono-options.pc.in \
-	$(srcdir)/mono.pc.in $(srcdir)/mono.web.pc.in \
-	$(srcdir)/monodoc.pc.in $(srcdir)/monosgen-2.pc.in \
+	$(srcdir)/aspnetwebstack.pc.in $(srcdir)/cecil.pc.in \
+	$(srcdir)/config.in $(srcdir)/dotnet.pc.in \
+	$(srcdir)/dotnet35.pc.in $(srcdir)/mint.pc.in \
+	$(srcdir)/mono-2.pc.in $(srcdir)/mono-cairo.pc.in \
+	$(srcdir)/mono-lineeditor.pc.in $(srcdir)/mono-nunit.pc.in \
+	$(srcdir)/mono-options.pc.in $(srcdir)/mono.pc.in \
+	$(srcdir)/mono.web.pc.in $(srcdir)/monodoc.pc.in \
+	$(srcdir)/monosgen-2.pc.in \
 	$(srcdir)/system.web.extensions.design_1.0.pc.in \
 	$(srcdir)/system.web.extensions_1.0.pc.in \
 	$(srcdir)/system.web.mvc.pc.in $(srcdir)/system.web.mvc2.pc.in \
-	$(srcdir)/wcf.pc.in ChangeLog
+	$(srcdir)/system.web.mvc3.pc.in $(srcdir)/wcf.pc.in ChangeLog
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/libtool.m4 \
-	$(top_srcdir)/ltoptions.m4 $(top_srcdir)/ltsugar.m4 \
-	$(top_srcdir)/ltversion.m4 $(top_srcdir)/lt~obsolete.m4 \
-	$(top_srcdir)/nls.m4 $(top_srcdir)/po.m4 \
-	$(top_srcdir)/progtest.m4 $(top_srcdir)/acinclude.m4 \
+am__aclocal_m4_deps = $(top_srcdir)/m4/iconv.m4 \
+	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
+	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
+	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/acinclude.m4 \
 	$(top_srcdir)/configure.in
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
@@ -65,7 +68,7 @@ CONFIG_CLEAN_FILES = mint.pc mono-2.pc monosgen-2.pc mono.pc \
 	monodoc.pc mono.web.pc dotnet.pc dotnet35.pc wcf.pc cecil.pc \
 	system.web.extensions_1.0.pc \
 	system.web.extensions.design_1.0.pc system.web.mvc.pc \
-	system.web.mvc2.pc config
+	system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc config
 CONFIG_CLEAN_VPATH_FILES =
 SOURCES =
 DIST_SOURCES =
@@ -107,7 +110,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = net_2_0 net_4_0
+DIST_SUBDIRS = net_2_0 net_4_0 net_4_5
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
   dir0=`pwd`; \
@@ -143,7 +146,6 @@ AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BISON = @BISON@
 BOEHM_DEFINES = @BOEHM_DEFINES@
 BUILD_EXEEXT = @BUILD_EXEEXT@
 BUILD_GLIB_CFLAGS = @BUILD_GLIB_CFLAGS@
@@ -197,9 +199,11 @@ INTL = @INTL@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBC = @LIBC@
-LIBGC_CFLAGS = @LIBGC_CFLAGS@
+LIBGC_CPPFLAGS = @LIBGC_CPPFLAGS@
 LIBGC_LIBS = @LIBGC_LIBS@
 LIBGC_STATIC_LIBS = @LIBGC_STATIC_LIBS@
+LIBICONV = @LIBICONV@
+LIBMONO_LA = @LIBMONO_LA@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
@@ -212,6 +216,7 @@ LLVM_LIBS = @LLVM_LIBS@
 LN_S = @LN_S@
 LTCOMPILE = @LTCOMPILE@
 LTCXXCOMPILE = @LTCXXCOMPILE@
+LTLIBICONV = @LTLIBICONV@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
@@ -336,7 +341,7 @@ EXTRA_DIST = \
 	mono.pc.in mono-2.pc.in monosgen-2.pc.in mint.pc.in dotnet.pc.in dotnet35.pc.in wcf.pc.in monodoc.pc.in \
 	mono-nunit.pc.in mono-cairo.pc.in mono-options.pc.in cecil.pc.in \
 	mono-lineeditor.pc.in system.web.extensions_1.0.pc.in system.web.extensions.design_1.0.pc.in\
-	dtrace-prelink.sh mono.web.pc.in system.web.mvc.pc.in system.web.mvc2.pc.in \
+	dtrace-prelink.sh mono.web.pc.in system.web.mvc.pc.in system.web.mvc2.pc.in system.web.mvc3.pc.in aspnetwebstack.pc.in \
 	net_1_1/machine.config \
 	gdb/mono-gdb.py \
 	gdb/gdb-python.diff
@@ -344,23 +349,21 @@ EXTRA_DIST = \
 pkgconfigdir = $(libdir)/pkgconfig
 @SUPPORT_SGEN_FALSE@SGENPCFILE = 
 @SUPPORT_SGEN_TRUE@SGENPCFILE = monosgen-2.pc
-@SUPPORT_SGEN_FALSE@SGENGDBFILE = 
-@SUPPORT_SGEN_TRUE@SGENGDBFILE = mono-sgen-gdb.py
 @INTERP_SUPPORTED_FALSE@@JIT_SUPPORTED_TRUE@pkgconfig_DATA = mono.pc mono-2.pc dotnet.pc dotnet35.pc wcf.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc system.web.extensions_1.0.pc \
-@INTERP_SUPPORTED_FALSE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc $(SGENPCFILE)
+@INTERP_SUPPORTED_FALSE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc $(SGENPCFILE)
 
 @INTERP_SUPPORTED_TRUE@@JIT_SUPPORTED_TRUE@pkgconfig_DATA = mono.pc mono-2.pc mint.pc dotnet.pc dotnet35.pc wcf.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc system.web.extensions_1.0.pc \
-@INTERP_SUPPORTED_TRUE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc $(SGENPCFILE)
+@INTERP_SUPPORTED_TRUE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc $(SGENPCFILE)
 
 @JIT_SUPPORTED_FALSE@pkgconfig_DATA = mint.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc
 DISTCLEANFILES = mono-2.pc mono.pc mint.pc dotnet.pc dotnet35.pc wcf.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc system.web.extensions_1.0.pc \
-		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc monosgen-2.pc mono-sgen-gdb.py
+		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc $(SGENPCFILE) mono-sgen-gdb.py
 
 mono_DATA = config \
 	     browscap.ini
 
 gdbdir = $(bindir)
-gdb_DATA = gdb/mono-gdb.py $(SGENGDBFILE)
+gdb_DATA = gdb/mono-gdb.py mono-sgen-gdb.py
 all: all-recursive
 
 .SUFFIXES:
@@ -373,9 +376,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu data/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign data/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu data/Makefile
+	  $(AUTOMAKE) --foreign data/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -429,6 +432,10 @@ system.web.extensions.design_1.0.pc: $(top_builddir)/config.status $(srcdir)/sys
 system.web.mvc.pc: $(top_builddir)/config.status $(srcdir)/system.web.mvc.pc.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 system.web.mvc2.pc: $(top_builddir)/config.status $(srcdir)/system.web.mvc2.pc.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+system.web.mvc3.pc: $(top_builddir)/config.status $(srcdir)/system.web.mvc3.pc.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+aspnetwebstack.pc: $(top_builddir)/config.status $(srcdir)/aspnetwebstack.pc.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 config: $(top_builddir)/config.status $(srcdir)/config.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@

@@ -49,6 +49,7 @@ namespace System
 	[ClassInterface (ClassInterfaceType.AutoDual)]
 	[System.Runtime.InteropServices.ComVisible (true)]
 	[Serializable]
+	[StructLayout (LayoutKind.Sequential)]
 	public abstract class Delegate : ICloneable, ISerializable
 	{
 		#region Sync with object-internals.h
@@ -132,10 +133,25 @@ namespace System
 				if (!argType.IsValueType && argType.IsAssignableFrom (delArgType))
 					match = true;
 			}
+			// enum basetypes
+			if (!match) {
+				if (delArgType.IsEnum && Enum.GetUnderlyingType (delArgType) == argType)
+					match = true;
+			}
 
 			return match;
 		}
 
+		private static bool arg_type_match_this (Type delArgType, Type argType, bool boxedThis) {
+			bool match;
+			if (argType.IsValueType)
+				match = delArgType.IsByRef && delArgType.GetElementType () == argType ||
+						(boxedThis && delArgType == argType);
+			else
+				match = delArgType == argType || argType.IsAssignableFrom (delArgType);
+
+			return match;
+		}
 		private static bool return_type_match (Type delReturnType, Type returnType) {
 			bool returnMatch = returnType == delReturnType;
 
@@ -216,7 +232,7 @@ namespace System
 			bool argsMatch;
 			if (target != null) {
 				if (!method.IsStatic) {
-					argsMatch = arg_type_match (target.GetType (), method.DeclaringType);
+					argsMatch = arg_type_match_this (target.GetType (), method.DeclaringType, true);
 					for (int i = 0; i < args.Length; i++)
 						argsMatch &= arg_type_match (delargs [i].ParameterType, args [i].ParameterType);
 				} else {
@@ -228,7 +244,7 @@ namespace System
 				if (!method.IsStatic) {
 					if (args.Length + 1 == delargs.Length) {
 						// The first argument should match this
-						argsMatch = arg_type_match (delargs [0].ParameterType, method.DeclaringType);
+						argsMatch = arg_type_match_this (delargs [0].ParameterType, method.DeclaringType, false);
 						for (int i = 0; i < args.Length; i++)
 							argsMatch &= arg_type_match (delargs [i + 1].ParameterType, args [i].ParameterType);
 					} else {
@@ -240,7 +256,7 @@ namespace System
 				} else {
 					if (delargs.Length + 1 == args.Length) {
 						// closed over a null reference
-						argsMatch = !args [0].ParameterType.IsValueType && allowClosed;
+						argsMatch = !(args [0].ParameterType.IsValueType || args [0].ParameterType.IsByRef) && allowClosed;
 						for (int i = 0; i < delargs.Length; i++)
 							argsMatch &= arg_type_match (delargs [i].ParameterType, args [i + 1].ParameterType);
 					} else {
@@ -392,7 +408,7 @@ namespace System
 				method_info = m_target.GetType ().GetMethod (data.method_name, mtypes);
 			}
 
-			if ((m_target != null) && Method.IsStatic) {
+			if (Method.IsStatic && (args != null ? args.Length : 0) == Method.GetParameters ().Length - 1) {
 				// The delegate is bound to m_target
 				if (args != null) {
 					object[] newArgs = new object [args.Length + 1];
@@ -471,7 +487,7 @@ namespace System
 					return a;
 
 			if (a.GetType () != b.GetType ())
-				throw new ArgumentException (Locale.GetText ("Incompatible Delegate Types."));
+				throw new ArgumentException (Locale.GetText ("Incompatible Delegate Types. First is {0} second is {1}.", a.GetType ().FullName, b.GetType ().FullName));
 			
 			return a.CombineImpl (b);
 		}

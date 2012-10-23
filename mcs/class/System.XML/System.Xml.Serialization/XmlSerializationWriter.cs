@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Xml;
@@ -54,7 +55,11 @@ namespace System.Xml.Serialization
 
 		ArrayList namespaces;
 		XmlWriter writer;
+#if MOONLIGHT
+		Queue<object> referencedElements;
+#else
 		Queue referencedElements;
+#endif
 		Hashtable callbacks;
 		Hashtable serializedObjects;
 		const string xmlNamespace = "http://www.w3.org/2000/xmlns/";
@@ -87,10 +92,17 @@ namespace System.Xml.Serialization
 
 		#region Properties
 
+#if MOONLIGHT
+		protected IList XmlNamespaces {
+			get { return namespaces; }
+			set { namespaces = (value as ArrayList); }
+		}
+#else
 		protected ArrayList Namespaces {
 			get { return namespaces; }
 			set { namespaces = value; }
 		}
+#endif
 
 		protected XmlWriter Writer {
 			get { return writer; }
@@ -297,6 +309,7 @@ namespace System.Xml.Serialization
 			Writer.WriteAttributeString (prefix, localName, ns, value);
 		}
 
+#if !MOONLIGHT
 		void WriteXmlNode (XmlNode node)
 		{
 			if (node is XmlDocument)
@@ -344,6 +357,7 @@ namespace System.Xml.Serialization
 			else
 				WriteXmlNode (node);
 		}
+#endif
 
 		protected void WriteElementQualifiedName (string localName, XmlQualifiedName value)
 		{
@@ -486,12 +500,15 @@ namespace System.Xml.Serialization
 			WriteAttribute ("id", GetId (o, true));
 		}
 
-		protected void WriteNamespaceDeclarations (XmlSerializerNamespaces ns)
+		protected void WriteNamespaceDeclarations (XmlSerializerNamespaces xmlns)
 		{
-			if (ns == null)
+			if (xmlns == null)
 				return;
-
-			ICollection namespaces = ns.Namespaces.Values;
+#if MOONLIGHT
+			IEnumerable<XmlQualifiedName> namespaces = ns.GetNamespaces ();
+#else
+			ICollection namespaces = xmlns.Namespaces.Values;
+#endif
 			foreach (XmlQualifiedName qn in namespaces) {
 				if (qn.Namespace != String.Empty && Writer.LookupPrefix (qn.Namespace) != qn.Name)
 					WriteAttribute ("xmlns", qn.Name, xmlNamespace, qn.Namespace);
@@ -570,11 +587,7 @@ namespace System.Xml.Serialization
 		protected void WriteNullTagEncoded (string name, string ns)
 		{
 			Writer.WriteStartElement (name, ns);
-#if NET_1_1
 			Writer.WriteAttributeString ("nil", XmlSchema.InstanceNamespace, "true");
-#else
-			Writer.WriteAttributeString ("null", XmlSchema.InstanceNamespace, "1");
-#endif
 			Writer.WriteEndElement ();
 		}
 
@@ -613,19 +626,21 @@ namespace System.Xml.Serialization
 				return;
 			}
 
+			var t = o.GetType ();
+
 			WriteStartElement (n, ns, true);
 
 			CheckReferenceQueue ();
 
 			if (callbacks != null && callbacks.ContainsKey (o.GetType ()))
 			{
-				WriteCallbackInfo info = (WriteCallbackInfo) callbacks[o.GetType()];
-				if (o.GetType ().IsEnum) {
+				WriteCallbackInfo info = (WriteCallbackInfo) callbacks[t];
+				if (t.IsEnum) {
 					info.Callback (o);
 				}
 				else if (suppressReference) {
 					Writer.WriteAttributeString ("id", GetId (o, false));
-					if (ambientType != o.GetType ()) WriteXsiType(info.TypeName, info.TypeNs);
+					if (ambientType != t) WriteXsiType(info.TypeName, info.TypeNs);
 					info.Callback (o);
 				}
 				else {
@@ -636,15 +651,17 @@ namespace System.Xml.Serialization
 			else
 			{
 				// Must be a primitive type or array of primitives
-				TypeData td = TypeTranslator.GetTypeData (o.GetType ());
+				TypeData td = TypeTranslator.GetTypeData (t, null, true);
 				if (td.SchemaType == SchemaTypes.Primitive) {
-					WriteXsiType (td.XmlType, XmlSchema.Namespace);
+					if (t != ambientType)
+						WriteXsiType (td.XmlType, XmlSchema.Namespace);
 					Writer.WriteString (XmlCustomFormatter.ToXmlString (td, o));
 				} else if (IsPrimitiveArray (td)) {
 					if (!AlreadyQueued (o)) referencedElements.Enqueue (o);
 					Writer.WriteAttributeString ("href", "#" + GetId (o, true));
-				} else
-					throw new InvalidOperationException ("Invalid type: " + o.GetType().FullName);
+				} else {
+					throw new InvalidOperationException ("Invalid type: " + t.FullName);
+				}
 			}
 
 			WriteEndElement ();
@@ -743,7 +760,11 @@ namespace System.Xml.Serialization
 		{
 			if (referencedElements == null)  
 			{
+#if MOONLIGHT
+				referencedElements = new Queue<object> ();
+#else
 				referencedElements = new Queue ();
+#endif
 				InitCallbacks ();
 			}
 		}
@@ -870,7 +891,7 @@ namespace System.Xml.Serialization
 		protected void WriteTypedPrimitive (string name, string ns, object o, bool xsiType)
 		{
 			string value;
-			TypeData td = TypeTranslator.GetTypeData (o.GetType ());
+			TypeData td = TypeTranslator.GetTypeData (o.GetType (), null, true);
 			if (td.SchemaType != SchemaTypes.Primitive)
 				throw new InvalidOperationException (String.Format ("The type of the argument object '{0}' is not primitive.", td.FullTypeName));
 
@@ -910,6 +931,7 @@ namespace System.Xml.Serialization
 				Writer.WriteString (value);
 		}
 
+#if !MOONLIGHT
 		protected void WriteXmlAttribute (XmlNode node)
 		{
 			WriteXmlAttribute (node, null);
@@ -935,6 +957,7 @@ namespace System.Xml.Serialization
 			
 			WriteAttribute (attr.Prefix, attr.LocalName, attr.NamespaceURI, attr.Value);
 		}
+#endif
 
 		protected void WriteXsiType (string name, string ns)
 		{
@@ -954,9 +977,9 @@ namespace System.Xml.Serialization
 				return CreateInvalidAnyTypeException (o.GetType ());
 		}
 		
-		protected Exception CreateInvalidAnyTypeException (Type t)
+		protected Exception CreateInvalidAnyTypeException (Type type)
 		{
-			return new InvalidOperationException (String.Format ("An object of type '{0}' is invalid as anyType in XmlSerializer", t));
+			return new InvalidOperationException (String.Format ("An object of type '{0}' is invalid as anyType in XmlSerializer", type));
 		}
 
 		protected Exception CreateInvalidEnumValueException (object value, string typeName)

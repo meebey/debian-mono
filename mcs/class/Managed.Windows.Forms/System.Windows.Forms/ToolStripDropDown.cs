@@ -26,7 +26,6 @@
 //	Jonathan Pobst (monkey@jpobst.com)
 //
 
-#if NET_2_0
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
@@ -934,6 +933,13 @@ namespace System.Windows.Forms
 		{
 			this.Close (reason);
 			base.Dismiss (reason);
+
+			// ContextMenuStrip won't have a parent
+			if (this.OwnerItem == null)
+				return;
+			
+			// Ensure Submenu loes keyboard capture when closing.
+			ToolStripManager.SetActiveToolStrip (null, false);			
 		}
 
 		internal override ToolStrip GetTopLevelToolStrip ()
@@ -1049,4 +1055,3 @@ namespace System.Windows.Forms
 		#endregion
 	}
 }
-#endif

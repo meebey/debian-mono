@@ -40,6 +40,10 @@ using System.Reflection;
 using System.Text;
 using System.Xml.Schema;
 
+#if MOONLIGHT
+using XmlSchemaPatternFacet = System.Object;
+#endif
+
 namespace System.Xml.Serialization
 {
 	internal class TypeData
@@ -82,8 +86,10 @@ namespace System.Xml.Serialization
 					sType = SchemaTypes.Enum;
 				else if (typeof(IXmlSerializable).IsAssignableFrom (type))
 					sType = SchemaTypes.XmlSerializable;
+#if !MOONLIGHT
 				else if (typeof (System.Xml.XmlNode).IsAssignableFrom (type))
 					sType = SchemaTypes.XmlNode;
+#endif
 				else if (type.IsArray || typeof(IEnumerable).IsAssignableFrom (type))
 					sType = SchemaTypes.Array;
 				else
@@ -444,7 +450,7 @@ namespace System.Xml.Serialization
 #if NET_2_0
 		internal static Type GetGenericListItemType (Type type)
 		{
-			if (type.IsGenericType && type.GetGenericTypeDefinition () == typeof (IEnumerable<>)) {
+			if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type.GetGenericTypeDefinition ())) {
 				Type [] gatypes = type.GetGenericArguments ();
 				if (type.GetMethod ("Add", gatypes) != null)
 					return gatypes [0];

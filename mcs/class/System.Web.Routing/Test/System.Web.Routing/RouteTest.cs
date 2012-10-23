@@ -1271,6 +1271,7 @@ namespace MonoTests.System.Web.Routing
 			Assert.AreEqual ("x/y.aspx?nonEmptyValue=Some%20Value%20%2B%20encoding%20%26", vp.VirtualPath, "#B1-1");
 
 		}
+		
 #if NET_4_0
 		[Test (Description="Bug #671753")]
 		public void GetVirtualPath15 ()
@@ -1293,6 +1294,7 @@ namespace MonoTests.System.Web.Routing
 			Assert.IsNotNull (RouteTable.Routes.GetVirtualPath (rc, "TestRoute", null), "#A4");
 		}
 #endif
+
 		// Bug #500739
 		[Test]
 		public void RouteGetRequiredStringWithDefaults ()

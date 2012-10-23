@@ -121,6 +121,16 @@ namespace System
 				return innerExceptions.AsReadOnly ();
 			}
 		}
+
+		internal void AddChildException (AggregateException childEx)
+		{
+			if (innerExceptions == null)
+				innerExceptions = new List<Exception> ();
+			if (childEx == null)
+				return;
+
+			innerExceptions.Add (childEx);
+		}
 		
 		public override string ToString ()
 		{
@@ -138,14 +148,16 @@ namespace System
 			return finalMessage.ToString ();
 		}
 
-		public override Exception GetBaseException ()
-		{
-			return this;
-		}
-
 		public override void GetObjectData (SerializationInfo info,	StreamingContext context)
 		{
 			throw new NotImplementedException ();
+		}
+
+		public override Exception GetBaseException ()
+		{
+			if (innerExceptions == null || innerExceptions.Count == 0)
+				return this;
+			return innerExceptions[0].GetBaseException ();
 		}
 	}
 }

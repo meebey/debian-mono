@@ -7,6 +7,7 @@
 // Dual licensed under the terms of the MIT X11 or GNU GPL
 //
 // Copyright 2007-2008 Novell, Inc
+// Copyright 2011 Xamarin Inc
 //
 
 #if STATIC
@@ -33,7 +34,7 @@ namespace Mono.CSharp {
 			if (ec.IsInProbingMode)
 				return this;
 
-			BlockContext bc = new BlockContext (ec.MemberContext, ec.ConstructorBlock, TypeManager.void_type) {
+			BlockContext bc = new BlockContext (ec.MemberContext, ec.ConstructorBlock, ec.BuiltinTypes.Void) {
 				CurrentAnonymousMethod = ec.CurrentAnonymousMethod
 			};
 
@@ -61,7 +62,7 @@ namespace Mono.CSharp {
 			if (!delegateType.IsDelegate)
 				return null;
 
-			AParametersCollection d_params = Delegate.GetParameters (ec.Compiler, delegateType);
+			AParametersCollection d_params = Delegate.GetParameters (delegateType);
 
 			if (HasExplicitParameters) {
 				if (!VerifyExplicitParameters (ec, delegateType, d_params))
@@ -80,7 +81,7 @@ namespace Mono.CSharp {
 			TypeSpec [] ptypes = new TypeSpec [Parameters.Count];
 			for (int i = 0; i < d_params.Count; i++) {
 				// D has no ref or out parameters
-				if ((d_params.FixedParameters [i].ModFlags & Parameter.Modifier.ISBYREF) != 0)
+				if ((d_params.FixedParameters[i].ModFlags & Parameter.Modifier.RefOutMask) != 0)
 					return null;
 
 				TypeSpec d_param = d_params.Types [i];
@@ -89,7 +90,7 @@ namespace Mono.CSharp {
 				// When type inference context exists try to apply inferred type arguments
 				//
 				if (tic != null) {
-					d_param = tic.InflateGenericArgument (d_param);
+					d_param = tic.InflateGenericArgument (ec, d_param);
 				}
 
 				ptypes [i] = d_param;
@@ -122,6 +123,11 @@ namespace Mono.CSharp {
 		public override string GetSignatureForError ()
 		{
 			return "lambda expression";
+		}
+		
+		public override object Accept (StructuralVisitor visitor)
+		{
+			return visitor.Visit (this);
 		}
 	}
 
@@ -185,15 +191,19 @@ namespace Mono.CSharp {
 			return Expr.CreateExpressionTree (ec);
 		}
 
-		public override void Emit (EmitContext ec)
+		protected override void DoEmit (EmitContext ec)
 		{
 			if (statement != null) {
 				statement.EmitStatement (ec);
-				ec.Emit (OpCodes.Ret);
+				if (unwind_protect)
+					ec.Emit (OpCodes.Leave, ec.CreateReturnLabel ());
+				else {
+					ec.Emit (OpCodes.Ret);
+				}
 				return;
 			}
 
-			base.Emit (ec);
+			base.DoEmit (ec);
 		}
 
 		protected override bool DoResolve (BlockContext ec)
@@ -201,7 +211,7 @@ namespace Mono.CSharp {
 			//
 			// When delegate returns void, only expression statements can be used
 			//
-			if (ec.ReturnType == TypeManager.void_type) {
+			if (ec.ReturnType.Kind == MemberKind.Void) {
 				Expr = Expr.Resolve (ec);
 				if (Expr == null)
 					return false;

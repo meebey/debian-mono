@@ -5,6 +5,7 @@
  *    Dietmar Maurer (dietmar@ximian.com)
  *
  * (C) 2003 Ximian, Inc.
+ * Copyright 2011 Xamarin, Inc (http://www.xamarin.com)
  */
 #include <config.h>
 #include <string.h>
@@ -683,7 +684,6 @@ mono_ssa_copyprop (MonoCompile *cfg)
 				/* Rewrite all uses of var to be uses of var2 */
 				int dreg = var->dreg;
 				int sreg1 = var2->dreg;
-				const char *spec;
 
 				l = info->uses;
 				while (l) {
@@ -692,8 +692,6 @@ mono_ssa_copyprop (MonoCompile *cfg)
 					GList *next = l->next;
 					int num_sregs;
 					int sregs [MONO_MAX_SRC_REGS];
-
-					spec = INS_INFO (ins->opcode);
 
 					num_sregs = mono_inst_get_src_registers (ins, sregs);
 					for (i = 0; i < num_sregs; ++i) {
