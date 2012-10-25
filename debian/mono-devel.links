@@ -1,1 +1,1 @@
-usr/bin/dmcs usr/bin/mono-csc
+usr/bin/mcs usr/bin/mono-csc
