@@ -114,8 +114,6 @@ Depends: ${misc:Depends},
          mono-jay (= ${binary:Version}),
          mono-devel (= ${source:Version}),
          mono-mcs (= ${source:Version}),
-         mono-gmcs (= ${source:Version}),
-         mono-dmcs (= ${source:Version}),
          mono-csharp-shell (= ${source:Version}),
          mono-2.0-gac (= ${source:Version}),
          mono-4.0-gac (= ${source:Version}),
@@ -2326,36 +2324,24 @@ Package: mono-mcs
 Architecture: all
 Depends: ${misc:Depends},
          ${cli:Depends},
-         libmono-corlib2.0-cil (>= ${mono:upversion}),
-         libmono-corlib2.0-cil (<< ${mono:next-upversion})
+         libmono-corlib4.5-cil (>= ${mono:upversion}),
+         libmono-corlib4.5-cil (<< ${mono:next-upversion}),
+         libmono-microsoft-csharp4.0-cil
 Recommends: pkg-config
-Replaces: mono-devel (<< 2.4.2.3)
-Description: Mono C# 2.0 / 3.0 / 4.0  compiler for CLI 2.0 / 4.0
- This is the Mono C# (C-Sharp) 2.0, 3.0 and 4.0 compiler,
- a platform-independent compiler which produces CIL (Common Intermediate
- Language) binary executables.
- This compiler targets the CLI 2.0 or 4.0 runtime version.
+Replaces: mono-devel (<< 2.4.2.3),
+          mono-gmcs (<< 3.0),
+          mono-dmcs (<< 3.0)
+Conflicts: mono-gmcs (<< 3.0),
+           mono-dmcs (<< 3.0)
+Description: Mono C# 2.0 / 3.0 / 4.0 / 5.0  compiler for CLI 2.0 / 4.0 / 4.5
+ This is the Mono C# (C-Sharp) 2.0, 3.0, 4.0 and 5.0 compiler,
+ a platform-independent compiler which produces
+ CIL (Common Intermediate Language) binary executables.
  .
- Mono is a platform for running and developing applications based on the
- ECMA/ISO Standards. Mono is an open source effort led by Novell.
- Mono provides a complete CLR (Common Language Runtime) including compiler and
- runtime, which can produce and execute CIL (Common Intermediate Language)
- bytecode (aka assemblies), and a class library.
-
-Package: mono-gmcs
-Architecture: all
-Depends: ${misc:Depends}, 
-         ${cli:Depends},
-         libmono-corlib2.0-cil (>= ${mono:upversion}),
-         libmono-corlib2.0-cil (<< ${mono:next-upversion})
-Recommends: pkg-config
-Replaces: mono-mcs (>= 1.1.10), mono-mcs (<= 1.1.13), mono-devel (<< 2.4.2.3)
-Description: Mono C# 2.0 and C# 3.0 compiler for CLI 2.0
- This is the Mono C# (C-Sharp) 2.0 and C# 3.0 compiler, a platform-independent
- compiler which produces CIL (Common Intermediate Language) binary executables.
- The gmcs compiler supports two different featuresets (C# versions).
+ This compiler targets the CLI 2.0, 4.0 or 4.5 runtime version.
  .
- With C# 2.0 (which is the default) it supports:
+ The mcs compiler supports different C# versions as follows.
+ With C# 2.0 it supports:
   - generics
   - iterators (yield)
   - nullable value types
@@ -2376,6 +2362,30 @@ Description: Mono C# 2.0 and C# 3.0 compiler for CLI 2.0
   - extension methods
   - partial methods
  .
+ With C# 4.0 it supports:
+  - dynamic binding (duck typing)
+  - named and optional arguments
+  - covariant and contravariant generic type parameters
+ .
+ With C# 5.0 (which is the default) it supports:
+  - asynchronous methods
+  - caller info attributes (as of Mono 3.0 currently not supported!)
+ .
+ Mono is a platform for running and developing applications based on the
+ ECMA/ISO Standards. Mono is an open source effort led by Novell.
+ Mono provides a complete CLR (Common Language Runtime) including compiler and
+ runtime, which can produce and execute CIL (Common Intermediate Language)
+ bytecode (aka assemblies), and a class library.
+
+Package: mono-gmcs
+Architecture: all
+Depends: ${misc:Depends},
+         mono-mcs (= ${source:Version})
+Description: Mono C# 2.0 and C# 3.0 compiler for CLI 2.0 (transitional package)
+ This is a transitional dummy package to aid migration to mono-mcs.
+ .
+ This is the Mono C# (C-Sharp) 2.0 and C# 3.0 compiler, a platform-independent
+ compiler which produces CIL (Common Intermediate Language) binary executables.
  This compiler targets the CLI 2.0 runtime version.
  .
  Mono is a platform for running and developing applications based on the
@@ -2387,12 +2397,10 @@ Description: Mono C# 2.0 and C# 3.0 compiler for CLI 2.0
 Package: mono-dmcs
 Architecture: all
 Depends: ${misc:Depends},
-         ${cli:Depends},
-         libmono-corlib4.0-cil (>= ${mono:upversion}),
-         libmono-corlib4.0-cil (<< ${mono:next-upversion}),
-         libmono-microsoft-csharp4.0-cil
-Recommends: pkg-config
-Description: Mono C# 4.0 compiler for CLI 4.0
+         mono-mcs (= ${source:Version})
+Description: Mono C# 4.0 compiler for CLI 4.0 (transitional package)
+ This is a transitional dummy package to aid migration to mono-mcs.
+ .
  This is the Mono C# (C-Sharp) 4.0 compiler, a platform-independent compiler
  which produces CIL (Common Intermediate Language) binary executables.
  This compiler targets the CLI 4.0 runtime version.
@@ -2409,6 +2417,7 @@ Provides: c-sharp-compiler,
  c-sharp-2.0-compiler,
  c-sharp-3.0-compiler,
  c-sharp-4.0-compiler,
+ c-sharp-4.5-compiler,
  resource-file-generator,
  assembly-linker,
  strong-name-tool
@@ -2420,7 +2429,7 @@ Replaces: mono-1.0-devel (<< 2.0),
 Recommends: mono-csharp-shell
 Depends: ${misc:Depends},
          ${cli:Depends},
-         mono-dmcs (= ${source:Version}),
+         mono-mcs (= ${source:Version}),
          mono-gac (= ${source:Version}),
          mono-xbuild (= ${source:Version}),
          libmono-cil-dev (= ${source:Version}),
