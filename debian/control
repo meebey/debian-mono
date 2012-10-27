@@ -2329,10 +2329,10 @@ Depends: ${misc:Depends},
          libmono-microsoft-csharp4.0-cil
 Recommends: pkg-config
 Replaces: mono-devel (<< 2.4.2.3),
-          mono-gmcs (<< 3.0),
-          mono-dmcs (<< 3.0)
-Conflicts: mono-gmcs (<< 3.0),
-           mono-dmcs (<< 3.0)
+          mono-gmcs (<< 3.0~),
+          mono-dmcs (<< 3.0~)
+Breaks: mono-gmcs (<< 3.0~),
+        mono-dmcs (<< 3.0~)
 Description: Mono C# 2.0 / 3.0 / 4.0 / 5.0  compiler for CLI 2.0 / 4.0 / 4.5
  This is the Mono C# (C-Sharp) 2.0, 3.0, 4.0 and 5.0 compiler,
  a platform-independent compiler which produces
