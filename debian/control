@@ -1836,7 +1836,7 @@ Description: Mono ASP.NET MVC 3.0 Library (for CLI 4.0)
  The ASP.NET MVC framework is a web application framework that implements the
  model-view-controller (MVC) pattern.
 
-Package: libmono-system-web-webpages4.0-cil
+Package: libmono-system-web-webpages2.0-cil
 Architecture: all
 Depends: ${misc:Depends},
          ${cli:Depends}
