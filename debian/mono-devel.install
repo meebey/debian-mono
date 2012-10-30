@@ -5,6 +5,7 @@ debian/tmp/usr/bin/ccrewrite
 debian/tmp/usr/bin/cert2spc
 debian/tmp/usr/bin/certmgr
 debian/tmp/usr/bin/chktrust
+debian/tmp/usr/bin/crlupdate
 debian/tmp/usr/bin/disco
 debian/tmp/usr/bin/dtd2xsd
 debian/tmp/usr/bin/dtd2rng
@@ -46,6 +47,7 @@ debian/tmp/usr/lib/mono/4.5/ccrewrite.exe*
 debian/tmp/usr/lib/mono/4.5/cert2spc.exe*
 debian/tmp/usr/lib/mono/4.5/certmgr.exe*
 debian/tmp/usr/lib/mono/4.5/chktrust.exe*
+debian/tmp/usr/lib/mono/4.5/crlupdate.exe*
 debian/tmp/usr/lib/mono/4.5/culevel.exe*
 debian/tmp/usr/lib/mono/4.5/disco.exe*
 debian/tmp/usr/lib/mono/4.5/dtd2rng.exe*
