@@ -80,7 +80,7 @@ debian/tmp/usr/lib/mono/4.5/pdb2mdb.exe*
 debian/tmp/usr/lib/mono/2.0/resgen.exe*
 debian/tmp/usr/lib/mono/4.5/resgen.exe*
 debian/tmp/usr/lib/mono/2.0/RabbitMQ.Client.Apigen.exe*
-debian/tmp/usr/lib/mono/4.0/RabbitMQ.Client.Apigen.exe*
+debian/tmp/usr/lib/mono/4.5/RabbitMQ.Client.Apigen.exe*
 debian/tmp/usr/lib/mono/4.5/secutil.exe*
 debian/tmp/usr/lib/mono/4.5/setreg.exe*
 debian/tmp/usr/lib/mono/4.5/sgen.exe*

@@ -177,6 +177,7 @@ install-stamp:
 	rm -rf $(CURDIR)/debian/tmp/usr/lib/mono/gac/Mono.Security.Win32/
 	rm -f  $(CURDIR)/debian/tmp/usr/lib/mono/2.0/Mono.Security.Win32.dll*
 	rm -f  $(CURDIR)/debian/tmp/usr/lib/mono/4.0/Mono.Security.Win32.dll*
+	rm -f  $(CURDIR)/debian/tmp/usr/lib/mono/4.5/Mono.Security.Win32.dll*
 	# we don't ship bundled nunit of mono
 	rm -f  $(CURDIR)/debian/tmp/usr/lib/mono/2.0/nunit*
 	rm -f  $(CURDIR)/debian/tmp/usr/lib/mono/4.0/nunit*
