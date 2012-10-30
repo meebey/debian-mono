@@ -299,6 +299,7 @@ Depends: ${misc:Depends},
          libmono-system-messaging2.0-cil (= ${source:Version}),
          libmono-system-messaging4.0-cil (= ${source:Version}),
          libmono-system-net4.0-cil (= ${source:Version}),
+         libmono-system-net-http4.0-cil (= ${source:Version}),
          libmono-system-numerics4.0-cil (= ${source:Version}),
          libmono-system-runtime2.0-cil (= ${source:Version}),
          libmono-system-runtime4.0-cil (= ${source:Version}),
@@ -1104,6 +1105,19 @@ Description: Mono System.Net library (for CLI 4.0)
  bytecode (aka assemblies), and a class library.
  .
  This package contains the Mono System.Net library for CLI 4.0.
+
+Package: libmono-system-net-http4.0-cil
+Architecture: all
+Depends: ${misc:Depends},
+         ${cli:Depends},
+Description: Mono System.Net.Http library (for CLI 4.0)
+ Mono is a platform for running and developing applications based on the
+ ECMA/ISO Standards. Mono is an open source effort led by Novell.
+ Mono provides a complete CLR (Common Language Runtime) including compiler and
+ runtime, which can produce and execute CIL (Common Intermediate Language)
+ bytecode (aka assemblies), and a class library.
+ .
+ This package contains the Mono System.Net.Http library for CLI 4.0.
 
 Package: libmono-system-numerics4.0-cil
 Architecture: all
