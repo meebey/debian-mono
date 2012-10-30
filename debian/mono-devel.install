@@ -1,5 +1,6 @@
 debian/tmp/usr/bin/al
 debian/tmp/usr/bin/caspol
+debian/tmp/usr/bin/cccheck
 debian/tmp/usr/bin/ccrewrite
 debian/tmp/usr/bin/cert2spc
 debian/tmp/usr/bin/certmgr
@@ -40,6 +41,7 @@ debian/tmp/usr/lib/mono/2.0/al.exe*
 debian/tmp/usr/lib/mono/4.5/al.exe*
 debian/tmp/usr/lib/mono/4.5/browsercaps-updater.exe*
 debian/tmp/usr/lib/mono/4.5/caspol.exe*
+debian/tmp/usr/lib/mono/4.5/cccheck.exe*
 debian/tmp/usr/lib/mono/4.5/ccrewrite.exe*
 debian/tmp/usr/lib/mono/4.5/cert2spc.exe*
 debian/tmp/usr/lib/mono/4.5/certmgr.exe*
