@@ -1,12 +1,57 @@
-mono (3.0.0+dfsg-1~exp1) UNRELEASED; urgency=low
+mono (3.0.0+dfsg-1~exp1~pre1) experimental; urgency=low
+
+  * The "From Mirco Bauer with Love" release
 
   * New major upstream release
     + Dropped obsolete downstream patches:
       - master-experimental-patches/CVE-2012-3382-Mono.Web-XSS
       - master-experimental-patches/X.509_fixes
       - master-experimental-patches/fix_mono-api-info
+    + TODO: WRITE NEWS HERE
+  * [ca9c963] Imported Upstream version 3.0.0+dfsg
+  * [2b6934a] Updated GNU/kFreeBSD port for Mono 3.0
+  * [df4ee63] Disable -Werror=format-security on GCC as the input is already
+              validated by the caller.
+  * [552f512] Added missing RabbitMQ.Client/docs/specs files back, which
+              were accidently deleted in debian/rules' get-orig-source target
+  * [fd3c55d] Updated libmono-2.0-1.symbols for Mono 3.0
+  * [70a0773] Added 4.5 runtime config files to mono-runtime.install
+  * [f2c64d8] Moved gmcs and dmcs to the mono-mcs package as they are now just
+              script wrappers around mcs which from now on provides the
+              C# 2.0, 3.0, 4.0 and 5.0 compiler
+  * [5f555c4] Use mcs compiler in debian/rules for MonoGetAssemblyName and
+              mono-api-diff
+  * [22cdeb1] The default C# compiler (cli-csc) is now mcs instead of dmcs,
+              making CLI 4.5 the new default runtime
+  * [d8aa46c] Updated application paths of mono-devel.install
+  * [bbad2af] Added new libmono-corlib4.5-cil package
+  * [2992c9c] Updated application path of mono-csharp-shell.install
+  * [86a3c74] Updated application path of mono-4.0-gac.install
+  * [422f9a5] Updated library path of libmono-codecontracts4.0-cil.install
+  * [07f956e] Added new libmono-parallel4.0-cil package
+  * [0ac23eb] Updated application path of mono-4.0-service.install
+  * [68801fb] Added new libmono-system-json4.0-cil package
+  * [62ec2a8] Updated library paths for libmono-microsoft-build*4.0-cil and
+              added new libmono-microsoft-build4.0-cil package
+  * [9f85c45] Added new libmono-entityframework(-sqlserver)6.0-cil package
+  * [64737c1] Added new libmono-system-net-http4.0-cil package
+  * [0d23a36] Added new libmono-system-net-http-formatting4.0-cil package
+  * [7a5ff4b] Added new libmono-system-threading-tasks-dataflow4.0-cil package
+  * [7d22b72] Added new libmono-system-web-http4.0-cil package
+  * [a153a71] Added new libmono-system-web-http-selfhost4.0-cil package
+  * [4be7571] Added new libmono-system-web-mvc3.0-cil package
+  * [5705132] Added new libmono-system-web-razor2.0-cil package
+  * [f636e2f] Added new libmono-system-web-webpages2.0-cil package
+  * [2b8ef48] Added new libmono-system-web-webpages-deployment2.0-cil package
+  * [3a0996e] Added new libmono-system-web-webpages-razor2.0-cil package
+  * [cba5827] Added aspnetwebstack.pc and system.web.mvc3.pc to libmono-cil-dev
+              package
+  * [e36a51e] Added cccheck(.exe) with manpage to mono-devel package
+  * [cb6e8fc] Added crlupdate(.exe) with manpage to mono-devel package
+  * [bb1a528] Updated library paths for .NET 4.5 development profile
+  * [52efd50] Updated application paths for .NET 4.5 development profile
 
- -- Mirco Bauer <meebey@debian.org>  Sat, 20 Oct 2012 23:04:14 +0200
+ -- Mirco Bauer <meebey@debian.org>  Tue, 30 Oct 2012 19:38:05 +0100
 
 mono (2.10.8.1-6) unstable; urgency=low
 
