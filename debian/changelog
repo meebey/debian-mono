@@ -1,3 +1,10 @@
+mono (3.0.1+dfsg-1~exp1~pre1) experimental; urgency=low
+
+  * [8bb72a8] Re-synced debian/dh_makeclilibs from cli-common 0.9, needed for .NET 4.5 support
+  * [81be094] Imported Upstream version 3.0.1+dfsg
+
+ -- Mirco Bauer <meebey@debian.org>  Mon, 26 Nov 2012 18:49:47 +0100
+
 mono (3.0.0+dfsg-1~exp1~pre1) experimental; urgency=low
 
   * The "From Mirco Bauer with Love" release
