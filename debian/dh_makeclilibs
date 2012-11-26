@@ -136,7 +136,7 @@ if (defined($dh{INTERNAL_MONO_FLAG}) ||
     $clr = "mono";
     my $mono_path = "LD_LIBRARY_PATH=debian/tmp/usr/lib MONO_PATH=debian/tmp/usr/lib/mono/4.0 MONO_CFG_DIR=debian/tmp/etc";
     $cli_parser = "$mono_path debian/tmp/usr/bin/monodis";
-    $sn = "$mono_path debian/tmp/usr/bin/mono debian/tmp/usr/lib/mono/4.0/sn.exe";
+    $sn = "$mono_path debian/tmp/usr/bin/mono debian/tmp/usr/lib/mono/4.5/sn.exe";
     verbose_print("Will use build Mono (debian/tmp/usr/bin/monodis) for CIL parsing.");
 } elsif (-x "/usr/bin/monodis") {
     $clr = "mono";
@@ -156,8 +156,8 @@ if (defined($dh{INTERNAL_MONO_FLAG}) ||
   my $srcblock = <FILE>;
   close(FILE);
   if ($srcblock =~ m/Build-Depends(?:\-Indep)?\:(?:.*\n\s+)*.*cli\-common\-dev\s*\(>=\s*([^\)]+)\)/ &&
-      system("dpkg", "--compare-versions", $1, ">=", "0.4.4") != 0) {
-    warning("Warning! No Build-Depends(-Indep) on cli-common-dev (>= 0.4.4)!");
+      system("dpkg", "--compare-versions", $1, ">=", "0.8~") != 0) {
+    warning("Warning! No Build-Depends(-Indep) on cli-common-dev (>= 0.8~)!");
   }
 }
 
