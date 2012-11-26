@@ -833,6 +833,8 @@ CPPFLAGS
 LDFLAGS
 CFLAGS
 CC
+AM_BACKSLASH
+AM_DEFAULT_VERBOSITY
 MAINT
 MAINTAINER_MODE_FALSE
 MAINTAINER_MODE_TRUE
@@ -913,6 +915,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 enable_maintainer_mode
+enable_silent_rules
 enable_dependency_tracking
 enable_shared
 enable_static
@@ -923,7 +926,6 @@ enable_libtool_lock
 enable_rpath
 with_libiconv_prefix
 with_crosspkgdir
-enable_quiet_build
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1557,6 +1559,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-maintainer-mode  enable make rules and dependencies not useful
 			  (and sometimes confusing) to the casual installer
+  --enable-silent-rules          less verbose build output (undo: `make V=1')
+  --disable-silent-rules         verbose build output (undo: `make V=0')
   --disable-dependency-tracking  speeds up one-time build
   --enable-dependency-tracking   do not reject slow dependency extractors
   --enable-shared[=PKGS]  build shared libraries [default=yes]
@@ -1565,7 +1569,6 @@ Optional Features:
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --disable-rpath         do not hardcode runtime library paths
-  --enable-quiet-build  Enable quiet runtime build (on by default)
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -3279,6 +3282,19 @@ fi
 
 
 
+# Check whether --enable-silent-rules was given.
+if test "${enable_silent_rules+set}" = set; then :
+  enableval=$enable_silent_rules;
+fi
+
+case $enable_silent_rules in
+yes) AM_DEFAULT_VERBOSITY=0;;
+no)  AM_DEFAULT_VERBOSITY=1;;
+*)   AM_DEFAULT_VERBOSITY=0;;
+esac
+AM_BACKSLASH='\'
+
+
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -4867,13 +4883,13 @@ if ${lt_cv_nm_interface+:} false; then :
 else
   lt_cv_nm_interface="BSD nm"
   echo "int some_variable = 0;" > conftest.$ac_ext
-  (eval echo "\"\$as_me:4870: $ac_compile\"" >&5)
+  (eval echo "\"\$as_me:4886: $ac_compile\"" >&5)
   (eval "$ac_compile" 2>conftest.err)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:4873: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
+  (eval echo "\"\$as_me:4889: $NM \\\"conftest.$ac_objext\\\"\"" >&5)
   (eval "$NM \"conftest.$ac_objext\"" 2>conftest.err > conftest.out)
   cat conftest.err >&5
-  (eval echo "\"\$as_me:4876: output\"" >&5)
+  (eval echo "\"\$as_me:4892: output\"" >&5)
   cat conftest.out >&5
   if $GREP 'External.*some_variable' conftest.out > /dev/null; then
     lt_cv_nm_interface="MS dumpbin"
@@ -6079,7 +6095,7 @@ ia64-*-hpux*)
   ;;
 *-*-irix6*)
   # Find out which ABI we are using.
-  echo '#line 6082 "configure"' > conftest.$ac_ext
+  echo '#line 6098 "configure"' > conftest.$ac_ext
   if { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_compile\""; } >&5
   (eval $ac_compile) 2>&5
   ac_status=$?
@@ -7608,11 +7624,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7611: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7627: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7615: \$? = $ac_status" >&5
+   echo "$as_me:7631: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -7947,11 +7963,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:7950: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:7966: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>conftest.err)
    ac_status=$?
    cat conftest.err >&5
-   echo "$as_me:7954: \$? = $ac_status" >&5
+   echo "$as_me:7970: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s "$ac_outfile"; then
      # The compiler can only warn and ignore the option if not recognized
      # So say no if there are warnings other than the usual output.
@@ -8052,11 +8068,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8055: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8071: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8059: \$? = $ac_status" >&5
+   echo "$as_me:8075: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -8107,11 +8123,11 @@ else
    -e 's:.*FLAGS}\{0,1\} :&$lt_compiler_flag :; t' \
    -e 's: [^ ]*conftest\.: $lt_compiler_flag&:; t' \
    -e 's:$: $lt_compiler_flag:'`
-   (eval echo "\"\$as_me:8110: $lt_compile\"" >&5)
+   (eval echo "\"\$as_me:8126: $lt_compile\"" >&5)
    (eval "$lt_compile" 2>out/conftest.err)
    ac_status=$?
    cat out/conftest.err >&5
-   echo "$as_me:8114: \$? = $ac_status" >&5
+   echo "$as_me:8130: \$? = $ac_status" >&5
    if (exit $ac_status) && test -s out/conftest2.$ac_objext
    then
      # The compiler can only warn and ignore the option if not recognized
@@ -10475,7 +10491,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10478 "configure"
+#line 10494 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -10571,7 +10587,7 @@ else
   lt_dlunknown=0; lt_dlno_uscore=1; lt_dlneed_uscore=2
   lt_status=$lt_dlunknown
   cat > conftest.$ac_ext <<_LT_EOF
-#line 10574 "configure"
+#line 10590 "configure"
 #include "confdefs.h"
 
 #if HAVE_DLFCN_H
@@ -10980,6 +10996,7 @@ modeok=false
 tagok=false
 for arg in "$@"; do
     case "$arg" in
+        --silent) ;;
         --mode=compile) modeok=true ;;
         --tag=CC|--tag=CXX) tagok=true ;;
         --quiet) ;;
@@ -12831,12 +12848,6 @@ else
 fi
 
 
-# Check whether --enable-quiet-build was given.
-if test "${enable_quiet_build+set}" = set; then :
-  enableval=$enable_quiet_build; enable_quiet_build=$enableval
-else
-  enable_quiet_build=yes
-fi
 
 
 
@@ -12847,14 +12858,6 @@ fi
 
 
 
-
-
-if test x$enable_quiet_build = xyes; then
-   ac_config_commands="$ac_config_commands quiet"
-
-   ac_config_commands="$ac_config_commands quiet-libtool"
-
-fi
 
 ac_config_files="$ac_config_files Makefile m4/Makefile src/Makefile src/eglib-config.h test/Makefile"
 
@@ -13866,7 +13869,6 @@ fi
 
 
 
-shell=$SHELL
 
 _ACEOF
 
@@ -13879,8 +13881,6 @@ do
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
-    "quiet") CONFIG_COMMANDS="$CONFIG_COMMANDS quiet" ;;
-    "quiet-libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS quiet-libtool" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "m4/Makefile") CONFIG_FILES="$CONFIG_FILES m4/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
@@ -15210,13 +15210,6 @@ _LT_EOF
   chmod +x "$ofile"
 
  ;;
-    "quiet":C)   for i in `find mono src test -name Makefile`; do
-   	   if  grep -q 'generated by automake' $i ; then
-	   	  $srcdir/../scripts/patch-quiet.sh $i;
-	   fi;
-   done
- ;;
-    "quiet-libtool":C) sed -e 's/$echo "copying selected/$show "copying selected/g' < libtool > libtool.tmp && mv libtool.tmp libtool && chmod a+x libtool; sed -e 's/$ECHO "copying selected/# "copying selected/g' < libtool > libtool.tmp && mv libtool.tmp libtool && chmod a+x libtool ;;
 
   esac
 done # for ac_tag

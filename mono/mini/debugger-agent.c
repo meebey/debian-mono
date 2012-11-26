@@ -167,7 +167,6 @@ struct _InvokeData
 typedef struct {
 	MonoThreadUnwindState context;
 
-	gpointer resume_event;
 	/* This is computed on demand when it is requested using the wire protocol */
 	/* It is freed up when the thread is resumed */
 	int frame_count;
@@ -1317,8 +1316,7 @@ socket_transport_connect (const char *address)
 #endif
 	}
 	
-	disconnected = !transport_handshake ();
-	if (disconnected)
+	if (!transport_handshake ())
 		exit (1);
 }
 
@@ -1447,6 +1445,8 @@ transport_handshake (void)
 	guint8 buf [128];
 	int res;
 	
+	disconnected = TRUE;
+	
 	/* Write handshake message */
 	sprintf (handshake_msg, "DWP-Handshake");
 	do {
@@ -1475,7 +1475,7 @@ transport_handshake (void)
 	 * Set TCP_NODELAY on the socket so the client receives events/command
 	 * results immediately.
 	 */
-	{
+	if (conn_fd) {
 		int flag = 1;
 		int result = setsockopt (conn_fd,
                                  IPPROTO_TCP,
@@ -1488,6 +1488,7 @@ transport_handshake (void)
 	set_keepalive ();
 #endif
 	
+	disconnected = FALSE;
 	return TRUE;
 }
 
@@ -3646,7 +3647,6 @@ thread_startup (MonoProfiler *prof, uintptr_t tid)
 	g_assert (!tls);
 	// FIXME: Free this somewhere
 	tls = g_new0 (DebuggerTlsData, 1);
-	tls->resume_event = CreateEvent (NULL, FALSE, FALSE, NULL);
 	MONO_GC_REGISTER_ROOT_SINGLE (tls->thread);
 	tls->thread = thread;
 	mono_native_tls_set_value (debugger_tls_id, tls);

@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 #AC_PREREQ([2.62])
 
-AC_INIT(mono, [3.0.0],
+AC_INIT(mono, [3.0.1],
         [http://bugzilla.xamarin.com/enter_bug.cgi?classification=Mono])
 
 AC_CONFIG_SRCDIR([README])
@@ -21,6 +21,8 @@ API_VER=2.0
 AC_SUBST(API_VER)
 
 AC_PROG_LN_S
+
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 # In case of cygwin, override LN_S, irrespective of what it determines.
 # The build uses cygwin, but the actual runtime doesn't.
@@ -677,12 +679,18 @@ AC_ARG_WITH(sigaltstack, [  --with-sigaltstack=yes,no      enable/disable suppor
 
 AC_ARG_WITH(static_mono, [  --with-static_mono=yes,no      link mono statically to libmono (faster) (defaults to yes)],[],[with_static_mono=yes])
 AC_ARG_WITH(shared_mono, [  --with-shared_mono=yes,no      build a shared libmono library (defaults to yes)],[],[with_shared_mono=yes])
+# Same as --with-shared_mono=no
+AC_ARG_ENABLE(libraries, [  --disable-libraries disable the build of libmono], enable_libraries=$enableval, enable_libraries=yes)
 
 if test "x$enable_static" = "xno"; then
    with_static_mono=no
 fi
 
 if test "x$enable_shared" = "xno"; then
+   with_shared_mono=no
+fi
+
+if test "x$enable_libraries" = "xno"; then
    with_shared_mono=no
 fi
 
@@ -717,7 +725,6 @@ if test "x$with_xen_opt" = "xyes" -a "x$mono_cv_clang" = "xno"; then
 	])
 fi
 
-AC_ARG_ENABLE(quiet-build, [  --enable-quiet-build  Enable quiet runtime build (on by default)], enable_quiet_build=$enableval, enable_quiet_build=yes)
 AC_ARG_ENABLE(small-config, [  --enable-small-config Enable tweaks to reduce requirements (and capabilities)], enable_small_config=$enableval, enable_small_config=no)
 
 if test x$enable_small_config = xyes; then
@@ -2565,7 +2572,7 @@ SGEN_DEFINES=
 AC_ARG_WITH(sgen, [  --with-sgen=yes,no             Extra Generational GC, default=yes],[buildsgen=$with_sgen],[buildsgen=$build_sgen_default])
 if test x$buildsgen = xyes; then
    if $sgen_supported; then
-       SGEN_DEFINES="-DHAVE_SGEN_GC -DHAVE_MOVING_COLLECTOR -DHAVE_WRITE_BARRIERS"
+       SGEN_DEFINES="-DHAVE_SGEN_GC -DHAVE_MOVING_COLLECTOR"
        gc_msg="sgen and $gc_msg"
    else
        buildsgen=no
@@ -2808,8 +2815,7 @@ AC_ARG_WITH(profile2,  [  --with-profile2=yes,no          If you want to install
 AC_ARG_WITH(profile4,  [  --with-profile4=yes,no          If you want to install the 4.0 FX (defaults to yes)],                [], [with_profile4=yes])
 AC_ARG_WITH(profile4_5,[  --with-profile4_5=yes,no        If you want to install the 4.5 FX (defaults to yes)],                [], [with_profile4_5=yes])
 AC_ARG_WITH(monodroid, [  --with-monodroid=yes,no         If you want to build the MonoDroid assemblies (defaults to no)],     [], [with_monodroid=no])
-AC_ARG_WITH(monotouch, [  --with-monotouch=yes,no         If you want to build the MonoTouch assemblies (defaults to no)],     [], [with_monotouch=no])
-AC_ARG_WITH(mobile,    [  --with-mobile=yes,no            If you want to build the Mobile assemblies (defaults to no)],        [], [with_mobile=no])
+AC_ARG_WITH(monotouch, [  --with-monotouch=yes,no,only    If you want to build the MonoTouch assemblies (defaults to no)],     [], [with_monotouch=no])
 
 OPROFILE=no
 AC_ARG_WITH(oprofile,[  --with-oprofile=no,<oprofile install dir>   Enable oprofile support (defaults to no)],[
@@ -2884,6 +2890,11 @@ dnl Consistency settings
 dnl
 if test x$cross_compiling = xyes -o x$enable_mcs_build = xno; then
    DISABLE_MCS_DOCS=yes
+   with_profile2=no
+   with_profile4=no
+   with_profile4_5=no
+   with_monodroid=no
+   with_monotouch=no
 fi
 
 if test x$DISABLE_MCS_DOCS = xyes; then
@@ -2903,6 +2914,7 @@ AC_SUBST(OPROFILE_LIBS)
 libmono_ldflags="$libmono_ldflags $LIBS"
 
 AM_CONDITIONAL(MOONLIGHT, [test "x$with_moonlight" != "xno"])
+
 AM_CONDITIONAL(ONLY_MOONLIGHT, [test "x$with_moonlight" = "xonly"])
 AM_CONDITIONAL(MOONLIGHT_BOEHM, [test "x$with_moon_gc" = "xboehm"])
 AM_CONDITIONAL(MOONLIGHT_SGEN, [test "x$with_moon_gc" = "xsgen"])
@@ -2910,9 +2922,8 @@ AM_CONDITIONAL(MOONLIGHT_SGEN, [test "x$with_moon_gc" = "xsgen"])
 AM_CONDITIONAL(INSTALL_2_0, [test "x$with_profile2" = xyes])
 AM_CONDITIONAL(INSTALL_4_0, [test "x$with_profile4" = xyes])
 AM_CONDITIONAL(INSTALL_4_5, [test "x$with_profile4_5" = xyes])
-AM_CONDITIONAL(INSTALL_MONODROID, [test "x$with_monodroid" = xyes])
-AM_CONDITIONAL(INSTALL_MONOTOUCH, [test "x$with_monotouch" = xyes])
-AM_CONDITIONAL(INSTALL_MOBILE, [test "x$with_mobile" = xyes])
+AM_CONDITIONAL(INSTALL_MONODROID, [test "x$with_monodroid" != "xno"])
+AM_CONDITIONAL(INSTALL_MONOTOUCH, [test "x$with_monotouch" != "xno"])
 
 AM_CONDITIONAL(MIPS_GCC, test ${TARGET}${ac_cv_prog_gcc} = MIPSyes)
 AM_CONDITIONAL(MIPS_SGI, test ${TARGET}${ac_cv_prog_gcc} = MIPSno)
@@ -3102,16 +3113,7 @@ AC_CONFIG_COMMANDS([runtime/etc/mono/4.5/web.config],
     cd $depth
 ],[LN_S='$LN_S'])
 
-if test x$enable_quiet_build = xyes; then
-   AC_CONFIG_COMMANDS([quiet],
-[  for i in `find mono libgc support -name Makefile`; do
-   	   if [ grep -q 'generated by automake' $i ]; then
-	   	  $srcdir/scripts/patch-quiet.sh $i;
-	   fi;
-   done
-], [shell=$SHELL])
-   AC_CONFIG_COMMANDS([quiet-libtool], [sed -e 's/echo "copying selected/# "copying selected/g' < libtool > libtool.tmp && mv libtool.tmp libtool && chmod a+x libtool; sed -e 's/$ECHO "copying selected/# "copying selected/g' < libtool > libtool.tmp && mv libtool.tmp libtool && chmod a+x libtool])
-fi
+AC_CONFIG_COMMANDS([quiet-libtool], [sed -e 's/echo "copying selected/# "copying selected/g' < libtool > libtool.tmp && mv libtool.tmp libtool && chmod a+x libtool; sed -e 's/$ECHO "copying selected/# "copying selected/g' < libtool > libtool.tmp && mv libtool.tmp libtool && chmod a+x libtool])
 
 AC_OUTPUT([
 Makefile
@@ -3334,7 +3336,6 @@ echo "
 	.NET 4.5:      $with_profile4_5
 	MonoDroid:     $with_monodroid
 	MonoTouch:     $with_monotouch
-	Mobile:        $with_mobile
 	JNI support:   $jdk_headers_found
 	libgdiplus:    $libgdiplus_msg
 	zlib:          $zlib_msg

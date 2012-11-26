@@ -48,10 +48,7 @@ typedef struct _SgenThreadInfo SgenThreadInfo;
 #include <mono/metadata/sgen-archdep.h>
 #include <mono/metadata/sgen-descriptor.h>
 #include <mono/metadata/sgen-gray.h>
-
-#if defined(__MACH__)
-	#include <mach/mach_port.h>
-#endif
+#include <mono/metadata/sgen-hash-table.h>
 
 /* The method used to clear the nursery */
 /* Clearing at nursery collections is the safest, but has bad interactions with caches.
@@ -104,14 +101,11 @@ enum {
 };
 
 /* eventually share with MonoThread? */
+/*
+ * This structure extends the MonoThreadInfo structure.
+ */
 struct _SgenThreadInfo {
 	MonoThreadInfo info;
-#if defined(__MACH__)
-	thread_port_t mach_port;
-#else
-	int signal;
-	unsigned int stop_count; /* to catch duplicate signals */
-#endif
 	int skip;
 	volatile int in_critical_region;
 	gboolean joined_stw;
@@ -129,21 +123,19 @@ struct _SgenThreadInfo {
 	long *store_remset_buffer_index_addr;
 	RememberedSet *remset;
 	gpointer runtime_data;
+
+	/* Only used on POSIX platforms */
+	int signal;
+	/* Ditto */
+	unsigned int stop_count; /* to catch duplicate signals */
+
 	gpointer stopped_ip;	/* only valid if the thread is stopped */
 	MonoDomain *stopped_domain; /* ditto */
 
 #ifdef USE_MONO_CTX
-#ifdef __MACH__
 	MonoContext ctx;		/* ditto */
-#endif
-	MonoContext *monoctx;	/* ditto */
-
 #else
-
-#if defined(__MACH__) || defined(HOST_WIN32)
 	gpointer regs[ARCH_NUM_REGS];	    /* ditto */
-#endif
-	gpointer *stopped_regs;	    /* ditto */
 #endif
 
 #ifndef HAVE_KW_THREAD
@@ -212,8 +204,11 @@ typedef struct _SgenPinnedChunk SgenPinnedChunk;
 		mono_mutex_unlock (&gc_mutex);			\
 		MONO_GC_UNLOCKED ();				\
 	} while (0)
-#define LOCK_INTERRUPTION mono_mutex_lock (&interruption_mutex)
-#define UNLOCK_INTERRUPTION mono_mutex_unlock (&interruption_mutex)
+
+extern LOCK_DECLARE (sgen_interruption_mutex);
+
+#define LOCK_INTERRUPTION mono_mutex_lock (&sgen_interruption_mutex)
+#define UNLOCK_INTERRUPTION mono_mutex_unlock (&sgen_interruption_mutex)
 
 /* FIXME: Use InterlockedAdd & InterlockedAdd64 to reduce the CAS cost. */
 #define SGEN_CAS_PTR	InterlockedCompareExchangePointer
@@ -258,10 +253,20 @@ extern unsigned int sgen_global_stop_count;
 
 extern gboolean bridge_processing_in_progress;
 
+extern int num_ready_finalizers;
+
 #define SGEN_ALLOC_ALIGN		8
 #define SGEN_ALLOC_ALIGN_BITS	3
 
 #define SGEN_ALIGN_UP(s)		(((s)+(SGEN_ALLOC_ALIGN-1)) & ~(SGEN_ALLOC_ALIGN-1))
+
+/*
+ * The link pointer is hidden by negating each bit.  We use the lowest
+ * bit of the link (before negation) to store whether it needs
+ * resurrection tracking.
+ */
+#define HIDE_POINTER(p,t)	((gpointer)(~((gulong)(p)|((t)?1:0))))
+#define REVEAL_POINTER(p)	((gpointer)((~(gulong)(p))&~3L))
 
 #ifdef SGEN_ALIGN_NURSERY
 #define SGEN_PTR_IN_NURSERY(p,bits,start,end)	(((mword)(p) & ~((1 << (bits)) - 1)) == (mword)(start))
@@ -383,6 +388,25 @@ List of what each bit on of the vtable gc bits means.
 enum {
 	SGEN_GC_BIT_BRIDGE_OBJECT = 1,
 };
+
+/* the runtime can register areas of memory as roots: we keep two lists of roots,
+ * a pinned root set for conservatively scanned roots and a normal one for
+ * precisely scanned roots (currently implemented as a single list).
+ */
+typedef struct _RootRecord RootRecord;
+struct _RootRecord {
+	char *end_root;
+	mword root_desc;
+};
+
+enum {
+	ROOT_TYPE_NORMAL = 0, /* "normal" roots */
+	ROOT_TYPE_PINNED = 1, /* roots without a GC descriptor */
+	ROOT_TYPE_WBARRIER = 2, /* roots with a write barrier */
+	ROOT_TYPE_NUM
+};
+
+extern SgenHashTable roots_hash [ROOT_TYPE_NUM];
 
 typedef void (*IterateObjectCallbackFunc) (char*, size_t, void*);
 
@@ -801,6 +825,19 @@ void sgen_null_links_with_predicate (int generation, WeakLinkAlivePredicateFunc 
 gboolean sgen_gc_is_object_ready_for_finalization (void *object) MONO_INTERNAL;
 void sgen_gc_lock (void) MONO_INTERNAL;
 void sgen_gc_unlock (void) MONO_INTERNAL;
+void sgen_gc_event_moves (void) MONO_INTERNAL;
+
+void sgen_queue_finalization_entry (MonoObject *obj) MONO_INTERNAL;
+const char* sgen_generation_name (int generation) MONO_INTERNAL;
+
+void sgen_collect_bridge_objects (CopyOrMarkObjectFunc copy_func, char *start, char *end, int generation, SgenGrayQueue *queue) MONO_INTERNAL;
+void sgen_finalize_in_range (CopyOrMarkObjectFunc copy_func, char *start, char *end, int generation, SgenGrayQueue *queue) MONO_INTERNAL;
+void sgen_null_link_in_range (CopyOrMarkObjectFunc copy_func, char *start, char *end, int generation, gboolean before_finalization, SgenGrayQueue *queue) MONO_INTERNAL;
+void sgen_null_links_for_domain (MonoDomain *domain, int generation) MONO_INTERNAL;
+void sgen_remove_finalizers_for_domain (MonoDomain *domain, int generation) MONO_INTERNAL;
+void sgen_process_fin_stage_entries (void) MONO_INTERNAL;
+void sgen_process_dislink_stage_entries (void) MONO_INTERNAL;
+void sgen_register_disappearing_link (MonoObject *obj, void **link, gboolean track, gboolean in_gc) MONO_INTERNAL;
 
 enum {
 	SPACE_NURSERY,
@@ -814,7 +851,22 @@ void sgen_set_pinned_from_failed_allocation (mword objsize) MONO_INTERNAL;
 
 void sgen_ensure_free_space (size_t size) MONO_INTERNAL;
 void sgen_perform_collection (size_t requested_size, int generation_to_collect, const char *reason) MONO_INTERNAL;
+gboolean sgen_has_critical_method (void) MONO_INTERNAL;
+gboolean sgen_is_critical_method (MonoMethod *method) MONO_INTERNAL;
 
+/* STW */
+
+typedef struct {
+	int generation;
+	const char *reason;
+	gboolean is_overflow;
+	SGEN_TV_DECLARE (total_time);
+	SGEN_TV_DECLARE (stw_time);
+	SGEN_TV_DECLARE (bridge_time);
+} GGTimingInfo;
+
+int sgen_stop_world (int generation) MONO_INTERNAL;
+int sgen_restart_world (int generation, GGTimingInfo *timing) MONO_INTERNAL;
 
 /* LOS */
 
@@ -976,6 +1028,7 @@ typedef enum {
 
 void sgen_init_tlab_info (SgenThreadInfo* info);
 void sgen_clear_tlabs (void);
+void sgen_set_use_managed_allocator (gboolean flag);
 gboolean sgen_is_managed_allocator (MonoMethod *method);
 gboolean sgen_has_managed_allocator (void);
 
@@ -1005,16 +1058,6 @@ sgen_dummy_use (gpointer v) {
 #error "Implement sgen_dummy_use for your compiler"
 #endif
 }
-
-
-typedef struct {
-	int generation;
-	const char *reason;
-	gboolean is_overflow;
-	SGEN_TV_DECLARE (total_time);
-	SGEN_TV_DECLARE (stw_time);
-	SGEN_TV_DECLARE (bridge_time);
-} GGTimingInfo;
 
 #endif /* HAVE_SGEN_GC */
 

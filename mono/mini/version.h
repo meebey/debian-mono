@@ -1,1 +1,1 @@
-#define FULL_VERSION "(no/c3a0383"
+#define FULL_VERSION "(no/301b6c6"
