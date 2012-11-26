@@ -382,40 +382,37 @@ delegate_hash_table_new (void) {
 static void 
 delegate_hash_table_remove (MonoDelegate *d)
 {
-#ifdef HAVE_MOVING_COLLECTOR
-	guint32 gchandle;
-#endif
+	guint32 gchandle = 0;
+
 	mono_marshal_lock ();
 	if (delegate_hash_table == NULL)
 		delegate_hash_table = delegate_hash_table_new ();
-#ifdef HAVE_MOVING_COLLECTOR
-	gchandle = GPOINTER_TO_UINT (g_hash_table_lookup (delegate_hash_table, d->delegate_trampoline));
-#endif
+	if (mono_gc_is_moving ())
+		gchandle = GPOINTER_TO_UINT (g_hash_table_lookup (delegate_hash_table, d->delegate_trampoline));
 	g_hash_table_remove (delegate_hash_table, d->delegate_trampoline);
 	mono_marshal_unlock ();
-#ifdef HAVE_MOVING_COLLECTOR
-	mono_gchandle_free (gchandle);
-#endif
+	if (mono_gc_is_moving ())
+		mono_gchandle_free (gchandle);
 }
 
 static void
 delegate_hash_table_add (MonoDelegate *d)
 {
-#ifdef HAVE_MOVING_COLLECTOR
-	guint32 gchandle = mono_gchandle_new_weakref ((MonoObject*)d, FALSE);
+	guint32 gchandle;
 	guint32 old_gchandle;
-#endif
+
 	mono_marshal_lock ();
 	if (delegate_hash_table == NULL)
 		delegate_hash_table = delegate_hash_table_new ();
-#ifdef HAVE_MOVING_COLLECTOR
-	old_gchandle = GPOINTER_TO_UINT (g_hash_table_lookup (delegate_hash_table, d->delegate_trampoline));
-	g_hash_table_insert (delegate_hash_table, d->delegate_trampoline, GUINT_TO_POINTER (gchandle));
-	if (old_gchandle)
-		mono_gchandle_free (old_gchandle);
-#else
-	g_hash_table_insert (delegate_hash_table, d->delegate_trampoline, d);
-#endif
+	if (mono_gc_is_moving ()) {
+		gchandle = mono_gchandle_new_weakref ((MonoObject*)d, FALSE);
+		old_gchandle = GPOINTER_TO_UINT (g_hash_table_lookup (delegate_hash_table, d->delegate_trampoline));
+		g_hash_table_insert (delegate_hash_table, d->delegate_trampoline, GUINT_TO_POINTER (gchandle));
+		if (old_gchandle)
+			mono_gchandle_free (old_gchandle);
+	} else {
+		g_hash_table_insert (delegate_hash_table, d->delegate_trampoline, d);
+	}
 	mono_marshal_unlock ();
 }
 
@@ -461,9 +458,7 @@ parse_unmanaged_function_pointer_attr (MonoClass *klass, MonoMethodPInvoke *piin
 MonoDelegate*
 mono_ftnptr_to_delegate (MonoClass *klass, gpointer ftn)
 {
-#ifdef HAVE_MOVING_COLLECTOR
 	guint32 gchandle;
-#endif
 	MonoDelegate *d;
 
 	if (ftn == NULL)
@@ -473,17 +468,17 @@ mono_ftnptr_to_delegate (MonoClass *klass, gpointer ftn)
 	if (delegate_hash_table == NULL)
 		delegate_hash_table = delegate_hash_table_new ();
 
-#ifdef HAVE_MOVING_COLLECTOR
-	gchandle = GPOINTER_TO_UINT (g_hash_table_lookup (delegate_hash_table, ftn));
-	mono_marshal_unlock ();
-	if (gchandle)
-		d = (MonoDelegate*)mono_gchandle_get_target (gchandle);
-	else
-		d = NULL;
-#else
-	d = g_hash_table_lookup (delegate_hash_table, ftn);
-	mono_marshal_unlock ();
-#endif
+	if (mono_gc_is_moving ()) {
+		gchandle = GPOINTER_TO_UINT (g_hash_table_lookup (delegate_hash_table, ftn));
+		mono_marshal_unlock ();
+		if (gchandle)
+			d = (MonoDelegate*)mono_gchandle_get_target (gchandle);
+		else
+			d = NULL;
+	} else {
+		d = g_hash_table_lookup (delegate_hash_table, ftn);
+		mono_marshal_unlock ();
+	}
 	if (d == NULL) {
 		/* This is a native function, so construct a delegate for it */
 		MonoMethodSignature *sig;
@@ -731,13 +726,12 @@ mono_string_utf8_to_builder (MonoStringBuilder *sb, char *text)
 		items_written = mono_stringbuilder_capacity (sb);
 	
 	if (!error) {
-		if (! sb->str || sb->str == sb->cached_str) {
+		if (! sb->str || sb->str == sb->cached_str)
 			MONO_OBJECT_SETREF (sb, str, mono_string_new_size (mono_domain_get (), items_written));
-			sb->cached_str = NULL;
-		}
 		
 		memcpy (mono_string_chars (sb->str), ut, items_written * 2);
 		sb->length = items_written;
+		sb->cached_str = NULL;
 	} else 
 		g_error_free (error);
 

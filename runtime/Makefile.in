@@ -41,8 +41,7 @@ target_triplet = @target@
 @INSTALL_4_0_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_4 = net_4_0
 @INSTALL_4_5_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_5 = net_4_5
 @INSTALL_MONODROID_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_6 = monodroid
-@INSTALL_MONOTOUCH_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_7 = monotouch
-@INSTALL_MOBILE_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_8 = mobile
+@INSTALL_MONOTOUCH_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_7 = monotouch monotouch_runtime
 subdir = runtime
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/mono-wrapper.in $(srcdir)/monodis-wrapper.in
@@ -64,9 +63,16 @@ CONFIG_CLEAN_VPATH_FILES =
 SCRIPTS = $(noinst_SCRIPTS)
 depcomp =
 am__depfiles_maybe =
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN   " $@;
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
 SOURCES =
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 API_VER = @API_VER@
 AR = @AR@
 AS = @AS@
@@ -273,17 +279,17 @@ symlinks = etc/mono/1.0/machine.config etc/mono/2.0/machine.config \
 SUPPORT_FILES = $(symlinks) mono-wrapper etc/mono/config
 @ONLY_MOONLIGHT_FALSE@build_profiles = $(am__append_2) $(am__append_3) \
 @ONLY_MOONLIGHT_FALSE@	$(am__append_4) $(am__append_5) \
-@ONLY_MOONLIGHT_FALSE@	$(am__append_6) $(am__append_7) \
-@ONLY_MOONLIGHT_FALSE@	$(am__append_8)
+@ONLY_MOONLIGHT_FALSE@	$(am__append_6) $(am__append_7)
 @ONLY_MOONLIGHT_TRUE@build_profiles = moonlight_raw $(am__append_2) \
 @ONLY_MOONLIGHT_TRUE@	$(am__append_3) $(am__append_4) \
 @ONLY_MOONLIGHT_TRUE@	$(am__append_5) $(am__append_6) \
-@ONLY_MOONLIGHT_TRUE@	$(am__append_7) $(am__append_8)
+@ONLY_MOONLIGHT_TRUE@	$(am__append_7)
 @ONLY_MOONLIGHT_FALSE@test_profiles = $(build_profiles)
 @ONLY_MOONLIGHT_TRUE@test_profiles = moonlight_raw
 @INSTALL_2_0_TRUE@@ONLY_MOONLIGHT_FALSE@al_profile = net_2_0
 @INSTALL_4_0_TRUE@@ONLY_MOONLIGHT_FALSE@al_profile = net_4_0
 @INSTALL_4_5_TRUE@@ONLY_MOONLIGHT_FALSE@al_profile = net_4_5
+@BUILD_MCS_TRUE@MAKE_FLAGS = $(if $(V),,--no-print-directory -s)
 TEST_SUPPORT_FILES = $(tmpinst)/bin/mono $(tmpinst)/bin/ilasm $(tmpinst)/bin/mcs $(tmpinst)/bin/gmcs $(tmpinst)/bin/dmcs $(tmpinst)/bin/al2 $(tmpinst)/bin/al
 @ENABLE_NUNIT_TESTS_FALSE@test_select = ONLY_CENTUM_TESTS=yes
 
@@ -492,7 +498,7 @@ $(symlinks):
 # The write check is to foil 'make distcheck'
 @BUILD_MCS_TRUE@all-local: $(SUPPORT_FILES) $(TEST_SUPPORT_FILES)
 @BUILD_MCS_TRUE@	if test -w $(mcs_topdir); then :; else chmod -R +w $(mcs_topdir); fi
-@BUILD_MCS_TRUE@	cd $(mcs_topdir) && $(MAKE) NO_DIR_CHECK=1 PROFILES='$(build_profiles)' CC='$(CC)' all-profiles
+@BUILD_MCS_TRUE@	cd $(mcs_topdir) && $(MAKE) $(MAKE_FLAGS) NO_DIR_CHECK=1 PROFILES='$(build_profiles)' CC='$(CC)' all-profiles
 
 # override automake
 @BUILD_MCS_TRUE@install: install-exec install-data
@@ -548,6 +554,9 @@ mcs-compileall: mono-wrapper etc/mono/config
 
 check-local: mcs-compileall mcs-do-test-profiles
 	$(MAKE) $(test_select) mcs-do-run-test-profiles
+
+# Compile all mcs tests
+test: mcs-do-test-profiles
 
 # depend on $(symlinks) to ensure 'etc/mono' directory exists
 etc/mono/config: ../data/config Makefile $(symlinks)

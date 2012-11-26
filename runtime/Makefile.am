@@ -75,11 +75,7 @@ build_profiles += monodroid
 endif
 
 if INSTALL_MONOTOUCH
-build_profiles += monotouch
-endif
-
-if INSTALL_MOBILE
-build_profiles += mobile
+build_profiles += monotouch monotouch_runtime
 endif
 
 test_profiles = $(build_profiles)
@@ -88,10 +84,12 @@ endif
 
 if BUILD_MCS
 
+MAKE_FLAGS=$(if $(V),,--no-print-directory -s)
+
 # The write check is to foil 'make distcheck'
 all-local: $(SUPPORT_FILES) $(TEST_SUPPORT_FILES)
 	if test -w $(mcs_topdir); then :; else chmod -R +w $(mcs_topdir); fi
-	cd $(mcs_topdir) && $(MAKE) NO_DIR_CHECK=1 PROFILES='$(build_profiles)' CC='$(CC)' all-profiles
+	cd $(mcs_topdir) && $(MAKE) $(MAKE_FLAGS) NO_DIR_CHECK=1 PROFILES='$(build_profiles)' CC='$(CC)' all-profiles
 
 # override automake
 install: install-exec install-data
@@ -172,6 +170,9 @@ mcs-compileall: mono-wrapper etc/mono/config
 
 check-local: mcs-compileall mcs-do-test-profiles
 	$(MAKE) $(test_select) mcs-do-run-test-profiles
+
+# Compile all mcs tests
+test: mcs-do-test-profiles
 
 CLEANFILES = etc/mono/config
 

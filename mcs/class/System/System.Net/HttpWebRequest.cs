@@ -835,10 +835,10 @@ namespace System.Net
 			if (writeStream == null || writeStream.RequestWritten || !InternalAllowBuffering)
 				return;
 #if NET_4_0
-			if (contentLength < 0 && writeStream.CanWrite == true && writeStream.WriteBufferLength <= 0)
+			if (contentLength < 0 && writeStream.CanWrite == true && writeStream.WriteBufferLength < 0)
 				return;
 
-			if (contentLength < 0 && writeStream.WriteBufferLength > 0)
+			if (contentLength < 0 && writeStream.WriteBufferLength >= 0)
 				InternalContentLength = writeStream.WriteBufferLength;
 #else
 			if (contentLength < 0 && writeStream.CanWrite == true)
@@ -1462,7 +1462,7 @@ namespace System.Net
 			if (isProxy && (proxy == null || proxy.Credentials == null))
 				return false;
 
-			string [] authHeaders = response.Headers.GetValues ( (isProxy) ? "Proxy-Authenticate" : "WWW-Authenticate");
+			string [] authHeaders = response.Headers.GetValues_internal ( (isProxy) ? "Proxy-Authenticate" : "WWW-Authenticate", false);
 			if (authHeaders == null || authHeaders.Length == 0)
 				return false;
 

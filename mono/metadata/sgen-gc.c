@@ -369,16 +369,6 @@ mono_gc_flush_info (void)
 
 NurseryClearPolicy nursery_clear_policy = CLEAR_AT_TLAB_CREATION;
 
-/* the runtime can register areas of memory as roots: we keep two lists of roots,
- * a pinned root set for conservatively scanned roots and a normal one for
- * precisely scanned roots (currently implemented as a single list).
- */
-typedef struct _RootRecord RootRecord;
-struct _RootRecord {
-	char *end_root;
-	mword root_desc;
-};
-
 #define object_is_forwarded	SGEN_OBJECT_IS_FORWARDED
 #define object_is_pinned	SGEN_OBJECT_IS_PINNED
 #define pin_object		SGEN_PIN_OBJECT
@@ -424,7 +414,7 @@ GCMemSection *nursery_section = NULL;
 static mword lowest_heap_address = ~(mword)0;
 static mword highest_heap_address = 0;
 
-static LOCK_DECLARE (interruption_mutex);
+LOCK_DECLARE (sgen_interruption_mutex);
 static LOCK_DECLARE (pin_queue_mutex);
 
 #define LOCK_PIN_QUEUE mono_mutex_lock (&pin_queue_mutex)
@@ -450,35 +440,17 @@ typedef struct {
 
 int current_collection_generation = -1;
 
-/*
- * The link pointer is hidden by negating each bit.  We use the lowest
- * bit of the link (before negation) to store whether it needs
- * resurrection tracking.
- */
-#define HIDE_POINTER(p,t)	((gpointer)(~((gulong)(p)|((t)?1:0))))
-#define REVEAL_POINTER(p)	((gpointer)((~(gulong)(p))&~3L))
-
 /* objects that are ready to be finalized */
 static FinalizeReadyEntry *fin_ready_list = NULL;
 static FinalizeReadyEntry *critical_fin_list = NULL;
 
 static EphemeronLinkNode *ephemeron_list;
 
-static int num_ready_finalizers = 0;
-static int no_finalize = 0;
-
-enum {
-	ROOT_TYPE_NORMAL = 0, /* "normal" roots */
-	ROOT_TYPE_PINNED = 1, /* roots without a GC descriptor */
-	ROOT_TYPE_WBARRIER = 2, /* roots with a write barrier */
-	ROOT_TYPE_NUM
-};
-
 /* registered roots: the key to the hash is the root start address */
 /* 
  * Different kinds of roots are kept separate to speed up pin_from_roots () for example.
  */
-static SgenHashTable roots_hash [ROOT_TYPE_NUM] = {
+SgenHashTable roots_hash [ROOT_TYPE_NUM] = {
 	SGEN_HASH_TABLE_INIT (INTERNAL_MEM_ROOTS_TABLE, INTERNAL_MEM_ROOT_RECORD, sizeof (RootRecord), mono_aligned_addr_hash, NULL),
 	SGEN_HASH_TABLE_INIT (INTERNAL_MEM_ROOTS_TABLE, INTERNAL_MEM_ROOT_RECORD, sizeof (RootRecord), mono_aligned_addr_hash, NULL),
 	SGEN_HASH_TABLE_INIT (INTERNAL_MEM_ROOTS_TABLE, INTERNAL_MEM_ROOT_RECORD, sizeof (RootRecord), mono_aligned_addr_hash, NULL)
@@ -572,29 +544,15 @@ align_pointer (void *ptr)
 typedef SgenGrayQueue GrayQueue;
 
 /* forward declarations */
-static int stop_world (int generation);
-static int restart_world (int generation, GGTimingInfo *timing);
 static void scan_thread_data (void *start_nursery, void *end_nursery, gboolean precise, GrayQueue *queue);
 static void scan_from_registered_roots (CopyOrMarkObjectFunc copy_func, char *addr_start, char *addr_end, int root_type, GrayQueue *queue);
 static void scan_finalizer_entries (CopyOrMarkObjectFunc copy_func, FinalizeReadyEntry *list, GrayQueue *queue);
 static void report_finalizer_roots (void);
 static void report_registered_roots (void);
-static void find_pinning_ref_from_thread (char *obj, size_t size);
-static void update_current_thread_stack (void *start);
-static void collect_bridge_objects (CopyOrMarkObjectFunc copy_func, char *start, char *end, int generation, GrayQueue *queue);
-static void finalize_in_range (CopyOrMarkObjectFunc copy_func, char *start, char *end, int generation, GrayQueue *queue);
-static void process_fin_stage_entries (void);
-static void null_link_in_range (CopyOrMarkObjectFunc copy_func, char *start, char *end, int generation, gboolean before_finalization, GrayQueue *queue);
-static void null_links_for_domain (MonoDomain *domain, int generation);
-static void remove_finalizers_for_domain (MonoDomain *domain, int generation);
-static void process_dislink_stage_entries (void);
 
 static void pin_from_roots (void *start_nursery, void *end_nursery, GrayQueue *queue);
 static int pin_objects_from_addresses (GCMemSection *section, void **start, void **end, void *start_nursery, void *end_nursery, GrayQueue *queue);
 static void finish_gray_stack (char *start_addr, char *end_addr, int generation, GrayQueue *queue);
-
-static void mono_gc_register_disappearing_link (MonoObject *obj, void **link, gboolean track, gboolean in_gc);
-static gboolean mono_gc_is_critical_method (MonoMethod *method);
 
 void mono_gc_scan_for_specific_ref (MonoObject *key, gboolean precise);
 
@@ -1008,7 +966,7 @@ clear_domain_process_object (char *obj, MonoDomain *domain)
 	if (remove && ((MonoObject*)obj)->synchronisation) {
 		void **dislink = mono_monitor_get_object_monitor_weak_link ((MonoObject*)obj);
 		if (dislink)
-			mono_gc_register_disappearing_link (NULL, dislink, FALSE, TRUE);
+			sgen_register_disappearing_link (NULL, dislink, FALSE, TRUE);
 	}
 
 	return remove;
@@ -1058,8 +1016,8 @@ mono_gc_clear_domain (MonoDomain * domain)
 
 	LOCK_GC;
 
-	process_fin_stage_entries ();
-	process_dislink_stage_entries ();
+	sgen_process_fin_stage_entries ();
+	sgen_process_dislink_stage_entries ();
 
 	sgen_clear_nursery_fragments ();
 
@@ -1074,10 +1032,10 @@ mono_gc_clear_domain (MonoDomain * domain)
 	null_ephemerons_for_domain (domain);
 
 	for (i = GENERATION_NURSERY; i < GENERATION_MAX; ++i)
-		null_links_for_domain (domain, i);
+		sgen_null_links_for_domain (domain, i);
 
 	for (i = GENERATION_NURSERY; i < GENERATION_MAX; ++i)
-		remove_finalizers_for_domain (domain, i);
+		sgen_remove_finalizers_for_domain (domain, i);
 
 	sgen_scan_area_with_callback (nursery_section->data, nursery_section->end_data,
 			(IterateObjectCallbackFunc)clear_domain_process_minor_object_callback, domain, FALSE);
@@ -1449,31 +1407,6 @@ conservatively_pin_objects_from (void **start, void **end, void *start_nursery, 
 }
 
 /*
- * Debugging function: find in the conservative roots where @obj is being pinned.
- */
-static G_GNUC_UNUSED void
-find_pinning_reference (char *obj, size_t size)
-{
-	char **start;
-	RootRecord *root;
-	char *endobj = obj + size;
-
-	SGEN_HASH_TABLE_FOREACH (&roots_hash [ROOT_TYPE_NORMAL], start, root) {
-		/* if desc is non-null it has precise info */
-		if (!root->root_desc) {
-			while (start < (char**)root->end_root) {
-				if (*start >= obj && *start < endobj) {
-					DEBUG (0, fprintf (gc_debug_file, "Object %p referenced in pinned roots %p-%p\n", obj, start, root->end_root));
-				}
-				start++;
-			}
-		}
-	} SGEN_HASH_TABLE_FOREACH_END;
-
-	find_pinning_ref_from_thread (obj, size);
-}
-
-/*
  * The first thing we do in a collection is to identify pinned objects.
  * This function considers all the areas of memory that need to be
  * conservatively scanned.
@@ -1816,17 +1749,10 @@ generation_name (int generation)
 	}
 }
 
-
-static void
-stw_bridge_process (void)
+const char*
+sgen_generation_name (int generation)
 {
-	sgen_bridge_processing_stw_step ();
-}
-
-static void
-bridge_process (int generation)
-{
-	sgen_bridge_processing_finish (generation);
+	return generation_name (generation);
 }
 
 SgenObjectOperations *
@@ -1886,9 +1812,9 @@ finish_gray_stack (char *start_addr, char *end_addr, int generation, GrayQueue *
 		sgen_scan_togglerefs (copy_func, sgen_get_nursery_start (), sgen_get_nursery_end (), queue);
 
 	if (sgen_need_bridge_processing ()) {
-		collect_bridge_objects (copy_func, start_addr, end_addr, generation, queue);
+		sgen_collect_bridge_objects (copy_func, start_addr, end_addr, generation, queue);
 		if (generation == GENERATION_OLD)
-			collect_bridge_objects (copy_func, sgen_get_nursery_start (), sgen_get_nursery_end (), GENERATION_NURSERY, queue);
+			sgen_collect_bridge_objects (copy_func, sgen_get_nursery_start (), sgen_get_nursery_end (), GENERATION_NURSERY, queue);
 	}
 
 	/*
@@ -1901,9 +1827,9 @@ finish_gray_stack (char *start_addr, char *end_addr, int generation, GrayQueue *
 	We must clear weak links that don't track resurrection before processing object ready for
 	finalization so they can be cleared before that.
 	*/
-	null_link_in_range (copy_func, start_addr, end_addr, generation, TRUE, queue);
+	sgen_null_link_in_range (copy_func, start_addr, end_addr, generation, TRUE, queue);
 	if (generation == GENERATION_OLD)
-		null_link_in_range (copy_func, start_addr, end_addr, GENERATION_NURSERY, TRUE, queue);
+		sgen_null_link_in_range (copy_func, start_addr, end_addr, GENERATION_NURSERY, TRUE, queue);
 
 
 	/* walk the finalization queue and move also the objects that need to be
@@ -1911,9 +1837,9 @@ finish_gray_stack (char *start_addr, char *end_addr, int generation, GrayQueue *
 	 * on are also not reclaimed. As with the roots above, only objects in the nursery
 	 * are marked/copied.
 	 */
-	finalize_in_range (copy_func, start_addr, end_addr, generation, queue);
+	sgen_finalize_in_range (copy_func, start_addr, end_addr, generation, queue);
 	if (generation == GENERATION_OLD)
-		finalize_in_range (copy_func, sgen_get_nursery_start (), sgen_get_nursery_end (), GENERATION_NURSERY, queue);
+		sgen_finalize_in_range (copy_func, sgen_get_nursery_start (), sgen_get_nursery_end (), GENERATION_NURSERY, queue);
 	/* drain the new stack that might have been created */
 	DEBUG (6, fprintf (gc_debug_file, "Precise scan of gray area post fin\n"));
 	sgen_drain_gray_stack (queue, -1);
@@ -1947,9 +1873,9 @@ finish_gray_stack (char *start_addr, char *end_addr, int generation, GrayQueue *
 	 */
 	g_assert (sgen_gray_object_queue_is_empty (queue));
 	for (;;) {
-		null_link_in_range (copy_func, start_addr, end_addr, generation, FALSE, queue);
+		sgen_null_link_in_range (copy_func, start_addr, end_addr, generation, FALSE, queue);
 		if (generation == GENERATION_OLD)
-			null_link_in_range (copy_func, start_addr, end_addr, GENERATION_NURSERY, FALSE, queue);
+			sgen_null_link_in_range (copy_func, start_addr, end_addr, GENERATION_NURSERY, FALSE, queue);
 		if (sgen_gray_object_queue_is_empty (queue))
 			break;
 		sgen_drain_gray_stack (queue, -1);
@@ -2419,8 +2345,8 @@ collect_nursery (void)
 	if (remset.prepare_for_minor_collection)
 		remset.prepare_for_minor_collection ();
 
-	process_fin_stage_entries ();
-	process_dislink_stage_entries ();
+	sgen_process_fin_stage_entries ();
+	sgen_process_dislink_stage_entries ();
 
 	/* pin from pinned handles */
 	sgen_init_pinning ();
@@ -2666,8 +2592,8 @@ major_do_collection (const char *reason)
 	/* Remsets are not useful for a major collection */
 	remset.prepare_for_major_collection ();
 
-	process_fin_stage_entries ();
-	process_dislink_stage_entries ();
+	sgen_process_fin_stage_entries ();
+	sgen_process_dislink_stage_entries ();
 
 	TV_GETTIME (atv);
 	sgen_init_pinning ();
@@ -2961,7 +2887,7 @@ sgen_perform_collection (size_t requested_size, int generation_to_collect, const
 	TV_GETTIME (infos [0].total_time);
 	infos [1].generation = -1;
 
-	stop_world (generation_to_collect);
+	sgen_stop_world (generation_to_collect);
 	//FIXME extract overflow reason
 	if (generation_to_collect == GENERATION_NURSERY) {
 		if (collect_nursery ()) {
@@ -3008,7 +2934,7 @@ sgen_perform_collection (size_t requested_size, int generation_to_collect, const
 		degraded_mode = 1;
 	}
 
-	restart_world (generation_to_collect, infos);
+	sgen_restart_world (generation_to_collect, infos);
 
 	mono_profiler_gc_event (MONO_GC_EVENT_END, generation_to_collect);
 }
@@ -3076,8 +3002,9 @@ has_critical_finalizer (MonoObject *obj)
 	return mono_class_has_parent_fast (class, mono_defaults.critical_finalizer_object);
 }
 
-static void
-queue_finalization_entry (MonoObject *obj) {
+void
+sgen_queue_finalization_entry (MonoObject *obj)
+{
 	FinalizeReadyEntry *entry = sgen_alloc_internal (INTERNAL_MEM_FINALIZE_READY_ENTRY);
 	entry->object = obj;
 	if (has_critical_finalizer (obj)) {
@@ -3098,8 +3025,6 @@ object_is_reachable (char *object, char *start, char *end)
 
 	return sgen_is_object_alive (object);
 }
-
-#include "sgen-fin-weak-hash.c"
 
 gboolean
 sgen_object_is_live (void *obj)
@@ -3423,221 +3348,11 @@ mono_gc_deregister_root (char* addr)
 
 unsigned int sgen_global_stop_count = 0;
 
-#ifdef USE_MONO_CTX
-static MonoContext cur_thread_ctx = {0};
-#else
-static mword cur_thread_regs [ARCH_NUM_REGS] = {0};
-#endif
-
-static void
-update_current_thread_stack (void *start)
-{
-	int stack_guard = 0;
-#ifndef USE_MONO_CTX
-	void *reg_ptr = cur_thread_regs;
-#endif
-	SgenThreadInfo *info = mono_thread_info_current ();
-	
-	info->stack_start = align_pointer (&stack_guard);
-	g_assert (info->stack_start >= info->stack_start_limit && info->stack_start < info->stack_end);
-#ifdef USE_MONO_CTX
-	MONO_CONTEXT_GET_CURRENT (cur_thread_ctx);
-	info->monoctx = &cur_thread_ctx;
-	if (gc_callbacks.thread_suspend_func)
-		gc_callbacks.thread_suspend_func (info->runtime_data, NULL, info->monoctx);
-#else
-	ARCH_STORE_REGS (reg_ptr);
-	info->stopped_regs = reg_ptr;
-	if (gc_callbacks.thread_suspend_func)
-		gc_callbacks.thread_suspend_func (info->runtime_data, NULL, NULL);
-#endif
-}
-
 void
 sgen_fill_thread_info_for_suspend (SgenThreadInfo *info)
 {
 	if (remset.fill_thread_info_for_suspend)
 		remset.fill_thread_info_for_suspend (info);
-}
-
-static gboolean
-is_ip_in_managed_allocator (MonoDomain *domain, gpointer ip);
-
-static int
-restart_threads_until_none_in_managed_allocator (void)
-{
-	SgenThreadInfo *info;
-	int num_threads_died = 0;
-	int sleep_duration = -1;
-
-	for (;;) {
-		int restart_count = 0, restarted_count = 0;
-		/* restart all threads that stopped in the
-		   allocator */
-		FOREACH_THREAD_SAFE (info) {
-			gboolean result;
-			if (info->skip || info->gc_disabled || !info->joined_stw)
-				continue;
-			if (!info->thread_is_dying && (!info->stack_start || info->in_critical_region ||
-					is_ip_in_managed_allocator (info->stopped_domain, info->stopped_ip))) {
-				binary_protocol_thread_restart ((gpointer)mono_thread_info_get_tid (info));
-				DEBUG (3, fprintf (gc_debug_file, "thread %p resumed.\n", (void*)info->info.native_handle));
-				result = sgen_resume_thread (info);
-				if (result) {
-					++restart_count;
-				} else {
-					info->skip = 1;
-				}
-			} else {
-				/* we set the stopped_ip to
-				   NULL for threads which
-				   we're not restarting so
-				   that we can easily identify
-				   the others */
-				info->stopped_ip = NULL;
-				info->stopped_domain = NULL;
-			}
-		} END_FOREACH_THREAD_SAFE
-		/* if no threads were restarted, we're done */
-		if (restart_count == 0)
-			break;
-
-		/* wait for the threads to signal their restart */
-		sgen_wait_for_suspend_ack (restart_count);
-
-		if (sleep_duration < 0) {
-#ifdef HOST_WIN32
-			SwitchToThread ();
-#else
-			sched_yield ();
-#endif
-			sleep_duration = 0;
-		} else {
-			g_usleep (sleep_duration);
-			sleep_duration += 10;
-		}
-
-		/* stop them again */
-		FOREACH_THREAD (info) {
-			gboolean result;
-			if (info->skip || info->stopped_ip == NULL)
-				continue;
-			result = sgen_suspend_thread (info);
-
-			if (result) {
-				++restarted_count;
-			} else {
-				info->skip = 1;
-			}
-		} END_FOREACH_THREAD
-		/* some threads might have died */
-		num_threads_died += restart_count - restarted_count;
-		/* wait for the threads to signal their suspension
-		   again */
-		sgen_wait_for_suspend_ack (restarted_count);
-	}
-
-	return num_threads_died;
-}
-
-static void
-acquire_gc_locks (void)
-{
-	LOCK_INTERRUPTION;
-	mono_thread_info_suspend_lock ();
-}
-
-static void
-release_gc_locks (void)
-{
-	mono_thread_info_suspend_unlock ();
-	UNLOCK_INTERRUPTION;
-}
-
-static TV_DECLARE (stop_world_time);
-static unsigned long max_pause_usec = 0;
-
-/* LOCKING: assumes the GC lock is held */
-static int
-stop_world (int generation)
-{
-	int count, dead;
-
-	/*XXX this is the right stop, thought might not be the nicest place to put it*/
-	sgen_process_togglerefs ();
-
-	mono_profiler_gc_event (MONO_GC_EVENT_PRE_STOP_WORLD, generation);
-	acquire_gc_locks ();
-
-	update_current_thread_stack (&count);
-
-	sgen_global_stop_count++;
-	DEBUG (3, fprintf (gc_debug_file, "stopping world n %d from %p %p\n", sgen_global_stop_count, mono_thread_info_current (), (gpointer)mono_native_thread_id_get ()));
-	TV_GETTIME (stop_world_time);
-	count = sgen_thread_handshake (TRUE);
-	dead = restart_threads_until_none_in_managed_allocator ();
-	if (count < dead)
-		g_error ("More threads have died (%d) that been initialy suspended %d", dead, count);
-	count -= dead;
-
-	DEBUG (3, fprintf (gc_debug_file, "world stopped %d thread(s)\n", count));
-	mono_profiler_gc_event (MONO_GC_EVENT_POST_STOP_WORLD, generation);
-
-	sgen_memgov_collection_start (generation);
-
-	return count;
-}
-
-/* LOCKING: assumes the GC lock is held */
-static int
-restart_world (int generation, GGTimingInfo *timing)
-{
-	int count;
-	SgenThreadInfo *info;
-	TV_DECLARE (end_sw);
-	TV_DECLARE (end_bridge);
-	unsigned long usec, bridge_usec;
-
-	/* notify the profiler of the leftovers */
-	if (G_UNLIKELY (mono_profiler_events & MONO_PROFILE_GC_MOVES)) {
-		if (moved_objects_idx) {
-			mono_profiler_gc_moves (moved_objects, moved_objects_idx);
-			moved_objects_idx = 0;
-		}
-	}
-	mono_profiler_gc_event (MONO_GC_EVENT_PRE_START_WORLD, generation);
-	FOREACH_THREAD (info) {
-		info->stack_start = NULL;
-#ifdef USE_MONO_CTX
-		info->monoctx = NULL;
-#else
-		info->stopped_regs = NULL;
-#endif
-	} END_FOREACH_THREAD
-
-	stw_bridge_process ();
-	release_gc_locks ();
-
-	count = sgen_thread_handshake (FALSE);
-	TV_GETTIME (end_sw);
-	usec = TV_ELAPSED (stop_world_time, end_sw);
-	max_pause_usec = MAX (usec, max_pause_usec);
-	DEBUG (2, fprintf (gc_debug_file, "restarted %d thread(s) (pause time: %d usec, max: %d)\n", count, (int)usec, (int)max_pause_usec));
-	mono_profiler_gc_event (MONO_GC_EVENT_POST_START_WORLD, generation);
-
-	bridge_process (generation);
-
-	TV_GETTIME (end_bridge);
-	bridge_usec = TV_ELAPSED (end_sw, end_bridge);
-
-	if (timing) {
-		timing [0].stw_time = usec;
-		timing [0].bridge_time = bridge_usec;
-	}
-	
-	sgen_memgov_collection_end (generation, timing, timing ? 2 : 0);
-
-	return count;
 }
 
 int
@@ -3713,47 +3428,16 @@ scan_thread_data (void *start_nursery, void *end_nursery, gboolean precise, Gray
 			}
 		}
 
+		if (!info->thread_is_dying && !precise) {
 #ifdef USE_MONO_CTX
-		if (!info->thread_is_dying && !precise)
-			conservatively_pin_objects_from ((void**)info->monoctx, (void**)info->monoctx + ARCH_NUM_REGS,
+			conservatively_pin_objects_from ((void**)&info->ctx, (void**)&info->ctx + ARCH_NUM_REGS,
 				start_nursery, end_nursery, PIN_TYPE_STACK);
 #else
-		if (!info->thread_is_dying && !precise)
-			conservatively_pin_objects_from (info->stopped_regs, info->stopped_regs + ARCH_NUM_REGS,
+			conservatively_pin_objects_from (&info->regs, &info->regs + ARCH_NUM_REGS,
 					start_nursery, end_nursery, PIN_TYPE_STACK);
 #endif
-	} END_FOREACH_THREAD
-}
-
-static void
-find_pinning_ref_from_thread (char *obj, size_t size)
-{
-	int j;
-	SgenThreadInfo *info;
-	char *endobj = obj + size;
-
-	FOREACH_THREAD (info) {
-		char **start = (char**)info->stack_start;
-		if (info->skip)
-			continue;
-		while (start < (char**)info->stack_end) {
-			if (*start >= obj && *start < endobj) {
-				DEBUG (0, fprintf (gc_debug_file, "Object %p referenced in thread %p (id %p) at %p, stack: %p-%p\n", obj, info, (gpointer)mono_thread_info_get_tid (info), start, info->stack_start, info->stack_end));
-			}
-			start++;
 		}
-
-		for (j = 0; j < ARCH_NUM_REGS; ++j) {
-#ifdef USE_MONO_CTX
-			mword w = ((mword*)info->monoctx) [j];
-#else
-			mword w = (mword)info->stopped_regs [j];
-#endif
-
-			if (w >= (mword)obj && w < (mword)obj + size)
-				DEBUG (0, fprintf (gc_debug_file, "Object %p referenced in saved reg %d of thread %p (id %p)\n", obj, j, info, (gpointer)mono_thread_info_get_tid (info)));
-		} END_FOREACH_THREAD
-	}
+	} END_FOREACH_THREAD
 }
 
 static gboolean
@@ -3798,9 +3482,9 @@ sgen_thread_register (SgenThreadInfo* info, void *addr)
 	info->stopped_ip = NULL;
 	info->stopped_domain = NULL;
 #ifdef USE_MONO_CTX
-	info->monoctx = NULL;
+	memset (&info->ctx, 0, sizeof (MonoContext));
 #else
-	info->stopped_regs = NULL;
+	memset (&info->regs, 0, sizeof (info->regs));
 #endif
 
 	sgen_init_tlab_info (info);
@@ -3809,10 +3493,6 @@ sgen_thread_register (SgenThreadInfo* info, void *addr)
 
 #ifdef HAVE_KW_THREAD
 	store_remset_buffer_index_addr = &store_remset_buffer_index;
-#endif
-
-#if defined(__MACH__)
-	info->mach_port = mach_thread_self ();
 #endif
 
 	/* try to get it with attributes first */
@@ -3909,10 +3589,6 @@ sgen_thread_unregister (SgenThreadInfo *p)
 
 	binary_protocol_thread_unregister ((gpointer)mono_thread_info_get_tid (p));
 	DEBUG (3, fprintf (gc_debug_file, "unregister thread %p (%p)\n", p, (gpointer)mono_thread_info_get_tid (p)));
-
-#if defined(__MACH__)
-	mach_port_deallocate (current_task (), p->mach_port);
-#endif
 
 	if (gc_callbacks.thread_detach_func) {
 		gc_callbacks.thread_detach_func (p->runtime_data);
@@ -4405,13 +4081,13 @@ mono_gc_enable_events (void)
 void
 mono_gc_weak_link_add (void **link_addr, MonoObject *obj, gboolean track)
 {
-	mono_gc_register_disappearing_link (obj, link_addr, track, FALSE);
+	sgen_register_disappearing_link (obj, link_addr, track, FALSE);
 }
 
 void
 mono_gc_weak_link_remove (void **link_addr)
 {
-	mono_gc_register_disappearing_link (NULL, link_addr, FALSE, FALSE);
+	sgen_register_disappearing_link (NULL, link_addr, FALSE, FALSE);
 }
 
 MonoObject*
@@ -4485,7 +4161,7 @@ mono_gc_is_gc_thread (void)
 static gboolean
 is_critical_method (MonoMethod *method)
 {
-	return mono_runtime_is_critical_method (method) || mono_gc_is_critical_method (method);
+	return mono_runtime_is_critical_method (method) || sgen_is_critical_method (method);
 }
 	
 void
@@ -4537,7 +4213,7 @@ mono_gc_base_init (void)
 
 	mono_threads_init (&cb, sizeof (SgenThreadInfo));
 
-	LOCK_INIT (interruption_mutex);
+	LOCK_INIT (sgen_interruption_mutex);
 	LOCK_INIT (pin_queue_mutex);
 
 	init_user_copy_or_mark_key ();
@@ -4865,6 +4541,8 @@ mono_gc_base_init (void)
 				do_verify_nursery = TRUE;
 			} else if (!strcmp (opt, "dump-nursery-at-minor-gc")) {
 				do_dump_nursery_content = TRUE;
+			} else if (!strcmp (opt, "no-managed-allocator")) {
+				sgen_set_use_managed_allocator (FALSE);
 			} else if (!strcmp (opt, "disable-minor")) {
 				disable_minor_collections = TRUE;
 			} else if (!strcmp (opt, "disable-major")) {
@@ -4892,12 +4570,21 @@ mono_gc_base_init (void)
 				fprintf (stderr, "  verify-before-allocs[=<n>]\n");
 				fprintf (stderr, "  check-at-minor-collections\n");
 				fprintf (stderr, "  verify-before-collections\n");
+				fprintf (stderr, "  verify-nursery-at-minor-gc\n");
+				fprintf (stderr, "  dump-nursery-at-minor-gc\n");
 				fprintf (stderr, "  disable-minor\n");
 				fprintf (stderr, "  disable-major\n");
 				fprintf (stderr, "  xdomain-checks\n");
 				fprintf (stderr, "  clear-at-gc\n");
+				fprintf (stderr, "  clear-nursery-at-gc\n");
+				fprintf (stderr, "  check-scan-starts\n");
+				fprintf (stderr, "  no-managed-allocator\n");
 				fprintf (stderr, "  print-allowance\n");
 				fprintf (stderr, "  print-pinning\n");
+				fprintf (stderr, "  heap-dump=<filename>\n");
+#ifdef SGEN_BINARY_PROTOCOL
+				fprintf (stderr, "  binary-protocol=<filename>\n");
+#endif
 				exit (1);
 			}
 		}
@@ -4943,36 +4630,16 @@ mono_gc_get_gc_name (void)
 
 static MonoMethod *write_barrier_method;
 
-static gboolean
-mono_gc_is_critical_method (MonoMethod *method)
+gboolean
+sgen_is_critical_method (MonoMethod *method)
 {
 	return (method == write_barrier_method || sgen_is_managed_allocator (method));
 }
 
-static gboolean
+gboolean
 sgen_has_critical_method (void)
 {
 	return write_barrier_method || sgen_has_managed_allocator ();
-}
-
-static gboolean
-is_ip_in_managed_allocator (MonoDomain *domain, gpointer ip)
-{
-	MonoJitInfo *ji;
-
-	if (!mono_thread_internal_current ())
-		/* Happens during thread attach */
-		return FALSE;
-
-	if (!ip || !domain)
-		return FALSE;
-	if (!sgen_has_critical_method ())
-		return FALSE;
-	ji = mono_jit_info_table_find (domain, ip);
-	if (!ji)
-		return FALSE;
-
-	return mono_gc_is_critical_method (ji->method);
 }
 
 static void
@@ -5364,10 +5031,19 @@ mono_gc_register_altstack (gpointer stack, gint32 stack_size, gpointer altstack,
 void
 sgen_check_whole_heap_stw (void)
 {
-	stop_world (0);
+	sgen_stop_world (0);
 	sgen_clear_nursery_fragments ();
 	sgen_check_whole_heap ();
-	restart_world (0, NULL);
+	sgen_restart_world (0, NULL);
+}
+
+void
+sgen_gc_event_moves (void)
+{
+	if (moved_objects_idx) {
+		mono_profiler_gc_moves (moved_objects, moved_objects_idx);
+		moved_objects_idx = 0;
+	}
 }
 
 #endif /* HAVE_SGEN_GC */
