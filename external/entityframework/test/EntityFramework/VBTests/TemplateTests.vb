@@ -2,12 +2,12 @@
 Imports System.Data.Entity
 Imports System.Data.Entity.Infrastructure
 Imports System.Data.Entity.Core.Objects
+Imports System.Data.Entity.Config
+Imports System.Data.Entity.TestHelpers
 Imports System.Reflection
 Imports System.Transactions
 Imports AdvancedPatternsVB
 Imports Another.Place
-Imports System.Data.Entity.Config
-Imports FunctionalTests.TestHelpers
 Imports Xunit.Extensions
 
 ''' <summary>
@@ -21,7 +21,7 @@ Public Class TemplateTests
     Private Const MemberBindingFlags As BindingFlags = BindingFlags.Instance Or BindingFlags.NonPublic Or BindingFlags.Public
 
     Shared Sub New()
-        DbConfiguration.Instance = New FunctionalTestsConfiguration()
+        DbConfiguration.SetConfiguration(New FunctionalTestsConfiguration())
         InitializeModelFirstDatabases()
     End Sub
 

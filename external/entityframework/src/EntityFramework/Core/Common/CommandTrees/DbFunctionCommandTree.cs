@@ -1,15 +1,16 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Common.CommandTrees.Internal;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
-    /// Represents a function invocation expressed as a canonical command tree
+    ///     Represents a function invocation expressed as a canonical command tree
     /// </summary>
     public sealed class DbFunctionCommandTree : DbCommandTree
     {
@@ -19,23 +20,27 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         private readonly ReadOnlyCollection<TypeUsage> _parameterTypes;
 
         /// <summary>
-        /// Constructs a new DbFunctionCommandTree that uses the specified metadata workspace, data space and function metadata
+        ///     Constructs a new DbFunctionCommandTree that uses the specified metadata workspace, data space and function metadata
         /// </summary>
-        /// <param name="metadata">The metadata workspace that the command tree should use.</param>
-        /// <param name="dataSpace">The logical 'space' that metadata in the expressions used in this command tree must belong to.</param>
-        /// <param name="edmFunction"></param>
-        /// <param name="resultType"></param>
-        /// <param name="parameters"></param>
-        /// <exception cref="ArgumentNullException"><paramref name="metadata"/>, <paramref name="dataSpace"/> or <paramref name="edmFunction"/> is null</exception>
-        /// <exception cref="ArgumentException"><paramref name="dataSpace"/> does not represent a valid data space or
-        /// <paramref name="edmFunction"/> is a composable function</exception>
+        /// <param name="metadata"> The metadata workspace that the command tree should use. </param>
+        /// <param name="dataSpace"> The logical 'space' that metadata in the expressions used in this command tree must belong to. </param>
+        /// <param name="edmFunction"> </param>
+        /// <param name="resultType"> </param>
+        /// <param name="parameters"> </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="metadata" />, <paramref name="dataSpace" /> or <paramref name="edmFunction" /> is null
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        ///     <paramref name="dataSpace" /> does not represent a valid data space or <paramref name="edmFunction" />
+        ///     is a composable function
+        /// </exception>
         [SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public DbFunctionCommandTree(
             MetadataWorkspace metadata, DataSpace dataSpace, EdmFunction edmFunction, TypeUsage resultType,
             IEnumerable<KeyValuePair<string, TypeUsage>> parameters)
             : base(metadata, dataSpace)
         {
-            Contract.Requires(edmFunction != null);
+            Check.NotNull(edmFunction, "edmFunction");
 
             _edmFunction = edmFunction;
             _resultType = resultType;
@@ -56,7 +61,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the <see cref="EdmFunction"/> that represents the function to invoke
+        ///     Gets the <see cref="EdmFunction" /> that represents the function to invoke
         /// </summary>
         public EdmFunction EdmFunction
         {
@@ -64,9 +69,9 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the result type of the function; currently constrained to be a Collection of
-        /// RowTypes. Unlike typical RowType instance, merely indicates name/type not parameter
-        /// order.
+        ///     Gets the result type of the function; currently constrained to be a Collection of
+        ///     RowTypes. Unlike typical RowType instance, merely indicates name/type not parameter
+        ///     order.
         /// </summary>
         public TypeUsage ResultType
         {

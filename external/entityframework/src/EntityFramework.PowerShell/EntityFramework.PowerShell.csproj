@@ -10,9 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>System.Data.Entity</RootNamespace>
     <AssemblyName>EntityFramework.PowerShell</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <CodeContractsAssemblyMode>1</CodeContractsAssemblyMode>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\EcmaPublicKey.snk</AssemblyOriginatorKeyFile>
     <DelaySign>true</DelaySign>
@@ -22,101 +20,64 @@
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;CONTRACTS_FULL</DefineConstants>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <StartAction>Program</StartAction>
     <StartProgram>$(registry:HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\11.0@InstallDir)devenv.exe</StartProgram>
-    <CodeContractsEnableRuntimeChecking>True</CodeContractsEnableRuntimeChecking>
-    <CodeContractsRuntimeOnlyPublicSurface>False</CodeContractsRuntimeOnlyPublicSurface>
-    <CodeContractsRuntimeThrowOnFailure>True</CodeContractsRuntimeThrowOnFailure>
-    <CodeContractsRuntimeCallSiteRequires>False</CodeContractsRuntimeCallSiteRequires>
-    <CodeContractsRuntimeSkipQuantifiers>False</CodeContractsRuntimeSkipQuantifiers>
-    <CodeContractsRunCodeAnalysis>False</CodeContractsRunCodeAnalysis>
-    <CodeContractsNonNullObligations>False</CodeContractsNonNullObligations>
-    <CodeContractsBoundsObligations>False</CodeContractsBoundsObligations>
-    <CodeContractsArithmeticObligations>False</CodeContractsArithmeticObligations>
-    <CodeContractsEnumObligations>False</CodeContractsEnumObligations>
-    <CodeContractsRedundantAssumptions>False</CodeContractsRedundantAssumptions>
-    <CodeContractsRunInBackground>True</CodeContractsRunInBackground>
-    <CodeContractsShowSquigglies>False</CodeContractsShowSquigglies>
-    <CodeContractsUseBaseLine>False</CodeContractsUseBaseLine>
-    <CodeContractsEmitXMLDocs>False</CodeContractsEmitXMLDocs>
-    <CodeContractsCustomRewriterAssembly>EntityFramework.PowerShell</CodeContractsCustomRewriterAssembly>
-    <CodeContractsCustomRewriterClass>System.Data.Entity.Utilities.RuntimeFailureMethods</CodeContractsCustomRewriterClass>
-    <CodeContractsLibPaths />
-    <CodeContractsExtraRewriteOptions />
-    <CodeContractsExtraAnalysisOptions />
-    <CodeContractsBaseLineFile />
-    <CodeContractsCacheAnalysisResults>False</CodeContractsCacheAnalysisResults>
-    <CodeContractsRuntimeCheckingLevel>Full</CodeContractsRuntimeCheckingLevel>
-    <CodeContractsReferenceAssembly>Build</CodeContractsReferenceAssembly>
-    <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>1591;1573;1572;1570</NoWarn>
     <Prefer32Bit>false</Prefer32Bit>
-    <CodeContractsPointerObligations>False</CodeContractsPointerObligations>
-    <CodeContractsInferRequires>False</CodeContractsInferRequires>
-    <CodeContractsInferEnsures>False</CodeContractsInferEnsures>
-    <CodeContractsInferObjectInvariants>False</CodeContractsInferObjectInvariants>
-    <CodeContractsSuggestAssumptions>False</CodeContractsSuggestAssumptions>
-    <CodeContractsSuggestRequires>True</CodeContractsSuggestRequires>
-    <CodeContractsSuggestEnsures>False</CodeContractsSuggestEnsures>
-    <CodeContractsSuggestObjectInvariants>False</CodeContractsSuggestObjectInvariants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;CONTRACTS_FULL</DefineConstants>
+    <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeContractsEnableRuntimeChecking>True</CodeContractsEnableRuntimeChecking>
-    <CodeContractsRuntimeOnlyPublicSurface>True</CodeContractsRuntimeOnlyPublicSurface>
-    <CodeContractsRuntimeThrowOnFailure>True</CodeContractsRuntimeThrowOnFailure>
-    <CodeContractsRuntimeCallSiteRequires>False</CodeContractsRuntimeCallSiteRequires>
-    <CodeContractsRuntimeSkipQuantifiers>False</CodeContractsRuntimeSkipQuantifiers>
-    <CodeContractsRunCodeAnalysis>False</CodeContractsRunCodeAnalysis>
-    <CodeContractsNonNullObligations>False</CodeContractsNonNullObligations>
-    <CodeContractsBoundsObligations>False</CodeContractsBoundsObligations>
-    <CodeContractsArithmeticObligations>False</CodeContractsArithmeticObligations>
-    <CodeContractsEnumObligations>False</CodeContractsEnumObligations>
-    <CodeContractsRedundantAssumptions>False</CodeContractsRedundantAssumptions>
-    <CodeContractsRunInBackground>True</CodeContractsRunInBackground>
-    <CodeContractsShowSquigglies>False</CodeContractsShowSquigglies>
-    <CodeContractsUseBaseLine>False</CodeContractsUseBaseLine>
-    <CodeContractsEmitXMLDocs>False</CodeContractsEmitXMLDocs>
-    <CodeContractsCustomRewriterAssembly>EntityFramework.PowerShell</CodeContractsCustomRewriterAssembly>
-    <CodeContractsCustomRewriterClass>System.Data.Entity.Utilities.RuntimeFailureMethods</CodeContractsCustomRewriterClass>
-    <CodeContractsLibPaths />
-    <CodeContractsExtraRewriteOptions />
-    <CodeContractsExtraAnalysisOptions />
-    <CodeContractsBaseLineFile />
-    <CodeContractsCacheAnalysisResults>False</CodeContractsCacheAnalysisResults>
-    <CodeContractsRuntimeCheckingLevel>Preconditions</CodeContractsRuntimeCheckingLevel>
-    <CodeContractsReferenceAssembly>Build</CodeContractsReferenceAssembly>
-    <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>1591;1573;1572;1570</NoWarn>
     <Prefer32Bit>false</Prefer32Bit>
-    <CodeContractsPointerObligations>False</CodeContractsPointerObligations>
-    <CodeContractsInferRequires>False</CodeContractsInferRequires>
-    <CodeContractsInferEnsures>False</CodeContractsInferEnsures>
-    <CodeContractsInferObjectInvariants>False</CodeContractsInferObjectInvariants>
-    <CodeContractsSuggestAssumptions>False</CodeContractsSuggestAssumptions>
-    <CodeContractsSuggestRequires>True</CodeContractsSuggestRequires>
-    <CodeContractsSuggestEnsures>False</CodeContractsSuggestEnsures>
-    <CodeContractsSuggestObjectInvariants>False</CodeContractsSuggestObjectInvariants>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'DebugNet40|AnyCPU' ">
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\DebugNet40\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;NET40</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(registry:HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\VisualStudio\11.0@InstallDir)devenv.exe</StartProgram>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591;1573;1572;1570</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseNet40|AnyCPU' ">
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\ReleaseNet40\</OutputPath>
+    <DefineConstants>TRACE;NET40</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591;1573;1572;1570</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(InternalsInvisble)'=='true'">
+    <DefineConstants>$(DefineConstants);INTERNALS_INVISIBLE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.VisualStudio.OLE.Interop" />
-    <Reference Include="Microsoft.VisualStudio.Shell">
-      <Private>false</Private>
-    </Reference>
     <Reference Include="Microsoft.VisualStudio.Shell.Interop" />
     <Reference Include="Microsoft.VisualStudio.Shell.Interop.8.0" />
     <Reference Include="System" />
@@ -139,23 +100,16 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\EntityFramework\Migrations\Extensions\IEnumerableExtensions.cs">
-      <Link>Migrations\Extensions\IEnumerableExtensions.cs</Link>
-    </Compile>
-    <Compile Include="..\EntityFramework\Utilities\RuntimeFailureMethods.cs">
-      <Link>Properties\RuntimeFailureMethods.cs</Link>
-    </Compile>
     <Compile Include="..\EntityFramework\Properties\Resources.PowerShell.cs">
       <Link>Properties\Resources.PowerShell.cs</Link>
-    </Compile>
-    <Compile Include="..\EntityFramework\Utilities\StringExtensions.cs">
-      <Link>Utilities\StringExtensions.cs</Link>
     </Compile>
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="..\SharedAssemblyVersionInfo.cs">
+      <Link>Properties\SharedAssemblyVersionInfo.cs</Link>
+    </Compile>
     <Compile Include="ConnectionFactoryConfig\ConnectionFactorySpecification.cs" />
-    <Compile Include="ConnectionFactoryConfig\VersionMapper.cs" />
     <Compile Include="Migrations\AddMigrationCommand.cs" />
     <Compile Include="ConnectionFactoryConfig\ConfigFileFinder.cs" />
     <Compile Include="ConnectionFactoryConfig\ConfigFileManipulator.cs" />
@@ -166,21 +120,21 @@
     <Compile Include="ConnectionFactoryConfig\SqlCompactConnectionFactoryConfigurator.cs" />
     <Compile Include="ConnectionFactoryConfig\SqlServerDetector.cs" />
     <Compile Include="Migrations\EnableMigrationsCommand.cs" />
+    <Compile Include="Migrations\Extensions\IEnumerableExtensions.cs" />
     <Compile Include="Migrations\Extensions\ProjectExtensions.cs" />
     <Compile Include="Migrations\Extensions\ProjectItemExtensions.cs" />
     <Compile Include="Migrations\Extensions\XContainerExtensions.cs" />
     <Compile Include="Migrations\MigrationsDomainCommand.cs" />
     <Compile Include="Migrations\GetMigrationsCommand.cs" />
-    <Compile Include="Migrations\MigrationsPendingException.cs" />
     <Compile Include="Migrations\ProjectTypeNotSupportedException.cs" />
     <Compile Include="Migrations\UpdateDatabaseCommand.cs" />
     <Compile Include="Migrations\Utilities\MigrationWriter.cs" />
     <Compile Include="Migrations\Utilities\TemplateProcessor.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\InternalsVisibleTo.cs" />
-    <Compile Include="..\EntityFramework\Properties\Resources.cs">
-      <Link>Properties\Resources.cs</Link>
-    </Compile>
+    <Compile Include="Migrations\Utilities\StringExtensions.cs" />
+    <Compile Include="Utilities\Check.cs" />
+    <Compile Include="Utilities\DebugCheck.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\EcmaPublicKey.snk">
@@ -202,6 +156,7 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

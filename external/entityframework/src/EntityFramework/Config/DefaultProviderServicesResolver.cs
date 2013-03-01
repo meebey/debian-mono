@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Config
 {
     using System.Data.Entity.Core.Common;
@@ -6,10 +7,12 @@ namespace System.Data.Entity.Config
 
     internal class DefaultProviderServicesResolver : IDbDependencyResolver
     {
-        public virtual object GetService(Type type, string name)
+        public virtual object GetService(Type type, object key)
         {
             if (type == typeof(DbProviderServices))
             {
+                var name = key as string;
+
                 if (string.IsNullOrWhiteSpace(name))
                 {
                     throw new ArgumentException(Strings.ProviderInvariantNotPassedToResolver);
@@ -19,10 +22,6 @@ namespace System.Data.Entity.Config
             }
 
             return null;
-        }
-
-        public virtual void Release(object service)
-        {
         }
     }
 }

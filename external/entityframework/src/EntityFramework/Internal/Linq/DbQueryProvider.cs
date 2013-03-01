@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.Linq
 {
     using System.Data.Entity.Core.Objects;
     using System.Data.Entity.Core.Objects.ELinq;
     using System.Data.Entity.Infrastructure;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
@@ -13,11 +14,14 @@ namespace System.Data.Entity.Internal.Linq
 
     /// <summary>
     ///     A wrapping query provider that performs expression transformation and then delegates
-    ///     to the <see cref = "ObjectQuery" /> provider.  The <see cref = "IQueryable" /> objects returned
-    ///     are always instances of <see cref = "DbQuery{TResult}" />. This provider is associated with
-    ///     generic <see cref = "DbQuery{T}" /> objects.
+    ///     to the <see cref="ObjectQuery" /> provider.  The <see cref="IQueryable" /> objects returned
+    ///     are always instances of <see cref="DbQuery{TResult}" />. This provider is associated with
+    ///     generic <see cref="DbQuery{T}" /> objects.
     /// </summary>
-    internal class DbQueryProvider : IQueryProvider, IDbAsyncQueryProvider
+    internal class DbQueryProvider : IQueryProvider
+#if !NET40
+                                     , IDbAsyncQueryProvider
+#endif
     {
         #region Fields and constructors
 
@@ -27,11 +31,11 @@ namespace System.Data.Entity.Internal.Linq
         /// <summary>
         ///     Creates a provider that wraps the given provider.
         /// </summary>
-        /// <param name = "provider">The provider to wrap.</param>
+        /// <param name="provider"> The provider to wrap. </param>
         public DbQueryProvider(InternalContext internalContext, ObjectQueryProvider provider)
         {
-            Contract.Requires(internalContext != null);
-            Contract.Requires(provider != null);
+            DebugCheck.NotNull(internalContext);
+            DebugCheck.NotNull(provider);
 
             _internalContext = internalContext;
             _provider = provider;
@@ -43,10 +47,12 @@ namespace System.Data.Entity.Internal.Linq
 
         /// <summary>
         ///     Performs expression replacement and then delegates to the wrapped provider before wrapping
-        ///     the returned <see cref = "ObjectQuery" /> as a <see cref = "DbQuery{T}" />.
+        ///     the returned <see cref="ObjectQuery" /> as a <see cref="DbQuery{T}" />.
         /// </summary>
         public virtual IQueryable<TElement> CreateQuery<TElement>(Expression expression)
         {
+            Check.NotNull(expression, "expression");
+
             var objectQuery = CreateObjectQuery(expression);
 
             // If the ElementType is different than the generic type then we need to use the ElementType
@@ -63,11 +69,13 @@ namespace System.Data.Entity.Internal.Linq
 
         /// <summary>
         ///     Performs expression replacement and then delegates to the wrapped provider before wrapping
-        ///     the returned <see cref = "ObjectQuery" /> as a <see cref = "DbQuery{T}" /> where T is determined
+        ///     the returned <see cref="ObjectQuery" /> as a <see cref="DbQuery{T}" /> where T is determined
         ///     from the element type of the ObjectQuery.
         /// </summary>
         public virtual IQueryable CreateQuery(Expression expression)
         {
+            Check.NotNull(expression, "expression");
+
             return CreateQuery(CreateObjectQuery(expression));
         }
 
@@ -76,6 +84,8 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         public virtual TResult Execute<TResult>(Expression expression)
         {
+            Check.NotNull(expression, "expression");
+
             _internalContext.Initialize();
 
             return ((IQueryProvider)_provider).Execute<TResult>(expression);
@@ -86,6 +96,8 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         public virtual object Execute(Expression expression)
         {
+            Check.NotNull(expression, "expression");
+
             _internalContext.Initialize();
 
             return ((IQueryProvider)_provider).Execute(expression);
@@ -95,21 +107,15 @@ namespace System.Data.Entity.Internal.Linq
 
         #region IDbAsyncQueryProvider Members
 
-        IQueryable<TElement> IDbAsyncQueryProvider.CreateQuery<TElement>(Expression expression)
-        {
-            return CreateQuery<TElement>(expression);
-        }
-
-        IQueryable IDbAsyncQueryProvider.CreateQuery(Expression expression)
-        {
-            return CreateQuery(expression);
-        }
+#if !NET40
 
         /// <summary>
         ///     By default, calls the same method on the wrapped provider.
         /// </summary>
         Task<TResult> IDbAsyncQueryProvider.ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken)
         {
+            Check.NotNull(expression, "expression");
+
             _internalContext.Initialize();
 
             return ((IDbAsyncQueryProvider)_provider).ExecuteAsync<TResult>(expression, cancellationToken);
@@ -120,10 +126,14 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         Task<object> IDbAsyncQueryProvider.ExecuteAsync(Expression expression, CancellationToken cancellationToken)
         {
+            Check.NotNull(expression, "expression");
+
             _internalContext.Initialize();
 
             return ((IDbAsyncQueryProvider)_provider).ExecuteAsync(expression, cancellationToken);
         }
+
+#endif
 
         #endregion
 
@@ -145,11 +155,11 @@ namespace System.Data.Entity.Internal.Linq
 
         /// <summary>
         ///     Performs expression replacement and then delegates to the wrapped provider to create an
-        ///     <see cref = "ObjectQuery" />.
+        ///     <see cref="ObjectQuery" />.
         /// </summary>
         protected ObjectQuery CreateObjectQuery(Expression expression)
         {
-            Contract.Requires(expression != null);
+            DebugCheck.NotNull(expression);
 
             expression = new DbQueryVisitor().Visit(expression);
 
@@ -157,12 +167,12 @@ namespace System.Data.Entity.Internal.Linq
         }
 
         /// <summary>
-        ///     Wraps the given <see cref = "ObjectQuery" /> as a <see cref = "InternalQuery{T}" /> where T is determined
+        ///     Wraps the given <see cref="ObjectQuery" /> as a <see cref="InternalQuery{T}" /> where T is determined
         ///     from the element type of the ObjectQuery.
         /// </summary>
         protected IInternalQuery CreateInternalQuery(ObjectQuery objectQuery)
         {
-            Contract.Requires(objectQuery != null);
+            DebugCheck.NotNull(objectQuery);
 
             var genericInternalQueryType = typeof(InternalQuery<>).MakeGenericType(
                 ((IQueryable)objectQuery).ElementType);
@@ -175,7 +185,7 @@ namespace System.Data.Entity.Internal.Linq
         /// <summary>
         ///     Gets the internal context.
         /// </summary>
-        /// <value>The internal context.</value>
+        /// <value> The internal context. </value>
         public InternalContext InternalContext
         {
             get { return _internalContext; }

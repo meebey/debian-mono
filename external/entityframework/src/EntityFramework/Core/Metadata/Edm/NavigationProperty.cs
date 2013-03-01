@@ -1,96 +1,80 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
-    using System.Reflection;
 
     /// <summary>
-    /// Represent the edm navigation property class
+    ///     Represent the edm navigation property class
     /// </summary>
     public sealed class NavigationProperty : EdmMember
     {
-        #region Constructors
-
         /// <summary>
-        /// Initializes a new instance of the navigation property class
+        ///     Initializes a new instance of the navigation property class
         /// </summary>
-        /// <param name="name">name of the navigation property</param>
-        /// <param name="typeUsage">TypeUsage object containing the navigation property type and its facets</param>
+        /// <param name="name"> name of the navigation property </param>
+        /// <param name="typeUsage"> TypeUsage object containing the navigation property type and its facets </param>
         /// <exception cref="System.ArgumentNullException">Thrown if name or typeUsage arguments are null</exception>
         /// <exception cref="System.ArgumentException">Thrown if name argument is empty string</exception>
         internal NavigationProperty(string name, TypeUsage typeUsage)
             : base(name, typeUsage)
         {
-            EntityUtil.CheckStringArgument(name, "name");
-            EntityUtil.GenericCheckArgumentNull(typeUsage, "typeUsage");
+            Check.NotEmpty(name, "name");
+            Check.NotNull(typeUsage, "typeUsage");
+
             _accessor = new NavigationPropertyAccessor(name);
         }
 
         /// <summary>
-        /// Initializes a new OSpace instance of the property class
-        /// </summary>
-        /// <param name="name">name of the property</param>
-        /// <param name="typeUsage">TypeUsage object containing the property type and its facets</param>
-        /// <param name="propertyInfo">for the property</param>
-        internal NavigationProperty(string name, TypeUsage typeUsage, PropertyInfo propertyInfo)
-            : this(name, typeUsage)
-        {
-            Debug.Assert(name == propertyInfo.Name, "different PropertyName?");
-            if (null != propertyInfo)
-            {
-                MethodInfo method;
-
-                method = propertyInfo.GetGetMethod();
-                PropertyGetterHandle = ((null != method) ? method.MethodHandle : default(RuntimeMethodHandle));
-            }
-        }
-
-        #endregion
-
-        /// <summary>
-        /// Returns the kind of the type
+        ///     Returns the kind of the type
         /// </summary>
         public override BuiltInTypeKind BuiltInTypeKind
         {
             get { return BuiltInTypeKind.NavigationProperty; }
         }
 
-        #region Fields
-
         internal const string RelationshipTypeNamePropertyName = "RelationshipType";
         internal const string ToEndMemberNamePropertyName = "ToEndMember";
 
-        /// <summary>Store the handle, allowing the PropertyInfo/MethodInfo/Type references to be GC'd</summary>
-        internal readonly RuntimeMethodHandle PropertyGetterHandle;
-
-        /// <summary>cached dynamic methods to access the property values from a CLR instance</summary> 
+        /// <summary>
+        ///     cached dynamic methods to access the property values from a CLR instance
+        /// </summary>
         private readonly NavigationPropertyAccessor _accessor;
 
-        #endregion
-
         /// <summary>
-        /// Gets/Sets the relationship type that this navigation property operates on
+        ///     Gets/Sets the relationship type that this navigation property operates on
         /// </summary>
         /// <exception cref="System.InvalidOperationException">Thrown if the NavigationProperty instance is in ReadOnly state</exception>
         [MetadataProperty(BuiltInTypeKind.RelationshipType, false)]
         public RelationshipType RelationshipType { get; internal set; }
 
         /// <summary>
-        /// Gets/Sets the to relationship end member in the navigation
+        ///     Gets/Sets the to relationship end member in the navigation
         /// </summary>
         /// <exception cref="System.InvalidOperationException">Thrown if the NavigationProperty instance is in ReadOnly state</exception>
         [MetadataProperty(BuiltInTypeKind.RelationshipEndMember, false)]
         public RelationshipEndMember ToEndMember { get; internal set; }
 
         /// <summary>
-        /// Gets/Sets the from relationship end member in the navigation
+        ///     Gets/Sets the from relationship end member in the navigation
         /// </summary>
         /// <exception cref="System.InvalidOperationException">Thrown if the NavigationProperty instance is in ReadOnly state</exception>
         [MetadataProperty(BuiltInTypeKind.RelationshipEndMember, false)]
         public RelationshipEndMember FromEndMember { get; internal set; }
+
+        internal AssociationType Association
+        {
+            get { return (AssociationType)RelationshipType; }
+        }
+
+        internal AssociationEndMember ResultEnd
+        {
+            get { return (AssociationEndMember)ToEndMember; }
+        }
 
         internal NavigationPropertyAccessor Accessor
         {
@@ -98,11 +82,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Where the given navigation property is on the dependent end of a referential constraint,
-        /// returns the foreign key properties. Otherwise, returns an empty set. We will return the members in the order
-        /// of the principal end key properties.
+        ///     Where the given navigation property is on the dependent end of a referential constraint,
+        ///     returns the foreign key properties. Otherwise, returns an empty set. We will return the members in the order
+        ///     of the principal end key properties.
         /// </summary>
-        /// <returns>Foreign key properties</returns>
+        /// <returns> Foreign key properties </returns>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public IEnumerable<EdmProperty> GetDependentProperties()
         {
@@ -131,6 +115,19 @@ namespace System.Data.Entity.Core.Metadata.Edm
             }
 
             return Enumerable.Empty<EdmProperty>();
+        }
+
+        internal override void SetReadOnly()
+        {
+            if (!IsReadOnly
+                && (ToEndMember != null)
+                && (ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One))
+            {
+                // Correct our nullability if the multiplicity of the target end has changed. 
+                TypeUsage = TypeUsage.ShallowCopy(Facet.Create(NullableFacetDescription, false));
+            }
+
+            base.SetReadOnly();
         }
     }
 }

@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Query.InternalTrees
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Polymorphic new instance creation (takes all properties of all types in the hierarchy + discriminator)
+    ///     Polymorphic new instance creation (takes all properties of all types in the hierarchy + discriminator)
     /// </summary>
     internal sealed class DiscriminatedNewEntityOp : NewEntityBaseOp
     {
@@ -23,7 +25,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
             EntitySet entitySet, List<RelProperty> relProperties)
             : base(OpType.DiscriminatedNewEntity, type, true, entitySet, relProperties)
         {
-            Debug.Assert(null != discriminatorMap, "null discriminator map");
+            DebugCheck.NotNull(discriminatorMap);
             m_discriminatorMap = discriminatorMap;
         }
 
@@ -39,7 +41,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         internal static readonly DiscriminatedNewEntityOp Pattern = new DiscriminatedNewEntityOp();
 
         /// <summary>
-        /// Gets discriminator and type information used in construction of type.
+        ///     Gets discriminator and type information used in construction of type.
         /// </summary>
         internal ExplicitDiscriminatorMap DiscriminatorMap
         {

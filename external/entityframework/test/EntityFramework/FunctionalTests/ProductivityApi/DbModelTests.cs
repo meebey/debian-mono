@@ -1,26 +1,34 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace CodeFirstTest
 {
     using System;
     using System.Collections.Generic;
-    using System.Data.Entity.Core;
-    using System.Data;
-    using System.Data.Entity.Core.Common;
     using System.Data.Common;
     using System.Data.Entity;
-    using System.Data.Entity.Infrastructure;
+    using System.Data.Entity.Core;
     using System.Data.Entity.Core.EntityClient;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects;
+    using System.Data.Entity.Infrastructure;
     using System.Linq;
     using SimpleModel;
     using Xunit;
 
     /// <summary>
-    /// Functional tests for ModelBuilder and DbCompiledModel.
+    ///     Functional tests for ModelBuilder and DbCompiledModel.
     /// </summary>
     public class DbModelTests : FunctionalTestBase
     {
+        #region Infrastructure/setup
+
+        public DbModelTests()
+        {
+            CreateMetadataFilesForSimpleModel();
+        }
+
+        #endregion
+
         #region Positive CreateObjectContext tests
 
         [Fact]
@@ -29,18 +37,20 @@ namespace CodeFirstTest
             var builder = SimpleModelContext.CreateBuilder();
 
             using (var connection = SimpleConnection<SimpleModelContext>())
-            using (var context = builder.Build(connection).Compile().CreateObjectContext<ObjectContext>(connection))
             {
-                var objectItemCollection =
-                    (ObjectItemCollection)context.MetadataWorkspace.GetItemCollection(DataSpace.OSpace);
-                var ospaceTypes = context.MetadataWorkspace.GetItems<EntityType>(DataSpace.OSpace);
-                Assert.True(ospaceTypes.Any(t => objectItemCollection.GetClrType(t) == typeof(Product)));
-                Assert.True(ospaceTypes.Any(t => objectItemCollection.GetClrType(t) == typeof(Category)));
+                using (var context = builder.Build(connection).Compile().CreateObjectContext<ObjectContext>(connection))
+                {
+                    var objectItemCollection =
+                        (ObjectItemCollection)context.MetadataWorkspace.GetItemCollection(DataSpace.OSpace);
+                    var ospaceTypes = context.MetadataWorkspace.GetItems<EntityType>(DataSpace.OSpace);
+                    Assert.True(ospaceTypes.Any(t => objectItemCollection.GetClrType(t) == typeof(Product)));
+                    Assert.True(ospaceTypes.Any(t => objectItemCollection.GetClrType(t) == typeof(Category)));
+                }
             }
         }
 
         [Fact]
-        public void CreateObjectContext_uses_copy_of_MetadataWorkspace()
+        public void CreateObjectContext_uses_cached_MetadataWorkspace()
         {
             var builder = new DbModelBuilder();
             var model = builder.Build(ProviderRegistry.Sql2008_ProviderInfo).Compile();
@@ -49,20 +59,24 @@ namespace CodeFirstTest
             MetadataWorkspace workspace2;
 
             using (var connection = SimpleConnection<SimpleModelContext>())
-            using (var context = model.CreateObjectContext<ObjectContext>(connection))
             {
-                workspace1 = context.MetadataWorkspace;
+                using (var context = model.CreateObjectContext<ObjectContext>(connection))
+                {
+                    workspace1 = context.MetadataWorkspace;
+                }
             }
 
             using (var connection = SimpleConnection<SimpleModelContext>())
-            using (var context = model.CreateObjectContext<ObjectContext>(connection))
             {
-                workspace2 = context.MetadataWorkspace;
+                using (var context = model.CreateObjectContext<ObjectContext>(connection))
+                {
+                    workspace2 = context.MetadataWorkspace;
+                }
             }
 
             Assert.NotNull(workspace1);
             Assert.NotNull(workspace2);
-            Assert.NotSame(workspace1, workspace2);
+            Assert.Same(workspace1, workspace2);
         }
 
         #endregion
@@ -73,11 +87,13 @@ namespace CodeFirstTest
         public void CreateModel_on_new_DbModelBuilder_creates_empty_model()
         {
             using (var connection = SimpleConnection<EmptyContext>())
-            using (
-                var context =
-                    new DbModelBuilder().Build(connection).Compile().CreateObjectContext<ObjectContext>(connection))
             {
-                AssertEmptyModel(context);
+                using (
+                    var context =
+                        new DbModelBuilder().Build(connection).Compile().CreateObjectContext<ObjectContext>(connection))
+                {
+                    AssertEmptyModel(context);
+                }
             }
         }
 

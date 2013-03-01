@@ -11329,6 +11329,47 @@ i*86-*-darwin*)
     ;;
 esac
 
+target_osx=no
+target_ios=no
+
+if test "x$platform_darwin" = "xyes"; then
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "TargetConditionals.h"
+int
+main ()
+{
+
+	#if TARGET_IPHONE_SIMULATOR == 1 || TARGET_OS_IPHONE == 1
+	#error fail this for ios
+	#endif
+	return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+
+$as_echo "#define TARGET_OSX 1" >>confdefs.h
+
+		target_osx=yes
+
+else
+
+
+$as_echo "#define TARGET_IOS 1" >>confdefs.h
+
+		target_ios=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+$as_echo "#define TARGET_MACH 1" >>confdefs.h
+
+fi
+
 
 
 
@@ -11500,7 +11541,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-for ac_func in strndup strlcpy stpcpy getpwuid_r strtok_r rewinddir vasprintf
+for ac_func in strlcpy stpcpy strtok_r rewinddir vasprintf
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -11511,6 +11552,25 @@ _ACEOF
 
 fi
 done
+
+
+#
+# iOS detection of strndup and getpwuid_r is faulty for some reason so let's simply avoid it
+#
+if test x$target_ios = xno; then
+for ac_func in strndup getpwuid_r
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+fi
 
  if test x$have_vasprintf = x ; then
   NEED_VASPRINTF_TRUE=

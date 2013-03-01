@@ -1,26 +1,26 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Mapping;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
+    using System.Data.Entity.ModelConfiguration.Conventions;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
-    using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
+    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Reflection;
 
+    /// <summary>
+    ///     Allows configuration to be performed for a model.
+    /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1724:TypeNamesShouldNotMatchNamespaces")]
-    internal class ModelConfiguration : ConfigurationBase
+    public class ModelConfiguration : ConfigurationBase
     {
         private readonly Dictionary<Type, EntityTypeConfiguration> _entityConfigurations
             = new Dictionary<Type, EntityTypeConfiguration>();
@@ -42,6 +42,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             _ignoredTypes.AddRange(source._ignoredTypes);
 
             DefaultSchema = source.DefaultSchema;
+            ModelNamespace = source.ModelNamespace;
         }
 
         internal virtual ModelConfiguration Clone()
@@ -49,7 +50,11 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             return new ModelConfiguration(this);
         }
 
-        internal virtual IEnumerable<Type> ConfiguredTypes
+        /// <summary>
+        ///     Gets a collection of types that have been configured in this model including
+        ///     entity types, complex types, and ignored types.
+        /// </summary>
+        public virtual IEnumerable<Type> ConfiguredTypes
         {
             get { return _entityConfigurations.Keys.Union(_complexTypeConfigurations.Keys).Union(_ignoredTypes); }
         }
@@ -69,11 +74,19 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             get { return _entityConfigurations.Keys.Union(_complexTypeConfigurations.Keys).Except(_ignoredTypes).ToList(); }
         }
 
-        internal string DefaultSchema { get; set; }
+        /// <summary>
+        ///     Gets or sets the default schema name.
+        /// </summary>
+        public string DefaultSchema { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the default model namespace.
+        /// </summary>
+        public string ModelNamespace { get; set; }
 
         internal virtual void Add(EntityTypeConfiguration entityTypeConfiguration)
         {
-            Contract.Requires(entityTypeConfiguration != null);
+            DebugCheck.NotNull(entityTypeConfiguration);
 
             EntityTypeConfiguration existingConfiguration;
 
@@ -100,7 +113,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
         internal virtual void Add(ComplexTypeConfiguration complexTypeConfiguration)
         {
-            Contract.Requires(complexTypeConfiguration != null);
+            DebugCheck.NotNull(complexTypeConfiguration);
 
             if ((_entityConfigurations.ContainsKey(complexTypeConfiguration.ClrType)
                  || _complexTypeConfigurations.ContainsKey(complexTypeConfiguration.ClrType)))
@@ -111,9 +124,27 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             _complexTypeConfigurations.Add(complexTypeConfiguration.ClrType, complexTypeConfiguration);
         }
 
-        internal virtual EntityTypeConfiguration Entity(Type entityType, bool explicitEntity = false)
+        /// <summary>
+        ///     Registers an entity type as part of the model and returns an object that can
+        ///     be used to configure the entity. This method can be called multiple times
+        ///     for the same entity to perform multiple configurations.
+        /// </summary>
+        /// <param name="entityType"> The type to be registered or configured. </param>
+        /// <returns> The configuration object for the specified entity type. </returns>
+        /// <remarks>
+        ///     Types registered as an entity type may later be changed to a complex type by
+        ///     the <see cref="ComplexTypeDiscoveryConvention" />.
+        /// </remarks>
+        public virtual EntityTypeConfiguration Entity(Type entityType)
         {
-            Contract.Requires(entityType != null);
+            Check.NotNull(entityType, "entityType");
+
+            return Entity(entityType, false);
+        }
+
+        internal virtual EntityTypeConfiguration Entity(Type entityType, bool explicitEntity)
+        {
+            DebugCheck.NotNull(entityType);
 
             if (_complexTypeConfigurations.ContainsKey(entityType))
             {
@@ -126,18 +157,25 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                 _entityConfigurations.Add(
                     entityType,
                     entityTypeConfiguration = new EntityTypeConfiguration(entityType)
-                        {
-                            IsExplicitEntity = explicitEntity
-                        });
+                                                  {
+                                                      IsExplicitEntity = explicitEntity
+                                                  });
             }
 
             return entityTypeConfiguration;
         }
 
+        /// <summary>
+        ///     Registers a type as a complex type in the model and returns an object that
+        ///     can be used to configure the complex type. This method can be called
+        ///     multiple times for the same type to perform multiple configurations.
+        /// </summary>
+        /// <param name="complexType"> The type to be registered or configured. </param>
+        /// <returns> The configuration object for the specified entity type. </returns>
         [SuppressMessage("Microsoft.Naming", "CA1719:ParameterNamesShouldNotMatchMemberNames", MessageId = "0#")]
         public virtual ComplexTypeConfiguration ComplexType(Type complexType)
         {
-            Contract.Requires(complexType != null);
+            Check.NotNull(complexType, "complexType");
 
             if (_entityConfigurations.ContainsKey(complexType))
             {
@@ -154,16 +192,20 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             return complexTypeConfiguration;
         }
 
+        /// <summary>
+        ///     Excludes a type from the model.
+        /// </summary>
+        /// <param name="type"> The type to be excluded. </param>
         public virtual void Ignore(Type type)
         {
-            Contract.Requires(type != null);
+            Check.NotNull(type, "type");
 
             _ignoredTypes.Add(type);
         }
 
         internal virtual StructuralTypeConfiguration GetStructuralTypeConfiguration(Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             EntityTypeConfiguration entityTypeConfiguration;
             if (_entityConfigurations.TryGetValue(type, out entityTypeConfiguration))
@@ -180,23 +222,35 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             return null;
         }
 
-        internal virtual bool IsComplexType(Type type)
+        /// <summary>
+        ///     Gets a value indicating whether the specified type has been configured as a
+        ///     complex type in the model.
+        /// </summary>
+        /// <param name="type"> The type to test. </param>
+        /// <returns> True if the type is a complex type; false otherwise. </returns>
+        public virtual bool IsComplexType(Type type)
         {
-            Contract.Requires(type != null);
+            Check.NotNull(type, "type");
 
             return _complexTypeConfigurations.ContainsKey(type);
         }
 
-        internal virtual bool IsIgnoredType(Type type)
+        /// <summary>
+        ///     Gets a value indicating whether the specified type has been excluded from
+        ///     the model.
+        /// </summary>
+        /// <param name="type"> The type to test. </param>
+        /// <returns> True if the type is excluded; false otherwise. </returns>
+        public virtual bool IsIgnoredType(Type type)
         {
-            Contract.Requires(type != null);
+            Check.NotNull(type, "type");
 
             return _ignoredTypes.Contains(type);
         }
 
-        internal virtual IEnumerable<PropertyInfo> GetConfiguredProperties(Type type)
+        public virtual IEnumerable<PropertyInfo> GetConfiguredProperties(Type type)
         {
-            Contract.Requires(type != null);
+            Check.NotNull(type, "type");
 
             var structuralTypeConfiguration = GetStructuralTypeConfiguration(type);
 
@@ -205,50 +259,92 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                        : Enumerable.Empty<PropertyInfo>();
         }
 
-        internal virtual bool IsIgnoredProperty(Type type, PropertyInfo propertyInfo)
+        public virtual bool IsIgnoredProperty(Type type, PropertyInfo propertyInfo)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(propertyInfo != null);
+            Check.NotNull(type, "type");
+            Check.NotNull(propertyInfo, "propertyInfo");
 
             var structuralTypeConfiguration = GetStructuralTypeConfiguration(type);
 
-            return (structuralTypeConfiguration != null)
-                       ? structuralTypeConfiguration.IgnoredProperties.Any(p => p.IsSameAs(propertyInfo))
-                       : false;
+            return structuralTypeConfiguration != null
+                   && structuralTypeConfiguration.IgnoredProperties.Any(p => p.IsSameAs(propertyInfo));
         }
 
         internal void Configure(EdmModel model)
         {
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(model);
 
             ConfigureEntities(model);
             ConfigureComplexTypes(model);
         }
 
-        internal void ConfigureEntities(EdmModel model)
+        private void ConfigureEntities(EdmModel model)
         {
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(model);
 
             foreach (var entityTypeConfiguration in ActiveEntityConfigurations)
             {
-                var structuralType = entityTypeConfiguration.ClrType;
-                var entityType = model.GetEntityType(structuralType);
+                var entityType = model.GetEntityType(entityTypeConfiguration.ClrType);
 
-                Contract.Assert(entityType != null);
+                Debug.Assert(entityType != null);
+
+                ConfigureFunctionMappings(model, entityTypeConfiguration, entityType);
 
                 entityTypeConfiguration.Configure(entityType, model);
             }
         }
 
+        private void ConfigureFunctionMappings(EdmModel model, EntityTypeConfiguration entityTypeConfiguration, EntityType entityType)
+        {
+            if (!entityTypeConfiguration.IsMappedToFunctions)
+            {
+                return;
+            }
+
+            while (entityType.BaseType != null)
+            {
+                EntityTypeConfiguration baseTypeConfiguration;
+
+                var baseClrType = ((EntityType)entityType.BaseType).GetClrType();
+
+                Debug.Assert(baseClrType != null);
+
+                if (!entityType.BaseType.Abstract
+                    && (!_entityConfigurations
+                             .TryGetValue(baseClrType, out baseTypeConfiguration)
+                        || !baseTypeConfiguration.IsMappedToFunctions))
+                {
+                    throw Error.BaseTypeNotMappedToFunctions(
+                        baseClrType.FullName,
+                        entityTypeConfiguration.ClrType.FullName);
+                }
+
+                entityType = (EntityType)entityType.BaseType;
+            }
+
+            // Propagate function mapping down hierarchy
+            model.GetSelfAndAllDerivedTypes(entityType)
+                 .Each(
+                     e =>
+                         {
+                             var entityConfiguration = Entity(e.GetClrType());
+
+                             if (!entityConfiguration.IsMappedToFunctions)
+                             {
+                                 entityConfiguration.MapToFunctions();
+                             }
+                         });
+        }
+
         private void ConfigureComplexTypes(EdmModel model)
         {
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(model);
 
             foreach (var complexTypeConfiguration in ActiveComplexTypeConfigurations)
             {
                 var complexType = model.GetComplexType(complexTypeConfiguration.ClrType);
 
-                Contract.Assert(complexType != null);
+                Debug.Assert(complexType != null);
 
                 complexTypeConfiguration.Configure(complexType);
             }
@@ -256,38 +352,38 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
         internal void Configure(DbDatabaseMapping databaseMapping, DbProviderManifest providerManifest)
         {
-            Contract.Requires(databaseMapping != null);
-            Contract.Requires(providerManifest != null);
+            DebugCheck.NotNull(databaseMapping);
+            DebugCheck.NotNull(providerManifest);
 
             foreach (var structuralTypeConfiguration
-                in databaseMapping.Model.GetComplexTypes()
-                    .Select(ct => ct.GetConfiguration())
-                    .Cast<StructuralTypeConfiguration>()
-                    .Where(c => c != null))
+                in databaseMapping.Model.ComplexTypes
+                                  .Select(ct => ct.GetConfiguration())
+                                  .Cast<StructuralTypeConfiguration>()
+                                  .Where(c => c != null))
             {
                 structuralTypeConfiguration.Configure(
                     databaseMapping.GetComplexPropertyMappings(structuralTypeConfiguration.ClrType),
                     providerManifest);
             }
 
-            ConfigureDefaultSchema(databaseMapping);
             ConfigureEntityTypes(databaseMapping, providerManifest);
             RemoveRedundantColumnConditions(databaseMapping);
             RemoveRedundantTables(databaseMapping);
             ConfigureTables(databaseMapping.Database);
+            ConfigureDefaultSchema(databaseMapping);
         }
 
         private void ConfigureDefaultSchema(DbDatabaseMapping databaseMapping)
         {
-            Contract.Requires(databaseMapping != null);
+            DebugCheck.NotNull(databaseMapping);
 
-            if (!string.IsNullOrWhiteSpace(DefaultSchema))
-            {
-                var defaultSchema = databaseMapping.Database.Schemas.Single();
+            databaseMapping.Database.GetEntitySets()
+                           .Where(es => string.IsNullOrWhiteSpace(es.Schema))
+                           .Each(es => es.Schema = DefaultSchema ?? EdmModelExtensions.DefaultSchema);
 
-                defaultSchema.Name = DefaultSchema;
-                defaultSchema.DatabaseIdentifier = DefaultSchema;
-            }
+            databaseMapping.Database.Functions
+                           .Where(f => string.IsNullOrWhiteSpace(f.Schema))
+                           .Each(f => f.Schema = DefaultSchema ?? EdmModelExtensions.DefaultSchema);
         }
 
         private void ConfigureEntityTypes(DbDatabaseMapping databaseMapping, DbProviderManifest providerManifest)
@@ -313,7 +409,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
             new EntityMappingService(databaseMapping).Configure();
 
-            foreach (var entityType in databaseMapping.Model.GetEntityTypes().Where(e => e.GetConfiguration() != null))
+            foreach (var entityType in databaseMapping.Model.EntityTypes.Where(e => e.GetConfiguration() != null))
             {
                 var entityTypeConfiguration = (EntityTypeConfiguration)entityType.GetConfiguration();
 
@@ -324,8 +420,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
         private static void ConfigureUnconfiguredDerivedTypes(
             DbDatabaseMapping databaseMapping,
             DbProviderManifest providerManifest,
-            EdmEntityType entityType,
-            IEnumerable<EntityTypeConfiguration> sortedEntityConfigurations)
+            EntityType entityType,
+            IList<EntityTypeConfiguration> sortedEntityConfigurations)
         {
             var derivedTypes = databaseMapping.Model.GetDerivedTypes(entityType).ToList();
             while (derivedTypes.Count > 0)
@@ -335,9 +431,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
                 // Configure the derived type if it is not abstract and is not otherwise configured
                 // if the type is not configured, then also run through that type's derived types
-                if (!currentType.IsAbstract
-                    &&
-                    !sortedEntityConfigurations.Any(etc => etc.ClrType == currentType.GetClrType()))
+                if (!currentType.Abstract
+                    && sortedEntityConfigurations.All(etc => etc.ClrType != currentType.GetClrType()))
                 {
                     // run through mapping configuration to make sure property mappings point to where the base type is now mapping them
                     EntityTypeConfiguration.ConfigureUnconfiguredType(databaseMapping, providerManifest, currentType);
@@ -346,25 +441,18 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             }
         }
 
-        private static void ConfigureTables(DbDatabaseMetadata database)
+        private static void ConfigureTables(EdmModel database)
         {
-            Contract.Requires(database != null);
-            Contract.Assert(database.Schemas.Count() == 1);
-
-            var defaultSchema = database.Schemas.Single();
-
-            foreach (var table in defaultSchema.Tables.ToList())
+            foreach (var table in database.EntityTypes.ToList())
             {
-                ConfigureTable(database, defaultSchema, table);
+                ConfigureTable(database, table);
             }
         }
 
         private static void ConfigureTable(
-            DbDatabaseMetadata database, DbSchemaMetadata containingSchema, DbTableMetadata table)
+            EdmModel database, EntityType table)
         {
-            Contract.Requires(database != null);
-            Contract.Requires(containingSchema != null);
-            Contract.Requires(table != null);
+            DebugCheck.NotNull(table);
 
             var tableName = table.GetTableName();
 
@@ -373,35 +461,17 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                 return;
             }
 
-            if (!string.IsNullOrWhiteSpace(tableName.Schema)
-                && !string.Equals(containingSchema.Name, tableName.Schema, StringComparison.Ordinal))
+            var entitySet = database.GetEntitySet(table);
+
+            if (!string.IsNullOrWhiteSpace(tableName.Schema))
             {
-                containingSchema
-                    = database.Schemas
-                        .SingleOrDefault(s => string.Equals(s.Name, tableName.Schema, StringComparison.Ordinal));
-
-                if (containingSchema == null)
-                {
-                    database.Schemas.Add(
-                        containingSchema = new DbSchemaMetadata
-                            {
-                                Name = tableName.Schema,
-                                DatabaseIdentifier = tableName.Schema
-                            });
-                }
-
-                database.RemoveTable(table);
-                containingSchema.Tables.Add(table);
+                entitySet.Schema = tableName.Schema;
             }
 
-            if (!string.Equals(table.DatabaseIdentifier, tableName.Name, StringComparison.Ordinal))
-            {
-                table.DatabaseIdentifier = tableName.Name;
-            }
+            entitySet.Table = tableName.Name;
         }
 
-        private IEnumerable<EntityTypeConfiguration> SortEntityConfigurationsByInheritance(
-            DbDatabaseMapping databaseMapping)
+        private IList<EntityTypeConfiguration> SortEntityConfigurationsByInheritance(DbDatabaseMapping databaseMapping)
         {
             var entityConfigurationsSortedByInheritance = new List<EntityTypeConfiguration>();
 
@@ -425,19 +495,18 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                 }
                 else
                 {
-                    var derivedTypes = new Stack<EdmEntityType>();
+                    var derivedTypes = new Stack<EntityType>();
                     while (entityType != null)
                     {
                         derivedTypes.Push(entityType);
-                        entityType = entityType.BaseType;
+                        entityType = (EntityType)entityType.BaseType;
                     }
 
                     while (derivedTypes.Count > 0)
                     {
                         entityType = derivedTypes.Pop();
                         var correspondingEntityConfiguration =
-                            ActiveEntityConfigurations.Where(ec => ec.ClrType == entityType.GetClrType()).
-                                SingleOrDefault();
+                            ActiveEntityConfigurations.SingleOrDefault(ec => ec.ClrType == entityType.GetClrType());
                         if ((correspondingEntityConfiguration != null)
                             &&
                             (!entityConfigurationsSortedByInheritance.Contains(correspondingEntityConfiguration)))
@@ -454,7 +523,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
         ///     Initializes configurations in the ModelConfiguration so that configuration data
         ///     is in a single place
         /// </summary>
-        public void NormalizeConfigurations()
+        internal void NormalizeConfigurations()
         {
             DiscoverIndirectlyConfiguredComplexTypes();
             ReassignSubtypeMappings();
@@ -495,36 +564,34 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
         private static void RemoveRedundantColumnConditions(DbDatabaseMapping databaseMapping)
         {
-            Contract.Requires(databaseMapping != null);
+            DebugCheck.NotNull(databaseMapping);
 
             // Remove all the default discriminators where there is only one table using it
             (from esm in databaseMapping.GetEntitySetMappings()
              select new
-                 {
-                     Set = esm,
-                     Fragments =
+                        {
+                            Set = esm,
+                            Fragments =
                  (from etm in esm.EntityTypeMappings
-                  from etmf in etm.TypeMappingFragments
+                  from etmf in etm.MappingFragments
                   group etmf by etmf.Table
                   into g
                   where g.Count(x => x.GetDefaultDiscriminator() != null) == 1
                   select g.Single(x => x.GetDefaultDiscriminator() != null))
-                 })
+                        })
                 .Each(x => x.Fragments.Each(f => f.RemoveDefaultDiscriminator(x.Set)));
         }
 
         private static void RemoveRedundantTables(DbDatabaseMapping databaseMapping)
         {
-            Contract.Assert(databaseMapping != null);
+            DebugCheck.NotNull(databaseMapping);
 
             var tables
-                = (from t in databaseMapping.Database.Schemas.SelectMany(s => s.Tables)
-                   where !databaseMapping.GetEntitySetMappings()
-                              .SelectMany(esm => esm.EntityTypeMappings)
-                              .SelectMany(etm => etm.TypeMappingFragments)
-                              .Any(etmf => etmf.Table == t)
-                         && !databaseMapping.GetAssociationSetMappings()
-                                 .Any(asm => asm.Table == t)
+                = (from t in databaseMapping.Database.EntityTypes
+                   where databaseMapping.GetEntitySetMappings()
+                                        .SelectMany(esm => esm.EntityTypeMappings)
+                                        .SelectMany(etm => etm.MappingFragments).All(etmf => etmf.Table != t)
+                         && databaseMapping.GetAssociationSetMappings().All(asm => asm.Table != t)
                    select t).ToList();
 
             tables.Each(
@@ -537,7 +604,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                             throw Error.OrphanedConfiguredTableDetected(tableName);
                         }
 
-                        databaseMapping.Database.RemoveTable(t);
+                        databaseMapping.Database.RemoveEntityType(t);
                     });
         }
 

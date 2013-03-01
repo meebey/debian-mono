@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Represents a constant value.
+    ///     Represents a constant value.
     /// </summary>
     public class DbConstantExpression : DbExpression
     {
@@ -19,7 +21,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         internal DbConstantExpression(TypeUsage resultType, object value)
             : base(DbExpressionKind.Constant, resultType)
         {
-            Debug.Assert(value != null, "DbConstantExpression value cannot be null");
+            DebugCheck.NotNull(value);
             Debug.Assert(TypeSemantics.IsScalarType(resultType), "DbConstantExpression must have a primitive or enum value");
             Debug.Assert(
                 !value.GetType().IsEnum || TypeSemantics.IsEnumerationType(resultType),
@@ -47,16 +49,16 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Provides direct access to the constant value, even for byte[] constants.
+        ///     Provides direct access to the constant value, even for byte[] constants.
         /// </summary>
-        /// <returns>The object value contained by this constant expression, not a copy.</returns>
+        /// <returns> The object value contained by this constant expression, not a copy. </returns>
         internal object GetValue()
         {
             return _value;
         }
 
         /// <summary>
-        /// Gets the constant value.
+        ///     Gets the constant value.
         /// </summary>
         public virtual object Value
         {
@@ -76,39 +78,39 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that do not produce a result value.
+        ///     The visitor pattern method for expression visitors that do not produce a result value.
         /// </summary>
-        /// <param name="visitor">An instance of DbExpressionVisitor.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
+        /// <param name="visitor"> An instance of DbExpressionVisitor. </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
         public override void Accept(DbExpressionVisitor visitor)
         {
-            if (visitor != null)
-            {
-                visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            visitor.Visit(this);
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that produce a result value of a specific type.
+        ///     The visitor pattern method for expression visitors that produce a result value of a specific type.
         /// </summary>
-        /// <param name="visitor">An instance of a typed DbExpressionVisitor that produces a result value of type TResultType.</param>
-        /// <typeparam name="TResultType">The type of the result produced by <paramref name="visitor"/></typeparam>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
-        /// <returns>An instance of <typeparamref name="TResultType"/>.</returns>
+        /// <param name="visitor"> An instance of a typed DbExpressionVisitor that produces a result value of type TResultType. </param>
+        /// <typeparam name="TResultType">
+        ///     The type of the result produced by <paramref name="visitor" />
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
+        /// <returns>
+        ///     An instance of <typeparamref name="TResultType" /> .
+        /// </returns>
         public override TResultType Accept<TResultType>(DbExpressionVisitor<TResultType> visitor)
         {
-            if (visitor != null)
-            {
-                return visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            return visitor.Visit(this);
         }
     }
 }

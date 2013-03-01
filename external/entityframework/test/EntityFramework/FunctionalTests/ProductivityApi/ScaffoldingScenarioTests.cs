@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace FunctionalTests.ProductivityApi
 {
     using System.Configuration;
@@ -101,17 +102,16 @@ namespace FunctionalTests.ProductivityApi
             config.ConnectionStrings.ConnectionStrings.Add(
                 new ConnectionStringSettings(
                     "DbFirstConnectionString",
-                    @"metadata=.\AdvancedPatterns.csdl|.\AdvancedPatterns.ssdl|.\AdvancedPatterns.msl;provider=System.Data.SqlClient;provider connection string='Server=.\SQLEXPRESS;Integrated Security=True;Database=AdvancedPatternsModelFirst;MultipleActiveResultSets=True;'",
+                    @"metadata=.\AdvancedPatterns.csdl|.\AdvancedPatterns.ssdl|.\AdvancedPatterns.msl;provider=System.Data.SqlClient;provider connection string='Server=.\SQLEXPRESS;Integrated Security=True;Database=AdvancedPatternsModelFirst;'",
                     "System.Data.EntityClient"));
 
             config.ConnectionStrings.ConnectionStrings.Add(
                 new ConnectionStringSettings(
                     "CodeFirstConnectionString",
-                    @"Server=IIsNotAValidServer;Integrated Security=True;Database=ItMattersNot;MultipleActiveResultSets=True;",
+                    @"Server=IIsNotAValidServer;Integrated Security=True;Database=ItMattersNot;",
                     "System.Data.SqlClient"));
 
             return config;
         }
-
     }
 }

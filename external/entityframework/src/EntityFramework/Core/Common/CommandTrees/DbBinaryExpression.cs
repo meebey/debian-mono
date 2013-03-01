@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// The abstract base type for expressions that accept two expression operands.
+    ///     The abstract base type for expressions that accept two expression operands.
     /// </summary>
     public abstract class DbBinaryExpression : DbExpression
     {
@@ -19,15 +20,15 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         internal DbBinaryExpression(DbExpressionKind kind, TypeUsage type, DbExpression left, DbExpression right)
             : base(kind, type)
         {
-            Debug.Assert(left != null, "DbBinaryExpression.Left cannot be null");
-            Debug.Assert(right != null, "DbBinaryExpression.Right cannot be null");
+            DebugCheck.NotNull(left);
+            DebugCheck.NotNull(right);
 
             _left = left;
             _right = right;
         }
 
         /// <summary>
-        /// Gets the <see cref="DbExpression"/> that defines the left argument.
+        ///     Gets the <see cref="DbExpression" /> that defines the left argument.
         /// </summary>
         public virtual DbExpression Left
         {
@@ -35,7 +36,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the <see cref="DbExpression"/> that defines the right argument.
+        ///     Gets the <see cref="DbExpression" /> that defines the right argument.
         /// </summary>
         public virtual DbExpression Right
         {

@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace ProductivityApiTests
 {
     using System;
@@ -8,23 +9,22 @@ namespace ProductivityApiTests
     using System.Data.Entity.Core;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Infrastructure;
+    using System.Data.Entity.Migrations;
+    using System.Data.Entity.Migrations.History;
+    using System.Data.Entity.SqlServer;
+    using System.Data.SqlClient;
     using System.Linq;
     using System.Transactions;
     using BadMappingModel;
     using ConcurrencyModel;
     using FunctionalTests.SimpleMigrationsModel;
-    using FunctionalTests.TestHelpers;
     using SimpleModel;
     using Xunit;
+    using Blog = SimpleModel.Blog;
 
-    /// <summary>
-    /// Functional tests for database initialization and seeding.  Unit tests also exist in the unit tests project.
-    /// </summary>
     public class DatabaseInitializationTests : FunctionalTestBase
     {
         #region Infrastructure/setup
-
-        private const string MigrationHistoryTableName = "__MigrationHistory";
 
         public DatabaseInitializationTests()
         {
@@ -253,8 +253,9 @@ namespace ProductivityApiTests
 
             using (var context = new SimpleContextForCreateDatabaseIfNotExists())
             {
-                Initializer_does_nothing_if_database_exists_and_model_matches(context, useTransaction: true,
-                                                                              useLocal: false);
+                Initializer_does_nothing_if_database_exists_and_model_matches(
+                    context, useTransaction: true,
+                    useLocal: false);
             }
         }
 
@@ -266,8 +267,9 @@ namespace ProductivityApiTests
 
             using (var context = new SimpleContextForCreateDatabaseIfNotExists())
             {
-                Initializer_does_nothing_if_database_exists_and_model_matches(context, useTransaction: true,
-                                                                              useLocal: true);
+                Initializer_does_nothing_if_database_exists_and_model_matches(
+                    context, useTransaction: true,
+                    useLocal: true);
             }
         }
 
@@ -279,8 +281,9 @@ namespace ProductivityApiTests
 
             using (var context = new SimpleContextForDropCreateDatabaseIfModelChanges())
             {
-                Initializer_does_nothing_if_database_exists_and_model_matches(context, useTransaction: true,
-                                                                              useLocal: false);
+                Initializer_does_nothing_if_database_exists_and_model_matches(
+                    context, useTransaction: true,
+                    useLocal: false);
             }
         }
 
@@ -293,14 +296,16 @@ namespace ProductivityApiTests
 
             using (var context = new SimpleContextForDropCreateDatabaseIfModelChanges())
             {
-                Initializer_does_nothing_if_database_exists_and_model_matches(context, useTransaction: true,
-                                                                              useLocal: true);
+                Initializer_does_nothing_if_database_exists_and_model_matches(
+                    context, useTransaction: true,
+                    useLocal: true);
             }
         }
 
-        private void Initializer_does_nothing_if_database_exists_and_model_matches(SimpleModelContext context,
-                                                                                   bool useTransaction = false,
-                                                                                   bool useLocal = false)
+        private void Initializer_does_nothing_if_database_exists_and_model_matches(
+            SimpleModelContext context,
+            bool useTransaction = false,
+            bool useLocal = false)
         {
             context.Database.Initialize(force: true);
 
@@ -347,7 +352,6 @@ namespace ProductivityApiTests
             Assert.True(categoriesInDatabase.Any(c => c.Id == "Watchers"));
             Assert.True(categoriesInDatabase.Any(c => c.Id == "Slayers"));
 
-
             if (localTransaction != null)
             {
                 CloseEntityConnection(context);
@@ -382,13 +386,17 @@ namespace ProductivityApiTests
         {
             using (var poker = new EdmMetadataPokerContext(connection))
             {
-                poker.Database.ExecuteSqlCommand("drop table " + MigrationHistoryTableName);
+                poker.Database.ExecuteSqlCommand("drop table " + HistoryContext.TableName);
 
                 poker.Database.ExecuteSqlCommand(
                     ((IObjectContextAdapter)poker).ObjectContext.CreateDatabaseScript());
 
 #pragma warning disable 612,618
-                poker.Metadata.Add(new EdmMetadata { ModelHash = hash });
+                poker.Metadata.Add(
+                    new EdmMetadata
+                        {
+                            ModelHash = hash
+                        });
 #pragma warning restore 612,618
 
                 poker.SaveChanges();
@@ -407,15 +415,12 @@ namespace ProductivityApiTests
             {
             }
 
-            public virtual DbSet<System.Data.Entity.Migrations.History.HistoryRow> History { get; set; }
+            public virtual DbSet<HistoryRow> History { get; set; }
 
             protected override void OnModelCreating(DbModelBuilder modelBuilder)
             {
-                modelBuilder.Entity<System.Data.Entity.Migrations.History.HistoryRow>().ToTable(MigrationHistoryTableName);
-                modelBuilder.Entity<System.Data.Entity.Migrations.History.HistoryRow>().HasKey(h => h.MigrationId);
-#pragma warning disable 612,618
-                modelBuilder.Entity<System.Data.Entity.Migrations.History.HistoryRow>().Ignore(h => h.CreatedOn);
-#pragma warning restore 612,618
+                modelBuilder.Entity<HistoryRow>().ToTable(HistoryContext.TableName);
+                modelBuilder.Entity<HistoryRow>().HasKey(h => h.MigrationId);
             }
         }
 
@@ -570,7 +575,8 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void CreateDatabaseIfNotExists_does_nothing_if_database_exists_without_metadata_but_with_model_table_in_nondefault_schema_sql()
+        public void CreateDatabaseIfNotExists_does_nothing_if_database_exists_without_metadata_but_with_model_table_in_nondefault_schema_sql
+            ()
         {
             Database.Delete(SimpleConnection<SchemaContextCreateDatabaseIfNotExists>());
 
@@ -592,10 +598,12 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void CreateDatabaseIfNotExists_does_nothing_if_database_exists_without_metadata_but_with_model_table_in_nondefault_schema_ce()
+        public void CreateDatabaseIfNotExists_does_nothing_if_database_exists_without_metadata_but_with_model_table_in_nondefault_schema_ce(
+            )
         {
-            var previousConnectionFactory = DefaultConnectionFactoryResolver.Instance.ConnectionFactory;
-            DefaultConnectionFactoryResolver.Instance.ConnectionFactory = new SqlCeConnectionFactory("System.Data.SqlServerCe.4.0", AppDomain.CurrentDomain.BaseDirectory, "");
+            MutableResolver.AddResolver<IDbConnectionFactory>(
+                k => new SqlCeConnectionFactory(
+                         "System.Data.SqlServerCe.4.0", AppDomain.CurrentDomain.BaseDirectory, ""));
 
             try
             {
@@ -619,7 +627,7 @@ namespace ProductivityApiTests
             }
             finally
             {
-                DefaultConnectionFactoryResolver.Instance.ConnectionFactory = previousConnectionFactory;
+                MutableResolver.ClearResolvers();
             }
         }
 
@@ -651,7 +659,7 @@ namespace ProductivityApiTests
             using (var context = new SimpleContextForDropCreateDatabaseIfModelChanges())
             {
                 context.Database.Initialize(force: true);
-                using (TransactionScope tx = new TransactionScope())
+                using (var tx = new TransactionScope())
                 {
                     Assert.Equal(1, GetTransactionCount(context.Database.Connection));
 
@@ -730,7 +738,7 @@ namespace ProductivityApiTests
             }
 
             // Ensure all migrations were applied
-            var appliedMigrations = new System.Data.Entity.Migrations.DbMigrator(new MigrateInitializerConfiguration()).GetDatabaseMigrations();
+            var appliedMigrations = new DbMigrator(new MigrateInitializerConfiguration()).GetDatabaseMigrations();
             Assert.Equal(2, appliedMigrations.Count());
             Assert.True(appliedMigrations.Contains("201112202056275_InitialCreate"));
             Assert.True(appliedMigrations.Contains("201112202056573_AddUrlToBlog"));
@@ -834,7 +842,7 @@ namespace ProductivityApiTests
                 context.Database.Delete();
                 context.Database.Create();
 
-                context.Database.ExecuteSqlCommand("drop table " + MigrationHistoryTableName);
+                context.Database.ExecuteSqlCommand("drop table " + HistoryContext.TableName);
 
                 VerifyMigrationsHistoryTable(context, historyShouldExist: false);
             }
@@ -845,7 +853,7 @@ namespace ProductivityApiTests
                 Assert.True(context.Database.Exists());
                 Assert.True(context.Database.CompatibleWithModel(throwIfNoMetadata: false));
                 Assert.Throws<NotSupportedException>(() => context.Database.CompatibleWithModel(throwIfNoMetadata: true))
-                    .ValidateMessage("Database_NoDatabaseMetadata");
+                      .ValidateMessage("Database_NoDatabaseMetadata");
             }
         }
 
@@ -868,7 +876,7 @@ namespace ProductivityApiTests
 
                 Assert.True(context.Database.CompatibleWithModel(throwIfNoMetadata: false));
                 Assert.Throws<NotSupportedException>(() => context.Database.CompatibleWithModel(throwIfNoMetadata: true))
-                    .ValidateMessage("Database_NoDatabaseMetadata");
+                      .ValidateMessage("Database_NoDatabaseMetadata");
             }
         }
 
@@ -879,7 +887,7 @@ namespace ProductivityApiTests
             {
                 Assert.True(context.Database.CompatibleWithModel(throwIfNoMetadata: false));
                 Assert.Throws<NotSupportedException>(() => context.Database.CompatibleWithModel(throwIfNoMetadata: true))
-                    .ValidateMessage("Database_NonCodeFirstCompatibilityCheck");
+                      .ValidateMessage("Database_NonCodeFirstCompatibilityCheck");
             }
         }
 
@@ -890,7 +898,7 @@ namespace ProductivityApiTests
             {
                 Assert.True(context.Database.CompatibleWithModel(throwIfNoMetadata: false));
                 Assert.Throws<NotSupportedException>(() => context.Database.CompatibleWithModel(throwIfNoMetadata: true))
-                    .ValidateMessage("Database_NonCodeFirstCompatibilityCheck");
+                      .ValidateMessage("Database_NonCodeFirstCompatibilityCheck");
             }
         }
 
@@ -908,7 +916,7 @@ namespace ProductivityApiTests
             var tables =
                 GetObjectContext(context).ExecuteStoreQuery<SchemaTable>("SELECT name FROM sys.Tables").ToList();
 
-            Assert.Equal(historyShouldExist, tables.Any(t => t.name == MigrationHistoryTableName));
+            Assert.Equal(historyShouldExist, tables.Any(t => t.name == HistoryContext.TableName));
 
             // Sanity check that the other tables are still there and that we're querying for the correct database.
             Assert.True(tables.Any(t => t.name == "Products"));
@@ -1084,7 +1092,9 @@ namespace ProductivityApiTests
 
         // See Dev11 bug 136276
         [Fact]
-        public void Using_model_with_bad_mapping_but_no_EdmMetadata_table_and_initializer_that_throws_before_SaveChanges_should_result_in_DataException_containing_a_MappingException()
+        public void
+            Using_model_with_bad_mapping_but_no_EdmMetadata_table_and_initializer_that_throws_before_SaveChanges_should_result_in_DataException_containing_a_MappingException
+            ()
         {
             Database.SetInitializer(new InitializerForBadMappingCaseWithQuery());
             using (var context = new BizContextWithNoEdmMetadata2())
@@ -1116,7 +1126,12 @@ namespace ProductivityApiTests
         {
             protected override void Seed(SimpleModelWithBadInitializer context)
             {
-                context.Entry(new Product { Id = 999, CategoryId = "FOO" }).State = EntityState.Modified;
+                context.Entry(
+                    new Product
+                        {
+                            Id = 999,
+                            CategoryId = "FOO"
+                        }).State = EntityState.Modified;
             }
         }
 
@@ -1276,7 +1291,11 @@ namespace ProductivityApiTests
             protected override void Seed(TContext context)
             {
                 HasRun = true;
-                context.Products.Add(new Product { Name = "Dev11" });
+                context.Products.Add(
+                    new Product
+                        {
+                            Name = "Dev11"
+                        });
             }
 
             public bool HasRun { get; set; }
@@ -1329,5 +1348,277 @@ namespace ProductivityApiTests
         }
 
         #endregion
+
+        private class SimpleContextWithDefaultSchema : SimpleModelContext, IDbModelCacheKeyProvider
+        {
+            private readonly bool _changeModel;
+
+            public SimpleContextWithDefaultSchema(bool changeModel = false)
+            {
+                _changeModel = changeModel;
+            }
+
+            protected override void OnModelCreating(DbModelBuilder modelBuilder)
+            {
+                modelBuilder.HasDefaultSchema("foo");
+
+                if (_changeModel)
+                {
+                    modelBuilder.Entity<Product>().ToTable("__products");
+                }
+            }
+
+            public string CacheKey
+            {
+                get { return _changeModel.ToString(); }
+            }
+        }
+
+        [Fact]
+        public void Initializer_when_default_schema_should_not_throw()
+        {
+            using (var context = new SimpleContextWithDefaultSchema())
+            {
+                context.Database.Initialize(force: true);
+
+                Assert.Equal(0, context.Products.Count());
+            }
+        }
+
+        private class SimpleContextWithConfigChanges : SimpleModelContext
+        {
+            public SimpleContextWithConfigChanges(bool initialValue)
+            {
+                SetInternalContextOptions(initialValue);
+                CheckInternalContextOptions(initialValue);
+            }
+
+            public void SetInternalContextOptions(bool value)
+            {
+                Configuration.LazyLoadingEnabled = value;
+                Configuration.ProxyCreationEnabled = value;
+                Configuration.AutoDetectChangesEnabled = value;
+                Configuration.ValidateOnSaveEnabled = value;
+            }
+
+            public void CheckInternalContextOptions(bool expectedValue)
+            {
+                Assert.True(Configuration.LazyLoadingEnabled == expectedValue);
+                Assert.True(Configuration.ProxyCreationEnabled == expectedValue);
+                Assert.True(Configuration.AutoDetectChangesEnabled == expectedValue);
+                Assert.True(Configuration.ValidateOnSaveEnabled == expectedValue);
+            }
+
+            public void CheckObjectContextOptions(bool expectedValue)
+            {
+                var objectContext = GetObjectContext(this);
+                Assert.True(objectContext.ContextOptions.LazyLoadingEnabled == expectedValue);
+                Assert.True(objectContext.ContextOptions.ProxyCreationEnabled == expectedValue);
+            }
+        }
+
+        private class DbInitializerWithConfigChanges : IDatabaseInitializer<SimpleContextWithConfigChanges>
+        {
+            private readonly bool _initialValue;
+
+            public DbInitializerWithConfigChanges(bool initialValue)
+            {
+                _initialValue = initialValue;
+            }
+
+            public void InitializeDatabase(SimpleContextWithConfigChanges context)
+            {
+                context.CheckInternalContextOptions(_initialValue);
+                context.CheckObjectContextOptions(_initialValue);
+
+                var newValue = !_initialValue;
+
+                context.SetInternalContextOptions(newValue);
+
+                context.CheckInternalContextOptions(newValue);
+                context.CheckObjectContextOptions(newValue);
+            }
+        }
+
+        private static void TestContextConfigChanges(bool initialValue)
+        {
+            Database.SetInitializer(new DbInitializerWithConfigChanges(initialValue));
+
+            using (var context = new SimpleContextWithConfigChanges(initialValue))
+            {
+                context.Database.Initialize(force: true);
+
+                context.CheckInternalContextOptions(initialValue);
+                context.CheckObjectContextOptions(initialValue);
+
+                var newValue = !initialValue;
+
+                context.SetInternalContextOptions(newValue);
+
+                context.CheckInternalContextOptions(newValue);
+                context.CheckObjectContextOptions(newValue);
+            }
+        }
+
+        [Fact]
+        public void Initializer_context_configuration_changes_are_set_and_retrieved_correctly()
+        {
+            TestContextConfigChanges(initialValue: false);
+            TestContextConfigChanges(initialValue: true);
+        }
+
+        [Fact]
+        public void Initializer_when_default_schema_should_throw_when_model_changes()
+        {
+            Database.Delete(SimpleConnection<SimpleContextWithDefaultSchema>());
+            Database.SetInitializer(new CreateDatabaseIfNotExists<SimpleContextWithDefaultSchema>());
+
+            using (var context = new SimpleContextWithDefaultSchema())
+            {
+                context.Database.Initialize(force: true);
+
+                Assert.Equal(0, context.Products.Count());
+            }
+
+            using (var context = new SimpleContextWithDefaultSchema(changeModel: true))
+            {
+                Assert.Throws<InvalidOperationException>(() => context.Database.Initialize(force: true)).ValidateMessage
+                    ("DatabaseInitializationStrategy_ModelMismatch", context.GetType().Name);
+            }
+        }
+
+        [Fact]
+        public void SetDatabaseOptionsScript_returns_expected_result()
+        {
+            const string databaseName = "ADatabaseName";
+            const string sql9ScriptFormat =
+                "if serverproperty('EngineEdition') <> 5 execute sp_executesql N'alter database [{0}] set read_committed_snapshot on'";
+
+            var sql8Script = String.Empty;
+            var sql9Script = String.Format(sql9ScriptFormat, databaseName);
+
+            foreach (SqlVersion sqlVersion in Enum.GetValues(typeof(SqlVersion)))
+            {
+                var expectedScript = (sqlVersion >= SqlVersion.Sql9) ? sql9Script : sql8Script;
+                var script = SqlDdlBuilder.SetDatabaseOptionsScript(sqlVersion, databaseName);
+                Assert.Equal(expectedScript, script);
+            }
+        }
+
+        [Fact]
+        public void Initializer_when_no_tables_found_should_throw_when_model_changes()
+        {
+            Database.Delete(SimpleConnection<DataLossContextContext>());
+            Database.SetInitializer(new CreateDatabaseIfNotExists<DataLossContextContext>());
+
+            using (var context = new DataLossContextContext())
+            {
+                context.Database.Initialize(force: true);
+            }
+
+            using (var context = new DataLossContextContext
+                                     {
+                                         V2 = true
+                                     })
+            {
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Database.Initialize(force: true))
+                      .ValidateMessage("DatabaseInitializationStrategy_ModelMismatch", context.GetType().Name);
+            }
+        }
+
+        public class DataLossContextContext : DbContext, IDbModelCacheKeyProvider
+        {
+            public bool V2 { get; set; }
+
+            protected override void OnModelCreating(DbModelBuilder modelBuilder)
+            {
+                base.OnModelCreating(modelBuilder);
+
+                if (V2)
+                {
+                    modelBuilder.Ignore<Blog>();
+                    modelBuilder.Entity<Login>();
+                }
+                else
+                {
+                    modelBuilder.Ignore<Login>();
+                    modelBuilder.Entity<Blog>();
+                }
+            }
+
+            public string CacheKey
+            {
+                get { return V2 ? "SingleTableContext_v2" : "SingleTableContext"; }
+            }
+        }
+
+        public class InvalidSchemaContext : SimpleModelContext
+        {
+            protected override void OnModelCreating(DbModelBuilder modelBuilder)
+            {
+                // This intentionally creates a table name that is too long so that SqlClient/SQL Server will
+                // throw when we try to create the table.
+                modelBuilder.Entities().Configure(c => c.ToTable(c.ClrType.Name + new string('X', 400)));
+
+                base.OnModelCreating(modelBuilder);
+            }
+        }
+
+        [Fact]
+        public void Empty_database_is_cleaned_up_when_exception_is_thrown_from_the_Migration_pipeline_CodePlex_640()
+        {
+            using (var context = new InvalidSchemaContext())
+            {
+                context.Database.Delete();
+
+                // Not checking the message here since it is provider-specific
+                Assert.Throws<SqlException>(() => context.Database.Initialize(force: false));
+
+                Assert.False(context.Database.Exists());
+            }
+        }
+
+        public class InvalidSchemaContext2 : InvalidSchemaContext
+        {
+        }
+
+        public class EmptyContextForInvalidSchema : DbContext
+        {
+            static EmptyContextForInvalidSchema()
+            {
+                Database.SetInitializer<EmptyContextForInvalidSchema>(null);
+            }
+
+            public EmptyContextForInvalidSchema()
+                : base(ModelHelpers.SimpleConnectionString<InvalidSchemaContext2>())
+            {
+            }
+        }
+
+        [Fact]
+        public void Existing_database_is_not_deleted_when_exception_is_thrown_from_the_Migration_pipeline_CodePlex_640()
+        {
+            // Create an empty database with no __MigrationHistory table
+            using (var context = new EmptyContextForInvalidSchema())
+            {
+                var objectContext = ((IObjectContextAdapter)context).ObjectContext;
+                if (!objectContext.DatabaseExists())
+                {
+                    objectContext.CreateDatabase();
+                }
+            }
+
+            // Now cause SQL Server to fail in DDL and check that database still exists
+            using (var context = new InvalidSchemaContext2())
+            {
+                Assert.True(context.Database.Exists());
+
+                // Not checking the message here since it is provider-specific
+                Assert.Throws<SqlException>(() => context.Database.Initialize(force: false));
+
+                Assert.True(context.Database.Exists());
+            }
+        }
     }
 }

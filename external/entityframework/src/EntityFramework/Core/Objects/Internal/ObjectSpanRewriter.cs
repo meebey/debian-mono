@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
@@ -6,13 +7,14 @@ namespace System.Data.Entity.Core.Objects.Internal
     using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Globalization;
 
     /// <summary>
-    /// Responsible for performing Relationship-span only rewrites over a Command Tree rooted
-    /// by the <see cref="Query"/> property. Virtual methods provide an opportunity for derived
-    /// classes to implement Full-span rewrites.
+    ///     Responsible for performing Relationship-span only rewrites over a Command Tree rooted
+    ///     by the <see cref="Query" /> property. Virtual methods provide an opportunity for derived
+    ///     classes to implement Full-span rewrites.
     /// </summary>
     internal class ObjectSpanRewriter
     {
@@ -75,13 +77,15 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Constructs a new ObjectSpanRewriter that will attempt to apply spanning to the specified query
-        /// (represented as a DbExpression) when <see cref="RewriteQuery"/> is called.
+        ///     Constructs a new ObjectSpanRewriter that will attempt to apply spanning to the specified query
+        ///     (represented as a DbExpression) when <see cref="RewriteQuery" /> is called.
         /// </summary>
-        /// <param name="toRewrite">A <see cref="DbExpression"/> representing the query to span.</param>
+        /// <param name="toRewrite">
+        ///     A <see cref="DbExpression" /> representing the query to span.
+        /// </param>
         internal ObjectSpanRewriter(DbCommandTree tree, DbExpression toRewrite, AliasGenerator aliasGenerator)
         {
-            Debug.Assert(toRewrite != null, "Expression to rewrite cannot be null");
+            DebugCheck.NotNull(toRewrite);
 
             _toRewrite = toRewrite;
             _tree = tree;
@@ -89,7 +93,7 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Gets the metadata workspace the will be used to retrieve required metadata, for example association types.
+        ///     Gets the metadata workspace the will be used to retrieve required metadata, for example association types.
         /// </summary>
         internal MetadataWorkspace Metadata
         {
@@ -97,7 +101,7 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Gets a DbExpression representing the query that should be spanned.
+        ///     Gets a DbExpression representing the query that should be spanned.
         /// </summary>
         internal DbExpression Query
         {
@@ -105,7 +109,7 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Gets a value indicating whether relationship span is required (ObjectQuery sets this to 'false' for NoTracking queries).
+        ///     Gets a value indicating whether relationship span is required (ObjectQuery sets this to 'false' for NoTracking queries).
         /// </summary>
         internal bool RelationshipSpan
         {
@@ -114,10 +118,10 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Gets a dictionary that indicates, for a given result row type produced by a span rewrite, 
-        /// which columns represent which association end members.
-        /// This dictionary is initially empty before <see cref="RewriteQuery"/> is called and will remain so
-        /// if no rewrites are required.
+        ///     Gets a dictionary that indicates, for a given result row type produced by a span rewrite,
+        ///     which columns represent which association end members.
+        ///     This dictionary is initially empty before <see cref="RewriteQuery" /> is called and will remain so
+        ///     if no rewrites are required.
         /// </summary>
         internal SpanIndex SpanIndex
         {
@@ -125,9 +129,11 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Main 'public' entry point called by ObjectQuery.
+        ///     Main 'public' entry point called by ObjectQuery.
         /// </summary>
-        /// <returns>The rewritten version of <see cref="Query"/> if spanning was required; otherwise <c>null</c>.</returns>
+        /// <returns>
+        ///     The rewritten version of <see cref="Query" /> if spanning was required; otherwise <c>null</c> .
+        /// </returns>
         internal DbExpression RewriteQuery()
         {
             var retExpr = Rewrite(_toRewrite);
@@ -600,15 +606,14 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Gathers the applicable { from, to } relationship end pairings for the specified entity type.
-        /// Note that it is possible for both { x, y } and { y, x } - where x and y are relationship ends - 
-        /// to be returned if the relationship is symmetric (in the sense that it has multiplicity of at
-        /// most one in each direction and the type of each end is Ref to the same Entity type, or a supertype).
+        ///     Gathers the applicable { from, to } relationship end pairings for the specified entity type.
+        ///     Note that it is possible for both { x, y } and { y, x } - where x and y are relationship ends -
+        ///     to be returned if the relationship is symmetric (in the sense that it has multiplicity of at
+        ///     most one in each direction and the type of each end is Ref to the same Entity type, or a supertype).
         /// </summary>
-        /// <param name="entityType">The Entity type for which the applicable { from, to } end pairings should be retrieved.</param>
+        /// <param name="entityType"> The Entity type for which the applicable { from, to } end pairings should be retrieved. </param>
         /// <returns>
-        ///     A List of association end members pairings that describes the available { from, to } navigations
-        ///     for the specified Entity type that are valid for Relationship Span; or <c>null</c> if no such pairings exist.
+        ///     A List of association end members pairings that describes the available { from, to } navigations for the specified Entity type that are valid for Relationship Span; or <c>null</c> if no such pairings exist.
         /// </returns>
         private List<KeyValuePair<AssociationEndMember, AssociationEndMember>> GetRelationshipSpanEnds(EntityType entityType)
         {
@@ -661,16 +666,15 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Determines whether the specified { from, to } relationship end pairing represents a navigation that is
-        /// valid for a relationship span sourced by an instance of the specified entity type.
+        ///     Determines whether the specified { from, to } relationship end pairing represents a navigation that is
+        ///     valid for a relationship span sourced by an instance of the specified entity type.
         /// </summary>
-        /// <param name="compareType">The Entity type which valid 'from' ends must reference (or a supertype of that Entity type)</param>
-        /// <param name="associationType">The Association type to consider.</param>
-        /// <param name="fromEnd">The candidate 'from' end, which will be checked based on the Entity type it references</param>
-        /// <param name="toEnd">The candidate 'to' end, which will be checked base on the upper bound of its multiplicity</param>
+        /// <param name="compareType"> The Entity type which valid 'from' ends must reference (or a supertype of that Entity type) </param>
+        /// <param name="associationType"> The Association type to consider. </param>
+        /// <param name="fromEnd"> The candidate 'from' end, which will be checked based on the Entity type it references </param>
+        /// <param name="toEnd"> The candidate 'to' end, which will be checked base on the upper bound of its multiplicity </param>
         /// <returns>
-        ///     <c>True</c> if the end pairing represents a valid navigation from an instance of the specified entity type
-        ///     to an association end with a multiplicity upper bound of at most 1; otherwise <c>false</c>
+        ///     <c>True</c> if the end pairing represents a valid navigation from an instance of the specified entity type to an association end with a multiplicity upper bound of at most 1; otherwise <c>false</c>
         /// </returns>
         private static bool IsValidRelationshipSpan(
             EntityType compareType, AssociationType associationType, AssociationEndMember fromEnd, AssociationEndMember toEnd)
@@ -736,8 +740,8 @@ namespace System.Data.Entity.Core.Objects.Internal
             public NavigationInfo(
                 DbRelationshipNavigationExpression originalNavigation, DbRelationshipNavigationExpression rewrittenNavigation)
             {
-                Debug.Assert(originalNavigation != null, "originalNavigation cannot be null");
-                Debug.Assert(rewrittenNavigation != null, "rewrittenNavigation cannot be null");
+                DebugCheck.NotNull(originalNavigation);
+                DebugCheck.NotNull(rewrittenNavigation);
 
                 _sourceEnd = (AssociationEndMember)originalNavigation.NavigateFrom;
                 _sourceRef = (DbVariableReferenceExpression)rewrittenNavigation.NavigationSource;
@@ -828,6 +832,8 @@ namespace System.Data.Entity.Core.Objects.Internal
 
             public override DbExpression Visit(DbRelationshipNavigationExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 _original = expression;
 
                 // Ensure a unique variable name when the expression is used in a command tree
@@ -843,6 +849,8 @@ namespace System.Data.Entity.Core.Objects.Internal
 
             public override DbExpression Visit(DbFilterExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 // Only consider the Filter input
                 var found = Find(expression.Input.Expression);
                 if (!ReferenceEquals(found, expression.Input.Expression))
@@ -857,6 +865,8 @@ namespace System.Data.Entity.Core.Objects.Internal
 
             public override DbExpression Visit(DbProjectExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 // Only allowed cases:
                 // SELECT Deref(x) FROM <expression> AS x
                 // SELECT x FROM <expression> as x
@@ -886,6 +896,8 @@ namespace System.Data.Entity.Core.Objects.Internal
 
             public override DbExpression Visit(DbSortExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 var found = Find(expression.Input.Expression);
                 if (!ReferenceEquals(found, expression.Input.Expression))
                 {
@@ -899,6 +911,8 @@ namespace System.Data.Entity.Core.Objects.Internal
 
             public override DbExpression Visit(DbSkipExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 var found = Find(expression.Input.Expression);
                 if (!ReferenceEquals(found, expression.Input.Expression))
                 {

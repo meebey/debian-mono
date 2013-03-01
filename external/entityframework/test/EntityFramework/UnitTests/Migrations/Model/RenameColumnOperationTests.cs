@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Model
 {
-    using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Resources;
     using Xunit;
 
@@ -10,11 +10,17 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Ctor_should_validate_preconditions()
         {
-            Assert.Equal(new ArgumentException(Strings.ArgumentIsNullOrWhitespace("table")).Message, Assert.Throws<ArgumentException>(() => new RenameColumnOperation(null, null, null)).Message);
+            Assert.Equal(
+                new ArgumentException(Strings.ArgumentIsNullOrWhitespace("table")).Message,
+                Assert.Throws<ArgumentException>(() => new RenameColumnOperation(null, null, null)).Message);
 
-            Assert.Equal(new ArgumentException(Strings.ArgumentIsNullOrWhitespace("name")).Message, Assert.Throws<ArgumentException>(() => new RenameColumnOperation("T", null, null)).Message);
+            Assert.Equal(
+                new ArgumentException(Strings.ArgumentIsNullOrWhitespace("name")).Message,
+                Assert.Throws<ArgumentException>(() => new RenameColumnOperation("T", null, null)).Message);
 
-            Assert.Equal(new ArgumentException(Strings.ArgumentIsNullOrWhitespace("newName")).Message, Assert.Throws<ArgumentException>(() => new RenameColumnOperation("T", "N", null)).Message);
+            Assert.Equal(
+                new ArgumentException(Strings.ArgumentIsNullOrWhitespace("newName")).Message,
+                Assert.Throws<ArgumentException>(() => new RenameColumnOperation("T", "N", null)).Message);
         }
 
         [Fact]
@@ -30,13 +36,18 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Inverse_should_produce_rename_column_operation()
         {
-            var renameColumnOperation = new RenameColumnOperation("T", "N", "N'");
+            var renameColumnOperation
+                = new RenameColumnOperation("T", "N", "N'")
+                      {
+                          IsSystem = true
+                      };
 
             var inverse = (RenameColumnOperation)renameColumnOperation.Inverse;
 
             Assert.Equal("T", inverse.Table);
             Assert.Equal("N'", inverse.Name);
             Assert.Equal("N", inverse.NewName);
+            Assert.True(inverse.IsSystem);
         }
     }
 }

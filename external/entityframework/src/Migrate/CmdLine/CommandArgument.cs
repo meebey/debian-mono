@@ -1,12 +1,15 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace CmdLine
 {
+    using System;
     using System.Text;
     using System.Text.RegularExpressions;
 
     /// <summary>
-    ///   Represents a command line argument
+    ///     Represents a command line argument
     /// </summary>
+    [Serializable]
     public class CommandArgument
     {
         private const int TokenGroup = 0;
@@ -16,9 +19,9 @@ namespace CmdLine
         private string value;
 
         /// <summary>
-        ///   Initializes a CommandArgument from a Regex match
+        ///     Initializes a CommandArgument from a Regex match
         /// </summary>
-        /// <param name = "match"></param>
+        /// <param name="match"> </param>
         public CommandArgument(Match match)
         {
             Token = GetGroupValue(match, TokenGroup);
@@ -60,10 +63,10 @@ namespace CmdLine
         }
 
         /// <summary>
-        ///   Returns the value used by the property cache for the key
+        ///     Returns the value used by the property cache for the key
         /// </summary>
         /// <remarks>
-        ///   If the Command property has a value use that, otherwise use the formatted position value
+        ///     If the Command property has a value use that, otherwise use the formatted position value
         /// </remarks>
         internal string Key
         {

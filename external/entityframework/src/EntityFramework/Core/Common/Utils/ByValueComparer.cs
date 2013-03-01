@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils
 {
     using System.Collections;
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Extends IComparer support to the (non-IComparable) byte[] type, based on by-value comparison.
+    ///     Extends IComparer support to the (non-IComparable) byte[] type, based on by-value comparison.
     /// </summary>
     internal class ByValueComparer : IComparer
     {
@@ -16,7 +18,7 @@ namespace System.Data.Entity.Core.Common.Utils
 
         private ByValueComparer(IComparer comparer)
         {
-            Debug.Assert(comparer != null, "Non-ByValue comparer cannot be null");
+            DebugCheck.NotNull(comparer);
             nonByValueComparer = comparer;
         }
 

@@ -1,19 +1,21 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration
 {
     using System.ComponentModel;
+    using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
     using System.Diagnostics.CodeAnalysis;
 
     public abstract class LengthColumnConfiguration : PrimitiveColumnConfiguration
     {
-        internal LengthColumnConfiguration(Properties.Primitive.LengthPropertyConfiguration configuration)
+        internal LengthColumnConfiguration(LengthPropertyConfiguration configuration)
             : base(configuration)
         {
         }
 
-        internal new Properties.Primitive.LengthPropertyConfiguration Configuration
+        internal new LengthPropertyConfiguration Configuration
         {
-            get { return (Properties.Primitive.LengthPropertyConfiguration)base.Configuration; }
+            get { return (LengthPropertyConfiguration)base.Configuration; }
         }
 
         public LengthColumnConfiguration IsMaxLength()

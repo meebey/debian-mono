@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -23,8 +24,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     // views from the initial cells.
     internal class ViewGenerator : InternalBase
     {
-        #region Fields
-
         private readonly CellGroup m_cellGroup; // The initial cells from which we produce views
         private readonly ConfigViewGenerator m_config; // Configuration variables
         private readonly MemberDomainMap m_queryDomainMap;
@@ -32,10 +31,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         private readonly Dictionary<EntitySetBase, QueryRewriter> m_queryRewriterCache;
         private readonly List<ForeignConstraint> m_foreignKeyConstraints;
         private readonly StorageEntityContainerMapping m_entityContainerMapping;
-
-        #endregion
-
-        #region Internal API - Only Gatekeeper calls it
 
         // effects: Creates a ViewGenerator object that is capable of
         // producing query or update mapping views given the relevant schema
@@ -209,10 +204,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return errorLog;
         }
 
-        #endregion
-
-        #region Private Methods
-
         // effects: Given the extent cells and a map for the domains of all
         // variables in it, fixes the cell constant domains of the where
         // clauses in the left queries of cells (left is defined using viewTarget)
@@ -256,7 +247,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             {
                 // (1) view generation (checks that extents are fully mapped)
                 var context = CreateViewgenContext(entity, ViewTarget.QueryView, identifiers);
-                var queryRewriter = GenerateViewsForExtentAndType(type, context, identifiers, views, mode);
+
+                GenerateViewsForExtentAndType(type, context, identifiers, views, mode);
             }
             catch (InternalMappingException exception)
             {
@@ -390,7 +382,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             if (!m_queryRewriterCache.TryGetValue(extent, out queryRewriter))
             {
                 // collect the cells that belong to this extent (just a few of them since we segment the mapping first)
-                var cellsForExtent = m_cellGroup.Where(c => c.GetLeftQuery(viewTarget).Extent == extent);
+                var cellsForExtent = m_cellGroup.Where(c => c.GetLeftQuery(viewTarget).Extent == extent).ToList();
 
                 return new ViewgenContext(
                     viewTarget, extent, cellsForExtent, identifiers, m_config, m_queryDomainMap, m_updateDomainMap, m_entityContainerMapping);
@@ -506,15 +498,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return extentCellMap;
         }
 
-        #endregion
-
-        #region String Methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             Cell.CellsToBuilder(builder, m_cellGroup);
         }
-
-        #endregion
     }
 }

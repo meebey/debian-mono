@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections;
     using System.Collections.Generic;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
 
@@ -18,7 +20,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
 #pragma warning disable 1711 // compiler bug: reports TDerived and TBase as type parameters for non-existing IsReadOnly property
     /// <summary>
-    /// Class to filter stuff out from a metadata collection
+    ///     Class to filter stuff out from a metadata collection
     /// </summary>
     /* UNDONE to avoid build errors like "XML comment has a typeparam tag for 'TDerived', but there is no type parameter by that name" 
     /// <typeparam name="TDerived">The type of items which you want to expose from this filtered collection</typeparam>
@@ -28,41 +30,31 @@ namespace System.Data.Entity.Core.Metadata.Edm
         where TDerived : TBase
         where TBase : MetadataItem
     {
-        #region Constructors
-
         /// <summary>
-        /// The constructor for constructing a read-only metadata collection to wrap another MetadataCollection.
+        ///     The constructor for constructing a read-only metadata collection to wrap another MetadataCollection.
         /// </summary>
-        /// <param name="collection">The metadata collection to wrap</param>
+        /// <param name="collection"> The metadata collection to wrap </param>
         /// <exception cref="System.ArgumentNullException">Thrown if collection argument is null</exception>
-        /// <param name="predicate">Predicate method which determines membership</param>
+        /// <param name="predicate"> Predicate method which determines membership </param>
         internal FilteredReadOnlyMetadataCollection(ReadOnlyMetadataCollection<TBase> collection, Predicate<TBase> predicate)
             : base(FilterCollection(collection, predicate))
         {
-            Debug.Assert(collection != null);
+            DebugCheck.NotNull(collection);
             Debug.Assert(
                 collection.IsReadOnly, "wrappers should only be created once loading is over, and this collection is still loading");
             _source = collection;
             _predicate = predicate;
         }
 
-        #endregion
-
-        #region Private Fields
-
         // The original metadata collection over which this filtered collection is the view
         private readonly ReadOnlyMetadataCollection<TBase> _source;
         private readonly Predicate<TBase> _predicate;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Gets an item from the collection with the given identity
+        ///     Gets an item from the collection with the given identity
         /// </summary>
-        /// <param name="identity">The identity of the item to search for</param>
-        /// <returns>An item from the collection</returns>
+        /// <param name="identity"> The identity of the item to search for </param>
+        /// <returns> An item from the collection </returns>
         /// <exception cref="System.ArgumentNullException">Thrown if identity argument passed in is null</exception>
         /// <exception cref="System.NotSupportedException">Thrown if setter is called</exception>
         public override TDerived this[string identity]
@@ -78,16 +70,12 @@ namespace System.Data.Entity.Core.Metadata.Edm
             }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Gets an item from the collection with the given identity
+        ///     Gets an item from the collection with the given identity
         /// </summary>
-        /// <param name="identity">The identity of the item to search for</param>
-        /// <param name="ignoreCase">Whether case is ignore in the search</param>
-        /// <returns>An item from the collection</returns>
+        /// <param name="identity"> The identity of the item to search for </param>
+        /// <param name="ignoreCase"> Whether case is ignore in the search </param>
+        /// <returns> An item from the collection </returns>
         /// <exception cref="System.ArgumentNullException">Thrown if identity argument passed in is null</exception>
         /// <exception cref="System.ArgumentException">Thrown if the Collection does not have an item with the given identity</exception>
         public override TDerived GetValue(string identity, bool ignoreCase)
@@ -102,10 +90,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Determines if this collection contains an item of the given identity
+        ///     Determines if this collection contains an item of the given identity
         /// </summary>
-        /// <param name="identity">The identity of the item to check for</param>
-        /// <returns>True if the collection contains the item with the given identity</returns>
+        /// <param name="identity"> The identity of the item to check for </param>
+        /// <returns> True if the collection contains the item with the given identity </returns>
         /// <exception cref="System.ArgumentNullException">Thrown if identity argument passed in is null</exception>
         /// <exception cref="System.ArgumentException">Thrown if identity argument passed in is empty string</exception>
         public override bool Contains(string identity)
@@ -119,12 +107,12 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets an item from the collection with the given identity
+        ///     Gets an item from the collection with the given identity
         /// </summary>
-        /// <param name="identity">The identity of the item to search for</param>
-        /// <param name="ignoreCase">Whether case is ignore in the search</param>
-        /// <param name="item">An item from the collection, null if the item is not found</param>
-        /// <returns>True an item is retrieved</returns>
+        /// <param name="identity"> The identity of the item to search for </param>
+        /// <param name="ignoreCase"> Whether case is ignore in the search </param>
+        /// <param name="item"> An item from the collection, null if the item is not found </param>
+        /// <returns> True an item is retrieved </returns>
         /// <exception cref="System.ArgumentNullException">if identity argument is null</exception>
         public override bool TryGetValue(string identity, bool ignoreCase, out TDerived item)
         {
@@ -156,10 +144,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Get index of the element passed as the argument
+        ///     Get index of the element passed as the argument
         /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
+        /// <param name="value"> </param>
+        /// <returns> </returns>
         [SuppressMessage("Microsoft.Design", "CA1061:DoNotHideBaseClassMethods")]
         public override int IndexOf(TDerived value)
         {
@@ -175,10 +163,6 @@ namespace System.Data.Entity.Core.Metadata.Edm
             return -1;
         }
 
-        #endregion
-
-        #region IBaseList<TBaseItem> Members
-
         TBase IBaseList<TBase>.this[string identity]
         {
             get { return this[identity]; }
@@ -190,10 +174,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Get index of the element passed as the argument
+        ///     Get index of the element passed as the argument
         /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
+        /// <param name="item"> </param>
+        /// <returns> </returns>
         int IBaseList<TBase>.IndexOf(TBase item)
         {
             if (_predicate(item))
@@ -203,8 +187,6 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
             return -1;
         }
-
-        #endregion
     }
 #pragma warning restore 1711
 }

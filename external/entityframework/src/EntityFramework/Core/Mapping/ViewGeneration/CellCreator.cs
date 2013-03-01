@@ -1,22 +1,22 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Mapping.ViewGeneration.Structures;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using System.Text;
 
     /// <summary>
-    /// A class that handles creation of cells from the meta data information.
+    ///     A class that handles creation of cells from the meta data information.
     /// </summary>
     internal class CellCreator : InternalBase
     {
-        #region Constructors
-
         // effects: Creates a cell creator object for an entity container's
         // mappings (specified in "maps")
         internal CellCreator(StorageEntityContainerMapping containerMapping)
@@ -24,10 +24,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             m_containerMapping = containerMapping;
             m_identifiers = new CqlIdentifiers();
         }
-
-        #endregion
-
-        #region Fields
 
         // The mappings from the metadata for different containers
         private readonly StorageEntityContainerMapping m_containerMapping;
@@ -43,19 +39,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         // * Properties
         // * Roles
 
-        #endregion
-
-        #region Properties
-
         // effects: Returns the set of identifiers used in this
         internal CqlIdentifiers Identifiers
         {
             get { return m_identifiers; }
         }
-
-        #endregion
-
-        #region External methods
 
         // effects: Generates the cells for all the entity containers
         // specified in this. The generated cells are geared for query view generation
@@ -79,20 +67,15 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return cells;
         }
 
-        #endregion
-
-        #region Private Methods
-
         /// <summary>
-        /// Boolean members have a closed domain and are enumerated when domains are established i.e. (T, F) instead of (notNull). 
-        /// Query Rewriting is exercised over every domain of the condition member. If the member contains not_null condition 
-        /// for example, it cannot generate a view for partitions (member=T), (Member=F). For this reason we need to expand the cells 
-        /// in a predefined situation (below) to include sub-fragments mapping individual elements of the closed domain.  
-        /// Enums (a planned feature) need to be handled in a similar fashion.
-        /// 
-        /// Find booleans that are projected with a not_null condition 
-        /// Expand ALL cells where they are projected. Why? See Unit Test case NullabilityConditionOnBoolean5.es
-        /// Validation will fail because it will not be able to validate rewritings for partitions on the 'other' cells.
+        ///     Boolean members have a closed domain and are enumerated when domains are established i.e. (T, F) instead of (notNull).
+        ///     Query Rewriting is exercised over every domain of the condition member. If the member contains not_null condition
+        ///     for example, it cannot generate a view for partitions (member=T), (Member=F). For this reason we need to expand the cells
+        ///     in a predefined situation (below) to include sub-fragments mapping individual elements of the closed domain.
+        ///     Enums (a planned feature) need to be handled in a similar fashion.
+        ///     Find booleans that are projected with a not_null condition
+        ///     Expand ALL cells where they are projected. Why? See Unit Test case NullabilityConditionOnBoolean5.es
+        ///     Validation will fail because it will not be able to validate rewritings for partitions on the 'other' cells.
         /// </summary>
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private void ExpandCells(List<Cell> cells)
@@ -103,11 +86,14 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             {
                 //Find Projected members that are Boolean AND are mentioned in the Where clause with not_null condition
                 foreach (var memberToExpand in cell.SQuery.GetProjectedMembers()
-                    .Where(member => IsBooleanMember(member))
-                    .Where(
-                        boolMember => cell.SQuery.GetConjunctsFromWhereClause()
-                                          .Where(restriction => restriction.Domain.Values.Contains(Constant.NotNull))
-                                          .Select(restriction => restriction.RestrictedMemberSlot.MemberPath).Contains(boolMember)))
+                                                   .Where(member => IsBooleanMember(member))
+                                                   .Where(
+                                                       boolMember => cell.SQuery.GetConjunctsFromWhereClause()
+                                                                         .Where(
+                                                                             restriction =>
+                                                                             restriction.Domain.Values.Contains(Constant.NotNull))
+                                                                         .Select(restriction => restriction.RestrictedMemberSlot.MemberPath)
+                                                                         .Contains(boolMember)))
                 {
                     sSideMembersToBeExpanded.Add(memberToExpand);
                 }
@@ -191,19 +177,17 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Given a cell, a member and a boolean condition on that member, creates additional cell
-        /// which with the specified restriction on the member in addition to original condition.
-        /// e.i conjunction of original condition AND member in newCondition
-        /// 
-        /// Creation fails when the original condition contradicts new boolean condition
-        /// 
-        /// ViewTarget tells whether MemberPath is in Cquery or SQuery
+        ///     Given a cell, a member and a boolean condition on that member, creates additional cell
+        ///     which with the specified restriction on the member in addition to original condition.
+        ///     e.i conjunction of original condition AND member in newCondition
+        ///     Creation fails when the original condition contradicts new boolean condition
+        ///     ViewTarget tells whether MemberPath is in Cquery or SQuery
         /// </summary>
         private bool TryCreateAdditionalCellWithCondition(
             Cell originalCell, MemberPath memberToExpand, bool conditionValue, ViewTarget viewTarget, out Cell result)
         {
-            Debug.Assert(originalCell != null);
-            Debug.Assert(memberToExpand != null);
+            DebugCheck.NotNull(originalCell);
+            DebugCheck.NotNull(memberToExpand);
             result = null;
 
             //Create required structures
@@ -224,11 +208,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             var negatedCondition = new ScalarConstant(!conditionValue);
 
             if (originalCell.GetLeftQuery(viewTarget).Conditions
-                    .Where(restriction => restriction.RestrictedMemberSlot.MemberPath.Equals(memberToExpand))
-                    .Where(restriction => restriction.Domain.Values.Contains(negatedCondition)).Any()
+                            .Where(restriction => restriction.RestrictedMemberSlot.MemberPath.Equals(memberToExpand))
+                            .Where(restriction => restriction.Domain.Values.Contains(negatedCondition)).Any()
                 || originalCell.GetRightQuery(viewTarget).Conditions
-                       .Where(restriction => restriction.RestrictedMemberSlot.MemberPath.Equals(rightSidePath))
-                       .Where(restriction => restriction.Domain.Values.Contains(negatedCondition)).Any())
+                               .Where(restriction => restriction.RestrictedMemberSlot.MemberPath.Equals(rightSidePath))
+                               .Where(restriction => restriction.Domain.Values.Contains(negatedCondition)).Any())
             {
                 return false;
             }
@@ -483,12 +467,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Takes in a JoinTreeNode and a Contition Property Map and creates an BoolExpression
-        /// for the Condition Map.
+        ///     Takes in a JoinTreeNode and a Contition Property Map and creates an BoolExpression
+        ///     for the Condition Map.
         /// </summary>
-        /// <param name="joinTreeNode"></param>
-        /// <param name="conditionMap"></param>
-        /// <returns></returns>
+        /// <param name="joinTreeNode"> </param>
+        /// <param name="conditionMap"> </param>
+        /// <returns> </returns>
         private static BoolExpression GetConditionExpression(MemberPath member, StorageConditionPropertyMapping conditionMap)
         {
             //Get the member for which the condition is being specified
@@ -526,15 +510,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return (primitive != null && primitive.PrimitiveTypeKind == PrimitiveTypeKind.Boolean);
         }
 
-        #endregion
-
-        #region String methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             builder.Append("CellCreator"); // No state to really show i.e., m_maps
         }
-
-        #endregion
     }
 }

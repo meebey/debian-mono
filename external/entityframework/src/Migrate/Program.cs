@@ -1,10 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Console
 {
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Migrations.Console.Resources;
     using System.Data.Entity.Migrations.Design;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.IO;
     using System.Reflection;
     using CmdLine;
@@ -39,8 +40,15 @@ namespace System.Data.Entity.Migrations.Console
             }
             catch (CommandLineException ex)
             {
-                WriteError(ex.ArgumentHelp.Message);
-                WriteLine(ex.ArgumentHelp.GetHelpText(Console.BufferWidth));
+                if (ex.ArgumentHelp != null)
+                {
+                    WriteError(ex.ArgumentHelp.Message);
+                    WriteLine(ex.ArgumentHelp.GetHelpText(Console.BufferWidth));
+                }
+                else
+                {
+                    WriteError(ex.Message);
+                }
             }
             catch (Exception ex)
             {
@@ -104,15 +112,15 @@ namespace System.Data.Entity.Migrations.Console
 
             if (!string.IsNullOrWhiteSpace(_arguments.ConnectionStringName))
             {
-                Contract.Assert(string.IsNullOrWhiteSpace(_arguments.ConnectionString));
-                Contract.Assert(string.IsNullOrWhiteSpace(_arguments.ConnectionProviderName));
+                Debug.Assert(string.IsNullOrWhiteSpace(_arguments.ConnectionString));
+                Debug.Assert(string.IsNullOrWhiteSpace(_arguments.ConnectionProviderName));
 
                 connectionStringInfo = new DbConnectionInfo(_arguments.ConnectionStringName);
             }
             else if (!string.IsNullOrWhiteSpace(_arguments.ConnectionString))
             {
-                Contract.Assert(string.IsNullOrWhiteSpace(_arguments.ConnectionStringName));
-                Contract.Assert(!string.IsNullOrWhiteSpace(_arguments.ConnectionProviderName));
+                Debug.Assert(string.IsNullOrWhiteSpace(_arguments.ConnectionStringName));
+                Debug.Assert(!string.IsNullOrWhiteSpace(_arguments.ConnectionProviderName));
 
                 connectionStringInfo = new DbConnectionInfo(
                     _arguments.ConnectionString, _arguments.ConnectionProviderName);

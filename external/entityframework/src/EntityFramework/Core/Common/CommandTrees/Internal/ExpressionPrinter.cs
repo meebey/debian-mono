@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
@@ -12,7 +14,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
     using System.Text;
 
     /// <summary>
-    /// Prints a command tree
+    ///     Prints a command tree
     /// </summary>
     internal class ExpressionPrinter : TreePrinter
     {
@@ -24,8 +26,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             )]
         internal string Print(DbDeleteCommandTree tree)
         {
-            // Predicate should not be null since DbDeleteCommandTree initializes it to DbConstantExpression(true)
-            Debug.Assert(tree != null && tree.Predicate != null, "Invalid DbDeleteCommandTree");
+            DebugCheck.NotNull(tree);
+            DebugCheck.NotNull(tree.Predicate);
 
             TreeNode targetNode;
             if (tree.Target != null)
@@ -63,7 +65,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             )]
         internal string Print(DbFunctionCommandTree tree)
         {
-            Debug.Assert(tree != null, "Null DbFunctionCommandTree");
+            DebugCheck.NotNull(tree);
 
             var funcNode = new TreeNode("EdmFunction");
             if (tree.EdmFunction != null)
@@ -87,7 +89,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             )]
         internal string Print(DbInsertCommandTree tree)
         {
-            Debug.Assert(tree != null, "Null DbInsertCommandTree");
+            DebugCheck.NotNull(tree);
 
             TreeNode targetNode = null;
             if (tree.Target != null)
@@ -192,7 +194,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             )]
         internal string Print(DbQueryCommandTree tree)
         {
-            Debug.Assert(tree != null, "Null DbQueryCommandTree");
+            DebugCheck.NotNull(tree);
 
             var queryNode = new TreeNode("Query");
             if (tree.Query != null)
@@ -494,11 +496,15 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbExpression e)
             {
+                Check.NotNull(e, "e");
+
                 throw new NotSupportedException(Strings.Cqt_General_UnsupportedExpression(e.GetType().FullName));
             }
 
             public override TreeNode Visit(DbConstantExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = new TreeNode();
                 var stringVal = e.Value as string;
                 if (stringVal != null)
@@ -530,11 +536,15 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbNullExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return new TreeNode("null");
             }
 
             public override TreeNode Visit(DbVariableReferenceExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = new TreeNode();
                 retInfo.Text.AppendFormat("Var({0})", e.VariableName);
                 return retInfo;
@@ -542,6 +552,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbParameterReferenceExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = new TreeNode();
                 retInfo.Text.AppendFormat("@{0}", e.ParameterName);
                 return retInfo;
@@ -549,12 +561,16 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbFunctionExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var funcInfo = VisitFunction(e.Function, e.Arguments);
                 return funcInfo;
             }
 
             public override TreeNode Visit(DbLambdaExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 var lambdaInfo = new TreeNode();
                 lambdaInfo.Text.Append("Lambda");
 
@@ -571,6 +587,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbPropertyExpression e)
             {
+                Check.NotNull(e, "e");
+
                 TreeNode inst = null;
                 if (e.Instance != null)
                 {
@@ -606,26 +624,36 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbComparisonExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitInfix(e.Left, _opMap[e.ExpressionKind], e.Right);
             }
 
             public override TreeNode Visit(DbLikeExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return Visit("Like", e.Argument, e.Pattern, e.Escape);
             }
 
             public override TreeNode Visit(DbLimitExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return Visit((e.WithTies ? "LimitWithTies" : "Limit"), e.Argument, e.Limit);
             }
 
             public override TreeNode Visit(DbIsNullExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e);
             }
 
             public override TreeNode Visit(DbArithmeticExpression e)
             {
+                Check.NotNull(e, "e");
+
                 if (DbExpressionKind.UnaryMinus
                     == e.ExpressionKind)
                 {
@@ -639,46 +667,94 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbAndExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitInfix(e.Left, "And", e.Right);
             }
 
             public override TreeNode Visit(DbOrExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitInfix(e.Left, "Or", e.Right);
+            }
+
+            [SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters",
+                MessageId = "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])"
+                )]
+            public override TreeNode Visit(DbInExpression e)
+            {
+                Check.NotNull(e, "e");
+
+                const string inString = "In";
+                TreeNode retInfo;
+
+                if (_infix)
+                {
+                    retInfo = new TreeNode(String.Empty);
+                    retInfo.Children.Add(VisitExpression(e.Item));
+                    retInfo.Children.Add(new TreeNode(inString));
+                }
+                else
+                {
+                    retInfo = new TreeNode(inString);
+                    retInfo.Children.Add(VisitExpression(e.Item));
+                }
+
+                foreach (var item in e.List)
+                {
+                    retInfo.Children.Add(VisitExpression(item));
+                }
+
+                return retInfo;
             }
 
             public override TreeNode Visit(DbNotExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e);
             }
 
             public override TreeNode Visit(DbDistinctExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e);
             }
 
             public override TreeNode Visit(DbElementExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e, true);
             }
 
             public override TreeNode Visit(DbIsEmptyExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e);
             }
 
             public override TreeNode Visit(DbUnionAllExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitBinary(e);
             }
 
             public override TreeNode Visit(DbIntersectExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitBinary(e);
             }
 
             public override TreeNode Visit(DbExceptExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitBinary(e);
             }
 
@@ -708,16 +784,22 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbTreatExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitCastOrTreat("Treat", e);
             }
 
             public override TreeNode Visit(DbCastExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitCastOrTreat("Cast", e);
             }
 
             public override TreeNode Visit(DbIsOfExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = new TreeNode();
                 if (DbExpressionKind.IsOfOnly
                     == e.ExpressionKind)
@@ -742,6 +824,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbOfTypeExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = new TreeNode(e.ExpressionKind == DbExpressionKind.OfTypeOnly ? "OfTypeOnly" : "OfType");
                 AppendTypeSpecifier(retInfo, e.OfType);
                 retInfo.Children.Add(VisitExpression(e.Argument));
@@ -754,6 +838,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbCaseExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = new TreeNode("Case");
                 for (var idx = 0; idx < e.When.Count; idx++)
                 {
@@ -772,6 +858,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbNewInstanceExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 AppendTypeSpecifier(retInfo, e.ResultType);
 
@@ -818,6 +906,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbRefExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retNode = new TreeNode("Ref");
                 retNode.Text.Append("<");
                 AppendFullName(retNode.Text, TypeHelpers.GetEdmType<RefType>(e.ResultType).ElementType);
@@ -863,6 +953,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbRelationshipNavigationExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(CreateRelationshipNode(e.Relationship));
                 retInfo.Children.Add(CreateNavigationNode(e.NavigateFrom, e.NavigateTo));
@@ -873,21 +965,29 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbDerefExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e);
             }
 
             public override TreeNode Visit(DbRefKeyExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e, true);
             }
 
             public override TreeNode Visit(DbEntityRefExpression e)
             {
+                Check.NotNull(e, "e");
+
                 return VisitUnary(e, true);
             }
 
             public override TreeNode Visit(DbScanExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Text.Append(" : ");
                 retInfo.Text.Append(e.Target.EntityContainer.Name);
@@ -898,6 +998,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbFilterExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Input", e.Input));
                 retInfo.Children.Add(Visit("Predicate", e.Predicate));
@@ -906,6 +1008,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbProjectExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Input", e.Input));
                 retInfo.Children.Add(Visit("Projection", e.Projection));
@@ -914,6 +1018,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbCrossJoinExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBindingList("Inputs", e.Inputs));
                 return retInfo;
@@ -921,6 +1027,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbJoinExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Left", e.Left));
                 retInfo.Children.Add(VisitBinding("Right", e.Right));
@@ -931,6 +1039,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbApplyExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Input", e.Input));
                 retInfo.Children.Add(VisitBinding("Apply", e.Apply));
@@ -947,6 +1057,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     "System.Data.Entity.Core.Common.Utils.TreeNode.#ctor(System.String,System.Data.Entity.Core.Common.Utils.TreeNode[])")]
             public override TreeNode Visit(DbGroupByExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var keys = new List<TreeNode>();
                 var aggs = new List<TreeNode>();
 
@@ -1025,6 +1137,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbSkipExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Input", e.Input));
                 retInfo.Children.Add(VisitSortOrder(e.SortOrder));
@@ -1034,6 +1148,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbSortExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Input", e.Input));
                 retInfo.Children.Add(VisitSortOrder(e.SortOrder));
@@ -1043,6 +1159,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override TreeNode Visit(DbQuantifierExpression e)
             {
+                Check.NotNull(e, "e");
+
                 var retInfo = NodeFromExpression(e);
                 retInfo.Children.Add(VisitBinding("Input", e.Input));
                 retInfo.Children.Add(Visit("Predicate", e.Predicate));

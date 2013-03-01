@@ -12,6 +12,9 @@
 /* Disable AOT Compiler */
 #undef DISABLE_AOT_COMPILER
 
+/* Disable support for multiple appdomains. */
+#undef DISABLE_APPDOMAINS
+
 /* Disable assembly remapping. */
 #undef DISABLE_ASSEMBLY_REMAPPING
 
@@ -48,6 +51,9 @@
 /* Disable String normalization support. */
 #undef DISABLE_NORMALIZATION
 
+/* Disable Performance Counters. */
+#undef DISABLE_PERFCOUNTERS
+
 /* Disable P/Invoke support */
 #undef DISABLE_PINVOKE
 
@@ -62,6 +68,21 @@
 
 /* Disable assembly saving support in reflection emit */
 #undef DISABLE_REFLECTION_EMIT_SAVE
+
+/* Disable major=copying support in SGEN. */
+#undef DISABLE_SGEN_MAJOR_COPYING
+
+/* Disable major=marksweep-fixed support in SGEN. */
+#undef DISABLE_SGEN_MAJOR_MARKSWEEP_FIXED
+
+/* Disable major=marksweep-fixed-par support in SGEN. */
+#undef DISABLE_SGEN_MAJOR_MARKSWEEP_FIXED_PAR
+
+/* Disable major=marksweep-par support in SGEN. */
+#undef DISABLE_SGEN_MAJOR_MARKSWEEP_PAR
+
+/* Disable wbarrier=remset support in SGEN. */
+#undef DISABLE_SGEN_REMSET
 
 /* Disable Shadow Copy for AppDomains */
 #undef DISABLE_SHADOW_COPY
@@ -89,6 +110,9 @@
 
 /* Enable DTrace probes */
 #undef ENABLE_DTRACE
+
+/* Extension module enabled */
+#undef ENABLE_EXTENSION_MODULE
 
 /* Icall export enabled */
 #undef ENABLE_ICALL_EXPORT
@@ -131,6 +155,9 @@
 
 /* Define to 1 if you have the <checklist.h> header file. */
 #undef HAVE_CHECKLIST_H
+
+/* Define to 1 if you have the <CommonCrypto/CommonDigest.h> header file. */
+#undef HAVE_COMMONCRYPTO_COMMONDIGEST_H
 
 /* Define to 1 if you have the `confstr' function. */
 #undef HAVE_CONFSTR
@@ -282,8 +309,20 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Have IPPROTO_IP */
+#undef HAVE_IPPROTO_IP
+
+/* Have IPPROTO_IPV6 */
+#undef HAVE_IPPROTO_IPV6
+
+/* Have IPPROTO_TCP */
+#undef HAVE_IPPROTO_TCP
+
 /* Have IPV6_PKTINFO */
 #undef HAVE_IPV6_PKTINFO
+
+/* Have IP_DONTFRAG */
+#undef HAVE_IP_DONTFRAG
 
 /* Have IP_DONTFRAGMENT */
 #undef HAVE_IP_DONTFRAGMENT
@@ -293,6 +332,9 @@
 
 /* Have IP_PKTINFO */
 #undef HAVE_IP_PKTINFO
+
+/* Have IP_PMTUDISC_DO */
+#undef HAVE_IP_PMTUDISC_DO
 
 /* Define to 1 if you have the `isfinite' function. */
 #undef HAVE_ISFINITE
@@ -422,6 +464,9 @@
 
 /* Define to 1 if you have the `pthread_mutex_timedlock' function. */
 #undef HAVE_PTHREAD_MUTEX_TIMEDLOCK
+
+/* Define to 1 if you have the <pthread_np.h> header file. */
+#undef HAVE_PTHREAD_NP_H
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
@@ -747,6 +792,9 @@
 /* Define as const if the declaration of iconv() needs const. */
 #undef ICONV_CONST
 
+/* Enable lazy gc thread creation by the embedding host. */
+#undef LAZY_GC_THREAD_CREATION
+
 /* Major version of LLVM libraries */
 #undef LLVM_MAJOR_VERSION
 
@@ -847,6 +895,9 @@
 /* byte order of target */
 #undef TARGET_BYTE_ORDER
 
+/* The JIT/AOT targets iOS */
+#undef TARGET_IOS
+
 /* The JIT/AOT targets Apple platforms */
 #undef TARGET_MACH
 
@@ -855,6 +906,9 @@
 
 /* ... */
 #undef TARGET_NACL
+
+/* The JIT/AOT targets OSX */
+#undef TARGET_OSX
 
 /* ... */
 #undef TARGET_POWERPC
@@ -876,6 +930,12 @@
 
 /* ... */
 #undef TARGET_XBOX360
+
+/* Use jump tables in JIT */
+#undef USE_JUMP_TABLES
+
+/* Use kqueue for the threadpool */
+#undef USE_KQUEUE_FOR_THREADPOOL
 
 /* ... */
 #undef USE_MACH_SEMA

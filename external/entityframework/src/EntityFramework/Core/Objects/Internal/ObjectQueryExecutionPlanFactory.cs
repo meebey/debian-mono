@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
@@ -12,8 +13,6 @@ namespace System.Data.Entity.Core.Objects.Internal
     using System.Data.Entity.Core.Objects.ELinq;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     internal class ObjectQueryExecutionPlanFactory
     {
@@ -24,9 +23,8 @@ namespace System.Data.Entity.Core.Objects.Internal
             _translator = translator ?? new Translator();
         }
 
-        [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         public virtual ObjectQueryExecutionPlan Prepare(
-            ObjectContext context, DbQueryCommandTree tree, Type elementType, MergeOption mergeOption, Span span,
+            ObjectContext context, DbQueryCommandTree tree, Type elementType, MergeOption mergeOption, bool streaming, Span span,
             IEnumerable<Tuple<ObjectParameter, QueryParameterExpression>> compiledQueryParameters, AliasGenerator aliasGenerator)
         {
             var treeResultType = tree.Query.ResultType;
@@ -43,6 +41,49 @@ namespace System.Data.Entity.Core.Objects.Internal
                 spanInfo = null;
             }
 
+            var entityDefinition = CreateCommandDefinition(context, tree);
+
+            var cacheManager = context.Perspective.MetadataWorkspace.GetQueryCacheManager();
+
+            var shaperFactory = Translator.TranslateColumnMap(
+                _translator,
+                elementType, cacheManager, entityDefinition.CreateColumnMap(null),
+                context.MetadataWorkspace, spanInfo, mergeOption, false);
+
+            // attempt to determine entity information for this query (e.g. which entity type and which entity set)
+
+            EntitySet singleEntitySet = null;
+
+            // determine if the entity set is unambiguous given the entity type
+            if (treeResultType.EdmType.BuiltInTypeKind == BuiltInTypeKind.CollectionType
+                && entityDefinition.EntitySets != null)
+            {
+                foreach (var entitySet in entityDefinition.EntitySets)
+                {
+                    if (entitySet != null
+                        && entitySet.ElementType.IsAssignableFrom(((CollectionType)treeResultType.EdmType).TypeUsage.EdmType))
+                    {
+                        if (singleEntitySet == null)
+                        {
+                            // found a single match
+                            singleEntitySet = entitySet;
+                        }
+                        else
+                        {
+                            // there's more than one matching entity set
+                            singleEntitySet = null;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return new ObjectQueryExecutionPlan(
+                entityDefinition, shaperFactory, treeResultType, mergeOption, streaming, singleEntitySet, compiledQueryParameters);
+        }
+
+        private static EntityCommandDefinition CreateCommandDefinition(ObjectContext context, DbQueryCommandTree tree)
+        {
             var connection = context.Connection;
             DbCommandDefinition definition = null;
 
@@ -83,59 +124,7 @@ namespace System.Data.Entity.Core.Objects.Internal
                 throw new NotSupportedException(Strings.ADP_ProviderDoesNotSupportCommandTrees);
             }
 
-            var entityDefinition = (EntityCommandDefinition)definition;
-            var cacheManager = context.Perspective.MetadataWorkspace.GetQueryCacheManager();
-
-            var shaperFactory = Translator.TranslateColumnMap(
-                _translator,
-                elementType, cacheManager, entityDefinition.CreateColumnMap(null),
-                context.MetadataWorkspace, spanInfo, mergeOption, false);
-
-            // attempt to determine entity information for this query (e.g. which entity type and which entity set)
-
-            EntitySet singleEntitySet = null;
-
-            if (treeResultType.EdmType.BuiltInTypeKind
-                == BuiltInTypeKind.CollectionType)
-            {
-                // determine if the entity set is unambiguous given the entity type
-                if (null != entityDefinition.EntitySets)
-                {
-                    foreach (var entitySet in entityDefinition.EntitySets)
-                    {
-                        if (null != entitySet)
-                        {
-                            if (entitySet.ElementType.IsAssignableFrom(((CollectionType)treeResultType.EdmType).TypeUsage.EdmType))
-                            {
-                                if (singleEntitySet == null)
-                                {
-                                    // found a single match
-                                    singleEntitySet = entitySet;
-                                }
-                                else
-                                {
-                                    // there's more than one matching entity set
-                                    singleEntitySet = null;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            return new ObjectQueryExecutionPlan(
-                definition, shaperFactory, treeResultType, mergeOption, singleEntitySet, compiledQueryParameters);
-        }
-
-        public ObjectResult<TResultType> ExecuteCommandTree<TResultType>(
-            ObjectContext context, DbQueryCommandTree query, MergeOption mergeOption)
-        {
-            Contract.Requires(context != null);
-            Contract.Requires(query != null);
-
-            var execPlan = Prepare(context, query, typeof(TResultType), mergeOption, null, null, DbExpressionBuilder.AliasGenerator);
-            return execPlan.Execute<TResultType>(context, null);
+            return (EntityCommandDefinition)definition;
         }
     }
 }

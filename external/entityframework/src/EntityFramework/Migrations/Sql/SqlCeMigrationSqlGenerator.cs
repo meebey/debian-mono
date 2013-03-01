@@ -1,14 +1,17 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Sql
 {
     using System.Data.Common;
+    using System.Data.Entity.Config;
     using System.Data.Entity.Migrations.Model;
+    using System.Data.Entity.Migrations.Utilities;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Globalization;
-    using System.Linq;
 
     /// <summary>
-    ///     Provider to convert provider agnostic migration operations into SQL commands 
+    ///     Provider to convert provider agnostic migration operations into SQL commands
     ///     that can be run against Microsoft SQL Server Compact Edition.
     /// </summary>
     public class SqlCeMigrationSqlGenerator : SqlServerMigrationSqlGenerator
@@ -16,7 +19,7 @@ namespace System.Data.Entity.Migrations.Sql
         /// <inheritdoc />
         protected override DbConnection CreateConnection()
         {
-            return DbProviderFactories.GetFactory("System.Data.SqlServerCe.4.0").CreateConnection();
+            return DbConfiguration.GetService<DbProviderFactory>("System.Data.SqlServerCe.4.0").CreateConnection();
         }
 
         /// <inheritdoc />
@@ -36,7 +39,7 @@ namespace System.Data.Entity.Migrations.Sql
             using (var writer = Writer())
             {
                 writer.Write("EXECUTE sp_rename @objname = N'");
-                writer.Write(renameTableOperation.Name.Split(new[] { '.' }, 2).Last());
+                writer.Write(renameTableOperation.Name.ToDatabaseName().Name);
                 writer.Write("', @newname = N'");
                 writer.Write(renameTableOperation.NewName);
                 writer.Write("', @objtype = N'OBJECT'");
@@ -51,7 +54,7 @@ namespace System.Data.Entity.Migrations.Sql
         }
 
         /// <inheritdoc />
-        protected override void GenerateMakeSystemTable(CreateTableOperation createTableOperation)
+        protected override void GenerateMakeSystemTable(CreateTableOperation createTableOperation, IndentedTextWriter writer)
         {
         }
 
@@ -136,7 +139,7 @@ namespace System.Data.Entity.Migrations.Sql
         /// <inheritdoc />
         protected override string Name(string name)
         {
-            return Quote(name.Split(new[] { '.' }, 2).Last());
+            return Quote(name.ToDatabaseName().Name);
         }
     }
 }

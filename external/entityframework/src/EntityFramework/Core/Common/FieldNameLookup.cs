@@ -1,16 +1,16 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core
 {
     using System.Collections;
     using System.Collections.ObjectModel;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
 
     internal sealed class FieldNameLookup
     {
-        // V1.2.3300, MDAC 69015, 71470
-
         // hashtable stores the index into the _fieldNames, match via case-sensitive
         private Hashtable _fieldNameLookup;
 
@@ -29,7 +29,7 @@ namespace System.Data.Entity.Core
             for (var i = 0; i < length; ++i)
             {
                 fieldNames[i] = columnNames[i];
-                Debug.Assert(null != fieldNames[i], "MDAC 66681");
+                Debug.Assert(null != fieldNames[i]);
             }
             _fieldNames = fieldNames;
             _defaultLocaleID = defaultLocaleID;
@@ -45,7 +45,7 @@ namespace System.Data.Entity.Core
             for (var i = 0; i < length; ++i)
             {
                 fieldNames[i] = reader.GetName(i);
-                Debug.Assert(null != fieldNames[i], "MDAC 66681");
+                Debug.Assert(null != fieldNames[i]);
             }
             _fieldNames = fieldNames;
             _defaultLocaleID = defaultLocaleID;
@@ -55,15 +55,14 @@ namespace System.Data.Entity.Core
         public int GetOrdinal(string fieldName)
         {
             // V1.2.3300
-            if (null == fieldName)
-            {
-                throw new ArgumentNullException("fieldName");
-            }
+            Check.NotNull(fieldName, "fieldName");
+
             var index = IndexOf(fieldName);
             if (-1 == index)
             {
                 throw new IndexOutOfRangeException(fieldName);
             }
+
             return index;
         }
 

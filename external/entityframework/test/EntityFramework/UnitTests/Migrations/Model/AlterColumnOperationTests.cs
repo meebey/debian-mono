@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Model
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Resources;
     using Xunit;
 
@@ -31,9 +31,14 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Ctor_should_validate_preconditions()
         {
-            Assert.Equal(new ArgumentException(Strings.ArgumentIsNullOrWhitespace("table")).Message, Assert.Throws<ArgumentException>(() => new AlterColumnOperation(null, new ColumnModel(PrimitiveTypeKind.Boolean), isDestructiveChange: false)).Message);
+            Assert.Equal(
+                new ArgumentException(Strings.ArgumentIsNullOrWhitespace("table")).Message,
+                Assert.Throws<ArgumentException>(
+                    () => new AlterColumnOperation(null, new ColumnModel(PrimitiveTypeKind.Boolean), isDestructiveChange: false)).Message);
 
-            Assert.Equal("column", Assert.Throws<ArgumentNullException>(() => new AlterColumnOperation("T", null, isDestructiveChange: false)).ParamName);
+            Assert.Equal(
+                "column",
+                Assert.Throws<ArgumentNullException>(() => new AlterColumnOperation("T", null, isDestructiveChange: false)).ParamName);
         }
     }
 }

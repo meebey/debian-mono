@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.EntityClient
 {
     using System.Collections;
@@ -56,12 +57,15 @@ namespace System.Data.Entity.Core.EntityClient
                 VerifyMethod(r => r.GetValues(Enumerable.Empty<object>().ToArray()), m => m.GetValues(It.IsAny<object[]>()));
                 VerifyMethod(r => r.IsDBNull(default(int)), m => m.IsDBNull(It.IsAny<int>()));
                 VerifyMethod(r => r.NextResult(), m => m.NextResult());
+                VerifyMethod(r => r.Read(), m => m.Read());
+                VerifyMethod(r => r.GetEnumerator(), m => m.GetEnumerator());
+
+#if !NET40
                 VerifyMethod(r => r.NextResultAsync(), m => m.NextResultAsync(It.IsAny<CancellationToken>()));
                 VerifyMethod(r => r.NextResultAsync(default(CancellationToken)), m => m.NextResultAsync(It.IsAny<CancellationToken>()));
-                VerifyMethod(r => r.Read(), m => m.Read());
                 VerifyMethod(r => r.ReadAsync(), m => m.ReadAsync(It.IsAny<CancellationToken>()));
                 VerifyMethod(r => r.ReadAsync(default(CancellationToken)), m => m.ReadAsync(It.IsAny<CancellationToken>()));
-                VerifyMethod(r => r.GetEnumerator(), m => m.GetEnumerator());
+#endif
             }
 
             private void VerifyGetter<TProperty>(
@@ -109,7 +113,7 @@ namespace System.Data.Entity.Core.EntityClient
                 var entityDataReader = new EntityDataReader(new EntityCommand(), dbDataReaderMock.Object, CommandBehavior.Default);
 
                 Assert.Throws<ArgumentNullException>(
-                    () => entityDataReader[(string)null]);
+                    () => entityDataReader[null]);
             }
         }
 
@@ -125,11 +129,14 @@ namespace System.Data.Entity.Core.EntityClient
                 Assert.Throws<EntityCommandExecutionException>(() => entityDataReader.NextResult()).Message);
         }
 
+#if !NET40
+
         [Fact]
         public void NextResultAsync_wraps_exception_into_EntityCommandExecutionException_if_one_was_thrown()
         {
             var dbDataReaderMock = new Mock<DbDataReader>();
-            dbDataReaderMock.Setup(m => m.NextResultAsync(It.IsAny<CancellationToken>())).Throws<InvalidOperationException>();
+            dbDataReaderMock.Setup(m => m.NextResultAsync(It.IsAny<CancellationToken>())).Throws(
+                new AggregateException(new InvalidOperationException()));
             var entityDataReader = new EntityDataReader(new EntityCommand(), dbDataReaderMock.Object, CommandBehavior.Default);
 
             AssertThrowsInAsyncMethod<EntityCommandExecutionException>(
@@ -137,7 +144,7 @@ namespace System.Data.Entity.Core.EntityClient
                 () => entityDataReader.NextResultAsync().Wait());
         }
 
-        private static void AssertThrowsInAsyncMethod<TException>(string expectedMessage, Xunit.Assert.ThrowsDelegate testCode)
+        private static void AssertThrowsInAsyncMethod<TException>(string expectedMessage, Assert.ThrowsDelegate testCode)
             where TException : Exception
         {
             var exception = Assert.Throws<AggregateException>(testCode);
@@ -148,5 +155,7 @@ namespace System.Data.Entity.Core.EntityClient
                 Assert.Equal(expectedMessage, innerException.Message);
             }
         }
+
+#endif
     }
 }

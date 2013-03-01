@@ -1,19 +1,20 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
-    ///     Adapted from <see cref = "System.Lazy{T}" /> to allow the initializer to take an input object and
+    ///     Adapted from <see cref="System.Lazy{T}" /> to allow the initializer to take an input object and
     ///     to retry initialization if it has previously failed.
     /// </summary>
     /// <remarks>
     ///     This class can only be used to initialize reference types that will not be null when
     ///     initialized.
     /// </remarks>
-    /// <typeparam name = "TInput">The type of the input.</typeparam>
-    /// <typeparam name = "TResult">The type of the result.</typeparam>
+    /// <typeparam name="TInput"> The type of the input. </typeparam>
+    /// <typeparam name="TResult"> The type of the result. </typeparam>
     internal class RetryLazy<TInput, TResult>
         where TResult : class
     {
@@ -24,12 +25,12 @@ namespace System.Data.Entity.Internal
         private TResult _value;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref = "RetryLazy&lt;TInput, TResult&gt;" /> class.
+        ///     Initializes a new instance of the <see cref="RetryLazy&lt;TInput, TResult&gt;" /> class.
         /// </summary>
-        /// <param name = "valueFactory">The value factory.</param>
+        /// <param name="valueFactory"> The value factory. </param>
         public RetryLazy(Func<TInput, TResult> valueFactory)
         {
-            Contract.Requires(valueFactory != null);
+            DebugCheck.NotNull(valueFactory);
 
             _valueFactory = valueFactory;
         }
@@ -42,8 +43,8 @@ namespace System.Data.Entity.Internal
         ///     Gets the value, possibly by running the initializer if it has not been run before or
         ///     if all previous times it ran resulted in exceptions.
         /// </summary>
-        /// <param name = "input">The input to the initializer; ignored if initialization has already succeeded.</param>
-        /// <returns>The initialized object.</returns>
+        /// <param name="input"> The input to the initializer; ignored if initialization has already succeeded. </param>
+        /// <returns> The initialized object. </returns>
         [DebuggerStepThrough]
         public TResult GetValue(TInput input)
         {
@@ -53,7 +54,7 @@ namespace System.Data.Entity.Internal
             {
                 if (_value == null)
                 {
-                    Contract.Assert(_valueFactory != null, "Same thread called Value while already calculating Value.");
+                    Debug.Assert(_valueFactory != null, "Same thread called Value while already calculating Value.");
 
                     var valueFactory = _valueFactory;
                     try
@@ -63,7 +64,7 @@ namespace System.Data.Entity.Internal
                     }
                     catch (Exception)
                     {
-                        Contract.Assert(_value == null, "_value should only be set if no exception is thrown.");
+                        Debug.Assert(_value == null, "_value should only be set if no exception is thrown.");
 
                         // Reset the value factory so that the value creation will be retried.
                         _valueFactory = valueFactory;
@@ -71,7 +72,7 @@ namespace System.Data.Entity.Internal
                     }
                 }
 
-                Contract.Assert(_value != null, "This class needs modification if it should ever return null.");
+                Debug.Assert(_value != null, "This class needs modification if it should ever return null.");
                 return _value;
             }
         }

@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Data.Common;
@@ -50,7 +51,7 @@ namespace System.Data.Entity.Core.Objects
                 var edmType = _edmTypes[_resultSetIndex];
                 MetadataHelper.CheckFunctionImportReturnType<TElement>(edmType, _context.MetadataWorkspace);
                 return _context.MaterializedDataRecord<TElement>(
-                    _entityCommand, storeReader, _resultSetIndex, _entitySets, _edmTypes, _mergeOption);
+                    _entityCommand, storeReader, _resultSetIndex, _entitySets, _edmTypes, _mergeOption, useSpatialReader: true);
             }
             else
             {

@@ -1,15 +1,128 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Design
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Migrations.Design;
     using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Spatial;
+    using System.Data.Entity.Utilities;
+    using System.Globalization;
     using System.IO;
+    using System.Threading;
     using Xunit;
 
     public class CSharpMigrationCodeGeneratorTests
     {
+        [Fact]
+        public void Generate_should_output_invariant_decimals_when_non_invariant_culture()
+        {
+            var lastCulture = Thread.CurrentThread.CurrentCulture;
+
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
+
+                var generatedMigration
+                    = new CSharpMigrationCodeGenerator().Generate(
+                        "Migration",
+                        new[]
+                            {
+                                new AddColumnOperation(
+                                    "T",
+                                    new ColumnModel(PrimitiveTypeKind.Decimal)
+                                        {
+                                            Name = "C",
+                                            DefaultValue = 123.45m
+                                        })
+                            },
+                        "Source",
+                        "Target",
+                        "Foo",
+                        "Bar");
+
+                Assert.Equal(
+                    @"namespace Foo
+{
+    using System;
+    using System.Data.Entity.Migrations;
+    
+    public partial class Bar : DbMigration
+    {
+        public override void Up()
+        {
+            AddColumn(""T"", ""C"", c => c.Decimal(defaultValue: 123.45m));
+        }
+        
+        public override void Down()
+        {
+            DropColumn(""T"", ""C"");
+        }
+    }
+}
+",
+                    generatedMigration.UserCode);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = lastCulture;
+            }
+        }
+
+        [Fact]
+        public void Generate_should_output_invariant_floats_when_non_invariant_culture()
+        {
+            var lastCulture = Thread.CurrentThread.CurrentCulture;
+
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
+
+                var generatedMigration
+                    = new CSharpMigrationCodeGenerator().Generate(
+                        "Migration",
+                        new[]
+                            {
+                                new AddColumnOperation(
+                                    "T",
+                                    new ColumnModel(PrimitiveTypeKind.Single)
+                                        {
+                                            Name = "C",
+                                            DefaultValue = 123.45f
+                                        })
+                            },
+                        "Source",
+                        "Target",
+                        "Foo",
+                        "Bar");
+
+                Assert.Equal(
+                    @"namespace Foo
+{
+    using System;
+    using System.Data.Entity.Migrations;
+    
+    public partial class Bar : DbMigration
+    {
+        public override void Up()
+        {
+            AddColumn(""T"", ""C"", c => c.Single(defaultValue: 123.45f));
+        }
+        
+        public override void Down()
+        {
+            DropColumn(""T"", ""C"");
+        }
+    }
+}
+",
+                    generatedMigration.UserCode);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = lastCulture;
+            }
+        }
+
         [Fact]
         public void Generate_should_not_produce_lines_that_are_too_long_for_the_compiler()
         {
@@ -41,10 +154,10 @@ namespace System.Data.Entity.Migrations
 
             var dropPrimaryKeyOperation
                 = new DropPrimaryKeyOperation
-                {
-                    Table = "T",
-                    Name = "PK"
-                };
+                      {
+                          Table = "T",
+                          Name = "PK"
+                      };
 
             dropPrimaryKeyOperation.Columns.Add("c1");
             dropPrimaryKeyOperation.Columns.Add("c2");
@@ -59,7 +172,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -78,7 +191,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -88,9 +201,9 @@ namespace System.Data.Entity.Migrations
 
             var dropPrimaryKeyOperation
                 = new DropPrimaryKeyOperation
-                {
-                    Table = "T"
-                };
+                      {
+                          Table = "T"
+                      };
 
             dropPrimaryKeyOperation.Columns.Add("c1");
             dropPrimaryKeyOperation.Columns.Add("c2");
@@ -105,7 +218,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -124,7 +237,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -134,10 +247,10 @@ namespace System.Data.Entity.Migrations
 
             var addPrimaryKeyOperation
                 = new AddPrimaryKeyOperation
-                {
-                    Table = "T",
-                    Name = "PK"
-                };
+                      {
+                          Table = "T",
+                          Name = "PK"
+                      };
 
             addPrimaryKeyOperation.Columns.Add("c1");
             addPrimaryKeyOperation.Columns.Add("c2");
@@ -152,7 +265,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -171,7 +284,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -181,9 +294,9 @@ namespace System.Data.Entity.Migrations
 
             var addPrimaryKeyOperation
                 = new AddPrimaryKeyOperation
-                {
-                    Table = "T"
-                };
+                      {
+                          Table = "T"
+                      };
 
             addPrimaryKeyOperation.Columns.Add("c1");
             addPrimaryKeyOperation.Columns.Add("c2");
@@ -198,7 +311,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -217,7 +330,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -227,11 +340,11 @@ namespace System.Data.Entity.Migrations
 
             var addForeignKeyOperation
                 = new AddForeignKeyOperation
-                {
-                    DependentTable = "Orders",
-                    PrincipalTable = "Customers",
-                    CascadeDelete = true
-                };
+                      {
+                          DependentTable = "Orders",
+                          PrincipalTable = "Customers",
+                          CascadeDelete = true
+                      };
 
             addForeignKeyOperation.DependentColumns.Add("CustomerId");
             addForeignKeyOperation.PrincipalColumns.Add("Id");
@@ -246,7 +359,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -265,7 +378,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -275,10 +388,10 @@ namespace System.Data.Entity.Migrations
 
             var addForeignKeyOperation
                 = new AddForeignKeyOperation
-                {
-                    DependentTable = "Orders",
-                    PrincipalTable = "Customers"
-                };
+                      {
+                          DependentTable = "Orders",
+                          PrincipalTable = "Customers"
+                      };
 
             addForeignKeyOperation.DependentColumns.Add("CustomerId1");
             addForeignKeyOperation.DependentColumns.Add("CustomerId2");
@@ -295,7 +408,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -314,7 +427,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -334,7 +447,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -352,7 +465,7 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -361,7 +474,11 @@ namespace System.Data.Entity.Migrations
             var codeGenerator = new CSharpMigrationCodeGenerator();
 
             var createTableOperation = new CreateTableOperation("Customers");
-            var column = new ColumnModel(PrimitiveTypeKind.Binary) { Name = "Version", IsTimestamp = true };
+            var column = new ColumnModel(PrimitiveTypeKind.Binary)
+                             {
+                                 Name = "Version",
+                                 IsTimestamp = true
+                             };
             createTableOperation.Columns.Add(column);
 
             var generatedMigration
@@ -374,7 +491,7 @@ namespace System.Data.Entity.Migrations
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -399,27 +516,40 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
         public void Generate_can_output_create_table_statement()
         {
             var createTableOperation = new CreateTableOperation("Customers");
-            var idColumn = new ColumnModel(PrimitiveTypeKind.Int32) { Name = "Id", IsNullable = true, IsIdentity = true };
+            var idColumn = new ColumnModel(PrimitiveTypeKind.Int32)
+                               {
+                                   Name = "Id",
+                                   IsNullable = true,
+                                   IsIdentity = true
+                               };
             createTableOperation.Columns.Add(idColumn);
-            createTableOperation.Columns.Add(new ColumnModel(PrimitiveTypeKind.String) { Name = "Name", IsNullable = false });
-            createTableOperation.PrimaryKey = new AddPrimaryKeyOperation { Name = "MyPK" };
+            createTableOperation.Columns.Add(
+                new ColumnModel(PrimitiveTypeKind.String)
+                    {
+                        Name = "Name",
+                        IsNullable = false
+                    });
+            createTableOperation.PrimaryKey = new AddPrimaryKeyOperation
+                                                  {
+                                                      Name = "MyPK"
+                                                  };
             createTableOperation.PrimaryKey.Columns.Add(idColumn.Name);
 
             var codeGenerator = new CSharpMigrationCodeGenerator();
 
             var addForeignKeyOperation = new AddForeignKeyOperation
-            {
-                DependentTable = "Customers",
-                PrincipalTable = "Blogs",
-                CascadeDelete = true
-            };
+                                             {
+                                                 DependentTable = "Customers",
+                                                 PrincipalTable = "Blogs",
+                                                 CascadeDelete = true
+                                             };
             addForeignKeyOperation.DependentColumns.Add("Blog_Id");
             addForeignKeyOperation.PrincipalColumns.Add("Id");
 
@@ -427,18 +557,18 @@ namespace System.Data.Entity.Migrations
                 = codeGenerator.Generate(
                     "Migration",
                     new MigrationOperation[]
-                            {
-                                createTableOperation,
-                                addForeignKeyOperation,
-                                addForeignKeyOperation.CreateCreateIndexOperation()
-                            },
+                        {
+                            createTableOperation,
+                            addForeignKeyOperation,
+                            addForeignKeyOperation.CreateCreateIndexOperation()
+                        },
                     "Source",
                     "Target",
                     "Foo",
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -469,16 +599,18 @@ namespace System.Data.Entity.Migrations
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
 
             Assert.Equal(
-                    @"// <auto-generated />
+                @"// <auto-generated />
 namespace Foo
 {
+    using System.CodeDom.Compiler;
     using System.Data.Entity.Migrations;
     using System.Data.Entity.Migrations.Infrastructure;
     using System.Resources;
     
+    [GeneratedCode(""EntityFramework.Migrations"", """ + typeof(DbContext).Assembly.GetInformationalVersion() + @""")]
     public sealed partial class Bar : IMigrationMetadata
     {
         private readonly ResourceManager Resources = new ResourceManager(typeof(Bar));
@@ -500,7 +632,7 @@ namespace Foo
     }
 }
 ",
-                    generatedMigration.DesignerCode);
+                generatedMigration.DesignerCode);
 
             Assert.Equal("cs", generatedMigration.Language);
             Assert.Equal(2, generatedMigration.Resources.Count);
@@ -523,7 +655,7 @@ namespace Foo
                     "Bar");
 
             Assert.Equal(
-                    @"namespace Foo
+                @"namespace Foo
 {
     using System;
     using System.Data.Entity.Migrations;
@@ -541,7 +673,7 @@ namespace Foo
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
 
         [Fact]
@@ -584,13 +716,15 @@ namespace Foo
                 "Bar");
 
             Assert.Equal(
-                    @"// <auto-generated />
+                @"// <auto-generated />
 namespace Foo
 {
+    using System.CodeDom.Compiler;
     using System.Data.Entity.Migrations;
     using System.Data.Entity.Migrations.Infrastructure;
     using System.Resources;
     
+    [GeneratedCode(""EntityFramework.Migrations"", """ + typeof(DbContext).Assembly.GetInformationalVersion() + @""")]
     public sealed partial class Bar : IMigrationMetadata
     {
         private readonly ResourceManager Resources = new ResourceManager(typeof(Bar));
@@ -612,7 +746,7 @@ namespace Foo
     }
 }
 ",
-                    generatedMigration.DesignerCode);
+                generatedMigration.DesignerCode);
 
             Assert.Equal(1, generatedMigration.Resources.Count);
             Assert.Equal("Target", generatedMigration.Resources["Target"]);
@@ -629,10 +763,10 @@ namespace Foo
                             new AddColumnOperation(
                                 "T",
                                 new ColumnModel(PrimitiveTypeKind.Geography)
-                                {
-                                    IsNullable = false,
-                                    Name = "C",
-                                    DefaultValue = DbGeography.FromText("POINT (6 7)")
+                                    {
+                                        IsNullable = false,
+                                        Name = "C",
+                                        DefaultValue = DbGeography.FromText("POINT (6 7)")
                                     })
                         },
                     "Source",
@@ -675,10 +809,10 @@ namespace Foo
                             new AddColumnOperation(
                                 "T",
                                 new ColumnModel(PrimitiveTypeKind.Geometry)
-                                {
-                                    IsNullable = false,
-                                    Name = "C",
-                                    DefaultValue = DbGeometry.FromText("POINT (8 9)")
+                                    {
+                                        IsNullable = false,
+                                        Name = "C",
+                                        DefaultValue = DbGeometry.FromText("POINT (8 9)")
                                     })
                         },
                     "Source",
@@ -724,11 +858,13 @@ namespace Foo
                 "Bar");
 
             Assert.Equal(
-                    @"// <auto-generated />
+                @"// <auto-generated />
+using System.CodeDom.Compiler;
 using System.Data.Entity.Migrations;
 using System.Data.Entity.Migrations.Infrastructure;
 using System.Resources;
 
+[GeneratedCode(""EntityFramework.Migrations"", """ + typeof(DbContext).Assembly.GetInformationalVersion() + @""")]
 public sealed partial class Bar : IMigrationMetadata
 {
     private readonly ResourceManager Resources = new ResourceManager(typeof(Bar));
@@ -749,13 +885,13 @@ public sealed partial class Bar : IMigrationMetadata
     }
 }
 ",
-                    generatedMigration.DesignerCode);
+                generatedMigration.DesignerCode);
 
             Assert.Equal(1, generatedMigration.Resources.Count);
             Assert.Equal("Target", generatedMigration.Resources["Target"]);
 
             Assert.Equal(
-                    @"using System;
+                @"using System;
 using System.Data.Entity.Migrations;
 
 public partial class Bar : DbMigration
@@ -769,7 +905,7 @@ public partial class Bar : DbMigration
     }
 }
 ",
-                    generatedMigration.UserCode);
+                generatedMigration.UserCode);
         }
     }
 }

@@ -282,6 +282,7 @@ struct _MonoClass {
 	 * to 1, because we know the instance size now. After that we 
 	 * initialise all static fields.
 	 */
+	/* size_inited is accessed without locks, so it needs a memory barrier */
 	guint size_inited     : 1;
 	guint valuetype       : 1; /* derives from System.ValueType */
 	guint enumtype        : 1; /* derives from System.Enum */
@@ -319,6 +320,7 @@ struct _MonoClass {
 	/* next byte */
 	guint has_finalize_inited    : 1; /* has_finalize is initialized */
 	guint fields_inited : 1; /* fields is initialized */
+	guint setup_fields_called : 1; /* to prevent infinite loops in setup_fields */
 
 	guint8     exception_type;	/* MONO_EXCEPTION_* */
 
@@ -720,6 +722,11 @@ typedef struct {
 	gulong generics_sharable_methods;
 	gulong generics_unsharable_methods;
 	gulong generics_shared_methods;
+	gulong gsharedvt_methods;
+	gulong minor_gc_count;
+	gulong major_gc_count;
+	gulong minor_gc_time_usecs;
+	gulong major_gc_time_usecs;
 	gboolean enabled;
 } MonoStats;
 
@@ -1012,6 +1019,9 @@ mono_class_inflate_generic_type_checked (MonoType *type, MonoGenericContext *con
 void
 mono_metadata_free_inflated_signature (MonoMethodSignature *sig);
 
+MonoMethodSignature*
+mono_inflate_generic_signature (MonoMethodSignature *sig, MonoGenericContext *context, MonoError *error) MONO_INTERNAL;
+
 typedef struct {
 	MonoImage *corlib;
 	MonoClass *object_class;
@@ -1057,9 +1067,7 @@ typedef struct {
 	MonoClass *stack_frame_class;
 	MonoClass *stack_trace_class;
 	MonoClass *marshal_class;
-	MonoClass *iserializeable_class;
-	MonoClass *serializationinfo_class;
-	MonoClass *streamingcontext_class;
+
 	MonoClass *typed_reference_class;
 	MonoClass *argumenthandle_class;
 	MonoClass *marshalbyrefobject_class;
@@ -1070,16 +1078,19 @@ typedef struct {
 	MonoClass *internals_visible_class;
 	MonoClass *generic_ilist_class;
 	MonoClass *generic_nullable_class;
+#ifndef DISABLE_COM
 	MonoClass *variant_class;
 	MonoClass *com_object_class;
 	MonoClass *com_interop_proxy_class;
 	MonoClass *iunknown_class;
 	MonoClass *idispatch_class;
+#endif
 	MonoClass *safehandle_class;
 	MonoClass *handleref_class;
 	MonoClass *attribute_class;
 	MonoClass *customattribute_data_class;
 	MonoClass *critical_finalizer_object;
+	MonoClass *generic_ireadonlylist_class;
 } MonoDefaults;
 
 extern MonoDefaults mono_defaults MONO_INTERNAL;
@@ -1295,5 +1306,8 @@ mono_unload_interface_id (MonoClass *class) MONO_INTERNAL;
 
 GPtrArray*
 mono_class_get_methods_by_name (MonoClass *klass, const char *name, guint32 bflags, gboolean ignore_case, gboolean allow_ctors, MonoException **ex) MONO_INTERNAL;
+
+char*
+mono_class_full_name (MonoClass *klass) MONO_INTERNAL;
 
 #endif /* __MONO_METADATA_CLASS_INTERBALS_H__ */

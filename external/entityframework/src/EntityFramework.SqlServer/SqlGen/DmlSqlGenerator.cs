@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServer.SqlGen
 {
     using System.Collections.Generic;
@@ -10,13 +11,12 @@ namespace System.Data.Entity.SqlServer.SqlGen
     using System.Data.Entity.SqlServer.Utilities;
     using System.Data.SqlClient;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
     using System.Text;
 
     /// <summary>
-    /// Class generating SQL for a DML command tree.
+    ///     Class generating SQL for a DML command tree.
     /// </summary>
     internal static class DmlSqlGenerator
     {
@@ -243,10 +243,10 @@ namespace System.Data.Entity.SqlServer.SqlGen
         }
 
         /// <summary>
-        /// Determine whether we should use a generated values variable to return server generated values.
-        /// This is true when we're attempting to insert a row where the primary key is server generated
-        /// but is not an integer type (and therefore can't be used with scope_identity()). It is also true
-        /// where there is a compound server generated key.        
+        ///     Determine whether we should use a generated values variable to return server generated values.
+        ///     This is true when we're attempting to insert a row where the primary key is server generated
+        ///     but is not an integer type (and therefore can't be used with scope_identity()). It is also true
+        ///     where there is a compound server generated key.
         /// </summary>
         private static bool UseGeneratedValuesVariable(DbInsertCommandTree tree, SqlVersion sqlVersion)
         {
@@ -295,42 +295,38 @@ namespace System.Data.Entity.SqlServer.SqlGen
         }
 
         /// <summary>
-        /// Generates SQL fragment returning server-generated values.
-        /// Requires: translator knows about member values so that we can figure out
-        /// how to construct the key predicate.
-        /// <code>
-        /// Sample SQL:
+        ///     Generates SQL fragment returning server-generated values.
+        ///     Requires: translator knows about member values so that we can figure out
+        ///     how to construct the key predicate.
+        ///     <code>Sample SQL:
         ///     
-        ///     select IdentityValue
-        ///     from dbo.MyTable
-        ///     where @@ROWCOUNT > 0 and IdentityValue = scope_identity()
+        ///         select IdentityValue
+        ///         from dbo.MyTable
+        ///         where @@ROWCOUNT > 0 and IdentityValue = scope_identity()
         /// 
-        /// or
+        ///         or
         /// 
-        ///     select TimestampValue
-        ///     from dbo.MyTable
-        ///     where @@ROWCOUNT > 0 and Id = 1
+        ///         select TimestampValue
+        ///         from dbo.MyTable
+        ///         where @@ROWCOUNT > 0 and Id = 1
         /// 
-        /// Note that we filter on rowcount to ensure no rows are returned if no rows were modified.
+        ///         Note that we filter on rowcount to ensure no rows are returned if no rows were modified.
         /// 
-        /// On SQL Server 2005 and up, we have an additional syntax used for non integer return types:
+        ///         On SQL Server 2005 and up, we have an additional syntax used for non integer return types:
         /// 
-        ///     declare @generatedValues table(ID uniqueidentifier)
-        ///     insert dbo.MyTable
-        ///     output ID into @generated_values
-        ///     values (...);
-        ///     select ID
-        ///     from @generatedValues as g join dbo.MyTable as t on g.ID = t.ID
-        ///     where @@ROWCOUNT > 0;
-        /// </code>
+        ///         declare @generatedValues table(ID uniqueidentifier)
+        ///         insert dbo.MyTable
+        ///         output ID into @generated_values
+        ///         values (...);
+        ///         select ID
+        ///         from @generatedValues as g join dbo.MyTable as t on g.ID = t.ID
+        ///         where @@ROWCOUNT > 0;</code>
         /// </summary>
-        /// <param name="commandText">Builder containing command text</param>
-        /// <param name="tree">Modification command tree</param>
-        /// <param name="tableType">Type of table.</param>
-        /// <param name="translator">Translator used to produce DML SQL statement
-        /// for the tree</param>
-        /// <param name="returning">Returning expression. If null, the method returns
-        /// immediately without producing a SELECT statement.</param>
+        /// <param name="commandText"> Builder containing command text </param>
+        /// <param name="tree"> Modification command tree </param>
+        /// <param name="tableType"> Type of table. </param>
+        /// <param name="translator"> Translator used to produce DML SQL statement for the tree </param>
+        /// <param name="returning"> Returning expression. If null, the method returns immediately without producing a SELECT statement. </param>
         private static void GenerateReturningSql(
             StringBuilder commandText, DbModificationCommandTree tree, EntityType tableType,
             ExpressionTranslator translator, DbExpression returning, bool useGeneratedValuesVariable)
@@ -441,7 +437,9 @@ namespace System.Data.Entity.SqlServer.SqlGen
             var typeName = typeUsage.EdmType.Name;
 
             // integer types
-            if (typeName == "tinyint" || typeName == "smallint" ||
+            if (typeName == "tinyint"
+                || typeName == "smallint"
+                ||
                 typeName == "int"
                 || typeName == "bigint")
             {
@@ -463,25 +461,24 @@ namespace System.Data.Entity.SqlServer.SqlGen
         }
 
         /// <summary>
-        /// Lightweight expression translator for DML expression trees, which have constrained
-        /// scope and support.
+        ///     Lightweight expression translator for DML expression trees, which have constrained
+        ///     scope and support.
         /// </summary>
         internal class ExpressionTranslator : BasicExpressionVisitor
         {
             /// <summary>
-            /// Initialize a new expression translator populating the given string builder
-            /// with command text. Command text builder and command tree must not be null.
+            ///     Initialize a new expression translator populating the given string builder
+            ///     with command text. Command text builder and command tree must not be null.
             /// </summary>
-            /// <param name="commandText">Command text with which to populate commands</param>
-            /// <param name="commandTree">Command tree generating SQL</param>
-            /// <param name="preserveMemberValues">Indicates whether the translator should preserve
-            /// member values while compiling t-SQL (only needed for server generation)</param>
+            /// <param name="commandText"> Command text with which to populate commands </param>
+            /// <param name="commandTree"> Command tree generating SQL </param>
+            /// <param name="preserveMemberValues"> Indicates whether the translator should preserve member values while compiling t-SQL (only needed for server generation) </param>
             internal ExpressionTranslator(
                 StringBuilder commandText, DbModificationCommandTree commandTree,
                 bool preserveMemberValues, SqlVersion version)
             {
-                Debug.Assert(null != commandText);
-                Debug.Assert(null != commandTree);
+                DebugCheck.NotNull(commandText);
+                DebugCheck.NotNull(commandTree);
                 _commandText = commandText;
                 _commandTree = commandTree;
                 _version = version;
@@ -530,16 +527,22 @@ namespace System.Data.Entity.SqlServer.SqlGen
 
             public override void Visit(DbAndExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 VisitBinary(expression, " and ");
             }
 
             public override void Visit(DbOrExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 VisitBinary(expression, " or ");
             }
 
             public override void Visit(DbComparisonExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 Debug.Assert(
                     expression.ExpressionKind == DbExpressionKind.Equals,
                     "only equals comparison expressions are produced in DML command trees in V1");
@@ -550,12 +553,12 @@ namespace System.Data.Entity.SqlServer.SqlGen
             }
 
             /// <summary>
-            /// Call this method to register a property value pair so the translator "remembers"
-            /// the values for members of the row being modified. These values can then be used
-            /// to form a predicate for server-generation (based on the key of the row)
+            ///     Call this method to register a property value pair so the translator "remembers"
+            ///     the values for members of the row being modified. These values can then be used
+            ///     to form a predicate for server-generation (based on the key of the row)
             /// </summary>
-            /// <param name="propertyExpression">DbExpression containing the column reference (property expression).</param>
-            /// <param name="value">DbExpression containing the value of the column.</param>
+            /// <param name="propertyExpression"> DbExpression containing the column reference (property expression). </param>
+            /// <param name="value"> DbExpression containing the value of the column. </param>
             internal void RegisterMemberValue(DbExpression propertyExpression, DbExpression value)
             {
                 if (null != _memberValues)
@@ -583,12 +586,16 @@ namespace System.Data.Entity.SqlServer.SqlGen
 
             public override void Visit(DbIsNullExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 expression.Argument.Accept(this);
                 _commandText.Append(" is null");
             }
 
             public override void Visit(DbNotExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 _commandText.Append("not (");
                 expression.Accept(this);
                 _commandText.Append(")");
@@ -596,12 +603,16 @@ namespace System.Data.Entity.SqlServer.SqlGen
 
             public override void Visit(DbConstantExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 var parameter = CreateParameter(expression.Value, expression.ResultType);
                 _commandText.Append(parameter.ParameterName);
             }
 
             public override void Visit(DbScanExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 // we know we won't hit this code unless there is no function defined for this
                 // ModificationOperation, so if this EntitySet is using a DefiningQuery, instead
                 // of a table, that is an error
@@ -618,7 +629,7 @@ namespace System.Data.Entity.SqlServer.SqlGen
                     }
                     else
                     {
-                        Contract.Assert(_commandTree is DbUpdateCommandTree);
+                        Debug.Assert(_commandTree is DbUpdateCommandTree);
                         missingCudElement = "UpdateFunction";
                     }
                     throw new UpdateException(
@@ -631,6 +642,8 @@ namespace System.Data.Entity.SqlServer.SqlGen
 
             public override void Visit(DbPropertyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 if (!string.IsNullOrEmpty(PropertyAlias))
                 {
                     _commandText.Append(PropertyAlias);
@@ -641,11 +654,15 @@ namespace System.Data.Entity.SqlServer.SqlGen
 
             public override void Visit(DbNullExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 _commandText.Append("null");
             }
 
             public override void Visit(DbNewInstanceExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 // assumes all arguments are self-describing (no need to use aliases
                 // because no renames are ever used in the projection)
                 var first = true;

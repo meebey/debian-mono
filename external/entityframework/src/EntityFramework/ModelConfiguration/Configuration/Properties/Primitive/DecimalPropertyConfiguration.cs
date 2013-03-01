@@ -1,17 +1,29 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Parsing.Xml.Internal.Ssdl;
-    using System.Diagnostics.Contracts;
-    using EdmProperty = System.Data.Entity.Edm.EdmProperty;
+    using System.Data.Entity.Utilities;
 
-    internal class DecimalPropertyConfiguration : PrimitivePropertyConfiguration
+    /// <summary>
+    ///     Used to configure a <see cref="Decimal" /> property of an entity type or
+    ///     complex type.
+    /// </summary>
+    public class DecimalPropertyConfiguration : PrimitivePropertyConfiguration
     {
+        /// <summary>
+        ///     Gets or sets the precision of the property.
+        /// </summary>
         public byte? Precision { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the scale of the property.
+        /// </summary>
         public byte? Scale { get; set; }
 
+        /// <summary>
+        ///     Initializes a new instance of the DecimalPropertyConfiguration class.
+        /// </summary>
         public DecimalPropertyConfiguration()
         {
         }
@@ -19,7 +31,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
         private DecimalPropertyConfiguration(DecimalPropertyConfiguration source)
             : base(source)
         {
-            Contract.Requires(source != null);
+            DebugCheck.NotNull(source);
 
             Precision = source.Precision;
             Scale = source.Scale;
@@ -36,26 +48,26 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             if (Precision != null)
             {
-                property.PropertyType.PrimitiveTypeFacets.Precision = Precision;
+                property.Precision = Precision;
             }
 
             if (Scale != null)
             {
-                property.PropertyType.PrimitiveTypeFacets.Scale = Scale;
+                property.Scale = Scale;
             }
         }
 
-        internal override void Configure(DbPrimitiveTypeFacets facets, FacetDescription facetDescription)
+        internal override void Configure(EdmProperty column, FacetDescription facetDescription)
         {
-            base.Configure(facets, facetDescription);
+            base.Configure(column, facetDescription);
 
             switch (facetDescription.FacetName)
             {
-                case SsdlConstants.Attribute_Precision:
-                    facets.Precision = facetDescription.IsConstant ? null : Precision ?? facets.Precision;
+                case XmlConstants.PrecisionElement:
+                    column.Precision = facetDescription.IsConstant ? null : Precision ?? column.Precision;
                     break;
-                case SsdlConstants.Attribute_Scale:
-                    facets.Scale = facetDescription.IsConstant ? null : Scale ?? facets.Scale;
+                case XmlConstants.ScaleElement:
+                    column.Scale = facetDescription.IsConstant ? null : Scale ?? column.Scale;
                     break;
             }
         }
@@ -71,7 +83,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             }
         }
 
-        public override void FillFrom(PrimitivePropertyConfiguration other, bool inCSpace)
+        internal override void FillFrom(PrimitivePropertyConfiguration other, bool inCSpace)
         {
             base.FillFrom(other, inCSpace);
             var lenConfigRhs = other as DecimalPropertyConfiguration;
@@ -88,11 +100,11 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             }
         }
 
-        public override bool IsCompatible(PrimitivePropertyConfiguration other, bool InCSpace, out string errorMessage)
+        internal override bool IsCompatible(PrimitivePropertyConfiguration other, bool inCSpace, out string errorMessage)
         {
             var decRhs = other as DecimalPropertyConfiguration;
 
-            var baseIsCompatible = base.IsCompatible(other, InCSpace, out errorMessage);
+            var baseIsCompatible = base.IsCompatible(other, inCSpace, out errorMessage);
             var precisionIsCompatible = decRhs == null || IsCompatible(c => c.Precision, decRhs, ref errorMessage);
             var scaleIsCompatible = decRhs == null || IsCompatible(c => c.Scale, decRhs, ref errorMessage);
 

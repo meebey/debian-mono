@@ -980,4 +980,37 @@ class Tests {
 		var r = new ConstrainedEnum [10];
 		return Foo3<ConstrainedEnum>.CompareTo (r);
 	}
+
+	public interface IFoo2 {
+		void MoveNext ();
+	}
+
+	public struct Foo2 : IFoo2 {
+		public void MoveNext () {
+		}
+	}
+
+	public static Action Dingus (ref Foo2 f) {
+		return new Action (f.MoveNext);
+	}
+
+	public static int test_0_delegate_unbox_full_aot () {
+		Foo2 foo = new Foo2 ();
+		Dingus (ref foo) ();
+		return 0;
+	}
+
+	public static int test_0_arrays_ireadonly () {
+		int[] arr = new int [10];
+		for (int i = 0; i < 10; ++i)
+			arr [i] = i;
+		IReadOnlyList<int> a = (IReadOnlyList<int>)(object)arr;
+		if (a.Count != 10)
+			return 1;
+		if (a [0] != 0)
+			return 2;
+		if (a [1] != 1)
+			return 3;
+		return 0;
+	}
 }

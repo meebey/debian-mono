@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -13,22 +14,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     // rules to remove unnecessary self-joins or self-unions
     internal class CellTreeSimplifier : InternalBase
     {
-        #region Fields
-
         private readonly ViewgenContext m_viewgenContext;
-
-        #endregion
-
-        #region Constructor
 
         private CellTreeSimplifier(ViewgenContext context)
         {
             m_viewgenContext = context;
         }
-
-        #endregion
-
-        #region Exposed Methods
 
         // effects: see CellTreeNode.Simplify below
         internal static CellTreeNode MergeNodes(CellTreeNode rootNode)
@@ -108,7 +99,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
 
                 var mergedOk = false;
                 // try to merge lastChild and child
-                if (false == skipRest && lastChild.OpType == CellTreeOpType.Leaf
+                if (false == skipRest
+                    && lastChild.OpType == CellTreeOpType.Leaf
                     &&
                     child.OpType == CellTreeOpType.Leaf)
                 {
@@ -139,10 +131,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             var result = newNode.AssociativeFlatten();
             return result;
         }
-
-        #endregion
-
-        #region Private Methods
 
         // effects: Restructure tree so that it is better positioned for merges
         private CellTreeNode RestructureTreeForMerges(CellTreeNode rootNode)
@@ -629,15 +617,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return bools;
         }
 
-        #endregion
-
-        #region String methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             m_viewgenContext.MemberMaps.ProjectedSlotMap.ToCompactString(builder);
         }
-
-        #endregion
     }
 }

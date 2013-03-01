@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Edm.Services
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db.Mapping;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     internal class PropertyMappingGenerator : StructuralTypeMappingGenerator
@@ -18,37 +18,37 @@ namespace System.Data.Entity.ModelConfiguration.Edm.Services
         }
 
         public void Generate(
-            EdmEntityType entityType,
+            EntityType entityType,
             IEnumerable<EdmProperty> properties,
-            DbEntitySetMapping entitySetMapping,
-            DbEntityTypeMappingFragment entityTypeMappingFragment,
+            StorageEntitySetMapping entitySetMapping,
+            StorageMappingFragment entityTypeMappingFragment,
             IList<EdmProperty> propertyPath,
             bool createNewColumn)
         {
-            Contract.Requires(entityType != null);
-            Contract.Requires(properties != null);
-            Contract.Requires(entityTypeMappingFragment != null);
-            Contract.Requires(propertyPath != null);
+            DebugCheck.NotNull(entityType);
+            DebugCheck.NotNull(properties);
+            DebugCheck.NotNull(entityTypeMappingFragment);
+            DebugCheck.NotNull(propertyPath);
 
             var rootDeclaredProperties = entityType.GetRootType().DeclaredProperties;
 
             foreach (var property in properties)
             {
-                if (property.PropertyType.IsComplexType
+                if (property.IsComplexType
                     && propertyPath.Any(
-                        p => p.PropertyType.IsComplexType
-                             && (p.PropertyType.ComplexType == property.PropertyType.ComplexType)))
+                        p => p.IsComplexType
+                             && (p.ComplexType == property.ComplexType)))
                 {
                     throw Error.CircularComplexTypeHierarchy();
                 }
 
                 propertyPath.Add(property);
 
-                if (property.PropertyType.IsComplexType)
+                if (property.IsComplexType)
                 {
                     Generate(
                         entityType,
-                        property.PropertyType.ComplexType.DeclaredProperties,
+                        property.ComplexType.Properties,
                         entitySetMapping,
                         entityTypeMappingFragment,
                         propertyPath,
@@ -58,30 +58,33 @@ namespace System.Data.Entity.ModelConfiguration.Edm.Services
                 {
                     var tableColumn
                         = entitySetMapping.EntityTypeMappings
-                            .SelectMany(etm => etm.TypeMappingFragments)
-                            .SelectMany(etmf => etmf.PropertyMappings)
-                            .Where(pm => pm.PropertyPath.SequenceEqual(propertyPath))
-                            .Select(pm => pm.Column)
-                            .FirstOrDefault();
+                                          .SelectMany(etm => etm.MappingFragments)
+                                          .SelectMany(etmf => etmf.ColumnMappings)
+                                          .Where(pm => pm.PropertyPath.SequenceEqual(propertyPath))
+                                          .Select(pm => pm.ColumnProperty)
+                                          .FirstOrDefault();
 
                     if (tableColumn == null || createNewColumn)
                     {
-                        tableColumn = entityTypeMappingFragment.Table.AddColumn(
-                            string.Join("_", propertyPath.Select(p => p.Name)));
+                        var columnName
+                            = string.Join("_", propertyPath.Select(p => p.Name));
 
-                        MapTableColumn(
-                            property,
-                            tableColumn,
-                            !rootDeclaredProperties.Contains(propertyPath.First()),
-                            entityType.KeyProperties().Contains(property));
+                        tableColumn
+                            = MapTableColumn(
+                                property,
+                                columnName,
+                                !rootDeclaredProperties.Contains(propertyPath.First()));
+
+                        entityTypeMappingFragment.Table.AddColumn(tableColumn);
+
+                        if (entityType.KeyProperties().Contains(property))
+                        {
+                            entityTypeMappingFragment.Table.AddKeyMember(tableColumn);
+                        }
                     }
 
-                    entityTypeMappingFragment.PropertyMappings.Add(
-                        new DbEdmPropertyMapping
-                            {
-                                Column = tableColumn,
-                                PropertyPath = propertyPath.ToList()
-                            });
+                    entityTypeMappingFragment.AddColumnMapping(
+                        new ColumnMappingBuilder(tableColumn, propertyPath.ToList()));
                 }
 
                 propertyPath.Remove(property);

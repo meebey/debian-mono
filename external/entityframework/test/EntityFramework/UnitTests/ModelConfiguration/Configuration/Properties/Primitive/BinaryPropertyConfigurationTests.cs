@@ -1,15 +1,16 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 {
+    using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations.Schema;
-    using System.Data.Entity;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
+    
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
     using System.Data.Entity.ModelConfiguration.Edm;
+    using System.Data.Entity.Resources;
     using Xunit;
-    using Strings = System.Data.Entity.Resources.Strings;
 
     public sealed class BinaryPropertyConfigurationTests : LengthPropertyConfigurationTests
     {
@@ -18,19 +19,21 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         {
             var configuration = CreateConfiguration();
             configuration.IsRowVersion = true;
-            var property = new EdmProperty().AsPrimitive();
+            var property = EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
 
             configuration.Configure(property);
 
-            Assert.Equal(8, property.PropertyType.PrimitiveTypeFacets.MaxLength);
-            Assert.Equal(false, property.PropertyType.IsNullable);
-            Assert.Equal(EdmConcurrencyMode.Fixed, property.ConcurrencyMode);
-            Assert.Equal(DbStoreGeneratedPattern.Computed, property.GetStoreGeneratedPattern());
+            Assert.Equal(8, property.MaxLength);
+            Assert.Equal(false, property.Nullable);
+            Assert.Equal(ConcurrencyMode.Fixed, property.ConcurrencyMode);
+            Assert.Equal(StoreGeneratedPattern.Computed, property.GetStoreGeneratedPattern());
 
-            var edmPropertyMapping = new DbEdmPropertyMapping { Column = new DbTableColumnMetadata { Facets = new DbPrimitiveTypeFacets() } };
+            var edmPropertyMapping = new ColumnMappingBuilder(new EdmProperty("C"), new List<EdmProperty>());
 
-            configuration.Configure(new[] { Tuple.Create(edmPropertyMapping, new DbTableMetadata()) }, ProviderRegistry.Sql2008_ProviderManifest);
-            Assert.Equal("rowversion", edmPropertyMapping.Column.TypeName);
+            configuration.Configure(
+                new[] { Tuple.Create(edmPropertyMapping, new EntityType("T", XmlConstants.TargetNamespace_3, DataSpace.SSpace)) },
+                ProviderRegistry.Sql2008_ProviderManifest);
+            Assert.Equal("rowversion", edmPropertyMapping.ColumnProperty.TypeName);
         }
 
         [Fact]
@@ -116,7 +119,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationA.ColumnType = "bar";
             configurationA.ColumnOrder = 1;
             configurationA.IsNullable = true;
-            configurationA.ConcurrencyMode = EdmConcurrencyMode.None;
+            configurationA.ConcurrencyMode = ConcurrencyMode.None;
             configurationA.DatabaseGeneratedOption = DatabaseGeneratedOption.Computed;
             configurationA.MaxLength = 1;
             configurationA.IsFixedLength = false;
@@ -128,7 +131,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationB.ColumnType = "foo";
             configurationB.ColumnOrder = 2;
             configurationB.IsNullable = false;
-            configurationB.ConcurrencyMode = EdmConcurrencyMode.Fixed;
+            configurationB.ConcurrencyMode = ConcurrencyMode.Fixed;
             configurationB.DatabaseGeneratedOption = DatabaseGeneratedOption.Identity;
             configurationB.MaxLength = 2;
             configurationB.IsFixedLength = true;
@@ -136,44 +139,45 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationB.IsRowVersion = true;
 
             var expectedMessageCSpace = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsNullable", true, "IsNullable", false);
+                                        Strings.ConflictingConfigurationValue(
+                                            "IsNullable", true, "IsNullable", false);
 
             expectedMessageCSpace += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "ConcurrencyMode", EdmConcurrencyMode.None, "ConcurrencyMode", EdmConcurrencyMode.Fixed);
+                                     Strings.ConflictingConfigurationValue(
+                                         "ConcurrencyMode", ConcurrencyMode.None, "ConcurrencyMode", ConcurrencyMode.Fixed);
 
             expectedMessageCSpace += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "DatabaseGeneratedOption", DatabaseGeneratedOption.Computed, "DatabaseGeneratedOption", DatabaseGeneratedOption.Identity);
+                                     Strings.ConflictingConfigurationValue(
+                                         "DatabaseGeneratedOption", DatabaseGeneratedOption.Computed, "DatabaseGeneratedOption",
+                                         DatabaseGeneratedOption.Identity);
 
             var expectedMessage = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "ColumnName", "bar", "ColumnName", "foo");
+                                  Strings.ConflictingConfigurationValue(
+                                      "ColumnName", "bar", "ColumnName", "foo");
 
             expectedMessage += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "ColumnOrder", 1, "ColumnOrder", 2);
+                               Strings.ConflictingConfigurationValue(
+                                   "ColumnOrder", 1, "ColumnOrder", 2);
 
             expectedMessage += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "ColumnType", "bar", "ColumnType", "foo");
+                               Strings.ConflictingConfigurationValue(
+                                   "ColumnType", "bar", "ColumnType", "foo");
 
             var additionalErrors = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsFixedLength", false, "IsFixedLength", true);
+                                   Strings.ConflictingConfigurationValue(
+                                       "IsFixedLength", false, "IsFixedLength", true);
 
             additionalErrors += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsMaxLength", false, "IsMaxLength", true);
+                                Strings.ConflictingConfigurationValue(
+                                    "IsMaxLength", false, "IsMaxLength", true);
 
             additionalErrors += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "MaxLength", 1, "MaxLength", 2);
+                                Strings.ConflictingConfigurationValue(
+                                    "MaxLength", 1, "MaxLength", 2);
 
             additionalErrors += Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsRowVersion", false, "IsRowVersion", true);
+                                Strings.ConflictingConfigurationValue(
+                                    "IsRowVersion", false, "IsRowVersion", true);
 
             expectedMessageCSpace += additionalErrors;
             expectedMessage += additionalErrors;
@@ -207,8 +211,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationB.IsRowVersion = true;
 
             var expectedMessage = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsRowVersion", false, "IsRowVersion", true);
+                                  Strings.ConflictingConfigurationValue(
+                                      "IsRowVersion", false, "IsRowVersion", true);
 
             string errorMessage;
             Assert.False(configurationA.IsCompatible(configurationB, false, out errorMessage));

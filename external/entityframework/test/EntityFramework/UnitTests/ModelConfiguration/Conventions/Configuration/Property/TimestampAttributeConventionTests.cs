@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations;
     using System.ComponentModel.DataAnnotations.Schema;
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
-    using System.Data.Entity.ModelConfiguration.Edm;
     using Xunit;
 
     public sealed class TimestampAttributeConventionTests
@@ -15,7 +15,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var propertyConfiguration = new BinaryPropertyConfiguration();
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert_Timestamp(propertyConfiguration);
@@ -24,9 +24,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_set_timestamp_when_length_set()
         {
-            var propertyConfiguration = new BinaryPropertyConfiguration { MaxLength = 8 };
+            var propertyConfiguration = new BinaryPropertyConfiguration
+                                            {
+                                                MaxLength = 8
+                                            };
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert_Timestamp(propertyConfiguration);
@@ -35,9 +38,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_set_timestamp_when_required_set()
         {
-            var propertyConfiguration = new BinaryPropertyConfiguration { IsNullable = false };
+            var propertyConfiguration = new BinaryPropertyConfiguration
+                                            {
+                                                IsNullable = false
+                                            };
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert_Timestamp(propertyConfiguration);
@@ -46,9 +52,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_set_timestamp_when_concurrency_token_set()
         {
-            var propertyConfiguration = new BinaryPropertyConfiguration { ConcurrencyMode = EdmConcurrencyMode.Fixed };
+            var propertyConfiguration = new BinaryPropertyConfiguration
+                                            {
+                                                ConcurrencyMode = ConcurrencyMode.Fixed
+                                            };
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert_Timestamp(propertyConfiguration);
@@ -57,9 +66,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_set_timestamp_when_rowversion_set()
         {
-            var propertyConfiguration = new BinaryPropertyConfiguration { ColumnType = "rowversion" };
+            var propertyConfiguration = new BinaryPropertyConfiguration
+                                            {
+                                                ColumnType = "rowversion"
+                                            };
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert_Timestamp(propertyConfiguration);
@@ -68,9 +80,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_not_set_timestamp_when_identity()
         {
-            var propertyConfiguration = new BinaryPropertyConfiguration { DatabaseGeneratedOption = DatabaseGeneratedOption.Identity };
+            var propertyConfiguration = new BinaryPropertyConfiguration
+                                            {
+                                                DatabaseGeneratedOption = DatabaseGeneratedOption.Identity
+                                            };
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert.Null(propertyConfiguration.ColumnType);
@@ -79,9 +94,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_not_set_timestamp_when_maxLength()
         {
-            var propertyConfiguration = new BinaryPropertyConfiguration { MaxLength = 100 };
+            var propertyConfiguration = new BinaryPropertyConfiguration
+                                            {
+                                                MaxLength = 100
+                                            };
 
-            new TimestampAttributeConvention.TimestampAttributeConventionImpl()
+            new TimestampAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new TimestampAttribute());
 
             Assert.Null(propertyConfiguration.ColumnType);
@@ -89,11 +107,11 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 
         private void Assert_Timestamp(BinaryPropertyConfiguration binaryPropertyConfiguration)
         {
-            binaryPropertyConfiguration.Configure(new EdmProperty().AsPrimitive());
+            binaryPropertyConfiguration.Configure(EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String)));
 
             Assert.Equal("rowversion", binaryPropertyConfiguration.ColumnType);
             Assert.Equal(false, binaryPropertyConfiguration.IsNullable);
-            Assert.Equal(EdmConcurrencyMode.Fixed, binaryPropertyConfiguration.ConcurrencyMode);
+            Assert.Equal(ConcurrencyMode.Fixed, binaryPropertyConfiguration.ConcurrencyMode);
             Assert.Equal(DatabaseGeneratedOption.Computed, binaryPropertyConfiguration.DatabaseGeneratedOption);
             Assert.Equal(8, binaryPropertyConfiguration.MaxLength.Value);
         }

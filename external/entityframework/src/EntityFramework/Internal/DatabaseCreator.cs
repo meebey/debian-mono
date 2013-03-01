@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Data.Entity.Config;
@@ -7,30 +8,30 @@ namespace System.Data.Entity.Internal
     using System.Data.Entity.Migrations;
     using System.Data.Entity.Migrations.Infrastructure;
     using System.Data.Entity.Migrations.Sql;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
     ///     Handles creating databases either using the core provider or the Migrations pipeline.
     /// </summary>
     internal class DatabaseCreator
     {
-        private readonly Lazy<IDbDependencyResolver> _resolver;
+        private readonly IDbDependencyResolver _resolver;
 
         public DatabaseCreator()
-            : this(new Lazy<IDbDependencyResolver>(() => DbConfiguration.Instance.DependencyResolver))
+            : this(DbConfiguration.DependencyResolver)
         {
         }
 
-        public DatabaseCreator(Lazy<IDbDependencyResolver> resolver)
+        public DatabaseCreator(IDbDependencyResolver resolver)
         {
-            Contract.Requires(resolver != null);
+            DebugCheck.NotNull(resolver);
 
             _resolver = resolver;
         }
 
         /// <summary>
         ///     Creates a database using the core provider (i.e. ObjectContext.CreateDatabase) or
-        ///     by using Code First Migrations <see cref = "DbMigrator" /> to create an empty database
+        ///     by using Code First Migrations <see cref="DbMigrator" /> to create an empty database
         ///     and the perform an automatic migration to the current model.
         ///     Migrations is used if Code First is being used and the EF provider is for SQL Server
         ///     or SQL Compact. The core is used for non-Code First models and for other providers even
@@ -41,14 +42,12 @@ namespace System.Data.Entity.Internal
             Func<DbMigrationsConfiguration, DbContext, MigratorBase> createMigrator,
             ObjectContext objectContext)
         {
-            Contract.Requires(internalContext != null);
-            Contract.Requires(createMigrator != null);
+            DebugCheck.NotNull(internalContext);
+            DebugCheck.NotNull(createMigrator);
             // objectContext may be null when testing.
 
-            var sqlGenerator = _resolver.Value.GetService<MigrationSqlGenerator>(internalContext.ProviderName);
-
             if (internalContext.CodeFirstModel != null
-                && sqlGenerator != null)
+                && _resolver.GetService<MigrationSqlGenerator>(internalContext.ProviderName) != null)
             {
                 var contextType = internalContext.Owner.GetType();
 
@@ -59,9 +58,10 @@ namespace System.Data.Entity.Internal
                             AutomaticMigrationsEnabled = true,
                             MigrationsAssembly = contextType.Assembly,
                             MigrationsNamespace = contextType.Namespace,
+                            ContextKey = internalContext.ContextKey,
                             TargetDatabase =
                                 new DbConnectionInfo(
-                                    internalContext.OriginalConnectionString, internalContext.ProviderName)
+                                internalContext.OriginalConnectionString, internalContext.ProviderName)
                         },
                     internalContext.Owner);
 

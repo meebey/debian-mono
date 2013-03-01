@@ -1,17 +1,17 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Infrastructure
 {
     using System.Collections.Generic;
     using System.Data.Entity.Migrations.Sql;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Text;
 
     /// <summary>
     ///     Decorator to produce a SQL script instead of applying changes to the database.
-    ///     Using this decorator to wrap <see cref = "DbMigrator" /> will prevent <see cref = "DbMigrator" /> 
+    ///     Using this decorator to wrap <see cref="DbMigrator" /> will prevent <see cref="DbMigrator" />
     ///     from applying any changes to the target database.
     /// </summary>
     public class MigratorScriptingDecorator : MigratorBase
@@ -21,26 +21,20 @@ namespace System.Data.Entity.Migrations.Infrastructure
         /// <summary>
         ///     Initializes a new instance of the  MigratorScriptingDecorator class.
         /// </summary>
-        /// <param name = "innerMigrator">The migrator that this decorator is wrapping.</param>
+        /// <param name="innerMigrator"> The migrator that this decorator is wrapping. </param>
         public MigratorScriptingDecorator(MigratorBase innerMigrator)
             : base(innerMigrator)
         {
-            Contract.Requires(innerMigrator != null);
+            Check.NotNull(innerMigrator, "innerMigrator");
         }
 
         /// <summary>
         ///     Produces a script to update the database.
         /// </summary>
-        /// <param name = "sourceMigration">
-        ///     The migration to update from. 
-        ///     If null is supplied, a script to update the current database will be produced.
+        /// <param name="sourceMigration"> The migration to update from. If null is supplied, a script to update the current database will be produced. </param>
+        /// <param name="targetMigration"> The migration to update to. If null is supplied, a script to update to the latest migration will be produced. </param>
         /// </param>
-        /// <param name = "targetMigration">
-        ///     The migration to update to.
-        ///     If null is supplied, a script to update to the latest migration will be produced.
-        /// </param>
-        /// </param>
-        /// <returns>The generated SQL script.</returns>
+        /// <returns> The generated SQL script. </returns>
         public string ScriptUpdate(string sourceMigration, string targetMigration)
         {
             _sqlBuilder.Clear();
@@ -84,8 +78,9 @@ namespace System.Data.Entity.Migrations.Infrastructure
             return _sqlBuilder.ToString();
         }
 
-        internal override void EnsureDatabaseExists()
+        internal override void EnsureDatabaseExists(Action mustSucceedToKeepDatabase)
         {
+            mustSucceedToKeepDatabase();
         }
 
         internal override void ExecuteStatements(IEnumerable<MigrationStatement> migrationStatements)
@@ -101,6 +96,11 @@ namespace System.Data.Entity.Migrations.Infrastructure
 
         internal override void SeedDatabase()
         {
+        }
+
+        internal override bool HistoryExists()
+        {
+            return false;
         }
     }
 }

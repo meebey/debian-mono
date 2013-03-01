@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -30,14 +31,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     // This class represents an arbitrary boolean expression
     internal partial class BoolExpression : InternalBase
     {
-        #region FixRangeVisitor
-
         // A visitor that "fixes" the OneOfConsts according to the value of
         // the Range in the DomainConstraint
         private class FixRangeVisitor : BasicVisitor<BoolDomainConstraint>
         {
-            #region Constructor/Fields/Invocation
-
             private FixRangeVisitor(MemberDomainMap memberDomainMap)
             {
                 m_memberDomainMap = memberDomainMap;
@@ -55,10 +52,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 return result;
             }
 
-            #endregion
-
-            #region Visitors
-
             // The real work happens here in the literal's FixRange
             internal override DomainBoolExpr VisitTerm(DomainTermExpr expression)
             {
@@ -66,13 +59,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var result = literal.FixRange(expression.Identifier.Range, m_memberDomainMap);
                 return result;
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region IsFinalVisitor
 
         // A Visitor that determines if the OneOfConsts in this are complete or not
         private class IsFinalVisitor : Visitor<BoolDomainConstraint, bool>
@@ -82,8 +69,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var visitor = new IsFinalVisitor();
                 return expression.Accept(visitor);
             }
-
-            #region Visitors
 
             internal override bool VisitTrue(DomainTrueExpr expression)
             {
@@ -143,19 +128,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 }
                 return result;
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region RemapBoolVisitor
 
         // A visitor that remaps the JoinTreeNodes in a bool tree
         private class RemapBoolVisitor : BasicVisitor<BoolDomainConstraint>
         {
-            #region Constructor/Fields/Invocation
-
             // effects: Creates a visitor with the JoinTreeNode remapping
             // information in remap
             private RemapBoolVisitor(MemberDomainMap memberDomainMap, Dictionary<MemberPath, MemberPath> remap)
@@ -176,10 +153,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 return result;
             }
 
-            #endregion
-
-            #region Visitors
-
             // The real work happens here in the literal's RemapBool
             internal override DomainBoolExpr VisitTerm(DomainTermExpr expression)
             {
@@ -187,20 +160,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var newLiteral = literal.RemapBool(m_remap);
                 return newLiteral.GetDomainBoolExpression(m_memberDomainMap);
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region RequiredSlotsVisitor
 
         // A visitor that determines the slots required in the whole tree (for
         // CQL Generation)
         private class RequiredSlotsVisitor : BasicVisitor<BoolDomainConstraint>
         {
-            #region Constructor/Fields/Invocation
-
             private RequiredSlotsVisitor(MemberProjectionIndex projectedSlotMap, bool[] requiredSlots)
             {
                 m_projectedSlotMap = projectedSlotMap;
@@ -218,10 +183,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 expression.Accept(visitor);
             }
 
-            #endregion
-
-            #region Visitors
-
             // The real work happends here - the slots are obtained from the literal
             internal override DomainBoolExpr VisitTerm(DomainTermExpr expression)
             {
@@ -229,17 +190,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 literal.GetRequiredSlots(m_projectedSlotMap, m_requiredSlots);
                 return expression;
             }
-
-            #endregion
         }
 
-        #endregion
-
         // A Visitor that determines the CQL format of this expression
-
-        #region AsCqlVisitor
-
-        #region AsEsqlVisitor
 
         private sealed class AsEsqlVisitor : AsCqlVisitor<StringBuilder>
         {
@@ -249,8 +202,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 return expression.Accept(visitor);
             }
 
-            #region Constructor/Fields
-
             private AsEsqlVisitor(StringBuilder builder, string blockAlias)
             {
                 m_builder = builder;
@@ -259,10 +210,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
             private readonly StringBuilder m_builder;
             private readonly string m_blockAlias;
-
-            #endregion
-
-            #region Visitors
 
             internal override StringBuilder VisitTrue(DomainTrueExpr expression)
             {
@@ -326,13 +273,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 m_builder.Append(')');
                 return m_builder;
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region AsCqtVisitor
 
         private sealed class AsCqtVisitor : AsCqlVisitor<DbExpression>
         {
@@ -342,18 +283,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 return expression.Accept(visitor);
             }
 
-            #region Constructor/Fields
-
             private AsCqtVisitor(DbExpression row)
             {
                 m_row = row;
             }
 
             private readonly DbExpression m_row;
-
-            #endregion
-
-            #region Visitors
 
             internal override DbExpression VisitTrue(DomainTrueExpr expression)
             {
@@ -406,18 +341,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 }
                 return cqt;
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region AsCqlVisitor
 
         private abstract class AsCqlVisitor<T_Return> : Visitor<BoolDomainConstraint, T_Return>
         {
-            #region Constructor
-
             protected AsCqlVisitor()
             {
                 // All boolean expressions can evaluate to true or not true
@@ -430,10 +357,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             // boolean for the visitor to allow IS NOT NULLs to be not
             // generated for some scenarios
             private bool m_skipIsNotNull;
-
-            #endregion
-
-            #region Visitors
 
             internal override T_Return VisitTerm(DomainTermExpr expression)
             {
@@ -452,22 +375,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
 
             protected abstract T_Return NotExprAsCql(DomainNotExpr expression);
-
-            #endregion
         }
-
-        #endregion
-
-        #endregion
 
         // A Visitor that produces User understandable string of the given configuration represented by the BooleanExpression
 
-        #region AsUserStringVisitor
-
         private class AsUserStringVisitor : Visitor<BoolDomainConstraint, StringBuilder>
         {
-            #region Constructor/Fields/Invocation
-
             private AsUserStringVisitor(StringBuilder builder, string blockAlias)
             {
                 m_builder = builder;
@@ -490,10 +403,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var visitor = new AsUserStringVisitor(builder, blockAlias);
                 return expression.Accept(visitor);
             }
-
-            #endregion
-
-            #region Visitors
 
             internal override StringBuilder VisitTrue(DomainTrueExpr expression)
             {
@@ -580,16 +489,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 m_builder.Append(')');
                 return m_builder;
             }
-
-            #endregion
         }
-
-        #endregion
 
         // Given an expression that has no NOTs or ORs (if allowAllOperators
         // is false in GetTerms), generates the terms  in it
-
-        #region TermVisitor
 
         private class TermVisitor : Visitor<BoolDomainConstraint, IEnumerable<DomainTermExpr>>
         {
@@ -674,16 +577,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             #endregion
         }
 
-        #endregion
-
-        #region CompactStringVisitor
-
         // Generates a human readable version of the expression and places it in
         // the StringBuilder
         private class CompactStringVisitor : Visitor<BoolDomainConstraint, StringBuilder>
         {
-            #region Constructor/Fields/Invocation
-
             private CompactStringVisitor(StringBuilder builder)
             {
                 m_builder = builder;
@@ -696,10 +593,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var visitor = new CompactStringVisitor(builder);
                 return expression.Accept(visitor);
             }
-
-            #endregion
-
-            #region Visitors
 
             internal override StringBuilder VisitTrue(DomainTrueExpr expression)
             {
@@ -756,10 +649,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 m_builder.Append(')');
                 return m_builder;
             }
-
-            #endregion
         }
-
-        #endregion
     }
 }

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Collections;
@@ -9,6 +10,7 @@ namespace System.Data.Entity.Core.Objects
     using System.Data.Entity.Core.Objects.Internal;
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
@@ -17,11 +19,14 @@ namespace System.Data.Entity.Core.Objects
     using System.Threading.Tasks;
 
     /// <summary>
-    ///   This class implements untyped queries at the object-layer. 
+    ///     This class implements untyped queries at the object-layer.
     /// </summary>
     [SuppressMessage("Microsoft.Design", "CA1010:CollectionsShouldImplementGenericInterface")]
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
-    public abstract class ObjectQuery : IEnumerable, IDbAsyncEnumerable, IOrderedQueryable, IListSource
+    public abstract class ObjectQuery : IEnumerable, IOrderedQueryable, IListSource
+#if !NET40
+                                        , IDbAsyncEnumerable
+#endif
     {
         #region Private Instance Members
 
@@ -30,20 +35,20 @@ namespace System.Data.Entity.Core.Objects
         // -----------------
 
         /// <summary>
-        ///   The underlying implementation of this ObjectQuery as provided by a concrete subclass
-        ///   of ObjectQueryImplementation. Implementations currently exist for Entity-SQL- and Linq-to-Entities-based ObjectQueries.
+        ///     The underlying implementation of this ObjectQuery as provided by a concrete subclass
+        ///     of ObjectQueryImplementation. Implementations currently exist for Entity-SQL- and Linq-to-Entities-based ObjectQueries.
         /// </summary>
         private readonly ObjectQueryState _state;
 
         /// <summary>
-        ///   The result type of the query - 'TResultType' expressed as an O-Space type usage. Cached here and
-        ///   only instantiated if the <see cref="GetResultType"/> method is called.
+        ///     The result type of the query - 'TResultType' expressed as an O-Space type usage. Cached here and
+        ///     only instantiated if the <see cref="GetResultType" /> method is called.
         /// </summary>
         private TypeUsage _resultType;
 
         /// <summary>
-        /// Every instance of ObjectQuery get a unique instance of the provider. This helps propagate state information
-        /// using the provider through LINQ operators.
+        ///     Every instance of ObjectQuery get a unique instance of the provider. This helps propagate state information
+        ///     using the provider through LINQ operators.
         /// </summary>
         private ObjectQueryProvider _provider;
 
@@ -56,17 +61,13 @@ namespace System.Data.Entity.Core.Objects
         // --------------------
 
         /// <summary>
-        ///   The common constructor.
+        ///     The common constructor.
         /// </summary>
-        /// <param name="queryState">
-        ///   The underlying implementation of this ObjectQuery
-        /// </param>
-        /// <returns>
-        ///   A new ObjectQuery instance.
-        /// </returns>
+        /// <param name="queryState"> The underlying implementation of this ObjectQuery </param>
+        /// <returns> A new ObjectQuery instance. </returns>
         internal ObjectQuery(ObjectQueryState queryState)
         {
-            Debug.Assert(queryState != null, "ObjectQuery state cannot be null");
+            DebugCheck.NotNull(queryState);
 
             // Set the query state.
             _state = queryState;
@@ -77,7 +78,7 @@ namespace System.Data.Entity.Core.Objects
         #region Internal Properties
 
         /// <summary>
-        /// Gets an untyped instantiation of the underlying ObjectQueryState that implements this ObjectQuery.
+        ///     Gets an untyped instantiation of the underlying ObjectQueryState that implements this ObjectQuery.
         /// </summary>
         internal ObjectQueryState QueryState
         {
@@ -85,9 +86,9 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Gets the <see cref="ObjectQueryProvider"/> associated with this query instance.
+        ///     Gets the <see cref="ObjectQueryProvider" /> associated with this query instance.
         /// </summary>
-        internal ObjectQueryProvider Provider
+        internal virtual ObjectQueryProvider ObjectQueryProvider
         {
             get
             {
@@ -115,7 +116,7 @@ namespace System.Data.Entity.Core.Objects
         #endregion
 
         /// <summary>
-        /// Gets the Command Text (if any) for this ObjectQuery.
+        ///     Gets the Command Text (if any) for this ObjectQuery.
         /// </summary>
         public string CommandText
         {
@@ -127,15 +128,15 @@ namespace System.Data.Entity.Core.Objects
                     return String.Empty;
                 }
 
-                Debug.Assert(commandText != null && commandText.Length != 0, "Invalid Command Text returned");
+                Debug.Assert(!string.IsNullOrEmpty(commandText), "Invalid Command Text returned");
                 return commandText;
             }
         }
 
         /// <summary>
-        ///   The context for the query, which includes the connection, cache and
-        ///   metadata. Note that only the connection property is mutable and must be
-        ///   set before a query can be executed.
+        ///     The context for the query, which includes the connection, cache and
+        ///     metadata. Note that only the connection property is mutable and must be
+        ///     set before a query can be executed.
         /// </summary>
         public ObjectContext Context
         {
@@ -143,7 +144,7 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///   Allows optional control over how queried results interact with the object state manager.
+        ///     Allows optional control over how queried results interact with the object state manager.
         /// </summary>
         public MergeOption MergeOption
         {
@@ -157,7 +158,16 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///   The parameter collection for this query.
+        ///     Whether the query is streaming or buffering
+        /// </summary>
+        public bool Streaming
+        {
+            get { return _state.EffectiveStreamingBehaviour; }
+            set { _state.UserSpecifiedStreamingBehaviour = value; }
+        }
+
+        /// <summary>
+        ///     The parameter collection for this query.
         /// </summary>
         public ObjectParameterCollection Parameters
         {
@@ -165,7 +175,7 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///   Defines if the query plan should be cached.
+        ///     Defines whether the query plan should be cached.
         /// </summary>
         public bool EnablePlanCaching
         {
@@ -179,25 +189,21 @@ namespace System.Data.Entity.Core.Objects
         #region Public Methods
 
         /// <summary>
-        ///   Get the provider-specific command text used to execute this query
+        ///     Get the provider-specific command text used to execute this query and parameter information.
         /// </summary>
-        /// <returns></returns>
         [Browsable(false)]
         public string ToTraceString()
         {
-            return _state.GetExecutionPlan(null).ToTraceString();
+            return _state.GetExecutionPlan(null).ToTraceString(Parameters);
         }
 
         /// <summary>
-        ///   This method returns information about the result type of the ObjectQuery.
+        ///     This method returns information about the result type of the ObjectQuery.
         /// </summary>
-        /// <returns>
-        ///   The TypeMetadata that describes the shape of the query results.
-        /// </returns>
+        /// <returns> The TypeMetadata that describes the shape of the query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public TypeUsage GetResultType()
         {
-            Context.EnsureMetadata();
             if (null == _resultType)
             {
                 // Retrieve the result type from the implementation, in terms of C-Space.
@@ -228,68 +234,54 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///   This method allows explicit query evaluation with a specified merge
-        ///   option which will override the merge option property.
+        ///     This method allows explicit query evaluation with a specified merge
+        ///     option which will override the merge option property.
         /// </summary>
-        /// <param name="mergeOption">
-        ///   The MergeOption to use when executing the query.
-        /// </param>
-        /// <returns>
-        ///   An enumerable for the ObjectQuery results.
-        /// </returns>
+        /// <param name="mergeOption"> The MergeOption to use when executing the query. </param>
+        /// <returns> An enumerable for the ObjectQuery results. </returns>
         public ObjectResult Execute(MergeOption mergeOption)
         {
             EntityUtil.CheckArgumentMergeOption(mergeOption);
             return ExecuteInternal(mergeOption);
         }
 
+#if !NET40
+
         /// <summary>
-        ///   An asynchronous version of Execute, which
-        ///   allows explicit query evaluation with a specified merge
-        ///   option which will override the merge option property.
+        ///     An asynchronous version of Execute, which
+        ///     allows explicit query evaluation with a specified merge
+        ///     option which will override the merge option property.
         /// </summary>
-        /// <param name="mergeOption">
-        ///   The MergeOption to use when executing the query.
-        /// </param>
-        /// <param name="cancellationToken">
-        ///   The token to monitor for cancellation requests.
-        /// </param>
-        /// <returns>
-        ///   A Task containing an enumerable for the ObjectQuery results.
-        /// </returns>
+        /// <param name="mergeOption"> The MergeOption to use when executing the query. </param>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests. </param>
+        /// <returns> A Task containing an enumerable for the ObjectQuery results. </returns>
         public Task<ObjectResult> ExecuteAsync(MergeOption mergeOption)
         {
             return ExecuteAsync(mergeOption, CancellationToken.None);
         }
 
         /// <summary>
-        ///   An asynchronous version of Execute, which
-        ///   allows explicit query evaluation with a specified merge
-        ///   option which will override the merge option property.
+        ///     An asynchronous version of Execute, which
+        ///     allows explicit query evaluation with a specified merge
+        ///     option which will override the merge option property.
         /// </summary>
-        /// <param name="mergeOption">
-        ///   The MergeOption to use when executing the query.
-        /// </param>
-        /// <param name="cancellationToken">
-        ///   The token to monitor for cancellation requests.
-        /// </param>
-        /// <returns>
-        ///   A Task containing an enumerable for the ObjectQuery results.
-        /// </returns>
+        /// <param name="mergeOption"> The MergeOption to use when executing the query. </param>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests. </param>
+        /// <returns> A Task containing an enumerable for the ObjectQuery results. </returns>
         public Task<ObjectResult> ExecuteAsync(MergeOption mergeOption, CancellationToken cancellationToken)
         {
             EntityUtil.CheckArgumentMergeOption(mergeOption);
             return ExecuteInternalAsync(mergeOption, cancellationToken);
         }
 
+#endif
+
         #region IListSource implementation
 
         /// <summary>
-        ///   IListSource.GetList implementation
+        ///     IListSource.GetList implementation
         /// </summary>
-        /// <returns>
-        ///   IList interface over the data to bind
-        /// </returns>
+        /// <returns> IList interface over the data to bind </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IList IListSource.GetList()
         {
@@ -301,7 +293,7 @@ namespace System.Data.Entity.Core.Objects
         #region IQueryable implementation
 
         /// <summary>
-        /// Gets the result element type for this query instance.
+        ///     Gets the result element type for this query instance.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         Type IQueryable.ElementType
@@ -310,11 +302,11 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Gets the expression describing this query. For queries built using
-        /// LINQ builder patterns, returns a full LINQ expression tree; otherwise,
-        /// returns a constant expression wrapping this query. Note that the
-        /// default expression is not cached. This allows us to differentiate
-        /// between LINQ and Entity-SQL queries.
+        ///     Gets the expression describing this query. For queries built using
+        ///     LINQ builder patterns, returns a full LINQ expression tree; otherwise,
+        ///     returns a constant expression wrapping this query. Note that the
+        ///     default expression is not cached. This allows us to differentiate
+        ///     between LINQ and Entity-SQL queries.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         Expression IQueryable.Expression
@@ -322,15 +314,13 @@ namespace System.Data.Entity.Core.Objects
             get { return GetExpression(); }
         }
 
-        internal abstract Expression GetExpression();
-
         /// <summary>
-        /// Gets the IQueryProvider associated with this query instance.
+        ///     Gets the <see cref="IQueryProvider" /> associated with this query instance.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IQueryProvider IQueryable.Provider
         {
-            get { return Provider; }
+            get { return ObjectQueryProvider; }
         }
 
         #endregion
@@ -338,9 +328,9 @@ namespace System.Data.Entity.Core.Objects
         #region IEnumerable implementation
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator"/> which when enumerated will execute the given SQL query against the database.
+        ///     Returns an <see cref="IEnumerator" /> which when enumerated will execute the given SQL query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IEnumerator IEnumerable.GetEnumerator()
         {
@@ -351,15 +341,19 @@ namespace System.Data.Entity.Core.Objects
 
         #region IDbAsyncEnumerable<T> implementation
 
+#if !NET40
+
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator"/> which when enumerated will execute the given SQL query against the database.
+        ///     Returns an <see cref="IDbAsyncEnumerator" /> which when enumerated will execute the given SQL query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IDbAsyncEnumerator IDbAsyncEnumerable.GetAsyncEnumerator()
         {
             return GetAsyncEnumeratorInternal();
         }
+
+#endif
 
         #endregion
 
@@ -367,11 +361,18 @@ namespace System.Data.Entity.Core.Objects
 
         #region Internal Methods
 
+        internal abstract Expression GetExpression();
         internal abstract IEnumerator GetEnumeratorInternal();
+
+#if !NET40
+
         internal abstract IDbAsyncEnumerator GetAsyncEnumeratorInternal();
+        internal abstract Task<ObjectResult> ExecuteInternalAsync(MergeOption mergeOption, CancellationToken cancellationToken);
+
+#endif
+
         internal abstract IList GetIListSourceListInternal();
         internal abstract ObjectResult ExecuteInternal(MergeOption mergeOption);
-        internal abstract Task<ObjectResult> ExecuteInternalAsync(MergeOption mergeOption, CancellationToken cancellationToken);
 
         #endregion
     }

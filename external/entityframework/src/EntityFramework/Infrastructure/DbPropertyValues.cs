@@ -1,11 +1,12 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Infrastructure
 {
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.Data.Entity.Internal;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     A collection of all the properties for an underlying entity or complex object.
@@ -23,12 +24,12 @@ namespace System.Data.Entity.Infrastructure
         private readonly InternalPropertyValues _internalValues;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref = "DbPropertyValues" /> class.
+        ///     Initializes a new instance of the <see cref="DbPropertyValues" /> class.
         /// </summary>
-        /// <param name = "internalValues">The internal dictionary.</param>
+        /// <param name="internalValues"> The internal dictionary. </param>
         internal DbPropertyValues(InternalPropertyValues internalValues)
         {
-            Contract.Requires(internalValues != null);
+            DebugCheck.NotNull(internalValues);
 
             _internalValues = internalValues;
         }
@@ -41,7 +42,7 @@ namespace System.Data.Entity.Infrastructure
         ///     Creates an object of the underlying type for this dictionary and hydrates it with property
         ///     values from this dictionary.
         /// </summary>
-        /// <returns>The properties of this dictionary copied into a new object.</returns>
+        /// <returns> The properties of this dictionary copied into a new object. </returns>
         public object ToObject()
         {
             return _internalValues.ToObject();
@@ -54,12 +55,12 @@ namespace System.Data.Entity.Infrastructure
         ///     properties will be ignored.  This allows, for example, copying of properties from
         ///     simple Data Transfer Objects (DTOs).
         /// </summary>
-        /// <param name = "obj">The object to read values from.</param>
+        /// <param name="obj"> The object to read values from. </param>
         [SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "obj",
             Justification = "Naming is intentional.")]
         public void SetValues(object obj)
         {
-            Contract.Requires(obj != null);
+            Check.NotNull(obj, "obj");
 
             _internalValues.SetValues(obj);
         }
@@ -72,7 +73,7 @@ namespace System.Data.Entity.Infrastructure
         ///     Creates a new dictionary containing copies of all the properties in this dictionary.
         ///     Changes made to the new dictionary will not be reflected in this dictionary and vice versa.
         /// </summary>
-        /// <returns>A clone of this dictionary.</returns>
+        /// <returns> A clone of this dictionary. </returns>
         public DbPropertyValues Clone()
         {
             return new DbPropertyValues(_internalValues.Clone());
@@ -83,10 +84,10 @@ namespace System.Data.Entity.Infrastructure
         ///     The other dictionary must be based on the same type as this dictionary, or a type derived
         ///     from the type for this dictionary.
         /// </summary>
-        /// <param name = "dictionary">The dictionary to read values from.</param>
+        /// <param name="dictionary"> The dictionary to read values from. </param>
         public void SetValues(DbPropertyValues propertyValues)
         {
-            Contract.Requires(propertyValues != null);
+            Check.NotNull(propertyValues, "propertyValues");
 
             _internalValues.SetValues(propertyValues._internalValues);
         }
@@ -98,7 +99,7 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Gets the set of names of all properties in this dictionary as a read-only set.
         /// </summary>
-        /// <value>The property names.</value>
+        /// <value> The property names. </value>
         public IEnumerable<string> PropertyNames
         {
             get { return _internalValues.PropertyNames; }
@@ -108,13 +109,13 @@ namespace System.Data.Entity.Infrastructure
         ///     Gets or sets the value of the property with the specified property name.
         ///     The value may be a nested instance of this class.
         /// </summary>
-        /// <param name = "propertyName">The property name.</param>
-        /// <value>The value of the property.</value>
+        /// <param name="propertyName"> The property name. </param>
+        /// <value> The value of the property. </value>
         public object this[string propertyName]
         {
             get
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+                Check.NotEmpty(propertyName, "propertyName");
 
                 var value = _internalValues[propertyName];
 
@@ -128,7 +129,7 @@ namespace System.Data.Entity.Infrastructure
             }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+                Check.NotEmpty(propertyName, "propertyName");
 
                 _internalValues[propertyName] = value;
             }
@@ -139,9 +140,9 @@ namespace System.Data.Entity.Infrastructure
         ///     typed to the type of the generic parameter.  This is useful especially with
         ///     nested dictionaries to avoid writing expressions with lots of casts.
         /// </summary>
-        /// <typeparam name = "TValue">The type of the property.</typeparam>
-        /// <param name = "propertyName">Name of the property.</param>
-        /// <returns>The value of the property.</returns>
+        /// <typeparam name="TValue"> The type of the property. </typeparam>
+        /// <param name="propertyName"> Name of the property. </param>
+        /// <returns> The value of the property. </returns>
         public TValue GetValue<TValue>(string propertyName)
         {
             return (TValue)this[propertyName];
@@ -154,7 +155,7 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Gets the internal dictionary.
         /// </summary>
-        /// <value>The internal dictionary.</value>
+        /// <value> The internal dictionary. </value>
         internal InternalPropertyValues InternalPropertyValues
         {
             get { return _internalValues; }

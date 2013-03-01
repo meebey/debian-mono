@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Globalization;
-    using System.Text;
 
     /// <summary>
-    /// Describes modification function mappings for an entity type within an entity set.
+    ///     Describes modification function mappings for an entity type within an entity set.
     /// </summary>
     internal sealed class StorageEntityTypeModificationFunctionMapping
     {
@@ -17,7 +17,7 @@ namespace System.Data.Entity.Core.Mapping
             StorageModificationFunctionMapping insertFunctionMapping,
             StorageModificationFunctionMapping updateFunctionMapping)
         {
-            Contract.Requires(entityType != null);
+            DebugCheck.NotNull(entityType);
 
             EntityType = entityType;
             DeleteFunctionMapping = deleteFunctionMapping;
@@ -26,22 +26,22 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Gets (specific) entity type these functions handle.
+        ///     Gets (specific) entity type these functions handle.
         /// </summary>
         internal readonly EntityType EntityType;
 
         /// <summary>
-        /// Gets delete function for the current entity type.
+        ///     Gets delete function for the current entity type.
         /// </summary>
         internal readonly StorageModificationFunctionMapping DeleteFunctionMapping;
 
         /// <summary>
-        /// Gets insert function for the current entity type.
+        ///     Gets insert function for the current entity type.
         /// </summary>
         internal readonly StorageModificationFunctionMapping InsertFunctionMapping;
 
         /// <summary>
-        /// Gets update function for the current entity type.
+        ///     Gets update function for the current entity type.
         /// </summary>
         internal readonly StorageModificationFunctionMapping UpdateFunctionMapping;
 
@@ -52,17 +52,5 @@ namespace System.Data.Entity.Core.Mapping
                 "ET{{{0}}}:{4}DFunc={{{1}}},{4}IFunc={{{2}}},{4}UFunc={{{3}}}", EntityType, DeleteFunctionMapping,
                 InsertFunctionMapping, UpdateFunctionMapping, Environment.NewLine + "  ");
         }
-
-#if DEBUG
-        internal void Print(int index)
-        {
-            StorageEntityContainerMapping.GetPrettyPrintString(ref index);
-            var sb = new StringBuilder();
-            sb.Append("Entity Type Function Mapping");
-            sb.Append("   ");
-            sb.Append(ToString());
-            Console.WriteLine(sb.ToString());
-        }
-#endif
     }
 }

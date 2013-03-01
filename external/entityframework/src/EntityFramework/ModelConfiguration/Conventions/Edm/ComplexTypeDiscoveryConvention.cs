@@ -1,25 +1,25 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
 
     /// <summary>
     ///     Convention to configure a type as a complex type if it has no primary key, no mapped base type and no navigation properties.
     /// </summary>
-    public sealed class ComplexTypeDiscoveryConvention : IEdmConvention
+    public class ComplexTypeDiscoveryConvention : IEdmConvention
     {
-        internal ComplexTypeDiscoveryConvention()
-        {
-        }
-
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
-        void IEdmConvention.Apply(EdmModel model)
+        public void Apply(EdmModel model)
         {
+            Check.NotNull(model, "model");
+
             // Query the model for candidate complex types.
             //   - The rules for complex type discovery are as follows:
             //      1) The entity does not have a key or base type.
@@ -33,7 +33,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions
             //      8) Any inbound navigation properties do not have explicit configuration.
 
             var candidates
-                = from entityType in model.GetEntityTypes()
+                = from entityType in model.EntityTypes
                   where entityType.DeclaredKeyProperties.Count == 0 // (1)
                         && entityType.BaseType == null
                   // (1)
@@ -44,25 +44,25 @@ namespace System.Data.Entity.ModelConfiguration.Conventions
                         && !entityType.NavigationProperties.Any()
                   // (3)
                   let matchingAssociations
-                      = from associationType in model.GetAssociationTypes()
-                        where associationType.SourceEnd.EntityType == entityType ||
-                              associationType.TargetEnd.EntityType == entityType
+                      = from associationType in model.AssociationTypes
+                        where associationType.SourceEnd.GetEntityType() == entityType ||
+                              associationType.TargetEnd.GetEntityType() == entityType
                         let declaringEnd
-                            = associationType.SourceEnd.EntityType == entityType
+                            = associationType.SourceEnd.GetEntityType() == entityType
                                   ? associationType.SourceEnd
                                   : associationType.TargetEnd
                         let declaringEntity
-                            = associationType.GetOtherEnd(declaringEnd).EntityType
+                            = associationType.GetOtherEnd(declaringEnd).GetEntityType()
                         let navigationProperties
                             = declaringEntity.NavigationProperties
-                            .Where(n => n.ResultEnd.EntityType == entityType)
+                                             .Where(n => n.ResultEnd.GetEntityType() == entityType)
                         select new
-                            {
-                                DeclaringEnd = declaringEnd,
-                                AssociationType = associationType,
-                                DeclaringEntityType = declaringEntity,
-                                NavigationProperties = navigationProperties.ToList()
-                            }
+                                   {
+                                       DeclaringEnd = declaringEnd,
+                                       AssociationType = associationType,
+                                       DeclaringEntityType = declaringEntity,
+                                       NavigationProperties = navigationProperties.ToList()
+                                   }
                   where matchingAssociations.All(
                       a => a.AssociationType.Constraint == null // (4)
                            && a.AssociationType.GetConfiguration() == null // (5)
@@ -71,19 +71,19 @@ namespace System.Data.Entity.ModelConfiguration.Conventions
                            && a.NavigationProperties.All(n => n.GetConfiguration() == null))
                   // (8)
                   select new
-                      {
-                          EntityType = entityType,
-                          MatchingAssociations = matchingAssociations.ToList(),
-                      };
+                             {
+                                 EntityType = entityType,
+                                 MatchingAssociations = matchingAssociations.ToList(),
+                             };
 
             // Transform candidate entities into complex types
             foreach (var candidate in candidates.ToList())
             {
-                var complexType = model.AddComplexType(candidate.EntityType.Name);
+                var complexType = model.AddComplexType(candidate.EntityType.Name, candidate.EntityType.NamespaceName);
 
                 foreach (var property in candidate.EntityType.DeclaredProperties)
                 {
-                    complexType.DeclaredProperties.Add(property);
+                    complexType.AddMember(property);
                 }
 
                 foreach (var annotation in candidate.EntityType.Annotations)
@@ -97,9 +97,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions
                     {
                         if (association.DeclaringEntityType.NavigationProperties.Contains(navigationProperty))
                         {
-                            association.DeclaringEntityType.DeclaredNavigationProperties.Remove(navigationProperty);
-                            var complexProperty =
-                                association.DeclaringEntityType.AddComplexProperty(navigationProperty.Name, complexType);
+                            association.DeclaringEntityType.RemoveMember(navigationProperty);
+
+                            var complexProperty
+                                = association.DeclaringEntityType
+                                             .AddComplexProperty(navigationProperty.Name, complexType);
+
                             foreach (var annotation in navigationProperty.Annotations)
                             {
                                 complexProperty.Annotations.Add(annotation);

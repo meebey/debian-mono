@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity
 {
     using System.Collections;
@@ -8,19 +9,18 @@ namespace System.Data.Entity
     using System.Data.Entity.Internal;
     using System.Data.Entity.Internal.Linq;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Threading;
     using System.Threading.Tasks;
 
     /// <summary>
-    ///     A non-generic version of <see cref = "DbSet{T}" /> which can be used when the type of entity
+    ///     A non-generic version of <see cref="DbSet{T}" /> which can be used when the type of entity
     ///     is not known at build time.
     /// </summary>
     [SuppressMessage("Microsoft.Design", "CA1010:CollectionsShouldImplementGenericInterface")]
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix",
         Justification = "Name is intentional")]
-    [ContractClass(typeof(DbSetContracts))]
     public abstract class DbSet : DbQuery, IInternalSetAdapter
     {
         #region Fields and constructors
@@ -48,13 +48,15 @@ namespace System.Data.Entity
         ///     The ordering of composite key values is as defined in the EDM, which is in turn as defined in
         ///     the designer, by the Code First fluent API, or by the DataMember attribute.
         /// </remarks>
-        /// <param name = "keyValues">The values of the primary key for the entity to be found.</param>
-        /// <returns>The entity found, or null.</returns>
-        /// <exception cref = "InvalidOperationException">Thrown if multiple entities exist in the context with the primary key values given.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the type of entity is not part of the data model for this context.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the types of the key values do not match the types of the key values for the entity type to be found.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the context has been disposed.</exception>
+        /// <param name="keyValues"> The values of the primary key for the entity to be found. </param>
+        /// <returns> The entity found, or null. </returns>
+        /// <exception cref="InvalidOperationException">Thrown if multiple entities exist in the context with the primary key values given.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the type of entity is not part of the data model for this context.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the types of the key values do not match the types of the key values for the entity type to be found.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the context has been disposed.</exception>
         public abstract object Find(params object[] keyValues);
+
+#if !NET40
 
         /// <summary>
         ///     An asynchronous version of Find, which
@@ -69,8 +71,8 @@ namespace System.Data.Entity
         ///     The ordering of composite key values is as defined in the EDM, which is in turn as defined in
         ///     the designer, by the Code First fluent API, or by the DataMember attribute.
         /// </remarks>
-        /// <param name = "keyValues">The values of the primary key for the entity to be found.</param>
-        /// <returns>A Task containing the entity found, or null.</returns>
+        /// <param name="keyValues"> The values of the primary key for the entity to be found. </param>
+        /// <returns> A Task containing the entity found, or null. </returns>
         public Task<object> FindAsync(params object[] keyValues)
         {
             return FindAsync(CancellationToken.None, keyValues);
@@ -89,17 +91,19 @@ namespace System.Data.Entity
         ///     The ordering of composite key values is as defined in the EDM, which is in turn as defined in
         ///     the designer, by the Code First fluent API, or by the DataMember attribute.
         /// </remarks>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <param name = "keyValues">The values of the primary key for the entity to be found.</param>
-        /// <returns>A Task containing the entity found, or null.</returns>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests. </param>
+        /// <param name="keyValues"> The values of the primary key for the entity to be found. </param>
+        /// <returns> A Task containing the entity found, or null. </returns>
         public abstract Task<object> FindAsync(CancellationToken cancellationToken, params object[] keyValues);
+
+#endif
 
         #endregion
 
         #region Data binding/local view
 
         /// <summary>
-        ///     Gets an <see cref = "ObservableCollection{T}" /> that represents a local view of all Added, Unchanged,
+        ///     Gets an <see cref="ObservableCollection{T}" /> that represents a local view of all Added, Unchanged,
         ///     and Modified entities in this set.  This local view will stay in sync as entities are added or
         ///     removed from the context.  Likewise, entities added to or removed from the local view will automatically
         ///     be added to or removed from the context.
@@ -109,7 +113,7 @@ namespace System.Data.Entity
         ///     extension method, and then binding to the local data through this property.  For WPF bind to this property
         ///     directly.  For Windows Forms bind to the result of calling ToBindingList on this property
         /// </remarks>
-        /// <value>The local view.</value>
+        /// <value> The local view. </value>
         public abstract IList Local { get; }
 
         #endregion
@@ -120,8 +124,8 @@ namespace System.Data.Entity
         ///     Attaches the given entity to the context underlying the set.  That is, the entity is placed
         ///     into the context in the Unchanged state, just as if it had been read from the database.
         /// </summary>
-        /// <param name = "entity">The entity to attach.</param>
-        /// <returns>The entity.</returns>
+        /// <param name="entity"> The entity to attach. </param>
+        /// <returns> The entity. </returns>
         /// <remarks>
         ///     Attach is used to repopulate a context with an entity that is known to already exist in the database.
         ///     SaveChanges will therefore not attempt to insert an attached entity into the database because
@@ -131,7 +135,7 @@ namespace System.Data.Entity
         /// </remarks>
         public object Attach(object entity)
         {
-            Contract.Requires(entity != null);
+            Check.NotNull(entity, "entity");
 
             InternalSet.Attach(entity);
             return entity;
@@ -141,15 +145,15 @@ namespace System.Data.Entity
         ///     Adds the given entity to the context underlying the set in the Added state such that it will
         ///     be inserted into the database when SaveChanges is called.
         /// </summary>
-        /// <param name = "entity">The entity to add.</param>
-        /// <returns>The entity.</returns>
+        /// <param name="entity"> The entity to add. </param>
+        /// <returns> The entity. </returns>
         /// <remarks>
         ///     Note that entities that are already in the context in some other state will have their state set
         ///     to Added.  Add is a no-op if the entity is already in the context in the Added state.
         /// </remarks>
         public object Add(object entity)
         {
-            Contract.Requires(entity != null);
+            Check.NotNull(entity, "entity");
 
             InternalSet.Add(entity);
             return entity;
@@ -160,8 +164,8 @@ namespace System.Data.Entity
         ///     is called.  Note that the entity must exist in the context in some other state before this method
         ///     is called.
         /// </summary>
-        /// <param name = "entity">The entity to remove.</param>
-        /// <returns>The entity.</returns>
+        /// <param name="entity"> The entity to remove. </param>
+        /// <returns> The entity. </returns>
         /// <remarks>
         ///     Note that if the entity exists in the context in the Added state, then this method
         ///     will cause it to be detached from the context.  This is because an Added entity is assumed not to
@@ -169,7 +173,7 @@ namespace System.Data.Entity
         /// </remarks>
         public object Remove(object entity)
         {
-            Contract.Requires(entity != null);
+            Check.NotNull(entity, "entity");
 
             InternalSet.Remove(entity);
             return entity;
@@ -185,7 +189,7 @@ namespace System.Data.Entity
         ///     The instance returned will be a proxy if the underlying context is configured to create
         ///     proxies and the entity type meets the requirements for creating a proxy.
         /// </summary>
-        /// <returns>The entity instance, which may be a proxy.</returns>
+        /// <returns> The entity instance, which may be a proxy. </returns>
         public abstract object Create();
 
         /// <summary>
@@ -203,10 +207,10 @@ namespace System.Data.Entity
         #region Conversion to generic
 
         /// <summary>
-        ///     Returns the equivalent generic <see cref = "DbSet{T}" /> object.
+        ///     Returns the equivalent generic <see cref="DbSet{T}" /> object.
         /// </summary>
-        /// <typeparam name = "TEntity">The type of entity for which the set was created.</typeparam>
-        /// <returns>The generic set object.</returns>
+        /// <typeparam name="TEntity"> The type of entity for which the set was created. </typeparam>
+        /// <returns> The generic set object. </returns>
         public new DbSet<TEntity> Cast<TEntity>() where TEntity : class
         {
             if (typeof(TEntity)
@@ -238,7 +242,7 @@ namespace System.Data.Entity
         /// <summary>
         ///     Gets the underlying internal set.
         /// </summary>
-        /// <value>The internal set.</value>
+        /// <value> The internal set. </value>
         internal abstract IInternalSet InternalSet { get; }
 
         #endregion
@@ -248,21 +252,23 @@ namespace System.Data.Entity
         /// <summary>
         ///     Creates a raw SQL query that will return entities in this set.  By default, the
         ///     entities returned are tracked by the context; this can be changed by calling
-        ///     AsNoTracking on the <see cref = "DbSqlQuery" /> returned.
+        ///     AsNoTracking on the <see cref="DbRawSqlQuery" /> returned.
         ///     Note that the entities returned are always of the type for this set and never of
         ///     a derived type.  If the table or tables queried may contain data for other entity
         ///     types, then the SQL query must be written appropriately to ensure that only entities of
         ///     the correct type are returned.
         /// </summary>
-        /// <param name = "sql">The SQL query string.</param>
-        /// <param name = "parameters">The parameters to apply to the SQL query string.</param>
-        /// <returns>A <see cref = "DbSqlSetQuery" /> object that will execute the query when it is enumerated.</returns>
-        public DbSqlSetQuery SqlQuery(string sql, params object[] parameters)
+        /// <param name="sql"> The SQL query string. </param>
+        /// <param name="parameters"> The parameters to apply to the SQL query string. </param>
+        /// <returns>
+        ///     A <see cref="DbSqlQuery" /> object that will execute the query when it is enumerated.
+        /// </returns>
+        public DbSqlQuery SqlQuery(string sql, params object[] parameters)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(sql));
-            Contract.Requires(parameters != null);
+            Check.NotEmpty(sql, "sql");
+            Check.NotNull(parameters, "parameters");
 
-            return new DbSqlSetQuery(new InternalSqlSetQuery(InternalSet, sql, false, parameters));
+            return new DbSqlQuery(new InternalSqlSetQuery(InternalSet, sql, /*isNoTracking:*/ false, /*streaming:*/ false, parameters));
         }
 
         #endregion
@@ -286,21 +292,6 @@ namespace System.Data.Entity
         public new Type GetType()
         {
             return base.GetType();
-        }
-
-        #endregion
-
-        #region Base Member Contracts
-
-        [ContractClassFor(typeof(DbSet))]
-        private abstract class DbSetContracts : DbSet
-        {
-            public override object Create(Type derivedEntityType)
-            {
-                Contract.Requires(derivedEntityType != null);
-
-                throw new NotImplementedException();
-            }
         }
 
         #endregion

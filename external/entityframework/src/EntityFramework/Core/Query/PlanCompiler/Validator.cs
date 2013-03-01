@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Query.PlanCompiler
 {
     using System.Data.Entity.Core.Metadata.Edm;
@@ -8,9 +9,9 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
 
 #if DEBUG
     /// <summary>
-    /// The Validator class extends the BasicValidator and enforces that the ITree is valid
-    /// through varying stages of the plan compilation process. At each stage, certain operators
-    /// are illegal - and this validator is largely intended to tackle that
+    ///     The Validator class extends the BasicValidator and enforces that the ITree is valid
+    ///     through varying stages of the plan compilation process. At each stage, certain operators
+    ///     are illegal - and this validator is largely intended to tackle that
     /// </summary>
     internal class Validator : BasicValidator
     {
@@ -146,6 +147,7 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
             AddAllEntry(validOpTypes, OpType.Null);
             AddAllEntry(validOpTypes, OpType.NullSentinel);
             AddAllEntry(validOpTypes, OpType.Or);
+            AddAllEntry(validOpTypes, OpType.In);
             AddAllEntry(validOpTypes, OpType.OuterApply);
             AddAllEntry(validOpTypes, OpType.PhysicalProject);
             AddAllEntry(validOpTypes, OpType.Plus);
@@ -198,9 +200,9 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
 
         #endregion
 
-        #region private methods
+    #region private methods
 
-        #region Initializers
+    #region Initializers
 
         private static int ComputeHash(OpType opType, PlanCompilerPhase phase)
         {
@@ -238,7 +240,7 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
 
         #endregion
 
-        #region Visitors
+    #region Visitors
 
         protected override void VisitDefault(Node n)
         {
@@ -248,7 +250,7 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
                 "Unxpected Op {0} in Phase {1}", n.Op.OpType, m_compilerState.Phase);
         }
 
-        #region ScalarOps
+    #region ScalarOps
 
         public override void Visit(NewEntityOp op, Node n)
         {
@@ -265,15 +267,15 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
 
         #endregion
 
-        #region PhysicalOps
+    #region PhysicalOps
 
         #endregion
 
-        #region RelOps
+    #region RelOps
 
         #endregion
 
-        #region AncillaryOps
+    #region AncillaryOps
 
         #endregion
 
@@ -281,34 +283,35 @@ namespace System.Data.Entity.Core.Query.PlanCompiler
 
         #endregion
 
-        #region private state
+    #region private state
 
         private readonly PlanCompiler m_compilerState;
 
-        private static readonly PlanCompilerPhase[] _planCompilerPhases = {
-            PlanCompilerPhase.PreProcessor,
-            PlanCompilerPhase.AggregatePushdown,
-            PlanCompilerPhase.Normalization,
-            PlanCompilerPhase.NTE,
-            PlanCompilerPhase.ProjectionPruning,
-            PlanCompilerPhase.NestPullup,
-            PlanCompilerPhase.Transformations,
-            PlanCompilerPhase.JoinElimination,
-            PlanCompilerPhase.CodeGen,
-            PlanCompilerPhase.PostCodeGen
-        };
+        private static readonly PlanCompilerPhase[] _planCompilerPhases =
+            {
+                PlanCompilerPhase.PreProcessor,
+                PlanCompilerPhase.AggregatePushdown,
+                PlanCompilerPhase.Normalization,
+                PlanCompilerPhase.NTE,
+                PlanCompilerPhase.ProjectionPruning,
+                PlanCompilerPhase.NestPullup,
+                PlanCompilerPhase.Transformations,
+                PlanCompilerPhase.JoinElimination,
+                PlanCompilerPhase.CodeGen,
+                PlanCompilerPhase.PostCodeGen
+            };
 
         private static BitVec s_ValidOpTypes = InitializeOpTypes();
 
         #endregion
 
         /// <summary>
-        /// BitVector helper class; used to keep track of the used columns
-        /// in the result assembly.
+        ///     BitVector helper class; used to keep track of the used columns
+        ///     in the result assembly.
         /// </summary>
         /// <remarks>
-        /// BitVec can be a struct because it contains a readonly reference to an int[].
-        /// This code is a copy of System.Collections.BitArray so that we can have an efficient implementation of Minus.
+        ///     BitVec can be a struct because it contains a readonly reference to an int[].
+        ///     This code is a copy of System.Collections.BitArray so that we can have an efficient implementation of Minus.
         /// </remarks>
         internal struct BitVec
         {

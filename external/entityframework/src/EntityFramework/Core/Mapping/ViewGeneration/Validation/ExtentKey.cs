@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -10,8 +11,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     // This class represents the key of  constraint on values that a relation slot may have
     internal class ExtentKey : InternalBase
     {
-        #region Constructors
-
         // effects: Creates a key object for an extent (present in each MemberPath)
         // with the fields corresponding to keyFields
         internal ExtentKey(IEnumerable<MemberPath> keyFields)
@@ -19,25 +18,13 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_keyFields = new List<MemberPath>(keyFields);
         }
 
-        #endregion
-
-        #region Fields
-
         // All the key fields in an entity set
         private readonly List<MemberPath> m_keyFields;
-
-        #endregion
-
-        #region Properties
 
         internal IEnumerable<MemberPath> KeyFields
         {
             get { return m_keyFields; }
         }
-
-        #endregion
-
-        #region Methods
 
         // effects: Determines all the keys (unique and primary for
         // entityType) for entityType and returns a key. "prefix" gives the
@@ -97,7 +84,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             StringUtil.ToCommaSeparatedStringSorted(builder, m_keyFields);
         }
-
-        #endregion
     }
 }

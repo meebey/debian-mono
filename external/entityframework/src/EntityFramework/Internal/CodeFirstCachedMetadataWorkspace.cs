@@ -1,17 +1,15 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Collections.Generic;
     using System.Data.Common;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Edm.Db.Mapping;
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Linq;
     using System.Reflection;
 
@@ -30,19 +28,17 @@ namespace System.Data.Entity.Internal
         /// <summary>
         ///     Builds and stores the workspace based on the given code first configuration.
         /// </summary>
-        /// <param name = "databaseMapping">The code first EDM model.</param>
+        /// <param name="databaseMapping"> The code first EDM model. </param>
         public CodeFirstCachedMetadataWorkspace(DbDatabaseMapping databaseMapping)
         {
-            Contract.Requires(databaseMapping != null);
+            DebugCheck.NotNull(databaseMapping);
 
-            _providerInfo = databaseMapping.Database.GetProviderInfo();
-
+            _providerInfo = databaseMapping.Database.ProviderInfo;
             _metadataWorkspace = databaseMapping.ToMetadataWorkspace();
-
             _assemblies = databaseMapping.Model.GetClrTypes().Select(t => t.Assembly).Distinct().ToList();
 
-            Contract.Assert(
-                databaseMapping.Model.Containers.Count() == 1, "Expecting Code First to create only one container.");
+            Debug.Assert(databaseMapping.Model.Containers.Count() == 1, "Expecting Code First to create only one container.");
+
             _defaultContainerName = databaseMapping.Model.Containers.First().Name;
         }
 
@@ -51,14 +47,16 @@ namespace System.Data.Entity.Internal
         #region ICachedMetadataWorkspace implementation
 
         /// <summary>
-        ///     Gets the <see cref = "MetadataWorkspace" />.
+        ///     Gets the <see cref="MetadataWorkspace" />.
         ///     If the workspace is not compatible with the provider manifest obtained from the given
         ///     connection then an exception is thrown.
         /// </summary>
-        /// <param name = "storeConnection">The connection to use to create or check SSDL provider info.</param>
-        /// <returns>The workspace.</returns>
+        /// <param name="storeConnection"> The connection to use to create or check SSDL provider info. </param>
+        /// <returns> The workspace. </returns>
         public MetadataWorkspace GetMetadataWorkspace(DbConnection connection)
         {
+            DebugCheck.NotNull(connection);
+
             var providerInvariantName = connection.GetProviderInvariantName();
 
             if (!string.Equals(_providerInfo.ProviderInvariantName, providerInvariantName, StringComparison.Ordinal))
@@ -87,7 +85,7 @@ namespace System.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The provider info used to construct the workspace.
+        ///     The provider info used to construct the workspace.
         /// </summary>
         public DbProviderInfo ProviderInfo
         {

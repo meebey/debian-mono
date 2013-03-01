@@ -1,21 +1,21 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace ProductivityApiTests
 {
     using System;
-    using System.Data.Entity.Core;
     using System.Data;
     using System.Data.Entity;
     using SimpleModel;
     using Xunit;
 
     /// <summary>
-    /// Functional tests for Database.  Unit tests also exist in the unit tests project.
+    ///     Functional tests for Database.  Unit tests also exist in the unit tests project.
     /// </summary>
     public class DatabaseTests : FunctionalTestBase
     {
         #region Infrastructure/setup
 
-        static DatabaseTests()
+        public DatabaseTests()
         {
             using (var context = new SimpleModelContext())
             {
@@ -69,13 +69,14 @@ namespace ProductivityApiTests
         [Fact]
         public void DatabaseExists_returns_true_for_existing_attached_database_when_using_Database_obtained_from_context()
         {
-            AttachableDatabaseTest((context) =>
-                                   {
-                                       // Ensure database is initialized
-                                       context.Database.Initialize(force: true);
+            AttachableDatabaseTest(
+                (context) =>
+                {
+                    // Ensure database is initialized
+                    context.Database.Initialize(force: true);
 
-                                       Assert.True(context.Database.Exists());
-                                   });
+                    Assert.True(context.Database.Exists());
+                });
         }
 
         [Fact]
@@ -91,14 +92,18 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_named_connection_string_that_exists_Config_file()
+        public void
+            DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_named_connection_string_that_exists_Config_file
+            ()
         {
             DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_named_connection_string(
                 "SimpleModelInAppConfig");
         }
 
         [Fact]
-        public void DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_named_connection_string_where_the_last_token_exists_in_Config_file()
+        public void
+            DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_named_connection_string_where_the_last_token_exists_in_Config_file
+            ()
         {
             DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_named_connection_string(
                 "SomeRandom.String.X.Y.Z.SimpleModelInAppConfig");
@@ -134,7 +139,8 @@ namespace ProductivityApiTests
 
         // Skipped due to Dev10.882884  DCR: PI: DbContext cannot be created with an already-open existing connection 
         // EntityConnection is created in the call "Database.Exists(connection)"
-        // TODO: [Fact(Skip = "Dev10.882884")]
+        // [Fact(Skip = "Dev10.882884")]
+        // See http://entityframework.codeplex.com/workitem/45
         public void DatabaseExists_returns_true_for_existing_database_when_using_static_method_taking_existing_connection_which_is_opened()
         {
             using (var connection = SimpleConnection<SimpleModelContext>())
@@ -179,7 +185,8 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void DatabaseExists_returns_false_for_non_existing_database_when_using_static_method_taking_existing_connection_which_is_closed()
+        public void
+            DatabaseExists_returns_false_for_non_existing_database_when_using_static_method_taking_existing_connection_which_is_closed()
         {
             using (var connection = SimpleConnection<EmptyContext>())
             {
@@ -214,8 +221,9 @@ namespace ProductivityApiTests
         [Fact]
         public void Can_delete_database_using_static_method_taking_database_name()
         {
-            Can_delete_database(() => Database.Delete(DefaultDbName<EmptyContext>()),
-                                () => Database.Exists(DefaultDbName<EmptyContext>()));
+            Can_delete_database(
+                () => Database.Delete(DefaultDbName<EmptyContext>()),
+                () => Database.Exists(DefaultDbName<EmptyContext>()));
         }
 
         [Fact]
@@ -248,8 +256,9 @@ namespace ProductivityApiTests
         [Fact]
         public void Can_delete_database_using_static_method_taking_connection_string()
         {
-            Can_delete_database(() => Database.Delete(SimpleConnectionString<EmptyContext>()),
-                                () => Database.Exists(SimpleConnectionString<EmptyContext>()));
+            Can_delete_database(
+                () => Database.Delete(SimpleConnectionString<EmptyContext>()),
+                () => Database.Exists(SimpleConnectionString<EmptyContext>()));
         }
 
         [Fact]
@@ -261,8 +270,9 @@ namespace ProductivityApiTests
                 Assert.True(connection.State == ConnectionState.Closed);
 
                 // Act/Assert
-                Can_delete_database(() => Database.Delete(connection),
-                                    () => Database.Exists(connection));
+                Can_delete_database(
+                    () => Database.Delete(connection),
+                    () => Database.Exists(connection));
             }
         }
 
@@ -272,6 +282,7 @@ namespace ProductivityApiTests
             {
                 context.Database.CreateIfNotExists();
             }
+
             deleteDatabase();
 
             Assert.False(databaseExists());
@@ -290,21 +301,23 @@ namespace ProductivityApiTests
         [Fact]
         public void Can_delete_attached_database_if_exists_using_Database_obtained_from_context()
         {
-            AttachableDatabaseTest((context) =>
-                                   {
-                                       // Ensure database is initialized
-                                       context.Database.Initialize(force: true);
+            AttachableDatabaseTest(
+                (context) =>
+                {
+                    // Ensure database is initialized
+                    context.Database.Initialize(force: true);
 
-                                       Assert.True(context.Database.Delete());
-                                       Assert.False(context.Database.Exists());
-                                   });
+                    Assert.True(context.Database.Delete());
+                    Assert.False(context.Database.Exists());
+                });
         }
 
         [Fact]
         public void Can_delete_database_if_exists_using_static_method_taking_database_name()
         {
-            Can_delete_database_if_exists(() => Database.Delete(DefaultDbName<EmptyContext>()),
-                                          () => Database.Exists(DefaultDbName<EmptyContext>()));
+            Can_delete_database_if_exists(
+                () => Database.Delete(DefaultDbName<EmptyContext>()),
+                () => Database.Exists(DefaultDbName<EmptyContext>()));
         }
 
         [Fact]
@@ -315,7 +328,8 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void Can_delete_database_if_exists_using_static_method_taking_named_connection_string_where_last_token_exists_in_config_file()
+        public void Can_delete_database_if_exists_using_static_method_taking_named_connection_string_where_last_token_exists_in_config_file(
+            )
         {
             Can_delete_database_if_exists_using_static_method_taking_named_connection_string(
                 "NonExistant.NamespaceName.SimpleModelInAppConfig");
@@ -325,23 +339,24 @@ namespace ProductivityApiTests
             string namedConnectionString)
         {
             // Arrange
-            Database.Delete("SimpleModelInAppConfig");
-            using (var context = new SimpleModelContext("SimpleModelInAppConfig"))
+            Database.Delete(namedConnectionString);
+            using (var context = new SimpleModelContext(namedConnectionString))
             {
                 context.Database.Create();
-                Assert.True(Database.Exists("SimpleModelInAppConfig"));
+                Assert.True(Database.Exists(namedConnectionString));
             }
 
             // Act- Assert
-            Database.Delete("SimpleModelInAppConfig");
-            Assert.False(Database.Exists("SimpleModelInAppConfig"));
+            Database.Delete(namedConnectionString);
+            Assert.False(Database.Exists(namedConnectionString));
         }
 
         [Fact]
         public void Can_delete_database_if_exists_using_static_method_taking_connection_string()
         {
-            Can_delete_database_if_exists(() => Database.Delete(SimpleConnectionString<EmptyContext>()),
-                                          () => Database.Exists(SimpleConnectionString<EmptyContext>()));
+            Can_delete_database_if_exists(
+                () => Database.Delete(SimpleConnectionString<EmptyContext>()),
+                () => Database.Exists(SimpleConnectionString<EmptyContext>()));
         }
 
         [Fact]
@@ -353,8 +368,9 @@ namespace ProductivityApiTests
                 Assert.True(connection.State == ConnectionState.Closed);
 
                 // Act/Assert
-                Can_delete_database_if_exists(() => Database.Delete(connection),
-                                              () => Database.Exists(connection));
+                Can_delete_database_if_exists(
+                    () => Database.Delete(connection),
+                    () => Database.Exists(connection));
             }
         }
 
@@ -382,11 +398,12 @@ namespace ProductivityApiTests
         [Fact]
         public void DeleteDatabaseIfExists_does_nothing_if_attached_database_does_not_exist_using_Database_obtained_from_context()
         {
-            AttachableDatabaseTest((context) =>
-                                   {
-                                       // NOTE: Database has not been initialized/created
-                                       Assert.False(context.Database.Delete());
-                                   });
+            AttachableDatabaseTest(
+                (context) =>
+                {
+                    // NOTE: Database has not been initialized/created
+                    Assert.False(context.Database.Delete());
+                });
         }
 
         [Fact]
@@ -397,15 +414,17 @@ namespace ProductivityApiTests
                 () => Database.Delete(DefaultDbName<EmptyContext>()));
         }
 
-
-        public void DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_named_connection_string_that_exists_in_config_file()
+        public void
+            DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_named_connection_string_that_exists_in_config_file
+            ()
         {
             DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_named_connection_string
                 ("SimpleModelInAppConfig");
         }
 
-
-        public void DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_named_connection_string_where_last_token_exists_in_config_file()
+        public void
+            DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_named_connection_string_where_last_token_exists_in_config_file
+            ()
         {
             DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_named_connection_string
                 ("NonExistant.NamespaceName.SimpleModelInAppConfig");
@@ -433,7 +452,8 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_existing_connection_which_is_closed()
+        public void
+            DeleteDatabaseIfExists_does_nothing_if_database_does_not_exist_using_static_method_taking_existing_connection_which_is_closed()
         {
             using (var connection = SimpleConnection<EmptyContext>())
             {
@@ -483,13 +503,14 @@ namespace ProductivityApiTests
         [Fact]
         public void Can_create_attached_database_using_Database_obtained_from_context()
         {
-            AttachableDatabaseTest((context) =>
-                                   {
-                                       // Ensure database is initialized
-                                       context.Database.Initialize(force: true);
+            AttachableDatabaseTest(
+                (context) =>
+                {
+                    // Ensure database is initialized
+                    context.Database.Initialize(force: true);
 
-                                       Can_create_database(context.Database);
-                                   });
+                    Can_create_database(context.Database);
+                });
         }
 
         private void Can_create_database(Database database)
@@ -576,14 +597,18 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Delete_and_Create_scenario_using_named_connection_string_exists_in_config_file()
+        public void
+            A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Delete_and_Create_scenario_using_named_connection_string_exists_in_config_file
+            ()
         {
             A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Delete_and_Create(
                 "SimpleModelInAppConfig");
         }
 
         [Fact]
-        public void A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Delete_and_Create_scenario_where_named_connection_string_last_token_exists_in_config_file()
+        public void
+            A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Delete_and_Create_scenario_where_named_connection_string_last_token_exists_in_config_file
+            ()
         {
             A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Delete_and_Create(
                 "NonExistant.NameSpace.SimpleModelInAppConfig");
@@ -608,14 +633,18 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Create_and_Delete_scenario_using_named_connection_string_exists_in_config_file()
+        public void
+            A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Create_and_Delete_scenario_using_named_connection_string_exists_in_config_file
+            ()
         {
             A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Create_and_Delete(
                 "SimpleModelInAppConfig");
         }
 
         [Fact]
-        public void A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Create_and_Delete_scenario_using_named_connection_string_last_token_in_config_file()
+        public void
+            A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Create_and_Delete_scenario_using_named_connection_string_last_token_in_config_file
+            ()
         {
             A_named_conection_string_can_be_reused_for_multiple_operations_when_using_static_methods_Create_and_Delete(
                 "NonExistant.NameSpace.SimpleModelInAppConfig");
@@ -704,8 +733,9 @@ namespace ProductivityApiTests
                 context.Products.Load();
 
                 Assert.Equal(MutatingConnectionContext1.ChangedConnectionString, initializer.ConnectionStringUsed);
-                Assert.Equal(MutatingConnectionContext1.ChangedConnectionString,
-                             context.Database.Connection.ConnectionString);
+                Assert.Equal(
+                    MutatingConnectionContext1.ChangedConnectionString,
+                    context.Database.Connection.ConnectionString);
 
                 Assert.False(Database.Exists(MutatingConnectionContext1.StartingConnectionString));
                 Assert.True(Database.Exists(MutatingConnectionContext1.ChangedConnectionString));
@@ -732,15 +762,17 @@ namespace ProductivityApiTests
                 context.Products.Load();
 
                 Assert.Equal(MutatingConnectionContext2.ChangedConnectionString, initializer.ConnectionStringUsed);
-                Assert.Equal(MutatingConnectionContext2.ChangedConnectionString,
-                             context.Database.Connection.ConnectionString);
+                Assert.Equal(
+                    MutatingConnectionContext2.ChangedConnectionString,
+                    context.Database.Connection.ConnectionString);
 
                 Assert.False(Database.Exists(MutatingConnectionContext2.StartingConnectionString));
                 Assert.True(Database.Exists(MutatingConnectionContext2.ChangedConnectionString));
             }
         }
 
-        public abstract class MutatingConnectionContext4<TContext> : SimpleModelContext where TContext : DbContext
+        public abstract class MutatingConnectionContext4<TContext> : SimpleModelContext
+            where TContext : DbContext
         {
             static MutatingConnectionContext4()
             {
@@ -753,8 +785,6 @@ namespace ProductivityApiTests
             }
         }
 
-        private const string ConnectionStringTemplate = @"Data Source={0};Initial Catalog={1};Integrated Security=True";
-
         public class MutatingConnectionContext4a : MutatingConnectionContext4<MutatingConnectionContext4a>
         {
             public MutatingConnectionContext4a(string connectionString)
@@ -764,11 +794,12 @@ namespace ProductivityApiTests
         }
 
         [Fact]
-        public void If_connection_is_changed_to_point_to_different_database_then_operations_that_use_OriginalConnectionString_pick_up_this_change()
+        public void
+            If_connection_is_changed_to_point_to_different_database_then_operations_that_use_OriginalConnectionString_pick_up_this_change()
         {
             If_connection_is_changed_then_operations_that_use_OriginalConnectionString_pick_up_this_change(
                 c => new MutatingConnectionContext4a(c),
-                string.Format(ConnectionStringTemplate, @".\SQLEXPRESS", "MutatingConnectionContext4_Mutated"));
+                SimpleConnectionString("MutatingConnectionContext4_Mutated"));
         }
 
         public class MutatingConnectionContext4b : MutatingConnectionContext4<MutatingConnectionContext4b>
@@ -779,19 +810,23 @@ namespace ProductivityApiTests
             }
         }
 
+#if !NET40
+
         [Fact]
-        public void If_connection_is_changed_to_point_to_different_server_then_operations_that_use_OriginalConnectionString_pick_up_this_change()
+        public void
+            If_connection_is_changed_to_point_to_different_server_then_operations_that_use_OriginalConnectionString_pick_up_this_change()
         {
             If_connection_is_changed_then_operations_that_use_OriginalConnectionString_pick_up_this_change(
                 c => new MutatingConnectionContext4b(c),
-                string.Format(ConnectionStringTemplate, @"(localdb)\v11.0", "MutatingConnectionContext4"));
+                @"Data Source=(localdb)\v11.0;Initial Catalog=MutatingConnectionContext4;Integrated Security=True");
         }
+
+#endif
 
         private void If_connection_is_changed_then_operations_that_use_OriginalConnectionString_pick_up_this_change(
             Func<string, DbContext> createContext, string changedConnectionString)
         {
-            var startingConnectionString = string.Format(ConnectionStringTemplate, @".\SQLEXPRESS",
-                                                         "MutatingConnectionContext4");
+            var startingConnectionString = SimpleConnectionString("MutatingConnectionContext4");
 
             Database.Delete(startingConnectionString);
             Database.Delete(changedConnectionString);
@@ -840,8 +875,9 @@ namespace ProductivityApiTests
             {
                 context.Products.Load();
 
-                Assert.Equal(MutatingConnectionContext5.ChangedConnectionString,
-                             context.Database.Connection.ConnectionString);
+                Assert.Equal(
+                    MutatingConnectionContext5.ChangedConnectionString,
+                    context.Database.Connection.ConnectionString);
                 Assert.True(Database.Exists(MutatingConnectionContext5.ChangedConnectionString));
             }
         }

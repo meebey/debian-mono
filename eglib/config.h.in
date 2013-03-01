@@ -124,6 +124,15 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* The JIT/AOT targets iOS */
+#undef TARGET_IOS
+
+/* The JIT/AOT targets Apple platforms */
+#undef TARGET_MACH
+
+/* The JIT/AOT targets OSX */
+#undef TARGET_OSX
+
 /* Version number of package */
 #undef VERSION
 

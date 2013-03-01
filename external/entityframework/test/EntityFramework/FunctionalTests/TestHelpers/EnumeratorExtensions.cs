@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity
 {
     using System.Collections.Generic;
     using System.Data.Entity.Infrastructure;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Threading;
     using System.Threading.Tasks;
@@ -11,9 +13,9 @@ namespace System.Data.Entity
     {
         public static List<T> ToList<T>(this IEnumerator<T> enumerator)
         {
-            Contract.Requires(enumerator != null);
+            Debug.Assert(enumerator != null);
 
-            List<T> resultList = new List<T>();
+            var resultList = new List<T>();
 
             while (enumerator.MoveNext())
             {
@@ -23,6 +25,8 @@ namespace System.Data.Entity
             return resultList;
         }
 
+#if !NET40
+
         public static Task<List<T>> ToListAsync<T>(this IDbAsyncEnumerator<T> enumerator)
         {
             return enumerator.ToListAsync(CancellationToken.None);
@@ -30,9 +34,9 @@ namespace System.Data.Entity
 
         public static async Task<List<T>> ToListAsync<T>(this IDbAsyncEnumerator<T> enumerator, CancellationToken cancellationToken)
         {
-            Contract.Requires(enumerator != null);
+            Debug.Assert(enumerator != null);
 
-            List<T> resultList = new List<T>();
+            var resultList = new List<T>();
 
             while (await enumerator.MoveNextAsync(cancellationToken))
             {
@@ -41,5 +45,7 @@ namespace System.Data.Entity
 
             return resultList;
         }
+
+#endif
     }
 }

@@ -1,37 +1,41 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive
 {
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.Entity.Core.Common;
+    using System.Data.Entity.Core.Mapping;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
     using System.Data.Entity.Internal;
+    using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Common;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
+    using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using System.Linq.Expressions;
-    using EdmProperty = System.Data.Entity.Edm.EdmProperty;
 
-    internal class PrimitivePropertyConfiguration : PropertyConfiguration
+    /// <summary>
+    ///     Used to configure a primitive property of an entity type or complex type.
+    /// </summary>
+    public class PrimitivePropertyConfiguration : PropertyConfiguration
     {
+        /// <summary>
+        ///     Initializes a new instance of the PrimitivePropertyConfiguration class.
+        /// </summary>
         public PrimitivePropertyConfiguration()
         {
             OverridableConfigurationParts = OverridableConfigurationParts.OverridableInCSpace |
                                             OverridableConfigurationParts.OverridableInSSpace;
         }
 
-        public PrimitivePropertyConfiguration(PrimitivePropertyConfiguration source)
+        protected PrimitivePropertyConfiguration(PrimitivePropertyConfiguration source)
         {
-            Contract.Requires(source != null);
+            Check.NotNull(source, "source");
 
+            TypeConfiguration = source.TypeConfiguration;
             IsNullable = source.IsNullable;
             ConcurrencyMode = source.ConcurrencyMode;
             DatabaseGeneratedOption = source.DatabaseGeneratedOption;
@@ -46,22 +50,44 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             return new PrimitivePropertyConfiguration(this);
         }
 
+        /// <summary>
+        ///     Gets a value indicating whether the property is optional.
+        /// </summary>
         public bool? IsNullable { get; set; }
 
-        public EdmConcurrencyMode? ConcurrencyMode { get; set; }
+        /// <summary>
+        ///     Gets or sets the concurrency mode to use for the property.
+        /// </summary>
+        public ConcurrencyMode? ConcurrencyMode { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the pattern used to generate values in the database for the
+        ///     property.
+        /// </summary>
         public DatabaseGeneratedOption? DatabaseGeneratedOption { get; set; }
 
+        /// <summary>
+        ///     Gets or sets the type of the database column used to store the property.
+        /// </summary>
         public string ColumnType { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the name of the database column used to store the property.
+        /// </summary>
         public string ColumnName { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the order of the database column used to store the property.
+        /// </summary>
         public int? ColumnOrder { get; set; }
 
-        public OverridableConfigurationParts OverridableConfigurationParts { get; set; }
+        internal OverridableConfigurationParts OverridableConfigurationParts { get; set; }
+        internal StructuralTypeConfiguration TypeConfiguration { get; set; }
 
         internal virtual void Configure(EdmProperty property)
         {
-            Contract.Requires(property != null);
-            Contract.Assert(property.PropertyType != null);
-            Contract.Assert(property.PropertyType.PrimitiveTypeFacets != null);
+            DebugCheck.NotNull(property);
+            Debug.Assert(property.TypeUsage != null);
 
             var existingConfiguration = property.GetConfiguration() as PrimitivePropertyConfiguration;
             if (existingConfiguration != null)
@@ -76,7 +102,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
                     var declaringTypeName = propertyInfo == null
                                                 ? string.Empty
                                                 : ObjectContextTypeCache.GetObjectType(propertyInfo.DeclaringType).
-                                                      FullName;
+                                                                         FullName;
                     throw Error.ConflictingPropertyConfiguration(property.Name, declaringTypeName, errorMessage);
                 }
 
@@ -101,7 +127,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             if (IsNullable != null)
             {
-                property.PropertyType.IsNullable = IsNullable;
+                property.Nullable = IsNullable.Value;
             }
 
             if (ConcurrencyMode != null)
@@ -111,34 +137,34 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             if (DatabaseGeneratedOption != null)
             {
-                property.SetStoreGeneratedPattern((DbStoreGeneratedPattern)DatabaseGeneratedOption.Value);
+                property.SetStoreGeneratedPattern((StoreGeneratedPattern)DatabaseGeneratedOption.Value);
 
                 if (DatabaseGeneratedOption.Value
                     == ComponentModel.DataAnnotations.Schema.DatabaseGeneratedOption.Identity)
                 {
-                    property.PropertyType.IsNullable = false;
+                    property.Nullable = false;
                 }
             }
         }
 
         internal virtual void Configure(
-            IEnumerable<Tuple<DbEdmPropertyMapping, DbTableMetadata>> propertyMappings,
+            IEnumerable<Tuple<ColumnMappingBuilder, EntityType>> propertyMappings,
             DbProviderManifest providerManifest,
             bool allowOverride = false)
         {
-            Contract.Requires(propertyMappings != null);
-            Contract.Requires(providerManifest != null);
+            DebugCheck.NotNull(propertyMappings);
+            DebugCheck.NotNull(providerManifest);
 
-            propertyMappings.Each(pm => Configure(pm.Item1.Column, pm.Item2, providerManifest, allowOverride));
+            propertyMappings.Each(pm => Configure(pm.Item1.ColumnProperty, pm.Item2, providerManifest, allowOverride));
         }
 
         internal virtual void Configure(
-            DbTableColumnMetadata column, DbTableMetadata table, DbProviderManifest providerManifest,
+            EdmProperty column, EntityType table, DbProviderManifest providerManifest,
             bool allowOverride = false)
         {
-            Contract.Requires(column != null);
-            Contract.Requires(table != null);
-            Contract.Requires(providerManifest != null);
+            DebugCheck.NotNull(column);
+            DebugCheck.NotNull(table);
+            DebugCheck.NotNull(providerManifest);
 
             var existingConfiguration = column.GetConfiguration() as PrimitivePropertyConfiguration;
 
@@ -164,7 +190,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             if (!string.IsNullOrWhiteSpace(ColumnType))
             {
-                column.TypeName = ColumnType;
+                column.PrimitiveType = providerManifest.GetStoreTypeFromName(ColumnType);
             }
 
             if (ColumnOrder != null)
@@ -174,18 +200,18 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             var storeType
                 = providerManifest.GetStoreTypes()
-                    .SingleOrDefault(t => t.Name.Equals(column.TypeName, StringComparison.OrdinalIgnoreCase));
+                                  .SingleOrDefault(t => t.Name.Equals(column.TypeName, StringComparison.OrdinalIgnoreCase));
 
             if (storeType != null)
             {
-                storeType.FacetDescriptions.Each(f => Configure(column.Facets, f));
+                storeType.FacetDescriptions.Each(f => Configure(column, f));
             }
 
             column.SetConfiguration(this);
             column.SetAllowOverride(allowOverride);
         }
 
-        private void ConfigureColumnName(DbTableColumnMetadata column, DbTableMetadata table)
+        private void ConfigureColumnName(EdmProperty column, EntityType table)
         {
             if (string.IsNullOrWhiteSpace(ColumnName)
                 || string.Equals(ColumnName, column.Name, StringComparison.Ordinal))
@@ -197,17 +223,17 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             // find other unconfigured columns that have the same preferred name
             var pendingRenames
-                = from c in table.Columns
+                = from c in table.Properties
                   let configuration = c.GetConfiguration() as PrimitivePropertyConfiguration
                   where (c != column)
                         && string.Equals(ColumnName, c.GetPreferredName(), StringComparison.Ordinal)
                         && ((configuration == null) || (configuration.ColumnName == null))
                   select c;
 
-            var renamedColumns = new List<DbColumnMetadata>
-                {
-                    column
-                };
+            var renamedColumns = new List<EdmProperty>
+                                     {
+                                         column
+                                     };
 
             // re-uniquify the conflicting columns
             pendingRenames
@@ -219,10 +245,10 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
                         });
         }
 
-        internal virtual void Configure(DbPrimitiveTypeFacets facets, FacetDescription facetDescription)
+        internal virtual void Configure(EdmProperty column, FacetDescription facetDescription)
         {
-            Contract.Requires(facets != null);
-            Contract.Requires(facetDescription != null);
+            DebugCheck.NotNull(column);
+            DebugCheck.NotNull(facetDescription);
         }
 
         internal virtual void CopyFrom(PrimitivePropertyConfiguration other)
@@ -236,7 +262,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             OverridableConfigurationParts = other.OverridableConfigurationParts;
         }
 
-        public virtual void FillFrom(PrimitivePropertyConfiguration other, bool inCSpace)
+        internal virtual void FillFrom(PrimitivePropertyConfiguration other, bool inCSpace)
         {
             if (ColumnName == null
                 && !inCSpace)
@@ -269,7 +295,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             OverridableConfigurationParts &= other.OverridableConfigurationParts;
         }
 
-        public virtual bool IsCompatible(PrimitivePropertyConfiguration other, bool inCSpace, out string errorMessage)
+        [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "2#")]
+        internal virtual bool IsCompatible(PrimitivePropertyConfiguration other, bool inCSpace, out string errorMessage)
         {
             errorMessage = string.Empty;
             if (other == null)
@@ -295,16 +322,20 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
                    columnTypeIsCompatible;
         }
 
-        protected bool IsCompatible<T, C>(Expression<Func<C, T?>> propertyExpression, C other, ref string errorMessage)
-            where T : struct
-            where C : PrimitivePropertyConfiguration
+        [SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
+        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
+        [SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference", MessageId = "2#")]
+        protected bool IsCompatible<TProperty, TConfiguration>(
+            Expression<Func<TConfiguration, TProperty?>> propertyExpression, TConfiguration other, ref string errorMessage)
+            where TProperty : struct
+            where TConfiguration : PrimitivePropertyConfiguration
         {
-            Contract.Requires(propertyExpression != null);
-            Contract.Requires(other != null);
+            Check.NotNull(propertyExpression, "propertyExpression");
+            Check.NotNull(other, "other");
 
             var propertyInfo = propertyExpression.GetSimplePropertyAccess().Single();
-            var thisValue = (T?)propertyInfo.GetValue(this, null);
-            var otherValue = (T?)propertyInfo.GetValue(other, null);
+            var thisValue = (TProperty?)propertyInfo.GetValue(this, null);
+            var otherValue = (TProperty?)propertyInfo.GetValue(other, null);
 
             if (IsCompatible(thisValue, otherValue))
             {
@@ -317,11 +348,15 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             return false;
         }
 
-        protected bool IsCompatible<C>(Expression<Func<C, string>> propertyExpression, C other, ref string errorMessage)
-            where C : PrimitivePropertyConfiguration
+        [SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
+        [SuppressMessage("Microsoft.Design", "CA1011:ConsiderPassingBaseTypesAsParameters")]
+        [SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference", MessageId = "2#")]
+        protected bool IsCompatible<TConfiguration>(
+            Expression<Func<TConfiguration, string>> propertyExpression, TConfiguration other, ref string errorMessage)
+            where TConfiguration : PrimitivePropertyConfiguration
         {
-            Contract.Requires(propertyExpression != null);
-            Contract.Requires(other != null);
+            Check.NotNull(propertyExpression, "propertyExpression");
+            Check.NotNull(other, "other");
 
             var propertyInfo = propertyExpression.GetSimplePropertyAccess().Single();
             var thisValue = (string)propertyInfo.GetValue(this, null);

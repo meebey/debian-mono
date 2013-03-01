@@ -1,19 +1,20 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// extract the column rename info from polymorphic entity type mappings
+    ///     extract the column rename info from polymorphic entity type mappings
     /// </summary>
     internal sealed class FunctionImportReturnTypeEntityTypeColumnsRenameBuilder
     {
         /// <summary>
-        /// CMember -> SMember*
+        ///     CMember -> SMember*
         /// </summary>
         internal Dictionary<string, FunctionImportReturnTypeStructuralTypeColumnRenameMapping> ColumnRenameMapping;
 
@@ -21,8 +22,8 @@ namespace System.Data.Entity.Core.Mapping
             Dictionary<EntityType, Collection<FunctionImportReturnTypePropertyMapping>> isOfTypeEntityTypeColumnsRenameMapping,
             Dictionary<EntityType, Collection<FunctionImportReturnTypePropertyMapping>> entityTypeColumnsRenameMapping)
         {
-            Contract.Requires(isOfTypeEntityTypeColumnsRenameMapping != null);
-            Contract.Requires(entityTypeColumnsRenameMapping != null);
+            DebugCheck.NotNull(isOfTypeEntityTypeColumnsRenameMapping);
+            DebugCheck.NotNull(entityTypeColumnsRenameMapping);
 
             ColumnRenameMapping = new Dictionary<string, FunctionImportReturnTypeStructuralTypeColumnRenameMapping>();
 
@@ -41,15 +42,15 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Set the column mappings for each defaultMemberName.
+        ///     Set the column mappings for each defaultMemberName.
         /// </summary>
         private void SetStructuralTypeColumnsRename(
             EntityType entityType,
             Collection<FunctionImportReturnTypePropertyMapping> columnsRenameMapping,
             bool isTypeOf)
         {
-            Contract.Requires(entityType != null);
-            Contract.Requires(columnsRenameMapping != null);
+            DebugCheck.NotNull(entityType);
+            DebugCheck.NotNull(columnsRenameMapping);
 
             foreach (var mapping in columnsRenameMapping)
             {

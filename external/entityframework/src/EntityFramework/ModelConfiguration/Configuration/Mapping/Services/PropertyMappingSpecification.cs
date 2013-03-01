@@ -1,25 +1,26 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Mapping
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db.Mapping;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
 
     internal class PropertyMappingSpecification
     {
-        private readonly EdmEntityType _entityType;
+        private readonly EntityType _entityType;
         private readonly IList<EdmProperty> _propertyPath;
-        private readonly IList<DbColumnCondition> _conditions;
+        private readonly IList<StorageConditionPropertyMapping> _conditions;
         private readonly bool _isDefaultDiscriminatorCondition;
 
         public PropertyMappingSpecification(
-            EdmEntityType entityType,
+            EntityType entityType,
             IList<EdmProperty> propertyPath,
-            IList<DbColumnCondition> conditions,
+            IList<StorageConditionPropertyMapping> conditions,
             bool isDefaultDiscriminatorCondition)
         {
-            Contract.Requires(entityType != null);
+            DebugCheck.NotNull(entityType);
 
             _entityType = entityType;
             _propertyPath = propertyPath;
@@ -27,7 +28,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Mapping
             _isDefaultDiscriminatorCondition = isDefaultDiscriminatorCondition;
         }
 
-        public EdmEntityType EntityType
+        public EntityType EntityType
         {
             get { return _entityType; }
         }
@@ -37,7 +38,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Mapping
             get { return _propertyPath; }
         }
 
-        public IList<DbColumnCondition> Conditions
+        public IList<StorageConditionPropertyMapping> Conditions
         {
             get { return _conditions; }
         }

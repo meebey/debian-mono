@@ -1,11 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Model
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Migrations.Extensions;
     using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
 
     /// <summary>
@@ -23,10 +22,7 @@ namespace System.Data.Entity.Migrations.Model
         /// <summary>
         ///     Initializes a new instance of the ForeignKeyOperation class.
         /// </summary>
-        /// <param name = "anonymousArguments">
-        ///     Additional arguments that may be processed by providers. 
-        ///     Use anonymous type syntax to specify arguments e.g. 'new { SampleArgument = "MyValue" }'.
-        /// </param>
+        /// <param name="anonymousArguments"> Additional arguments that may be processed by providers. Use anonymous type syntax to specify arguments e.g. 'new { SampleArgument = "MyValue" }'. </param>
         [SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed")]
         protected ForeignKeyOperation(object anonymousArguments = null)
             : base(anonymousArguments)
@@ -41,7 +37,7 @@ namespace System.Data.Entity.Migrations.Model
             get { return _principalTable; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _principalTable = value;
             }
@@ -55,7 +51,7 @@ namespace System.Data.Entity.Migrations.Model
             get { return _dependentTable; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _dependentTable = value;
             }
@@ -98,7 +94,7 @@ namespace System.Data.Entity.Migrations.Model
                         DependentTable,
                         PrincipalTable,
                         DependentColumns.Join(separator: "_"))
-                        .RestrictTo(128);
+                          .RestrictTo(128);
             }
         }
     }

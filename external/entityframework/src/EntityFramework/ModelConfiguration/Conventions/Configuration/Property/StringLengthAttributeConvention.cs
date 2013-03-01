@@ -1,51 +1,40 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
     using System.ComponentModel.DataAnnotations;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Reflection;
 
     /// <summary>
-    ///     Convention to process instances of <see cref = "StringLengthAttribute" /> found on properties in the model.
+    ///     Convention to process instances of <see cref="StringLengthAttribute" /> found on properties in the model.
     /// </summary>
-    public sealed class StringLengthAttributeConvention
-        : IConfigurationConvention<PropertyInfo, StringPropertyConfiguration>
+    public class StringLengthAttributeConvention
+        : AttributeConfigurationConvention<PropertyInfo, StringPropertyConfiguration, StringLengthAttribute>
     {
-        private readonly IConfigurationConvention<PropertyInfo, StringPropertyConfiguration> _impl
-            = new StringLengthAttributeConventionImpl();
-
-        internal StringLengthAttributeConvention()
+        public override void Apply(
+            PropertyInfo memberInfo,
+            StringPropertyConfiguration configuration,
+            StringLengthAttribute attribute)
         {
-        }
+            Check.NotNull(memberInfo, "memberInfo");
+            Check.NotNull(configuration, "configuration");
+            Check.NotNull(attribute, "attribute");
 
-        void IConfigurationConvention<PropertyInfo, StringPropertyConfiguration>.Apply(
-            PropertyInfo memberInfo, Func<StringPropertyConfiguration> configuration)
-        {
-            _impl.Apply(memberInfo, configuration);
-        }
-
-        internal sealed class StringLengthAttributeConventionImpl
-            : AttributeConfigurationConvention<PropertyInfo, StringPropertyConfiguration, StringLengthAttribute>
-        {
-            internal override void Apply(
-                PropertyInfo propertyInfo,
-                StringPropertyConfiguration stringPropertyConfiguration,
-                StringLengthAttribute stringLengthAttribute)
+            if (attribute.MaximumLength < -1
+                || attribute.MaximumLength == 0)
             {
-                if (stringLengthAttribute.MaximumLength < -1
-                    || stringLengthAttribute.MaximumLength == 0)
-                {
-                    throw Error.StringLengthAttributeConvention_InvalidMaximumLength(
-                        propertyInfo.Name, propertyInfo.ReflectedType);
-                }
+                throw Error.StringLengthAttributeConvention_InvalidMaximumLength(
+                    memberInfo.Name, memberInfo.ReflectedType);
+            }
 
-                // Set the length if the string configuration's maxlength is not yet set
-                if (stringPropertyConfiguration.IsMaxLength == null
-                    && stringPropertyConfiguration.MaxLength == null)
-                {
-                    stringPropertyConfiguration.MaxLength = stringLengthAttribute.MaximumLength;
-                }
+            // Set the length if the string configuration's maxlength is not yet set
+            if (configuration.IsMaxLength == null
+                && configuration.MaxLength == null)
+            {
+                configuration.MaxLength = attribute.MaximumLength;
             }
         }
     }

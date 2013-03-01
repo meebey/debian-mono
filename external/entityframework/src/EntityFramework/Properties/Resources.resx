@@ -142,15 +142,6 @@
   <data name="LoggingRevertMigration" xml:space="preserve">
     <value>Reverting explicit migration: {0}.</value>
   </data>
-  <data name="LoggingHistoryInsert" xml:space="preserve">
-    <value>[Inserting migration history record]</value>
-  </data>
-  <data name="LoggingHistoryDelete" xml:space="preserve">
-    <value>[Deleting migration history record]</value>
-  </data>
-  <data name="LoggingMetadataUpdate" xml:space="preserve">
-    <value>[Updating EdmMetadata model hash]</value>
-  </data>
   <data name="LoggingSeedingDatabase" xml:space="preserve">
     <value>Running Seed method.</value>
   </data>
@@ -251,14 +242,6 @@
   </data>
   <data name="ArgumentIsNullOrWhitespace" xml:space="preserve">
     <value>The argument '{0}' cannot be null, empty or contain only white space.</value>
-    <comment>## ExceptionType=ArgumentException</comment>
-  </data>
-  <data name="ArgumentPropertyIsNull" xml:space="preserve">
-    <value>The argument property '{0}' cannot be null.</value>
-    <comment>## ExceptionType=ArgumentException</comment>
-  </data>
-  <data name="PreconditionFailed" xml:space="preserve">
-    <value>The precondition '{0}' failed. {1}</value>
     <comment>## ExceptionType=ArgumentException</comment>
   </data>
   <data name="EntityTypeConfigurationMismatch" xml:space="preserve">
@@ -425,16 +408,14 @@
     <value>Not all properties for type '{0}' have been mapped. Either map those properties or explicitly excluded them from the model.</value>
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
-  <data name="ModelBuilder_ProviderNameNotFound" xml:space="preserve">
-    <value>Unable to determine the provider name for connection of type '{0}'.</value>
-    <comment>## ExceptionType=NotSupportedException</comment>
+  <data name="ProviderNameNotFound" xml:space="preserve">
+    <value>Unable to determine the provider name for provider factory of type '{0}'. Make sure that the ADO.NET provider is installed or registered in the application config.</value>
   </data>
-  <data name="ToTable_InvalidSchemaName" xml:space="preserve">
-    <value>The qualified table name '{0}' contains an invalid schema name. Schema names must have a non-zero length.</value>
-    <comment>## ExceptionType=ArgumentException</comment>
+  <data name="ProviderNotFound" xml:space="preserve">
+    <value>Unable to determine the DbProviderFactory type for connection of type '{0}'. Make sure that the ADO.NET provider is installed or registered in the application config.</value>
   </data>
-  <data name="ToTable_InvalidTableName" xml:space="preserve">
-    <value>The qualified table name '{0}' contains an invalid table name. Table names must have a non-zero length.</value>
+  <data name="InvalidDatabaseName" xml:space="preserve">
+    <value>The database name '{0}' is invalid. Database names must be of the form [&lt;schema_name&gt;.]&lt;object_name&gt;.</value>
     <comment>## ExceptionType=ArgumentException</comment>
   </data>
   <data name="EntityMappingConfiguration_DuplicateMapInheritedProperties" xml:space="preserve">
@@ -703,7 +684,7 @@
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="DbContext_ContextUsedInModelCreating" xml:space="preserve">
-    <value>The context cannot be used while the model is being created.</value>
+    <value>The context cannot be used while the model is being created. This exception may be thrown if the context is used inside the OnModelCreating method or if the same context instance is accessed by multiple threads concurrently. Note that instance members of DbContext and related classes are not guaranteed to be thread safe.</value>
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="DbContext_MESTNotSupported" xml:space="preserve">
@@ -755,7 +736,7 @@
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="DbQuery_BindingToDbQueryNotSupported" xml:space="preserve">
-    <value>Data binding directly to a store query (DbSet, DbQuery, DbSqlQuery) is not supported. Instead populate a DbSet with data, for example by calling Load on the DbSet, and then bind to local data. For WPF bind to DbSet.Local. For WinForms bind to DbSet.Local.ToBindingList().</value>
+    <value>Data binding directly to a store query (DbSet, DbQuery, DbSqlQuery, DbRawSqlQuery) is not supported. Instead populate a DbSet with data, for example by calling Load on the DbSet, and then bind to local data. For WPF bind to DbSet.Local. For WinForms bind to DbSet.Local.ToBindingList().</value>
     <comment>## ExceptionType=NotSupportedException</comment>
   </data>
   <data name="DbExtensions_InvalidIncludePathExpression" xml:space="preserve">
@@ -965,7 +946,7 @@
     <value>DependentEnd must not be null.</value>
   </data>
   <data name="EdmModel_Validator_Syntactic_EdmAssociationConstraint_DependentPropertiesMustNotBeEmpty" xml:space="preserve">
-    <value>DependentProperties must not be empty.</value>
+    <value>ToProperties must not be empty.</value>
   </data>
   <data name="EdmModel_Validator_Syntactic_EdmNavigationProperty_AssocationMustNotBeNull" xml:space="preserve">
     <value>Association must not be null.</value>
@@ -991,6 +972,12 @@
   <data name="EdmModel_Validator_Syntactic_EdmTypeReferenceNotValid" xml:space="preserve">
     <value>The type is not a valid EdmTypeReference.</value>
   </data>
+  <data name="EdmModel_InvalidDataSpace" xml:space="preserve">
+    <value>'{0}' is not valid data space for EdmModel. EdmModel supports only DataSpace.CSpace and DataSpace.SSpace.</value>
+  </data>
+  <data name="EdmModel_AddItem_NonMatchingNamespace" xml:space="preserve">
+    <value>The data space of the item does not match the data space of the EdmModel.</value>
+  </data>
   <data name="Serializer_OneNamespaceAndOneContainer" xml:space="preserve">
     <value>Serializer can only serialize an EdmModel that has one EdmNamespace and one EdmEntityContainer.</value>
   </data>
@@ -998,7 +985,7 @@
     <value>The field {0} must be a string or array type with a maximum length of '{1}'.</value>
   </data>
   <data name="MaxLengthAttribute_InvalidMaxLength" xml:space="preserve">
-    <value>MaxLengthAttribute must have a Length value that is greater than zero. Use MaxLength() without parameters to  indicate that the string or array can have the maximum allowable length.</value>
+    <value>MaxLengthAttribute must have a Length value that is greater than zero. Use MaxLength() without parameters to indicate that the string or array can have the maximum allowable length.</value>
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="MinLengthAttribute_ValidationError" xml:space="preserve">
@@ -1099,12 +1086,11 @@
   </data>
   <data name="EntityClient_ConnectionStringNeededBeforeOperation" xml:space="preserve">
     <value>A connection string must be set on the connection before you attempt this operation.</value>
-  </data>
-  <data name="EntityClient_CannotReopenConnection" xml:space="preserve">
-    <value>The connection was not closed.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="EntityClient_ConnectionNotOpen" xml:space="preserve">
     <value>The connection is not open.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="EntityClient_DuplicateParameterNames" xml:space="preserve">
     <value>Parameters must have a unique ParameterName. A second instance of '{0}' was discovered.</value>
@@ -1984,9 +1970,6 @@
   </data>
   <data name="AssemblyMissingFromAssembliesToConsider" xml:space="preserve">
     <value>The assembly '{0}' specified does not exist in the assemblies enumeration.</value>
-  </data>
-  <data name="InvalidCollectionSpecified" xml:space="preserve">
-    <value>Item Collection for '{0}' is not valid. Make sure that the StorageMappingItemCollection was constructed with the same instances of item collection that are registered for conceptual model and storage model.</value>
   </data>
   <data name="UnableToLoadResource" xml:space="preserve">
     <value>Unable to load the specified metadata resource.</value>
@@ -3046,9 +3029,11 @@
   </data>
   <data name="EntityReference_LessThanExpectedRelatedEntitiesFound" xml:space="preserve">
     <value>A relationship multiplicity constraint violation occurred: An EntityReference expected at least one related object, but the query returned no related objects from the data store.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="EntityReference_MoreThanExpectedRelatedEntitiesFound" xml:space="preserve">
     <value>A relationship multiplicity constraint violation occurred: An EntityReference can have no more than one related object, but the query returned more than one related object. This is a non-recoverable error.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="EntityReference_CannotChangeReferentialConstraintProperty" xml:space="preserve">
     <value>A referential integrity constraint violation occurred: A primary key property that is a part of referential integrity constraint cannot be changed when the dependent object is Unchanged unless it is being set to the association's principal object. The principal object must be tracked and not marked for deletion.</value>
@@ -4235,9 +4220,6 @@
   <data name="Cqt_Binding_CollectionRequired" xml:space="preserve">
     <value>DbExpressionBinding requires an input expression with a collection ResultType.</value>
   </data>
-  <data name="Cqt_Binding_VariableNameNotValid" xml:space="preserve">
-    <value>The specified variable name is not valid. Variable names cannot be empty.</value>
-  </data>
   <data name="Cqt_GroupBinding_CollectionRequired" xml:space="preserve">
     <value>DbGroupExpressionBinding requires an input expression with a collection ResultType.</value>
   </data>
@@ -4376,6 +4358,9 @@
   <data name="Cqt_Or_BooleanArgumentsRequired" xml:space="preserve">
     <value>DbOrExpression requires arguments with a common Boolean type.</value>
   </data>
+  <data name="Cqt_In_SameResultTypeRequired" xml:space="preserve">
+    <value>DbInExpression requires the same result type for the input expressions.</value>
+  </data>
   <data name="Cqt_Property_InstanceRequiredForInstance" xml:space="preserve">
     <value>An Instance property of type DbExpression is required for an instance property.</value>
   </data>
@@ -4459,15 +4444,19 @@
   </data>
   <data name="ADP_ClosedDataReaderError" xml:space="preserve">
     <value>The attempted operation is not valid. The data reader is closed.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="ADP_DataReaderClosed" xml:space="preserve">
     <value>Calling '{0}' when the data reader is closed is not a valid operation.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="ADP_ImplicitlyClosedDataReaderError" xml:space="preserve">
     <value>The attempted operation is not valid. The nested data reader has been implicitly closed because its parent data reader has been read or closed.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="ADP_NoData" xml:space="preserve">
     <value>There was an attempt to read, but no data was present.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="ADP_GetSchemaTableIsNotSupported" xml:space="preserve">
     <value>The GetSchemaTable method is not supported.</value>
@@ -4564,9 +4553,6 @@
   </data>
   <data name="EntityParameterContainedByAnotherCollection" xml:space="preserve">
     <value>The EntityParameter is already contained by another EntityParameterCollection.</value>
-  </data>
-  <data name="EntityParameterNull" xml:space="preserve">
-    <value>The EntityParameterCollection only accepts non-null EntityParameter type objects.</value>
   </data>
   <data name="EntityParameterCollectionRemoveInvalidObject" xml:space="preserve">
     <value>Attempted to remove an EntityParameter that is not contained by this EntityParameterCollection.</value>
@@ -5084,24 +5070,6 @@
   <data name="SpatialWithUseStrongSpatialTypesFalse" xml:space="preserve">
     <value>Currently, spatial types are only supported when used in CSDL files that have the UseStrongSpatialTypes annotation with a false value on their root Schema element.</value>
   </data>
-  <data name="ObjectQuery_QueryBuilder_InvalidProjectionList" xml:space="preserve">
-    <value>You must specify a valid projection list.</value>
-  </data>
-  <data name="ObjectQuery_QueryBuilder_InvalidSortKeyList" xml:space="preserve">
-    <value>You must specify a valid key list for sorting the results.</value>
-  </data>
-  <data name="ObjectQuery_QueryBuilder_InvalidGroupKeyList" xml:space="preserve">
-    <value>You must specify a valid key list for grouping the results.</value>
-  </data>
-  <data name="ObjectQuery_QueryBuilder_InvalidSkipCount" xml:space="preserve">
-    <value>You must specify a valid skip count.</value>
-  </data>
-  <data name="ObjectQuery_QueryBuilder_InvalidTopCount" xml:space="preserve">
-    <value>You must specify a valid result count.</value>
-  </data>
-  <data name="ObjectQuery_QueryBuilder_InvalidFilterPredicate" xml:space="preserve">
-    <value>You must specify a valid predicate for filtering the results.</value>
-  </data>
   <data name="ObjectQuery_QueryBuilder_InvalidResultType" xml:space="preserve">
     <value>'{0}' is not a valid type for type filtering operations. Type filtering is only valid on entity types and complex types.</value>
   </data>
@@ -5110,9 +5078,6 @@
   </data>
   <data name="ObjectQuery_QueryBuilder_NotSupportedLinqSource" xml:space="preserve">
     <value>Query builder methods are not supported for LINQ to Entities queries. For more information, see the Entity Framework documentation.</value>
-  </data>
-  <data name="ObjectQuery_InvalidEmptyQuery" xml:space="preserve">
-    <value>The command text for an ObjectQuery instance cannot be empty.</value>
   </data>
   <data name="ObjectQuery_InvalidConnection" xml:space="preserve">
     <value>A connection must be specified before the query can be executed.</value>
@@ -5228,9 +5193,6 @@
   <data name="ObjectQuery_Span_SpanPathSyntaxError" xml:space="preserve">
     <value>There was an error parsing the Include path. An empty navigation property was found.</value>
   </data>
-  <data name="ObjectQuery_Span_WhiteSpacePath" xml:space="preserve">
-    <value>The path consists only of white space.</value>
-  </data>
   <data name="EntityProxyTypeInfo_ProxyHasWrongWrapper" xml:space="preserve">
     <value>The entity wrapper stored in the proxy does not reference the same proxy.</value>
   </data>
@@ -5248,43 +5210,58 @@
     <comment>## ExceptionType=ArgumentException</comment>
   </data>
   <data name="EF6Providers_NoProviderFound" xml:space="preserve">
-    <value>No Entity Framework provider found for '{0}' ADO.NET provider. Make sure the provider is registered in the 'entityFramework' section of the application config file. See [TODO: EF6 providers link] for more information.</value>
+    <value>No Entity Framework provider found for '{0}' ADO.NET provider. Make sure the provider is registered in the 'entityFramework' section of the application config file. See http://go.microsoft.com/fwlink/?LinkId=260882 for more information.</value>
   </data>
   <data name="EF6Providers_ProviderTypeMissing" xml:space="preserve">
-    <value>The Entity Framework provider type '{0}' for the '{1}' ADO.NET provider could not be loaded. Make sure the provider assembly is available to the running application. See [TODO: EF6 providers link] for more information.</value>
+    <value>The Entity Framework provider type '{0}' for the '{1}' ADO.NET provider could not be loaded. Make sure the provider assembly is available to the running application. See http://go.microsoft.com/fwlink/?LinkId=260882 for more information.</value>
   </data>
   <data name="EF6Providers_InstanceMissing" xml:space="preserve">
     <value>The Entity Framework provider type '{0}' did not have a static property or field named 'Instance'. Entity Framework providers must declare a static property or field named 'Instance' that returns the Singleton instance of the provider.</value>
   </data>
   <data name="EF6Providers_NotDbProviderServices" xml:space="preserve">
-    <value>The 'Instance' member of the Entity Framework provider type '{0}' did not return an object that extends from 'System.Data.Entity.Core.Common.DbProviderServices'. Entity Framework providers must extend from this class and the 'Instance' member must return the Singleton instance of the provider.</value>
+    <value>The 'Instance' member of the Entity Framework provider type '{0}' did not return an object that inherits from 'System.Data.Entity.Core.Common.DbProviderServices'. Entity Framework providers must extend from this class and the 'Instance' member must return the Singleton instance of the provider.</value>
   </data>
   <data name="ProviderInvariantRepeatedInConfig" xml:space="preserve">
     <value>The provider for invariant name '{0}' is specified multiple times in the application configuration. The invariant name must be unique for each configured provider.</value>
   </data>
   <data name="ProviderInvariantNotPassedToResolver" xml:space="preserve">
-    <value>No name was passed to the IDbDependencyResolver.Get method. The provider invariant name must be supplied when attempting to resolve a DbProviderServices dependency.</value>
+    <value>No name was passed to the IDbDependencyResolver.Get method. The provider invariant name must be supplied when attempting to resolve a DbProviderServices or DbProviderFactory dependency.</value>
+  </data>
+  <data name="DbProviderFactoryNotPassedToResolver" xml:space="preserve">
+    <value>No DbProviderFactory instance was passed to the IDbDependencyResolver.Get method. A DbProviderFactory instance must be supplied when attempting to resolve an IProviderInvariantName dependency.</value>
   </data>
   <data name="DefaultConfigurationUsedBeforeSet" xml:space="preserve">
-    <value>The default DbConfiguration instance was used by the Entity Framework before an attempt was made to set an instance of '{0}'. The '{0}' instance must be set at application start before using any Entity Framework features or must be registered in the application's config file. See [TODO: Configuration link] for more information.</value>
+    <value>The default DbConfiguration instance was used by the Entity Framework before an attempt was made to set an instance of '{0}'. The '{0}' instance must be set at application start before using any Entity Framework features or must be registered in the application's config file. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
+  </data>
+  <data name="AddHandlerToInUseConfiguration" xml:space="preserve">
+    <value>The Entity Framework was already using a DbConfiguration instance before an attempt was made to add an 'OnLockingConfiguration' event handler. 'OnLockingConfiguration' event handlers can only be added as part of application start up before the Entity Framework is used. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
   </data>
   <data name="ConfigurationSetTwice" xml:space="preserve">
-    <value>An instance of '{0}' cannot be set because an instance of '{1}' is already being used. The DbConfiguration type to use cannot be changed once it has been set. See [TODO: Configuration link] for more information.</value>
+    <value>An instance of '{0}' cannot be set because an instance of '{1}' is already being used. The DbConfiguration type to use cannot be changed once it has been set. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
   </data>
   <data name="ConfigurationNotDiscovered" xml:space="preserve">
-    <value>The default DbConfiguration instance was used by the Entity Framework before the '{0}' type was discovered. An instance of '{0}' must be set at application start before using any Entity Framework features or must be registered in the application's config file. See [TODO: Configuration link] for more information.</value>
+    <value>The default DbConfiguration instance was used by the Entity Framework before the '{0}' type was discovered. An instance of '{0}' must be set at application start before using any Entity Framework features or must be registered in the application's config file. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
   </data>
   <data name="SetConfigurationNotDiscovered" xml:space="preserve">
-    <value>An instance of '{0}' was set but this type was not discovered in the same assembly as the '{1}' context. A DbConfiguration type can be set in the config file, or it must be part of the same assembly as the DbContext type. See [TODO: Configuration link] for more information.</value>
+    <value>An instance of '{0}' was set but this type was not discovered in the same assembly as the '{1}' context. A DbConfiguration type can be set in the config file, or it must be part of the same assembly as the DbContext type. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
   </data>
   <data name="MultipleConfigsInAssembly" xml:space="preserve">
     <value>The assembly {0} contains more than one type derived from {1}. Either define the DbConfiguration type to use in the application's config file or ensure that the assembly contains at most one type derived from {1}.</value>
   </data>
   <data name="CreateInstance_BadMigrationsConfigurationType" xml:space="preserve">
-    <value>The type '{0}' does not extend from '{1}'. Migrations configuration types must extend from '{1}'.</value>
+    <value>The type '{0}' does not inherit from '{1}'. Migrations configuration types must extend from '{1}'.</value>
   </data>
   <data name="CreateInstance_BadSqlGeneratorType" xml:space="preserve">
-    <value>The type '{0}' does not extend from '{1}'. Migrations SQL generator implementations must extend from '{1}'.</value>
+    <value>The type '{0}' does not inherit from '{1}'. Migrations SQL generator implementations must extend from '{1}'.</value>
+  </data>
+  <data name="CreateInstance_BadDbConfigurationType" xml:space="preserve">
+    <value>The type '{0}' does not inherit from '{1}'. Entity Framework code-based configuration classes must extend from '{1}'.</value>
+  </data>
+  <data name="DbConfigurationTypeNotFound" xml:space="preserve">
+    <value>The DbConfiguration type '{0}' specified in the application config file could not be loaded. Make sure that the assembly-qualified name is used and that the assembly is available to the running application. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
+  </data>
+  <data name="DbConfigurationTypeInAttributeNotFound" xml:space="preserve">
+    <value>The DbConfiguration type '{0}' specified in the DbConfigurationTypeAttribute constructor could not be loaded. Make sure that the assembly-qualified name is used and that the assembly is available to the running application. See http://go.microsoft.com/fwlink/?LinkId=260883 for more information.</value>
   </data>
   <data name="CreateInstance_NoParameterlessConstructor" xml:space="preserve">
     <value>Failed to create instance of type '{0}'. The type must have a public parameterless constructor.</value>
@@ -5332,7 +5309,107 @@
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
   <data name="EmptySequence" xml:space="preserve">
-    <value>Sequence contains no elements.</value>
+    <value>Sequence contains no elements</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="UnableToMoveHistoryTableWithAuto" xml:space="preserve">
+    <value>Automatic migrations that affect the location of the migrations history system table (such as default schema changes) are not supported. Please use code-based migrations for operations that affect the location of the migrations history system table.</value>
+    <comment>## ExceptionType=Migrations.Infrastructure.MigrationsException</comment>
+  </data>
+  <data name="NoMatch" xml:space="preserve">
+    <value>Sequence contains no matching element</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="MoreThanOneMatch" xml:space="preserve">
+    <value>Sequence contains more than one matching element</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="HistoryMigrationNotSupported" xml:space="preserve">
+    <value>Migrating the history system table is only supported for move table operations. Ensure all other history table configuration happens as part of an initial explicit migration. </value>
+    <comment>## ExceptionType=Migrations.Infrastructure.MigrationsException</comment>
+  </data>
+  <data name="DbSpatialServicesTypeNotFound" xml:space="preserve">
+    <value>The DbSpatialServices type '{0}' specified in the application config file could not be loaded. Make sure that the assembly-qualified name is used and that the assembly is available to the running application.</value>
+  </data>
+  <data name="DbSpatialServices_InstanceMissing" xml:space="preserve">
+    <value>The Entity Framework spatial provider type '{0}' did not have a static property or field named 'Instance'. Entity Framework spatial providers must declare a static property or field named 'Instance' that returns the Singleton instance of the provider.</value>
+  </data>
+  <data name="DbSpatialServices_NotDbSpatialServices" xml:space="preserve">
+    <value>The 'Instance' member of the Entity Framework spatial provider type '{0}' did not return an object that inherits from 'System.Data.Entity.Spatial.DbSpatialServices'. Entity Framework spatial providers must extend from this class and the 'Instance' member must return the Singleton instance of the spatial provider.</value>
+  </data>
+  <data name="CreateConfigurationType_NoParameterlessConstructor" xml:space="preserve">
+    <value>An instance of '{0}' could not be created because it does not define a parameterless constructor. Every type derived from EntityTypeConfiguration in an assembly must have a parameterless constructor when using AddFromAssembly to add Code First configurations from that assembly.</value>
+  </data>
+  <data name="CollectionEmpty" xml:space="preserve">
+    <value>The '{0}' collection used in the call to '{1}' must contain at least one element.</value>
+  </data>
+  <data name="DbMigrationsConfiguration_ContextType" xml:space="preserve">
+    <value>The type '{0}' does not inherit from DbContext. The DbMigrationsConfiguration.ContextType property must be set to a type that inherits from DbContext.</value>
+  </data>
+  <data name="ModelBuilder_PropertyFilterTypeMustBePrimitive" xml:space="preserve">
+    <value>The type '{0}' cannot be used to filter properties. Only scalar types, string, and byte[] are supported.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="LightweightEntityConfiguration_TypeMismatch" xml:space="preserve">
+    <value>The type '{0}' is invalid. The specified type must derive from '{1}'.</value>
+    <comment>## ExceptionType=ArgumentException</comment>
+  </data>
+  <data name="LightweightEntityConfiguration_NonScalarProperty" xml:space="preserve">
+    <value>The property '{0}' cannot be configured. Only scalar properties can be configured using lightweight conventions.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="EntityClient_CannotReopenConnection" xml:space="preserve">
+    <value>The connection could not be opened because it is already open. Only closed connections can be opened and an already open connection must be closed before it can be opened again.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="MigrationsPendingException" xml:space="preserve">
+    <value>Unable to generate an explicit migration because the following explicit migrations are pending: [{0}]. Apply the pending explicit migrations before attempting to generate a new explicit migration.</value>
+    <comment>## ExceptionType=Migrations.Infrastructure.MigrationsPendingException</comment>
+  </data>
+  <data name="ExecutionStrategy_AlreadyExecuted" xml:space="preserve">
+    <value>Already called Execute on this instance.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="ExecutionStrategy_ExistingTransaction" xml:space="preserve">
+    <value>Existing transactions are not supported with the current execution strategy.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="ExecutionStrategy_MinimumMustBeLessThanMaximum" xml:space="preserve">
+    <value>The minimum delay must be less than or equal to the maximum delay.</value>
+  </data>
+  <data name="ExecutionStrategy_NegativeDelay" xml:space="preserve">
+    <value>Negative delays are invalid.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="ExecutionStrategy_RetryLimitExceeded" xml:space="preserve">
+    <value>Retry limit exceeded.</value>
+  </data>
+  <data name="BaseTypeNotMappedToFunctions" xml:space="preserve">
+    <value>The base type '{0}' must be mapped to functions because its derived type '{1}' is mapped to functions. When mapping an inheritance hierarchy to functions, ensure that the root type of the hierarchy is also mapped to functions.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="InvalidResourceName" xml:space="preserve">
+    <value>'{0}' is not a valid resource name.</value>
+    <comment>## ExceptionType=ArgumentException</comment>
+  </data>
+  <data name="ModificationFunctionParameterNotFound" xml:space="preserve">
+    <value>A parameter binding to the property '{0}' was not found on the modification function '{1}'. Ensure that the parameter is valid for this modification operation and that it is not database generated.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="EntityClient_CannotOpenBrokenConnection" xml:space="preserve">
+    <value>The connection could not be opened because it is broken. The connection must be closed before it can be opened.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="ModificationFunctionParameterNotFoundOriginal" xml:space="preserve">
+    <value>An original value parameter binding to the property '{0}' was not found on the modification function '{1}'. Ensure that the parameter is a concurrency token.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="ResultBindingNotFound" xml:space="preserve">
+    <value>A result binding for the property '{0}' was not found on the modification function '{1}'. Ensure that the property is database generated.</value>
+    <comment>## ExceptionType=InvalidOperationException</comment>
+  </data>
+  <data name="NoRowsAffectedParameter" xml:space="preserve">
+    <value>A rows affected parameter was not found on the modification function '{0}'. Ensure that the target entity has at least one concurrency token.</value>
     <comment>## ExceptionType=InvalidOperationException</comment>
   </data>
 </root>

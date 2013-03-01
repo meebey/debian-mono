@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
+    using System.Data.Entity.Utilities;
+
     /// <summary>
-    /// Class for representing a entity set
+    ///     Class for representing a entity set
     /// </summary>
-    public abstract class EntitySetBase : MetadataItem
+    public abstract class EntitySetBase : MetadataItem, INamedDataModelItem
     {
         //----------------------------------------------------------------------------------------------
         // Possible Future Enhancement: revisit factoring of EntitySetBase and delta between C constructs and S constructs
@@ -20,26 +23,24 @@ namespace System.Data.Entity.Core.Metadata.Edm
         // maintaining this metadata.
         //----------------------------------------------------------------------------------------------
 
-        #region Constructors
-
         internal EntitySetBase()
         {
         }
 
         /// <summary>
-        /// The constructor for constructing the EntitySet with a given name and an entity type
+        ///     The constructor for constructing the EntitySet with a given name and an entity type
         /// </summary>
-        /// <param name="name">The name of the EntitySet</param>
-        /// <param name="schema">The db schema</param>
-        /// <param name="table">The db table</param>
-        /// <param name="definingQuery">The provider specific query that should be used to retrieve the EntitySet</param>
-        /// <param name="entityType">The entity type of the entities that this entity set type contains</param>        
+        /// <param name="name"> The name of the EntitySet </param>
+        /// <param name="schema"> The db schema </param>
+        /// <param name="table"> The db table </param>
+        /// <param name="definingQuery"> The provider specific query that should be used to retrieve the EntitySet </param>
+        /// <param name="entityType"> The entity type of the entities that this entity set type contains </param>
         /// <exception cref="System.ArgumentNullException">Thrown if the name or entityType argument is null</exception>
         internal EntitySetBase(string name, string schema, string table, string definingQuery, EntityTypeBase entityType)
         {
-            EntityUtil.GenericCheckArgumentNull(entityType, "entityType");
-            EntityUtil.CheckStringArgument(name, "name");
-            // SQLBU 480236: catalogName, schemaName & tableName are allowed to be null, empty & non-empty
+            Check.NotNull(entityType, "entityType");
+            Check.NotEmpty(name, "name");
+            // catalogName, schemaName & tableName are allowed to be null, empty & non-empty
 
             _name = name;
 
@@ -57,22 +58,14 @@ namespace System.Data.Entity.Core.Metadata.Edm
             ElementType = entityType;
         }
 
-        #endregion
-
-        #region Fields
-
         private EntityContainer _entityContainer;
-        private readonly string _name;
+        private string _name;
         private EntityTypeBase _elementType;
-        private readonly string _table;
-        private readonly string _schema;
-
-        #endregion
-
-        #region Properties
+        private string _table;
+        private string _schema;
 
         /// <summary>
-        /// Returns the kind of the type
+        ///     Returns the kind of the type
         /// </summary>
         public override BuiltInTypeKind BuiltInTypeKind
         {
@@ -80,7 +73,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the identity for this item as a string
+        ///     Gets the identity for this item as a string
         /// </summary>
         internal override string Identity
         {
@@ -88,13 +81,13 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets or sets escaped SQL describing this entity set.
+        ///     Gets or sets escaped SQL describing this entity set.
         /// </summary>
         [MetadataProperty(PrimitiveTypeKind.String, false)]
         internal string DefiningQuery { get; set; }
 
         /// <summary>
-        /// Gets/Sets the name of this entity set
+        ///     Gets/Sets the name of this entity set
         /// </summary>
         /// <exception cref="System.ArgumentNullException">Thrown if value passed into setter is null</exception>
         /// <exception cref="System.InvalidOperationException">Thrown if the setter is called when EntitySetBase instance is in ReadOnly state</exception>
@@ -102,10 +95,17 @@ namespace System.Data.Entity.Core.Metadata.Edm
         public virtual String Name
         {
             get { return _name; }
+            set
+            {
+                Check.NotEmpty(value, "value");
+                Util.ThrowIfReadOnly(this);
+
+                _name = value;
+            }
         }
 
         /// <summary>
-        /// Returns the entity container of the entity set
+        ///     Returns the entity container of the entity set
         /// </summary>
         /// <exception cref="System.ArgumentNullException">Thrown if value passed into setter is null</exception>
         /// <exception cref="System.InvalidOperationException">Thrown if the setter is called when the EntitySetBase instance or the EntityContainer passed into the setter is in ReadOnly state</exception>
@@ -115,7 +115,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets/Sets the entity type of this entity set
+        ///     Gets/Sets the entity type of this entity set
         /// </summary>
         /// <exception cref="System.ArgumentNullException">if value passed into setter is null</exception>
         /// <exception cref="System.InvalidOperationException">Thrown if the setter is called when EntitySetBase instance is in ReadOnly state</exception>
@@ -125,8 +125,9 @@ namespace System.Data.Entity.Core.Metadata.Edm
             get { return _elementType; }
             internal set
             {
-                EntityUtil.GenericCheckArgumentNull(value, "value");
+                Check.NotNull(value, "value");
                 Util.ThrowIfReadOnly(this);
+
                 _elementType = value;
             }
         }
@@ -135,21 +136,31 @@ namespace System.Data.Entity.Core.Metadata.Edm
         internal string Table
         {
             get { return _table; }
+            set
+            {
+                DebugCheck.NotEmpty(value);
+                Util.ThrowIfReadOnly(this);
+
+                _table = value;
+            }
         }
 
         [MetadataProperty(PrimitiveTypeKind.String, false)]
         internal string Schema
         {
             get { return _schema; }
+            set
+            {
+                DebugCheck.NotEmpty(value);
+                Util.ThrowIfReadOnly(this);
+
+                _schema = value;
+            }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Overriding System.Object.ToString to provide better String representation 
-        /// for this type.
+        ///     Overriding System.Object.ToString to provide better String representation
+        ///     for this type.
         /// </summary>
         public override string ToString()
         {
@@ -157,7 +168,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Sets this item to be readonly, once this is set, the item will never be writable again.
+        ///     Sets this item to be readonly, once this is set, the item will never be writable again.
         /// </summary>
         internal override void SetReadOnly()
         {
@@ -174,13 +185,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Change the entity container without doing fixup in the entity set collection
+        ///     Change the entity container without doing fixup in the entity set collection
         /// </summary>
         internal void ChangeEntityContainerWithoutCollectionFixup(EntityContainer newEntityContainer)
         {
             _entityContainer = newEntityContainer;
         }
-
-        #endregion
     }
 }

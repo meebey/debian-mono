@@ -1,35 +1,36 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Common.CommandTrees;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     internal partial class Propagator
     {
         private partial class JoinPropagator
         {
             /// <summary>
-            /// Extracts equi-join properties from a join condition.
+            ///     Extracts equi-join properties from a join condition.
             /// </summary>
             /// <remarks>
-            /// Assumptions:
-            /// <list>
-            /// <item>Only conjunctions of equality predicates are supported</item>
-            /// <item>Each equality predicate is of the form (left property == right property). The order
-            /// is important.</item>
-            /// </list>
+            ///     Assumptions:
+            ///     <list>
+            ///         <item>Only conjunctions of equality predicates are supported</item>
+            ///         <item>
+            ///             Each equality predicate is of the form (left property == right property). The order
+            ///             is important.
+            ///         </item>
+            ///     </list>
             /// </remarks>
             private class JoinConditionVisitor : UpdateExpressionVisitor<object>
             {
-                #region Constructors
-
                 /// <summary>
-                /// Initializes a join predicate visitor. The visitor will populate the given property
-                /// lists with expressions describing the left and right hand side of equi-join
-                /// sub-clauses.
+                ///     Initializes a join predicate visitor. The visitor will populate the given property
+                ///     lists with expressions describing the left and right hand side of equi-join
+                ///     sub-clauses.
                 /// </summary>
                 private JoinConditionVisitor()
                 {
@@ -37,50 +38,32 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                     m_rightKeySelectors = new List<DbExpression>();
                 }
 
-                #endregion
-
-                #region Fields
-
                 private readonly List<DbExpression> m_leftKeySelectors;
                 private readonly List<DbExpression> m_rightKeySelectors;
                 private static readonly string _visitorName = typeof(JoinConditionVisitor).FullName;
-
-                #endregion
-
-                #region Properties
 
                 protected override string VisitorName
                 {
                     get { return _visitorName; }
                 }
 
-                #endregion
-
-                #region Methods
-
-                #region Static helper methods
-
                 /// <summary>
-                /// Determine properties from the left and right inputs to an equi-join participating
-                /// in predicate.
+                ///     Determine properties from the left and right inputs to an equi-join participating
+                ///     in predicate.
                 /// </summary>
                 /// <remarks>
-                /// The property definitions returned are 'aligned'. If the join predicate reads:
-                /// <code>
-                /// a = b AND c = d AND e = f
-                /// </code>
-                /// then the output is as follows:
-                /// <code>
-                /// leftProperties = {a, c, e}
-                /// rightProperties = {b, d, f}
-                /// </code>
-                /// See Walker class for an explanation of this coding pattern.
+                ///     The property definitions returned are 'aligned'. If the join predicate reads:
+                ///     <code>a = b AND c = d AND e = f</code>
+                ///     then the output is as follows:
+                ///     <code>leftProperties = {a, c, e}
+                ///         rightProperties = {b, d, f}</code>
+                ///     See Walker class for an explanation of this coding pattern.
                 /// </remarks>
                 internal static void GetKeySelectors(
                     DbExpression joinCondition, out ReadOnlyCollection<DbExpression> leftKeySelectors,
                     out ReadOnlyCollection<DbExpression> rightKeySelectors)
                 {
-                    Contract.Requires(joinCondition != null);
+                    DebugCheck.NotNull(joinCondition);
 
                     // Constructs a new predicate visitor, which implements a visitor for expression nodes
                     // and returns no values. This visitor instead builds up a list of properties as leaves
@@ -99,18 +82,16 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                         "(Update/JoinPropagator) The equi-join must have an equal number of left and right properties");
                 }
 
-                #endregion
-
-                #region Visitor implementation
-
                 /// <summary>
-                /// Visit and node after its children have visited. There is nothing to do here
-                /// because only leaf equality nodes contain properties extracted by this visitor.
+                ///     Visit and node after its children have visited. There is nothing to do here
+                ///     because only leaf equality nodes contain properties extracted by this visitor.
                 /// </summary>
-                /// <param name="node">And expression node</param>
-                /// <returns>Results ignored by this visitor implementation.</returns>
+                /// <param name="node"> And expression node </param>
+                /// <returns> Results ignored by this visitor implementation. </returns>
                 public override object Visit(DbAndExpression node)
                 {
+                    Check.NotNull(node, "node");
+
                     Visit(node.Left);
                     Visit(node.Right);
 
@@ -118,12 +99,14 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 }
 
                 /// <summary>
-                /// Perform work for an equality expression node.
+                ///     Perform work for an equality expression node.
                 /// </summary>
-                /// <param name="node">Equality expresion node</param>
-                /// <returns>Results ignored by this visitor implementation.</returns>
+                /// <param name="node"> Equality expresion node </param>
+                /// <returns> Results ignored by this visitor implementation. </returns>
                 public override object Visit(DbComparisonExpression node)
                 {
+                    Check.NotNull(node, "node");
+
                     if (DbExpressionKind.Equals
                         == node.ExpressionKind)
                     {
@@ -136,10 +119,6 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                         throw ConstructNotSupportedException(node);
                     }
                 }
-
-                #endregion
-
-                #endregion
             }
         }
     }

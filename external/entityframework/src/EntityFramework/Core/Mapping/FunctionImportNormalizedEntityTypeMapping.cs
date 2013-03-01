@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Common.Utils;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
 
@@ -19,15 +20,15 @@ namespace System.Data.Entity.Core.Mapping
             List<FunctionImportEntityTypeMappingCondition> columnConditions, BitArray impliedEntityTypes)
         {
             // validate arguments
-            Contract.Requires(parent != null);
-            Contract.Requires(columnConditions != null);
-            Contract.Requires(impliedEntityTypes != null);
+            DebugCheck.NotNull(parent);
+            DebugCheck.NotNull(columnConditions);
+            DebugCheck.NotNull(impliedEntityTypes);
 
             Debug.Assert(
                 columnConditions.Count == parent.DiscriminatorColumns.Count,
                 "discriminator values must be ordinally aligned with discriminator columns");
             Debug.Assert(
-                impliedEntityTypes.Count == parent.MappedEntityTypes.Count,
+                impliedEntityTypes.Length == parent.MappedEntityTypes.Count,
                 "implied entity types must be ordinally aligned with mapped entity types");
 
             ColumnConditions = new ReadOnlyCollection<FunctionImportEntityTypeMappingCondition>(columnConditions.ToList());
@@ -36,19 +37,19 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Gets discriminator values aligned with DiscriminatorColumns of the parent FunctionImportMapping.
-        /// A null ValueCondition indicates 'anything goes'.
+        ///     Gets discriminator values aligned with DiscriminatorColumns of the parent FunctionImportMapping.
+        ///     A null ValueCondition indicates 'anything goes'.
         /// </summary>
         internal readonly ReadOnlyCollection<FunctionImportEntityTypeMappingCondition> ColumnConditions;
 
         /// <summary>
-        /// Gets bit array with 'true' indicating the corresponding MappedEntityType of the parent
-        /// FunctionImportMapping is implied by this fragment.
+        ///     Gets bit array with 'true' indicating the corresponding MappedEntityType of the parent
+        ///     FunctionImportMapping is implied by this fragment.
         /// </summary>
         internal readonly BitArray ImpliedEntityTypes;
 
         /// <summary>
-        /// Gets the complement of the ImpliedEntityTypes BitArray.
+        ///     Gets the complement of the ImpliedEntityTypes BitArray.
         /// </summary>
         internal readonly BitArray ComplementImpliedEntityTypes;
 

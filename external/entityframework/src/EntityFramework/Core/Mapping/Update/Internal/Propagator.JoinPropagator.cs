@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     // We use CompositeKey on both sides of the dictionary because it is used both to identify rows that should be 
@@ -10,47 +11,45 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using JoinDictionary = System.Collections.Generic.Dictionary<CompositeKey, Tuple<CompositeKey, PropagatorResult>>;
 
     internal partial class Propagator
     {
         /// <summary>
-        /// Performs join propagation. The basic strategy is to identify changes (inserts, deletes)
-        /// on either side of the join that are related according to the join criteria. Support is restricted
-        /// to conjunctions of equality predicates of the form <c>left property == right property</c>.
-        /// When a group of related changes is identified, rules are applied based on the existence of
-        /// different components (e.g., a left insert + right insert).
+        ///     Performs join propagation. The basic strategy is to identify changes (inserts, deletes)
+        ///     on either side of the join that are related according to the join criteria. Support is restricted
+        ///     to conjunctions of equality predicates of the form <c>left property == right property</c>.
+        ///     When a group of related changes is identified, rules are applied based on the existence of
+        ///     different components (e.g., a left insert + right insert).
         /// </summary>
         /// <remarks>
-        /// The joins handled by this class are degenerate in the sense that a row in the 'left' input always
-        /// joins with at most one row in the 'right' input. The restrictions that allow for this assumption
-        /// are described in the update design spec (see 'Level 5 Optimization').
+        ///     The joins handled by this class are degenerate in the sense that a row in the 'left' input always
+        ///     joins with at most one row in the 'right' input. The restrictions that allow for this assumption
+        ///     are described in the update design spec (see 'Level 5 Optimization').
         /// </remarks>
         /// <remarks>
-        /// Propagation rules for joins are stored in static fields of the class (initialized in the static
-        /// constructor for the class).
+        ///     Propagation rules for joins are stored in static fields of the class (initialized in the static
+        ///     constructor for the class).
         /// </remarks>
         private partial class JoinPropagator
         {
-            #region Constructors
-
             /// <summary>
-            /// Constructs a join propagator.
+            ///     Constructs a join propagator.
             /// </summary>
-            /// <param name="left">Result of propagating changes in the left input to the join</param>
-            /// <param name="right">Result of propagating changes in the right input to the join</param>
-            /// <param name="node">Join operator in update mapping view over which to propagate changes</param>
-            /// <param name="parent">Handler of propagation for the entire update mapping view</param>
+            /// <param name="left"> Result of propagating changes in the left input to the join </param>
+            /// <param name="right"> Result of propagating changes in the right input to the join </param>
+            /// <param name="node"> Join operator in update mapping view over which to propagate changes </param>
+            /// <param name="parent"> Handler of propagation for the entire update mapping view </param>
             internal JoinPropagator(ChangeNode left, ChangeNode right, DbJoinExpression node, Propagator parent)
             {
-                Contract.Requires(left != null);
-                Contract.Requires(right != null);
-                Contract.Requires(node != null);
-                Contract.Requires(parent != null);
+                DebugCheck.NotNull(left);
+                DebugCheck.NotNull(right);
+                DebugCheck.NotNull(node);
+                DebugCheck.NotNull(parent);
 
                 m_left = left;
                 m_right = right;
@@ -82,12 +81,6 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 m_rightPlaceholderKey = ExtractKey(m_right.Placeholder, m_rightKeySelectors);
             }
 
-            #endregion
-
-            #region Fields
-
-            #region Propagation rules
-
             /**
              * These static dictionaries are initialized by the static constructor for this class.
              * They describe for each combination of input elements (the key) propagation rules, which
@@ -97,8 +90,6 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             private static readonly Dictionary<Ops, Ops> _innerJoinDeleteRules;
             private static readonly Dictionary<Ops, Ops> _leftOuterJoinInsertRules;
             private static readonly Dictionary<Ops, Ops> _leftOuterJoinDeleteRules;
-
-            #endregion
 
             private readonly DbJoinExpression m_joinExpression;
             private readonly Propagator m_parent;
@@ -111,12 +102,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             private readonly CompositeKey m_leftPlaceholderKey;
             private readonly CompositeKey m_rightPlaceholderKey;
 
-            #endregion
-
-            #region Methods
-
             /// <summary>
-            /// Initialize rules.
+            ///     Initialize rules.
             /// </summary>
             [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
             static JoinPropagator()
@@ -243,13 +230,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Initializes propagation rules for a specific input combination.
+            ///     Initializes propagation rules for a specific input combination.
             /// </summary>
-            /// <param name="input">Describes the elements available in the input</param>
-            /// <param name="joinInsert">Describes the rule for inserts when the operator is an inner join</param>
-            /// <param name="joinDelete">Describes the rule for deletes when the operator is an inner join</param>
-            /// <param name="lojInsert">Describes the rule for inserts when the operator is a left outer join</param>
-            /// <param name="lojDelete">Describes the rule for deletes when the operator is a left outer join</param>
+            /// <param name="input"> Describes the elements available in the input </param>
+            /// <param name="joinInsert"> Describes the rule for inserts when the operator is an inner join </param>
+            /// <param name="joinDelete"> Describes the rule for deletes when the operator is an inner join </param>
+            /// <param name="lojInsert"> Describes the rule for inserts when the operator is a left outer join </param>
+            /// <param name="lojDelete"> Describes the rule for deletes when the operator is a left outer join </param>
             private static void InitializeRule(Ops input, Ops joinInsert, Ops joinDelete, Ops lojInsert, Ops lojDelete)
             {
                 _innerJoinInsertRules.Add(input, joinInsert);
@@ -273,9 +260,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Performs join propagation.
+            ///     Performs join propagation.
             /// </summary>
-            /// <returns>Changes propagated to the current join node in the update mapping view.</returns>
+            /// <returns> Changes propagated to the current join node in the update mapping view. </returns>
             internal ChangeNode Propagate()
             {
                 // Construct an empty change node for the result
@@ -287,10 +274,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 var rightDeletes = ProcessKeys(m_right.Deleted, m_rightKeySelectors);
                 var rightInserts = ProcessKeys(m_right.Inserted, m_rightKeySelectors);
                 var allKeys = leftDeletes.Keys
-                    .Concat(leftInserts.Keys)
-                    .Concat(rightDeletes.Keys)
-                    .Concat(rightInserts.Keys)
-                    .Distinct(m_parent.UpdateTranslator.KeyComparer);
+                                         .Concat(leftInserts.Keys)
+                                         .Concat(rightDeletes.Keys)
+                                         .Concat(rightInserts.Keys)
+                                         .Distinct(m_parent.UpdateTranslator.KeyComparer);
 
                 // Perform propagation one key at a time
                 foreach (var key in allKeys)
@@ -306,10 +293,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Propagate all changes associated with a particular join key.
+            ///     Propagate all changes associated with a particular join key.
             /// </summary>
-            /// <param name="key">Key.</param>
-            /// <param name="result">Resulting changes are added to this result.</param>
+            /// <param name="key"> Key. </param>
+            /// <param name="result"> Resulting changes are added to this result. </param>
             private void Propagate(
                 CompositeKey key, ChangeNode result, JoinDictionary leftDeletes, JoinDictionary leftInserts,
                 JoinDictionary rightDeletes, JoinDictionary rightInserts)
@@ -355,15 +342,15 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                     // First gather state entries contributing to the problem
                     var stateEntries = new List<IEntityStateEntry>();
                     Action<Tuple<CompositeKey, PropagatorResult>> addStateEntries = (r) =>
-                        {
-                            if (r != null)
-                            {
-                                stateEntries.AddRange(
-                                    SourceInterpreter.GetAllStateEntries(
-                                        r.Item2, m_parent.m_updateTranslator,
-                                        m_parent.m_table));
-                            }
-                        };
+                                                                                        {
+                                                                                            if (r != null)
+                                                                                            {
+                                                                                                stateEntries.AddRange(
+                                                                                                    SourceInterpreter.GetAllStateEntries(
+                                                                                                        r.Item2, m_parent.m_updateTranslator,
+                                                                                                        m_parent.m_table));
+                                                                                            }
+                                                                                        };
                     addStateEntries(leftInsert);
                     addStateEntries(leftDelete);
                     addStateEntries(rightInsert);
@@ -425,14 +412,14 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Produce a tuple containing joined rows.
+            ///     Produce a tuple containing joined rows.
             /// </summary>
-            /// <param name="left">Left row.</param>
-            /// <param name="right">Right row.</param>
-            /// <param name="leftKey">Key used to join left element.</param>
-            /// <param name="rightKey">Key used to join right element.</param>
-            /// <param name="result">Result change node; used for type information.</param>
-            /// <returns>Result of joining the input rows.</returns>
+            /// <param name="left"> Left row. </param>
+            /// <param name="right"> Right row. </param>
+            /// <param name="leftKey"> Key used to join left element. </param>
+            /// <param name="rightKey"> Key used to join right element. </param>
+            /// <param name="result"> Result change node; used for type information. </param>
+            /// <returns> Result of joining the input rows. </returns>
             private PropagatorResult CreateResultTuple(
                 Tuple<CompositeKey, PropagatorResult> left, Tuple<CompositeKey, PropagatorResult> right, ChangeNode result)
             {
@@ -440,7 +427,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 var leftKey = left.Item1;
                 var rightKey = right.Item1;
                 Dictionary<PropagatorResult, PropagatorResult> map = null;
-                if (!ReferenceEquals(null, leftKey) &&
+                if (!ReferenceEquals(null, leftKey)
+                    &&
                     !ReferenceEquals(null, rightKey)
                     &&
                     !ReferenceEquals(leftKey, rightKey))
@@ -474,37 +462,40 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Constructs a new placeholder record for the left hand side of the join. Values taken
-            /// from the join key are injected into the record.
+            ///     Constructs a new placeholder record for the left hand side of the join. Values taken
+            ///     from the join key are injected into the record.
             /// </summary>
-            /// <param name="key">Key producing the left hand side.</param>
-            /// <param name="mode">Mode used to populate the placeholder</param>
-            /// <returns>Record corresponding to the type of the left input to the join. Each value in
-            /// the record is flagged as <see cref="PropagatorFlags.Unknown" /> except when it is
-            /// a component of the key.</returns>
+            /// <param name="key"> Key producing the left hand side. </param>
+            /// <param name="mode"> Mode used to populate the placeholder </param>
+            /// <returns>
+            ///     Record corresponding to the type of the left input to the join. Each value in the record is flagged as
+            ///     <see
+            ///         cref="PropagatorFlags.Unknown" />
+            ///     except when it is a component of the key.
+            /// </returns>
             private PropagatorResult LeftPlaceholder(CompositeKey key, PopulateMode mode)
             {
                 return PlaceholderPopulator.Populate(m_left.Placeholder, key, m_leftPlaceholderKey, mode);
             }
 
             /// <summary>
-            /// See <see cref="LeftPlaceholder"></see>
+            ///     See <see cref="LeftPlaceholder"></see>
             /// </summary>
-            /// <param name="key"></param>
-            /// <param name="mode"></param>
-            /// <returns></returns>
+            /// <param name="key"> </param>
+            /// <param name="mode"> </param>
+            /// <returns> </returns>
             private PropagatorResult RightPlaceholder(CompositeKey key, PopulateMode mode)
             {
                 return PlaceholderPopulator.Populate(m_right.Placeholder, key, m_rightPlaceholderKey, mode);
             }
 
             /// <summary>
-            /// Produces a hash table of all instances and processes join keys, adding them to the list
-            /// of keys handled by this node.
+            ///     Produces a hash table of all instances and processes join keys, adding them to the list
+            ///     of keys handled by this node.
             /// </summary>
-            /// <param name="instances">List of instances (whether delete or insert) for this node.</param>
-            /// <param name="keySelectors">Selectors for key components.</param>
-            /// <returns>A map from join keys to instances.</returns>
+            /// <param name="instances"> List of instances (whether delete or insert) for this node. </param>
+            /// <param name="keySelectors"> Selectors for key components. </param>
+            /// <returns> A map from join keys to instances. </returns>
             private JoinDictionary ProcessKeys(IEnumerable<PropagatorResult> instances, ReadOnlyCollection<DbExpression> keySelectors)
             {
                 // Dictionary uses the composite key on both sides. This is because the composite key, in addition
@@ -525,7 +516,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             private static CompositeKey ExtractKey(
                 PropagatorResult change, ReadOnlyCollection<DbExpression> keySelectors)
             {
-                Debug.Assert(null != change && null != keySelectors);
+                DebugCheck.NotNull(change);
+                DebugCheck.NotNull(keySelectors);
+
                 var keyValues = new PropagatorResult[keySelectors.Count];
                 for (var i = 0; i < keySelectors.Count; i++)
                 {
@@ -535,13 +528,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 return new CompositeKey(keyValues);
             }
 
-            #endregion
-
-            #region Nested types
-
             /// <summary>
-            /// Flags indicating which change elements are available (0-4) and propagation
-            /// rules (0, 5-512)
+            ///     Flags indicating which change elements are available (0-4) and propagation
+            ///     rules (0, 5-512)
             /// </summary>
             [Flags]
             private enum Ops : uint
@@ -576,8 +565,6 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
                 #endregion
             }
-
-            #endregion
         }
     }
 }

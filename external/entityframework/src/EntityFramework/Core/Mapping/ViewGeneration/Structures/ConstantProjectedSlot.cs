@@ -1,52 +1,40 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Data.Entity.Core.Common.CommandTrees;
     using System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Text;
 
     /// <summary>
-    /// A constant that can be projected in a cell query.
+    ///     A constant that can be projected in a cell query.
     /// </summary>
     internal sealed class ConstantProjectedSlot : ProjectedSlot
     {
-        #region Constructors
-
         /// <summary>
-        /// Creates a slot with constant value being <paramref name="value"/>.
+        ///     Creates a slot with constant value being <paramref name="value" />.
         /// </summary>
         internal ConstantProjectedSlot(Constant value)
         {
-            Debug.Assert(value != null);
+            DebugCheck.NotNull(value);
             Debug.Assert(value.IsNotNull() == false, "Cannot store NotNull in a slot - NotNull is only for conditions");
             m_constant = value;
         }
 
-        #endregion
-
-        #region Fields
-
         /// <summary>
-        /// The actual value.
+        ///     The actual value.
         /// </summary>
         private readonly Constant m_constant;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Returns the value stored in this constant.
+        ///     Returns the value stored in this constant.
         /// </summary>
         internal Constant CellConstant
         {
             get { return m_constant; }
         }
-
-        #endregion
-
-        #region Methods
 
         internal override ProjectedSlot DeepQualify(CqlBlock block)
         {
@@ -82,7 +70,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             m_constant.ToCompactString(builder);
         }
-
-        #endregion
     }
 }

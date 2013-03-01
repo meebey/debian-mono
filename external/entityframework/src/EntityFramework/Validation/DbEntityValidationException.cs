@@ -1,15 +1,16 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Validation
 {
     using System.Collections.Generic;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Runtime.Serialization;
 
     /// <summary>
-    ///     Exception thrown from <see cref = "DbContext.SaveChanges()" /> when validating entities fails.
+    ///     Exception thrown from <see cref="DbContext.SaveChanges()" /> when validating entities fails.
     /// </summary>
     [SuppressMessage("Microsoft.Design", "CA1032:ImplementStandardExceptionConstructors",
         Justification = "SerializeObjectState used instead")]
@@ -20,7 +21,7 @@ namespace System.Data.Entity.Validation
         private DbEntityValidationExceptionState _state = new DbEntityValidationExceptionState();
 
         /// <summary>
-        ///     Initializes a new instance of DbEntityValidationException
+        ///     Initializes a new instance of DbEntityValidationException.
         /// </summary>
         public DbEntityValidationException()
             : this(Strings.DbEntityValidationException_ValidationFailed)
@@ -28,52 +29,52 @@ namespace System.Data.Entity.Validation
         }
 
         /// <summary>
-        ///     Initializes a new instance of DbEntityValidationException
+        ///     Initializes a new instance of DbEntityValidationException.
         /// </summary>
-        /// <param name = "message">The exception message.</param>
+        /// <param name="message"> The exception message. </param>
         public DbEntityValidationException(string message)
             : this(message, Enumerable.Empty<DbEntityValidationResult>())
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of DbEntityValidationException
+        ///     Initializes a new instance of DbEntityValidationException.
         /// </summary>
-        /// <param name = "message">The exception message.</param>
-        /// <param name = "entityValidationResults">Validation results.</param>
+        /// <param name="message"> The exception message. </param>
+        /// <param name="entityValidationResults"> Validation results. </param>
         public DbEntityValidationException(
             string message, IEnumerable<DbEntityValidationResult> entityValidationResults)
             : base(message)
         {
             // Users should be able to set the errors to null but we should not
-            Contract.Requires(entityValidationResults != null);
+            Check.NotNull(entityValidationResults, "entityValidationResults");
 
             _state.InititializeValidationResults(entityValidationResults);
             SubscribeToSerializeObjectState();
         }
 
         /// <summary>
-        ///     Initializes a new instance of DbEntityValidationException
+        ///     Initializes a new instance of DbEntityValidationException.
         /// </summary>
-        /// <param name = "message">The exception message.</param>
-        /// <param name = "innerException">The inner exception.</param>
+        /// <param name="message"> The exception message. </param>
+        /// <param name="innerException"> The inner exception. </param>
         public DbEntityValidationException(string message, Exception innerException)
             : this(message, Enumerable.Empty<DbEntityValidationResult>(), innerException)
         {
         }
 
         /// <summary>
-        ///     Initializes a new instance of DbEntityValidationException
+        ///     Initializes a new instance of DbEntityValidationException.
         /// </summary>
-        /// <param name = "message">The exception message.</param>
-        /// <param name = "entityValidationResults">Validation results.</param>
-        /// <param name = "innerException">The inner exception.</param>
+        /// <param name="message"> The exception message. </param>
+        /// <param name="entityValidationResults"> Validation results. </param>
+        /// <param name="innerException"> The inner exception. </param>
         public DbEntityValidationException(
             string message, IEnumerable<DbEntityValidationResult> entityValidationResults, Exception innerException)
             : base(message, innerException)
         {
             // Users should be able to set the errors to null but we should not. 
-            Contract.Requires(entityValidationResults != null);
+            Check.NotNull(entityValidationResults, "entityValidationResults");
 
             _state.InititializeValidationResults(entityValidationResults);
             SubscribeToSerializeObjectState();
@@ -124,7 +125,7 @@ namespace System.Data.Entity.Validation
             /// <summary>
             ///     Completes the deserialization.
             /// </summary>
-            /// <param name = "deserialized">The deserialized object.</param>
+            /// <param name="deserialized"> The deserialized object. </param>
             public void CompleteDeserialization(object deserialized)
             {
                 ((DbEntityValidationException)deserialized)._state = this;

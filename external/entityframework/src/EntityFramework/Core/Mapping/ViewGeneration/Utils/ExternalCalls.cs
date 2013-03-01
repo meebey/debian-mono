@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Utils
 {
     using System.Collections.Generic;
@@ -6,11 +7,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Utils
     using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using System.Data.Entity.Core.Common.EntitySql;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
 
     /// <summary>
-    /// This class encapsulates "external" calls from view/MDF generation to other System.Data.Entity features.
+    ///     This class encapsulates "external" calls from view/MDF generation to other System.Data.Entity features.
     /// </summary>
     internal static class ExternalCalls
     {
@@ -24,8 +26,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Utils
             StorageMappingItemCollection mappingItemCollection,
             ParserOptions.CompilationMode compilationMode)
         {
-            Debug.Assert(!String.IsNullOrEmpty(viewDef), "!String.IsNullOrEmpty(viewDef)");
-            Debug.Assert(mappingItemCollection != null, "mappingItemCollection != null");
+            DebugCheck.NotEmpty(viewDef);
+            DebugCheck.NotNull(mappingItemCollection);
 
             Perspective perspective = new TargetPerspective(mappingItemCollection.Workspace);
             var parserOptions = new ParserOptions();
@@ -42,8 +44,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Utils
             ParserOptions.CompilationMode compilationMode,
             IEnumerable<DbParameterReferenceExpression> parameters)
         {
-            Debug.Assert(!String.IsNullOrEmpty(viewDef), "!String.IsNullOrEmpty(viewDef)");
-            Debug.Assert(mappingItemCollection != null, "mappingItemCollection != null");
+            DebugCheck.NotEmpty(viewDef);
+            DebugCheck.NotNull(mappingItemCollection);
 
             Perspective perspective = new TargetPerspective(mappingItemCollection.Workspace);
             var parserOptions = new ParserOptions();
@@ -65,21 +67,22 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Utils
         }
 
         /// <summary>
-        /// Compiles eSQL <paramref name="functionDefinition"/> and returns <see cref="DbLambda"/>.
-        /// Guarantees type match of lambda variables and <paramref name="functionParameters"/>.
-        /// Passes thru all excepions coming from <see cref="CqlQuery"/>.
+        ///     Compiles eSQL <paramref name="functionDefinition" /> and returns <see cref="DbLambda" />.
+        ///     Guarantees type match of lambda variables and <paramref name="functionParameters" />.
+        ///     Passes thru all excepions coming from <see cref="CqlQuery" />.
         /// </summary>
         internal static DbLambda CompileFunctionDefinition(
             string functionDefinition,
             IList<FunctionParameter> functionParameters,
             EdmItemCollection edmItemCollection)
         {
-            Debug.Assert(functionParameters != null, "functionParameters != null");
-            Debug.Assert(edmItemCollection != null, "edmItemCollection != null");
+            DebugCheck.NotNull(functionParameters);
+            DebugCheck.NotNull(edmItemCollection);
 
-            var workspace = new MetadataWorkspace();
-            workspace.RegisterItemCollection(edmItemCollection);
-            Perspective perspective = new ModelPerspective(workspace);
+            var perspective = new ModelPerspective(new MetadataWorkspace(
+                () => edmItemCollection,
+                () => null,
+                () => null));
 
             // Since we compile lambda expression and generate variables from the function parameter definitions,
             // the returned DbLambda will contain variable types that match function parameter types.

@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServerCompact.Resources
 {
     using System.CodeDom.Compiler;
@@ -8,13 +9,13 @@ namespace System.Data.Entity.SqlServerCompact.Resources
     using System.Threading;
 
     /// <summary>
-    ///    Strongly-typed and parameterized string resources.
+    ///     Strongly-typed and parameterized string resources.
     /// </summary>
     [GeneratedCode("Resources.SqlServerCompact.tt", "1.0.0.0")]
     internal static class Strings
     {
         /// <summary>
-        /// A string like "The argument '{0}' cannot be null, empty or contain only white space."
+        ///     A string like "The argument '{0}' cannot be null, empty or contain only white space."
         /// </summary>
         internal static string ArgumentIsNullOrWhitespace(object p0)
         {
@@ -22,15 +23,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The precondition '{0}' failed. {1}"
-        /// </summary>
-        internal static string PreconditionFailed(object p0, object p1)
-        {
-            return EntityRes.GetString(EntityRes.PreconditionFailed, p0, p1);
-        }
-
-        /// <summary>
-        /// A string like "Records were updated, but the values were not retrieved back. See internal error for more details."
+        ///     A string like "Records were updated, but the values were not retrieved back. See internal error for more details."
         /// </summary>
         internal static string ADP_CanNotRetrieveServerGeneratedKey
         {
@@ -38,7 +31,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "SqlCeCommand.CommandTimeout does not support non-zero values."
+        ///     A string like "SqlCeCommand.CommandTimeout does not support non-zero values."
         /// </summary>
         internal static string ADP_InvalidCommandTimeOut
         {
@@ -46,7 +39,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The CommandType enumeration value, {0}, is invalid."
+        ///     A string like "The CommandType enumeration value, {0}, is invalid."
         /// </summary>
         internal static string ADP_InvalidCommandType(object p0)
         {
@@ -54,7 +47,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Parameter '{0}' is not valid. String arguments cannot be empty."
+        ///     A string like "Parameter '{0}' is not valid. String arguments cannot be empty."
         /// </summary>
         internal static string InvalidStringArgument(object p0)
         {
@@ -62,7 +55,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The specified database doesn't exists."
+        ///     A string like "The specified database doesn't exists."
         /// </summary>
         internal static string DatabaseDoesNotExist
         {
@@ -70,7 +63,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The connection given is not of type '{0}'."
+        ///     A string like "The connection given is not of type '{0}'."
         /// </summary>
         internal static string Mapping_Provider_WrongConnectionType(object p0)
         {
@@ -78,7 +71,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Unable to update the EntitySet '{0}' because it has a DefiningQuery and no <{1}> element exists in the <{2}> element to support the current operation."
+        ///     A string like "Unable to update the EntitySet '{0}' because it has a DefiningQuery and no <{1}> element exists in the <{2}> element to support the current operation."
         /// </summary>
         internal static string Update_SqlEntitySetWithoutDmlFunctions(object p0, object p1, object p2)
         {
@@ -86,7 +79,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The provider manifest given is not of type '{0}'."
+        ///     A string like "The provider manifest given is not of type '{0}'."
         /// </summary>
         internal static string Mapping_Provider_WrongManifestType(object p0)
         {
@@ -94,7 +87,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The provider returned null for the informationType '{0}'."
+        ///     A string like "The provider returned null for the informationType '{0}'."
         /// </summary>
         internal static string ProviderReturnedNullForGetDbInformation(object p0)
         {
@@ -102,7 +95,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Could not determine store version; a valid store connection or a version hint is required."
+        ///     A string like "Could not determine store version; a valid store connection or a version hint is required."
         /// </summary>
         internal static string UnableToDetermineStoreVersion
         {
@@ -110,7 +103,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "DATEPART argument to function '{0}.{1}' must be a literal string"
+        ///     A string like "DATEPART argument to function '{0}.{1}' must be a literal string"
         /// </summary>
         internal static string InvalidDatePartArgumentExpression(object p0, object p1)
         {
@@ -118,7 +111,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "'{0}' is not a valid value for DATEPART argument in '{1}.{2}' function"
+        ///     A string like "'{0}' is not a valid value for DATEPART argument in '{1}.{2}' function"
         /// </summary>
         internal static string InvalidDatePartArgumentValue(object p0, object p1, object p2)
         {
@@ -126,7 +119,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Functions attributed as NiladicFunction='true' in the provider manifest cannot have parameter declarations"
+        ///     A string like "Functions attributed as NiladicFunction='true' in the provider manifest cannot have parameter declarations"
         /// </summary>
         internal static string NiladicFunctionsCannotHaveParameters
         {
@@ -134,7 +127,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "'{0}' is an unknown expression type."
+        ///     A string like "'{0}' is an unknown expression type."
         /// </summary>
         internal static string UnknownExpressionType(object p0)
         {
@@ -142,7 +135,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "FULL OUTER JOIN is not supported by SQL Server Compact."
+        ///     A string like "FULL OUTER JOIN is not supported by SQL Server Compact."
         /// </summary>
         internal static string FullOuterJoinNotSupported
         {
@@ -150,7 +143,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "COLLATE subclause in the ORDER BY clause is not supported by SQL Server Compact."
+        ///     A string like "COLLATE subclause in the ORDER BY clause is not supported by SQL Server Compact."
         /// </summary>
         internal static string CollateInOrderByNotSupported
         {
@@ -158,7 +151,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Server-generated keys and server-generated values are not supported by SQL Server Compact."
+        ///     A string like "Server-generated keys and server-generated values are not supported by SQL Server Compact."
         /// </summary>
         internal static string DMLQueryCannotReturnResults
         {
@@ -166,7 +159,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "SKIP clause is not supported by SQL Server Compact."
+        ///     A string like "SKIP clause is not supported by SQL Server Compact."
         /// </summary>
         internal static string SkipNotSupportedException
         {
@@ -174,7 +167,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "WITH TIES subclause is not supported by SQL Server Compact."
+        ///     A string like "WITH TIES subclause is not supported by SQL Server Compact."
         /// </summary>
         internal static string WithTiesNotSupportedException
         {
@@ -182,7 +175,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "User defined functions are not supported by SQL Server Compact."
+        ///     A string like "User defined functions are not supported by SQL Server Compact."
         /// </summary>
         internal static string UserDefinedFunctionsNotSupported
         {
@@ -190,7 +183,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Table valued functions are not supported by SQL Server Compact."
+        ///     A string like "Table valued functions are not supported by SQL Server Compact."
         /// </summary>
         internal static string TVFsNotSupported
         {
@@ -198,7 +191,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "DISTINCT attribute is not supported in aggregate functions by SQL Server Compact."
+        ///     A string like "DISTINCT attribute is not supported in aggregate functions by SQL Server Compact."
         /// </summary>
         internal static string DistinctAggregatesNotSupported
         {
@@ -206,7 +199,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The type '{0}' is not supported by SQL Server Compact."
+        ///     A string like "The type '{0}' is not supported by SQL Server Compact."
         /// </summary>
         internal static string ProviderDoesNotSupportType(object p0)
         {
@@ -214,7 +207,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "There is no store type corresponding to the EDM type '{0}' of primitive type '{1}'."
+        ///     A string like "There is no store type corresponding to the EDM type '{0}' of primitive type '{1}'."
         /// </summary>
         internal static string NoStoreTypeForEdmType(object p0, object p1)
         {
@@ -222,7 +215,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Stored procedures are not supported by SQL Server Compact."
+        ///     A string like "Stored procedures are not supported by SQL Server Compact."
         /// </summary>
         internal static string StoredProceduresNotSupported
         {
@@ -230,7 +223,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The function '{0}' is not supported by SQL Server Compact."
+        ///     A string like "The function '{0}' is not supported by SQL Server Compact."
         /// </summary>
         internal static string FunctionNotSupported(object p0)
         {
@@ -238,7 +231,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Failed when preparing table {0} for write as write-consistency cannot be guaranteed. Try adding a writable column to the table."
+        ///     A string like "Failed when preparing table {0} for write as write-consistency cannot be guaranteed. Try adding a writable column to the table."
         /// </summary>
         internal static string UpdateStatementCannotBeGeneratedForAcquiringLock(object p0)
         {
@@ -246,7 +239,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Server-generated keys are only supported for identity columns. More than one column is marked as server generated in table '{0}'."
+        ///     A string like "Server-generated keys are only supported for identity columns. More than one column is marked as server generated in table '{0}'."
         /// </summary>
         internal static string Update_NotSupportedServerGenKey(object p0)
         {
@@ -254,7 +247,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Server-generated keys are only supported for identity columns. The column '{0}' has type '{1}', which is not a valid type for an identity column."
+        ///     A string like "Server-generated keys are only supported for identity columns. The column '{0}' has type '{1}', which is not a valid type for an identity column."
         /// </summary>
         internal static string Update_NotSupportedIdentityType(object p0, object p1)
         {
@@ -262,7 +255,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Internal .NET Framework Data Provider error {0}."
+        ///     A string like "Internal .NET Framework Data Provider error {0}."
         /// </summary>
         internal static string ADP_InternalProviderError(object p0)
         {
@@ -270,7 +263,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The {0} enumeration value, {1}, is not valid."
+        ///     A string like "The {0} enumeration value, {1}, is not valid."
         /// </summary>
         internal static string ADP_InvalidEnumerationValue(object p0, object p1)
         {
@@ -278,7 +271,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The {0} enumeration value, {1}, is not supported by the {2} method."
+        ///     A string like "The {0} enumeration value, {1}, is not supported by the {2} method."
         /// </summary>
         internal static string ADP_NotSupportedEnumerationValue(object p0, object p1, object p2)
         {
@@ -286,7 +279,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Format of the initialization string does not conform to specification starting at index {0}."
+        ///     A string like "Format of the initialization string does not conform to specification starting at index {0}."
         /// </summary>
         internal static string ADP_ConnectionStringSyntax(object p0)
         {
@@ -294,7 +287,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Value is not valid for key '{0}'."
+        ///     A string like "Value is not valid for key '{0}'."
         /// </summary>
         internal static string ADP_InvalidConnectionOptionValue(object p0)
         {
@@ -302,7 +295,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The parameter specified for the connection is not supported and is not of the SqlCeConnection type."
+        ///     A string like "The parameter specified for the connection is not supported and is not of the SqlCeConnection type."
         /// </summary>
         internal static string InvalidConnectionTypeException
         {
@@ -310,7 +303,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The store generated pattern 'Computed' is supported for properties that are of type 'timestamp'  or 'rowversion' only."
+        ///     A string like "The store generated pattern 'Computed' is supported for properties that are of type 'timestamp'  or 'rowversion' only."
         /// </summary>
         internal static string ComputedColumnsNotSupported
         {
@@ -318,7 +311,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "The database creation succeeded, but the creation of the database objects did not. See inner exception for more details."
+        ///     A string like "The database creation succeeded, but the creation of the database objects did not. See inner exception for more details."
         /// </summary>
         internal static string IncompleteDatabaseCreation
         {
@@ -326,7 +319,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Server generated GUID column "{0}" cannot be part of the key."
+        ///     A string like "Server generated GUID column "{0}" cannot be part of the key."
         /// </summary>
         internal static string ServerGeneratedGuidKeyNotSupported(object p0)
         {
@@ -334,7 +327,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Database file cannot be deleted within a transaction scope."
+        ///     A string like "Database file cannot be deleted within a transaction scope."
         /// </summary>
         internal static string DeleteDatabaseNotAllowedWithinTransaction
         {
@@ -342,7 +335,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Database file cannot be created within a transaction scope."
+        ///     A string like "Database file cannot be created within a transaction scope."
         /// </summary>
         internal static string CreateDatabaseNotAllowedWithinTransaction
         {
@@ -350,7 +343,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "Database file cannot be deleted. Close all open connections before calling DeleteDatabase()."
+        ///     A string like "Database file cannot be deleted. Close all open connections before calling DeleteDatabase()."
         /// </summary>
         internal static string DeleteDatabaseWithOpenConnection
         {
@@ -358,7 +351,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// A string like "{0} column with MaxLength greater than {1} is not supported."
+        ///     A string like "{0} column with MaxLength greater than {1} is not supported."
         /// </summary>
         internal static string ColumnGreaterThanMaxLengthNotSupported(object p0, object p1)
         {
@@ -367,13 +360,13 @@ namespace System.Data.Entity.SqlServerCompact.Resources
     }
 
     /// <summary>
-    ///    Strongly-typed and parameterized exception factory.
+    ///     Strongly-typed and parameterized exception factory.
     /// </summary>
     [GeneratedCode("Resources.SqlServerCompact.tt", "1.0.0.0")]
     internal static class Error
     {
         /// <summary>
-        /// ArgumentException with message like "The argument '{0}' cannot be null, empty or contain only white space."
+        ///     ArgumentException with message like "The argument '{0}' cannot be null, empty or contain only white space."
         /// </summary>
         internal static Exception ArgumentIsNullOrWhitespace(object p0)
         {
@@ -381,23 +374,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// ArgumentException with message like "The precondition '{0}' failed. {1}"
-        /// </summary>
-        internal static Exception PreconditionFailed(object p0, object p1)
-        {
-            return new ArgumentException(Strings.PreconditionFailed(p0, p1));
-        }
-
-        /// <summary>
-        /// The exception that is thrown when a null reference (Nothing in Visual Basic) is passed to a method that does not accept it as a valid argument.
-        /// </summary>
-        internal static Exception ArgumentNull(string paramName)
-        {
-            return new ArgumentNullException(paramName);
-        }
-
-        /// <summary>
-        /// The exception that is thrown when the value of an argument is outside the allowable range of values as defined by the invoked method.
+        ///     The exception that is thrown when the value of an argument is outside the allowable range of values as defined by the invoked method.
         /// </summary>
         internal static Exception ArgumentOutOfRange(string paramName)
         {
@@ -405,7 +382,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// The exception that is thrown when the author has yet to implement the logic at this point in the program. This can act as an exception based TODO tag.
+        ///     The exception that is thrown when the author has yet to implement the logic at this point in the program. This can act as an exception based TODO tag.
         /// </summary>
         internal static Exception NotImplemented()
         {
@@ -413,7 +390,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
         }
 
         /// <summary>
-        /// The exception that is thrown when an invoked method is not supported, or when there is an attempt to read, seek, or write to a stream that does not support the invoked functionality. 
+        ///     The exception that is thrown when an invoked method is not supported, or when there is an attempt to read, seek, or write to a stream that does not support the invoked functionality.
         /// </summary>
         internal static Exception NotSupported()
         {
@@ -422,15 +399,13 @@ namespace System.Data.Entity.SqlServerCompact.Resources
     }
 
     /// <summary>
-    ///    AutoGenerated resource class. Usage:
-    ///
-    ///        string s = EntityRes.GetString(EntityRes.MyIdenfitier);
+    ///     AutoGenerated resource class. Usage:
+    ///     string s = EntityRes.GetString(EntityRes.MyIdenfitier);
     /// </summary>
     [GeneratedCode("Resources.SqlServerCompact.tt", "1.0.0.0")]
     internal sealed class EntityRes
     {
         internal const string ArgumentIsNullOrWhitespace = "ArgumentIsNullOrWhitespace";
-        internal const string PreconditionFailed = "PreconditionFailed";
         internal const string ADP_CanNotRetrieveServerGeneratedKey = "ADP_CanNotRetrieveServerGeneratedKey";
         internal const string ADP_InvalidCommandTimeOut = "ADP_InvalidCommandTimeOut";
         internal const string ADP_InvalidCommandType = "ADP_InvalidCommandType";
@@ -479,8 +454,7 @@ namespace System.Data.Entity.SqlServerCompact.Resources
 
         private EntityRes()
         {
-            resources = new ResourceManager(
-                "System.Data.Entity.SqlServer.Properties.Resources.SqlServerCompact", typeof(RuntimeFailureMethods).Assembly);
+            resources = new ResourceManager("System.Data.Entity.SqlServer.Properties.Resources.SqlServerCompact", typeof(Check).Assembly);
         }
 
         private static EntityRes GetLoader()

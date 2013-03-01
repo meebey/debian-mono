@@ -1,39 +1,40 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Data.Common;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Internal.MockingProxies;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// Encapsulates a cloned <see cref="ObjectContext"/> and store <see cref="DbConnection"/>. Note that these
-    /// objects are disposable and should be used in a using block to ensure both the cloned context and the
-    /// cloned connection are disposed.
+    ///     Encapsulates a cloned <see cref="ObjectContext" /> and store <see cref="DbConnection" />. Note that these
+    ///     objects are disposable and should be used in a using block to ensure both the cloned context and the
+    ///     cloned connection are disposed.
     /// </summary>
     internal class ClonedObjectContext : IDisposable
     {
         private ObjectContextProxy _objectContext;
 
         /// <summary>
-        /// For mocking.
+        ///     For mocking.
         /// </summary>
         protected ClonedObjectContext()
         {
         }
 
         /// <summary>
-        /// Creates a clone of the given <see cref="ObjectContext"/>. The underlying <see cref="DbConnection"/> of
-        /// the context is also cloned and the given connection string is used for the connection string of
-        /// the cloned connection.
+        ///     Creates a clone of the given <see cref="ObjectContext" />. The underlying <see cref="DbConnection" /> of
+        ///     the context is also cloned and the given connection string is used for the connection string of
+        ///     the cloned connection.
         /// </summary>
         public ClonedObjectContext(
             ObjectContextProxy objectContext, string connectionString, bool transferLoadedAssemblies = true)
         {
-            Contract.Requires(objectContext != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(connectionString));
+            DebugCheck.NotNull(objectContext);
+            // connectionString may be null when connection has been created from DbContextInfo using just a provider
 
             var clonedConnection =
                 DbProviderServices.GetProviderFactory(objectContext.Connection.StoreConnection).CreateConnection();
@@ -42,6 +43,7 @@ namespace System.Data.Entity.Internal
             var clonedEntityConnection = objectContext.Connection.CreateNew(clonedConnection);
 
             _objectContext = objectContext.CreateNew(clonedEntityConnection);
+            _objectContext.CopyContextOptions(objectContext);
 
             if (!String.IsNullOrWhiteSpace(objectContext.DefaultContainerName))
             {
@@ -55,7 +57,7 @@ namespace System.Data.Entity.Internal
         }
 
         /// <summary>
-        /// The cloned context.
+        ///     The cloned context.
         /// </summary>
         public ObjectContextProxy ObjectContext
         {
@@ -63,7 +65,7 @@ namespace System.Data.Entity.Internal
         }
 
         /// <summary>
-        /// This is always the store connection of the underlying ObjectContext.
+        ///     This is always the store connection of the underlying ObjectContext.
         /// </summary>
         public DbConnection Connection
         {
@@ -76,7 +78,7 @@ namespace System.Data.Entity.Internal
         /// </summary>
         private void TransferLoadedAssemblies(ObjectContextProxy source)
         {
-            Contract.Requires(source != null);
+            DebugCheck.NotNull(source);
 
             var objectItemCollection = source.GetObjectItemCollection();
 
@@ -85,7 +87,7 @@ namespace System.Data.Entity.Internal
                 .Select(i => source.GetClrType((StructuralType)i).Assembly)
                 .Union(
                     objectItemCollection.OfType<EnumType>()
-                        .Select(i => source.GetClrType(i).Assembly))
+                                        .Select(i => source.GetClrType(i).Assembly))
                 .Distinct();
 
             foreach (var assembly in assemblies)
@@ -95,7 +97,7 @@ namespace System.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Disposes both the underlying ObjectContext and its store connection.
+        ///     Disposes both the underlying ObjectContext and its store connection.
         /// </summary>
         public void Dispose()
         {

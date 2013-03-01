@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -8,14 +9,13 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     using System.Data.Entity.Core.Mapping.ViewGeneration.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
     using System.Text;
 
     internal class ViewgenContext : InternalBase
     {
-        #region Fields
-
         private readonly ConfigViewGenerator m_config;
         private readonly ViewTarget m_viewTarget;
 
@@ -41,12 +41,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         // Maps (left) queries to their rewritings in terms of views
         private readonly Dictionary<FragmentQuery, Tile<FragmentQuery>> m_rewritingCache;
 
-        #endregion
-
-        #region Constructors
-
         internal ViewgenContext(
-            ViewTarget viewTarget, EntitySetBase extent, IEnumerable<Cell> extentCells,
+            ViewTarget viewTarget, EntitySetBase extent, IList<Cell> extentCells,
             CqlIdentifiers identifiers, ConfigViewGenerator config, MemberDomainMap queryDomainMap,
             MemberDomainMap updateDomainMap, StorageEntityContainerMapping entityContainerMapping)
         {
@@ -75,7 +71,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
                 viewTarget, MemberProjectionIndex.Create(extent, m_edmItemCollection), queryDomainMap, updateDomainMap);
 
             // Create left fragment KB: includes constraints for the extent to be constructed
-            var leftKB = new FragmentQueryKB();
+            var leftKB = new FragmentQueryKBChaseSupport();
             leftKB.CreateVariableConstraints(extent, domainMap, m_edmItemCollection);
             m_leftFragmentQP = new FragmentQueryProcessor(leftKB);
             m_rewritingCache = new Dictionary<FragmentQuery, Tile<FragmentQuery>>(
@@ -89,7 +85,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             }
 
             // Create right fragment KB: includes constraints for all extents and association roles of right queries
-            var rightKB = new FragmentQueryKB();
+            var rightKB = new FragmentQueryKBChaseSupport();
             var rightDomainMap = viewTarget == ViewTarget.QueryView ? updateDomainMap : queryDomainMap;
             foreach (var leftCellWrapper in m_cellWrappers)
             {
@@ -100,7 +96,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
 
             if (m_viewTarget == ViewTarget.UpdateView)
             {
-                CreateConstraintsForForeignKeyAssociationsAffectingThisWarapper(rightKB, rightDomainMap);
+                CreateConstraintsForForeignKeyAssociationsAffectingThisWrapper(rightKB, rightDomainMap);
             }
 
             m_rightFragmentQP = new FragmentQueryProcessor(rightKB);
@@ -116,45 +112,45 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Find the Foreign Key Associations that relate EntitySets used in these left cell wrappers and 
-        /// add any equivalence facts between sets implied by 1:1 associations.
-        /// We can collect other implication facts but we don't have a scenario that needs them( yet ).
+        ///     Find the Foreign Key Associations that relate EntitySets used in these left cell wrappers and
+        ///     add any equivalence facts between sets implied by 1:1 associations.
+        ///     We can collect other implication facts but we don't have a scenario that needs them( yet ).
         /// </summary>
-        /// <param name="rightKB"></param>
-        /// <param name="rightDomainMap"></param>
-        private void CreateConstraintsForForeignKeyAssociationsAffectingThisWarapper(
+        /// <param name="rightKB"> </param>
+        /// <param name="rightDomainMap"> </param>
+        private void CreateConstraintsForForeignKeyAssociationsAffectingThisWrapper(
             FragmentQueryKB rightKB, MemberDomainMap rightDomainMap)
         {
-            //First find the entity types of the sets in these cell wrappers.
-            var entityTypes = m_cellWrappers.Select(it => it.RightExtent).OfType<EntitySet>().Select(it => it.ElementType);
-            //Get all the foreign key association sets in these entity sets
-            var allForeignKeyAssociationSets =
-                m_entityContainerMapping.EdmEntityContainer.BaseEntitySets.OfType<AssociationSet>().Where(it => it.ElementType.IsForeignKey);
-            //Find all the foreign key associations that have corresponding sets
-            var oneToOneForeignKeyAssociationsForThisWrapper = allForeignKeyAssociationSets.Select(it => it.ElementType);
-            //Find all the 1:1 associations from the above list
-            oneToOneForeignKeyAssociationsForThisWrapper =
-                oneToOneForeignKeyAssociationsForThisWrapper.Where(
-                    it => (it.AssociationEndMembers.All(endMember => endMember.RelationshipMultiplicity == RelationshipMultiplicity.One)));
-            //Filter the 1:1 foreign key associations to the ones relating the sets used in these cell wrappers.
-            oneToOneForeignKeyAssociationsForThisWrapper =
-                oneToOneForeignKeyAssociationsForThisWrapper.Where(
-                    it => (it.AssociationEndMembers.All(endMember => entityTypes.Contains(endMember.GetEntityType()))));
+            var oneToOneForeignKeyAssociationSetsForThisWrapper
+                = new OneToOneFkAssociationsForEntitiesFilter()
+                    .Filter(
+                        m_cellWrappers.Select(it => it.RightExtent).OfType<EntitySet>().Select(it => it.ElementType).ToList(),
+                        m_entityContainerMapping.EdmEntityContainer.BaseEntitySets.OfType<AssociationSet>());
 
-            //filter foreign key association sets to the sets that are 1:1 and affecting this wrapper.
-            var oneToOneForeignKeyAssociationSetsForThisWrapper =
-                allForeignKeyAssociationSets.Where(it => oneToOneForeignKeyAssociationsForThisWrapper.Contains(it.ElementType));
-
-            //Collect the facts for the foreign key association sets that are 1:1 and affecting this wrapper
+            // Collect the facts for the foreign key association sets that are 1:1 and affecting this wrapper
             foreach (var assocSet in oneToOneForeignKeyAssociationSetsForThisWrapper)
             {
                 rightKB.CreateEquivalenceConstraintForOneToOneForeignKeyAssociation(assocSet, rightDomainMap);
             }
         }
 
-        #endregion
+        internal class OneToOneFkAssociationsForEntitiesFilter
+        {
+            public virtual IEnumerable<AssociationSet> Filter(
+                IList<EntityType> entityTypes, IEnumerable<AssociationSet> associationSets)
+            {
+                DebugCheck.NotNull(entityTypes);
+                DebugCheck.NotNull(associationSets);
 
-        #region Properties
+                return associationSets
+                    .Where(
+                        a => a.ElementType.IsForeignKey
+                             && a.ElementType.AssociationEndMembers
+                                 .All(
+                                     aem => (aem.RelationshipMultiplicity == RelationshipMultiplicity.One)
+                                            && entityTypes.Contains(aem.GetEntityType())));
+            }
+        }
 
         internal ViewTarget ViewTarget
         {
@@ -209,10 +205,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             get { return m_entityContainerMapping; }
         }
 
-        #endregion
-
-        #region InternalMethods
-
         // effects: Returns the cached rewriting of (left) queries in terms of views, if any
         internal bool TryGetCachedRewriting(FragmentQuery query, out Tile<FragmentQuery> rewriting)
         {
@@ -225,14 +217,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             m_rewritingCache[query] = rewriting;
         }
 
-        #endregion
-
-        #region Private Methods
-
         /// <summary>
-        /// Checks:
-        ///  1) Concurrency token is not defined in this Extent's ElementTypes' derived types
-        ///  2) Members with concurrency token should not have conditions specified
+        ///     Checks:
+        ///     1) Concurrency token is not defined in this Extent's ElementTypes' derived types
+        ///     2) Members with concurrency token should not have conditions specified
         /// </summary>
         private void CheckConcurrencyControlTokens()
         {
@@ -281,11 +269,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         // the left cell wrappers for it extent (viewTarget indicates whether
         // the view is for querying or update purposes
         // Modifies m_cellWrappers to contain this list
-        private bool CreateLeftCellWrappers(IEnumerable<Cell> extentCells, ViewTarget viewTarget)
+        private bool CreateLeftCellWrappers(IList<Cell> extentCells, ViewTarget viewTarget)
         {
-            var extentCellsList = new List<Cell>(extentCells);
-            var alignedCells = AlignFields(extentCellsList, m_memberMaps.ProjectedSlotMap, viewTarget);
-            Debug.Assert(alignedCells.Count == extentCellsList.Count, "Cell counts disagree");
+            var alignedCells = AlignFields(extentCells, m_memberMaps.ProjectedSlotMap, viewTarget);
+            Debug.Assert(alignedCells.Count == extentCells.Count, "Cell counts disagree");
 
             // Go through all the cells and create cell wrappers that can be used for generating the view
             m_cellWrappers = new List<LeftCellWrapper>();
@@ -300,9 +287,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
                 var attributes = left.GetNonNullSlots();
 
                 var fromVariable = BoolExpression.CreateLiteral(
-                    new CellIdBoolean(m_identifiers, extentCellsList[i].CellNumber), m_memberMaps.LeftDomainMap);
+                    new CellIdBoolean(m_identifiers, extentCells[i].CellNumber), m_memberMaps.LeftDomainMap);
                 var leftFragmentQuery = FragmentQuery.Create(fromVariable, left);
-                var rightFragmentQuery = FragmentQuery.Create(fromVariable, right);
+
                 if (viewTarget == ViewTarget.UpdateView)
                 {
                     leftFragmentQuery = m_leftFragmentQP.CreateDerivedViewBySelectingConstantAttributes(leftFragmentQuery)
@@ -311,7 +298,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
 
                 var leftWrapper = new LeftCellWrapper(
                     m_viewTarget, attributes, leftFragmentQuery, left, right, m_memberMaps,
-                    extentCellsList[i]);
+                    extentCells[i]);
                 m_cellWrappers.Add(leftWrapper);
             }
             return true;
@@ -361,15 +348,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return outputCells;
         }
 
-        #endregion
-
-        #region String Methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             LeftCellWrapper.WrappersToStringBuilder(builder, m_cellWrappers, "Left Celll Wrappers");
         }
-
-        #endregion
     }
 }

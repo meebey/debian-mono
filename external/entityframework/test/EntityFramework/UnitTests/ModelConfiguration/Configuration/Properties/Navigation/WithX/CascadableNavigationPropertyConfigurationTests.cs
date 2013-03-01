@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
     using Xunit;
 
@@ -14,7 +15,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 
             new ForeignKeyNavigationPropertyConfiguration(associationConfiguration).WillCascadeOnDelete();
 
-            Assert.Equal(EdmOperationAction.Cascade, associationConfiguration.DeleteAction);
+            Assert.Equal(OperationAction.Cascade, associationConfiguration.DeleteAction);
         }
 
         [Fact]
@@ -24,7 +25,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 
             new ForeignKeyNavigationPropertyConfiguration(associationConfiguration).WillCascadeOnDelete(false);
 
-            Assert.Equal(EdmOperationAction.None, associationConfiguration.DeleteAction);
+            Assert.Equal(OperationAction.None, associationConfiguration.DeleteAction);
         }
     }
 }

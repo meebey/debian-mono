@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
@@ -8,39 +9,40 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects;
+    using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Spatial;
     using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using IEntityStateEntry = System.Data.Entity.Core.IEntityStateEntry;
 
     /// <summary>
-    /// Aggregates information about a modification command delegated to a store function.
+    ///     Aggregates information about a modification command delegated to a store function.
     /// </summary>
     internal class FunctionUpdateCommand : UpdateCommand
     {
         #region Constructors
 
         /// <summary>
-        /// Initialize a new function command. Initializes the command object.
+        ///     Initialize a new function command. Initializes the command object.
         /// </summary>
-        /// <param name="functionMapping">Function mapping metadata</param>
-        /// <param name="translator">Translator</param>
-        /// <param name="stateEntries">State entries handled by this operation.</param>
-        /// <param name="stateEntry">'Root' state entry being handled by this function.</param>
+        /// <param name="functionMapping"> Function mapping metadata </param>
+        /// <param name="translator"> Translator </param>
+        /// <param name="stateEntries"> State entries handled by this operation. </param>
+        /// <param name="stateEntry"> 'Root' state entry being handled by this function. </param>
         internal FunctionUpdateCommand(
             StorageModificationFunctionMapping functionMapping, UpdateTranslator translator,
             ReadOnlyCollection<IEntityStateEntry> stateEntries, ExtractedStateEntry stateEntry)
             : this(translator, stateEntries, stateEntry,
                 translator.GenerateCommandDefinition(functionMapping).CreateCommand())
         {
-            Contract.Requires(functionMapping != null);
-            Contract.Requires(translator != null);
-            Contract.Requires(stateEntries != null);
+            DebugCheck.NotNull(functionMapping);
+            DebugCheck.NotNull(translator);
+            DebugCheck.NotNull(stateEntries);
         }
 
         protected FunctionUpdateCommand(
@@ -61,24 +63,24 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         private readonly ReadOnlyCollection<IEntityStateEntry> _stateEntries;
 
         /// <summary>
-        /// Gets the store command wrapped by this command.
+        ///     Gets the store command wrapped by this command.
         /// </summary>
         private readonly DbCommand _dbCommand;
 
         /// <summary>
-        /// Gets map from identifiers (key component proxies) to parameters holding the actual
-        /// key values. Supports propagation of identifier values (fixup for server-gen keys)
+        ///     Gets map from identifiers (key component proxies) to parameters holding the actual
+        ///     key values. Supports propagation of identifier values (fixup for server-gen keys)
         /// </summary>
         private List<KeyValuePair<int, DbParameter>> _inputIdentifiers;
 
         /// <summary>
-        /// Gets map from identifiers (key component proxies) to column names producing the actual
-        /// key values. Supports propagation of identifier values (fixup for server-gen keys)
+        ///     Gets map from identifiers (key component proxies) to column names producing the actual
+        ///     key values. Supports propagation of identifier values (fixup for server-gen keys)
         /// </summary>
         private Dictionary<int, string> _outputIdentifiers;
 
         /// <summary>
-        /// Gets a reference to the rows affected output parameter for the stored procedure. May be null.
+        ///     Gets a reference to the rows affected output parameter for the stored procedure. May be null.
         /// </summary>
         private DbParameter _rowsAffectedParameter;
 
@@ -87,8 +89,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         #region Properties
 
         /// <summary>
-        /// Pairs for column names and propagator results (so that we can associate reader results with
-        /// the source records for server generated values).
+        ///     Pairs for column names and propagator results (so that we can associate reader results with
+        ///     the source records for server generated values).
         /// </summary>
         protected virtual List<KeyValuePair<string, PropagatorResult>> ResultColumns { get; set; }
 
@@ -132,7 +134,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         #region Methods
 
         /// <summary>
-        /// Gets state entries contributing to this function. Supports error reporting.
+        ///     Gets state entries contributing to this function. Supports error reporting.
         /// </summary>
         internal override IList<IEntityStateEntry> GetStateEntries(UpdateTranslator translator)
         {
@@ -217,10 +219,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Sets all identifier input values (to support propagation of identifier values across relationship
-        /// boundaries).
+        ///     Sets all identifier input values (to support propagation of identifier values across relationship
+        ///     boundaries).
         /// </summary>
-        /// <param name="identifierValues">Input values to set.</param>
+        /// <param name="identifierValues"> Input values to set. </param>
         internal virtual void SetInputIdentifiers(Dictionary<int, object> identifierValues)
         {
             if (null != _inputIdentifiers)
@@ -239,10 +241,12 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        ///     See comments in <see cref = "UpdateCommand" />.
+        ///     See comments in <see cref="UpdateCommand" />.
         /// </summary>
         internal override long Execute(
-            Dictionary<int, object> identifierValues, List<KeyValuePair<PropagatorResult, object>> generatedValues)
+            Dictionary<int, object> identifierValues,
+            List<KeyValuePair<PropagatorResult, object>> generatedValues,
+            IDbCommandInterceptor commandInterceptor)
         {
             var connection = Translator.Connection;
             // configure command to use the connection and transaction for this session
@@ -315,8 +319,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             return GetRowsAffected(rowsAffected, Translator);
         }
 
+#if !NET40
+
         /// <summary>
-        ///     See comments in <see cref = "UpdateCommand" />.
+        ///     See comments in <see cref="UpdateCommand" />.
         /// </summary>
         internal override async Task<long> ExecuteAsync(
             Dictionary<int, object> identifierValues,
@@ -342,10 +348,14 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 // If there are result columns, read the server gen results
                 rowsAffected = 0;
                 var members = TypeHelpers.GetAllStructuralMembers(CurrentValues.StructuralType);
-                using (var reader = await _dbCommand.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken))
+                using (
+                    var reader =
+                        await
+                        _dbCommand.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(
+                            continueOnCapturedContext: false))
                 {
                     // Retrieve only the first row from the first result set
-                    if (await reader.ReadAsync(cancellationToken))
+                    if (await reader.ReadAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                     {
                         rowsAffected++;
 
@@ -358,16 +368,22 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                             object value;
 
                             if (Helper.IsSpatialType(columnType)
-                                && !await reader.IsDBNullAsync(columnOrdinal, cancellationToken))
+                                &&
+                                !await
+                                 reader.IsDBNullAsync(columnOrdinal, cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                             {
                                 value =
                                     await
                                     SpatialHelpers.GetSpatialValueAsync(
-                                        Translator.MetadataWorkspace, reader, columnType, columnOrdinal, cancellationToken);
+                                        Translator.MetadataWorkspace, reader, columnType, columnOrdinal, cancellationToken).ConfigureAwait(
+                                            continueOnCapturedContext: false);
                             }
                             else
                             {
-                                value = await reader.GetFieldValueAsync<object>(columnOrdinal, cancellationToken);
+                                value =
+                                    await
+                                    reader.GetFieldValueAsync<object>(columnOrdinal, cancellationToken).ConfigureAwait(
+                                        continueOnCapturedContext: false);
                             }
 
                             // register for back-propagation
@@ -385,16 +401,18 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
                     // Consume the current reader (and subsequent result sets) so that any errors
                     // executing the function can be intercepted
-                    await CommandHelper.ConsumeReaderAsync(reader, cancellationToken);
+                    await CommandHelper.ConsumeReaderAsync(reader, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
                 }
             }
             else
             {
-                rowsAffected = await _dbCommand.ExecuteNonQueryAsync(cancellationToken);
+                rowsAffected = await _dbCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
 
             return GetRowsAffected(rowsAffected, Translator);
         }
+
+#endif
 
         protected virtual long GetRowsAffected(long rowsAffected, UpdateTranslator translator)
         {
@@ -447,7 +465,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets modification operator corresponding to the given entity state.
+        ///     Gets modification operator corresponding to the given entity state.
         /// </summary>
         private static ModificationOperator GetModificationOperator(EntityState state)
         {

@@ -1,63 +1,78 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
+    using System.Data.Entity.Migrations.Design;
     using System.Data.Entity.Migrations.Extensions;
     using System.Data.Entity.Migrations.Resources;
     using System.Data.Entity.Migrations.Utilities;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.IO;
     using System.Linq;
 
     internal class AddMigrationCommand : MigrationsDomainCommand
     {
+        public AddMigrationCommand()
+        {
+            // Testing
+        }
+
         public AddMigrationCommand(string name, bool force, bool ignoreChanges)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(name));
+            DebugCheck.NotEmpty(name);
 
-            Execute(
-                () =>
+            Execute(() => Execute(name, force, ignoreChanges));
+        }
+
+        public void Execute(string name, bool force, bool ignoreChanges)
+        {
+            DebugCheck.NotEmpty(name);
+
+            using (var facade = GetFacade())
+            {
+                var scaffoldedMigration
+                    = facade.Scaffold(
+                        name, Project.GetLanguage(), Project.GetRootNamespace(), ignoreChanges);
+
+                WriteLine(
+                    !scaffoldedMigration.IsRescaffold
+                        ? Strings.ScaffoldingMigration(name)
+                        : Strings.RescaffoldingMigration(name));
+
+                var userCodePath
+                    = WriteMigration(name, force, scaffoldedMigration, scaffoldedMigration.IsRescaffold);
+
+                if (!scaffoldedMigration.IsRescaffold)
+                {
+                    WriteWarning(Strings.SnapshotBehindWarning(name));
+
+                    var databaseMigrations
+                        = facade.GetDatabaseMigrations().Take(2).ToList();
+
+                    var lastDatabaseMigration = databaseMigrations.FirstOrDefault();
+
+                    if ((lastDatabaseMigration != null)
+                        && string.Equals(lastDatabaseMigration.MigrationName(), name, StringComparison.Ordinal))
                     {
-                        var rescaffolding = false;
+                        var revertTargetMigration
+                            = databaseMigrations.ElementAtOrDefault(1);
 
-                        using (var facade = GetFacade())
-                        {
-                            var pendingMigrations = facade.GetPendingMigrations();
+                        WriteWarning(
+                            Environment.NewLine
+                            + Strings.DidYouMeanToRescaffold(
+                                name,
+                                revertTargetMigration ?? "$InitialDatabase",
+                                Path.GetFileName(userCodePath)));
+                    }
+                }
 
-                            if (pendingMigrations.Any())
-                            {
-                                var lastMigration = pendingMigrations.Last();
+                Project.OpenFile(userCodePath);
+            }
+        }
 
-                                if (!string.Equals(lastMigration, name, StringComparison.OrdinalIgnoreCase)
-                                    &&
-                                    !string.Equals(
-                                        lastMigration.MigrationName(), name, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    throw Error.MigrationsPendingException(pendingMigrations.Join());
-                                }
-
-                                rescaffolding = true;
-                                name = lastMigration;
-                            }
-
-                            WriteLine(Strings.LoggingGenerate(name));
-
-                            var scaffoldedMigration = facade.Scaffold(
-                                name, Project.GetLanguage(), Project.GetRootNamespace(), ignoreChanges);
-                            var userCodePath = new MigrationWriter(this)
-                                .Write(
-                                    scaffoldedMigration,
-                                    rescaffolding,
-                                    force,
-                                    name);
-
-                            if (!rescaffolding)
-                            {
-                                WriteWarning(Strings.SnapshotBehindWarning(scaffoldedMigration.MigrationId));
-                            }
-
-                            Project.OpenFile(userCodePath);
-                        }
-                    });
+        protected virtual string WriteMigration(string name, bool force, ScaffoldedMigration scaffoldedMigration, bool rescaffolding)
+        {
+            return new MigrationWriter(this).Write(scaffoldedMigration, rescaffolding, force, name);
         }
     }
 }

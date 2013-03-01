@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Represents an inner, left outer or full outer join operation between the given collection arguments on the specified join condition.
+    ///     Represents an inner, left outer or full outer join operation between the given collection arguments on the specified join condition.
     /// </summary>
     public sealed class DbJoinExpression : DbExpression
     {
@@ -18,9 +20,9 @@ namespace System.Data.Entity.Core.Common.CommandTrees
             DbExpression condition)
             : base(joinKind, collectionOfRowResultType)
         {
-            Debug.Assert(left != null, "DbJoinExpression left cannot be null");
-            Debug.Assert(right != null, "DbJoinExpression right cannot be null");
-            Debug.Assert(condition != null, "DbJoinExpression condition cannot be null");
+            DebugCheck.NotNull(left);
+            DebugCheck.NotNull(right);
+            DebugCheck.NotNull(condition);
             Debug.Assert(
                 DbExpressionKind.InnerJoin == joinKind ||
                 DbExpressionKind.LeftOuterJoin == joinKind ||
@@ -33,7 +35,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the <see cref="DbExpressionBinding"/> provides the left input.
+        ///     Gets the <see cref="DbExpressionBinding" /> provides the left input.
         /// </summary>
         public DbExpressionBinding Left
         {
@@ -41,7 +43,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the <see cref="DbExpressionBinding"/> provides the right input.
+        ///     Gets the <see cref="DbExpressionBinding" /> provides the right input.
         /// </summary>
         public DbExpressionBinding Right
         {
@@ -49,7 +51,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the <see cref="DbExpression"/> that defines the join condition to apply.
+        ///     Gets the <see cref="DbExpression" /> that defines the join condition to apply.
         /// </summary>
         public DbExpression JoinCondition
         {
@@ -57,39 +59,39 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that do not produce a result value.
+        ///     The visitor pattern method for expression visitors that do not produce a result value.
         /// </summary>
-        /// <param name="visitor">An instance of DbExpressionVisitor.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
+        /// <param name="visitor"> An instance of DbExpressionVisitor. </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
         public override void Accept(DbExpressionVisitor visitor)
         {
-            if (visitor != null)
-            {
-                visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            visitor.Visit(this);
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that produce a result value of a specific type.
+        ///     The visitor pattern method for expression visitors that produce a result value of a specific type.
         /// </summary>
-        /// <param name="visitor">An instance of a typed DbExpressionVisitor that produces a result value of type TResultType.</param>
-        /// <typeparam name="TResultType">The type of the result produced by <paramref name="visitor"/></typeparam>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
-        /// <returns>An instance of <typeparamref name="TResultType"/>.</returns>
+        /// <param name="visitor"> An instance of a typed DbExpressionVisitor that produces a result value of type TResultType. </param>
+        /// <typeparam name="TResultType">
+        ///     The type of the result produced by <paramref name="visitor" />
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
+        /// <returns>
+        ///     An instance of <typeparamref name="TResultType" /> .
+        /// </returns>
         public override TResultType Accept<TResultType>(DbExpressionVisitor<TResultType> visitor)
         {
-            if (visitor != null)
-            {
-                return visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            return visitor.Visit(this);
         }
     }
 }

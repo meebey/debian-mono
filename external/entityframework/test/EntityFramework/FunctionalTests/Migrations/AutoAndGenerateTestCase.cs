@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.Collections.Generic;
@@ -6,7 +7,6 @@ namespace System.Data.Entity.Migrations
     using System.Data.Entity.Migrations.Infrastructure;
     using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Migrations.Sql;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using Xunit;
     using Xunit.Extensions;
@@ -141,10 +141,9 @@ namespace System.Data.Entity.Migrations
         {
             private static readonly IList<Type> _excludedTypes
                 = new List<Type>
-                    {
-                        typeof(InsertHistoryOperation),
-                        typeof(DeleteHistoryOperation)
-                    };
+                      {
+                          typeof(HistoryOperation)
+                      };
 
             private readonly Action<IEnumerable<MigrationOperation>> _verifyAction;
 
@@ -152,8 +151,6 @@ namespace System.Data.Entity.Migrations
 
             public SqlInterceptor(Action<IEnumerable<MigrationOperation>> verifyAction)
             {
-                Contract.Requires(verifyAction != null);
-
                 _verifyAction = verifyAction;
             }
 

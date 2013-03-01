@@ -1,41 +1,37 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Represents an enumeration member.
+    ///     Represents an enumeration member.
     /// </summary>
     public sealed class EnumMember : MetadataItem
     {
-        #region Fields
-
         /// <summary>
-        /// The name of this enumeration member.
+        ///     The name of this enumeration member.
         /// </summary>
         private readonly string _name;
 
         /// <summary>
-        /// The value of this enumeration member.
+        ///     The value of this enumeration member.
         /// </summary>
         private readonly object _value;
 
-        #endregion
-
-        #region Constructors
-
         /// <summary>
-        /// Initializes a new instance of the <see cref="EnumMember"/> type by using the specified name and value.
+        ///     Initializes a new instance of the <see cref="EnumMember" /> type by using the specified name and value.
         /// </summary>
-        /// <param name="name">The name of this enumeration member. Must not be null or the empty string.</param>
-        /// <param name="value">The value of this enumeration member. </param>
+        /// <param name="name"> The name of this enumeration member. Must not be null or the empty string. </param>
+        /// <param name="value"> The value of this enumeration member. </param>
         /// <exception cref="System.ArgumentNullException">Thrown if name argument is null</exception>
         /// <exception cref="System.ArgumentException">Thrown if name argument is empty string</exception>
         internal EnumMember(string name, object value)
             : base(MetadataFlags.Readonly)
         {
-            EntityUtil.CheckStringArgument(name, "name");
-            Debug.Assert(value != null, "value != null");
+            Check.NotEmpty(name, "name");
+            DebugCheck.NotNull(value);
             Debug.Assert(
                 value is SByte || value is Byte || value is Int16 || value is Int32 || value is Int64,
                 "Unsupported type of enum member value.");
@@ -44,12 +40,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
             _value = value;
         }
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Gets the kind of this type.
+        ///     Gets the kind of this type.
         /// </summary>
         public override BuiltInTypeKind BuiltInTypeKind
         {
@@ -57,7 +49,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the name of this enumeration member.
+        ///     Gets the name of this enumeration member.
         /// </summary>
         [MetadataProperty(PrimitiveTypeKind.String, false)]
         public string Name
@@ -66,7 +58,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the value of this enumeration member.
+        ///     Gets the value of this enumeration member.
         /// </summary>
         [MetadataProperty(BuiltInTypeKind.PrimitiveType, false)]
         public object Value
@@ -75,25 +67,19 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the identity for this item as a string
+        ///     Gets the identity for this item as a string
         /// </summary>
         internal override string Identity
         {
             get { return Name; }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Overriding System.Object.ToString to provide better String representation for this type.
+        ///     Overriding System.Object.ToString to provide better String representation for this type.
         /// </summary>
         public override string ToString()
         {
             return Name;
         }
-
-        #endregion
     }
 }

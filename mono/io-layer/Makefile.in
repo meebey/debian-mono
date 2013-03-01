@@ -69,7 +69,7 @@ am__libwapi_la_SOURCES_DIST = access.h atomic.c atomic.h collection.c \
 	thread-private.h timefuncs.c timefuncs.h timefuncs-private.h \
 	types.h uglify.h versioninfo.c versioninfo.h wait.c wait.h \
 	wapi_glob.h wapi_glob.c wapi.h wapi-private.h wthreads.c \
-	hppa_atomic.S io-layer-dummy.c
+	io-layer-dummy.c
 am__objects_1 = atomic.lo collection.lo context.lo \
 	critical-sections.lo error.lo events.lo handles.lo io.lo \
 	io-portability.lo locking.lo messages.lo misc.lo mutexes.lo \
@@ -77,14 +77,10 @@ am__objects_1 = atomic.lo collection.lo context.lo \
 	shared.lo sockets.lo system.lo timefuncs.lo versioninfo.lo \
 	wait.lo wapi_glob.lo wthreads.lo
 am__objects_2 =
-am__objects_3 = libwapi_la-hppa_atomic.lo
-am__objects_4 = io-layer-dummy.lo
-@HOST_WIN32_FALSE@@HPPA_FALSE@am_libwapi_la_OBJECTS =  \
-@HOST_WIN32_FALSE@@HPPA_FALSE@	$(am__objects_1) \
-@HOST_WIN32_FALSE@@HPPA_FALSE@	$(am__objects_2)
-@HOST_WIN32_FALSE@@HPPA_TRUE@am_libwapi_la_OBJECTS = $(am__objects_1) \
-@HOST_WIN32_FALSE@@HPPA_TRUE@	$(am__objects_3)
-@HOST_WIN32_TRUE@am_libwapi_la_OBJECTS = $(am__objects_4) \
+am__objects_3 = io-layer-dummy.lo
+@HOST_WIN32_FALSE@am_libwapi_la_OBJECTS = $(am__objects_1) \
+@HOST_WIN32_FALSE@	$(am__objects_2)
+@HOST_WIN32_TRUE@am_libwapi_la_OBJECTS = $(am__objects_3) \
 @HOST_WIN32_TRUE@	$(am__objects_2)
 libwapi_la_OBJECTS = $(am_libwapi_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
@@ -94,23 +90,14 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
-CPPASCOMPILE = $(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CCASFLAGS) $(CCASFLAGS)
-LTCPPASCOMPILE = $(LIBTOOL) $(AM_V_lt) $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=compile $(CCAS) $(DEFS) \
-	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	$(AM_CCASFLAGS) $(CCASFLAGS)
-AM_V_CPPAS = $(am__v_CPPAS_$(V))
-am__v_CPPAS_ = $(am__v_CPPAS_$(AM_DEFAULT_VERBOSITY))
-am__v_CPPAS_0 = @echo "  CPPAS " $@;
-AM_V_at = $(am__v_at_$(V))
-am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
-am__v_at_0 = @
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 AM_V_CC = $(am__v_CC_$(V))
 am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
 am__v_CC_0 = @echo "  CC    " $@;
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
 CCLD = $(CC)
 LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
@@ -439,24 +426,16 @@ WINDOWS_SRC = \
 	io-layer.h		\
 	io-layer-dummy.c
 
-HPPA_SRC = \
-	hppa_atomic.S
-
-@HOST_WIN32_FALSE@@HPPA_FALSE@libwapi_la_SOURCES = $(OTHER_SRC) $(OTHER_H)
-@HOST_WIN32_FALSE@@HPPA_TRUE@libwapi_la_SOURCES = $(OTHER_SRC) $(HPPA_SRC)
+@HOST_WIN32_FALSE@libwapi_la_SOURCES = $(OTHER_SRC) $(OTHER_H)
 @HOST_WIN32_TRUE@libwapi_la_SOURCES = $(WINDOWS_SRC) $(WINDOWS_H)
-# to enable pick up of config.h
-@HOST_WIN32_FALSE@@HPPA_TRUE@libwapi_la_CCASFLAGS = -I$(top_builddir)
 @PLATFORM_DARWIN_TRUE@libwapi_la_LIBADD = -lproc
 EXTRA_DIST = \
-	$(WINDOWS_SRC)	\
-        $(HPPA_SRC) \
-	$(OTHER_SRC)
+	$(WINDOWS_SRC)
 
 all: all-am
 
 .SUFFIXES:
-.SUFFIXES: .S .c .lo .o .obj
+.SUFFIXES: .c .lo .o .obj
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -515,7 +494,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/io-layer-dummy.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/io-portability.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/io.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libwapi_la-hppa_atomic.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/locking.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/messages.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/misc.Plo@am__quote@
@@ -533,38 +511,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wait.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wapi_glob.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/wthreads.Plo@am__quote@
-
-.S.o:
-@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(CPPASCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCCAS_FALSE@	$(CPPASCOMPILE) -c -o $@ $<
-
-.S.obj:
-@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(CPPASCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
-@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCCAS_FALSE@	$(CPPASCOMPILE) -c -o $@ `$(CYGPATH_W) '$<'`
-
-.S.lo:
-@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(LTCPPASCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
-@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCCAS_FALSE@	$(LTCPPASCOMPILE) -c -o $@ $<
-
-libwapi_la-hppa_atomic.lo: hppa_atomic.S
-@am__fastdepCCAS_TRUE@	$(AM_V_CPPAS)$(LIBTOOL) $(AM_V_lt) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwapi_la_CCASFLAGS) $(CCASFLAGS) -MT libwapi_la-hppa_atomic.lo -MD -MP -MF $(DEPDIR)/libwapi_la-hppa_atomic.Tpo -c -o libwapi_la-hppa_atomic.lo `test -f 'hppa_atomic.S' || echo '$(srcdir)/'`hppa_atomic.S
-@am__fastdepCCAS_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libwapi_la-hppa_atomic.Tpo $(DEPDIR)/libwapi_la-hppa_atomic.Plo
-@am__fastdepCCAS_FALSE@	$(AM_V_CPPAS) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	source='hppa_atomic.S' object='libwapi_la-hppa_atomic.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCCAS_FALSE@	DEPDIR=$(DEPDIR) $(CCASDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCCAS_FALSE@	$(LIBTOOL) $(AM_V_lt) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CCAS) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libwapi_la_CCASFLAGS) $(CCASFLAGS) -c -o libwapi_la-hppa_atomic.lo `test -f 'hppa_atomic.S' || echo '$(srcdir)/'`hppa_atomic.S
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -793,6 +739,7 @@ uninstall-am:
 	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
 	pdf pdf-am ps ps-am tags uninstall uninstall-am
 
+	$(OTHER_SRC)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Reflection;
 
     internal sealed class PropertyMapper
@@ -15,38 +15,38 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
         public PropertyMapper(TypeMapper typeMapper)
         {
-            Contract.Requires(typeMapper != null);
+            DebugCheck.NotNull(typeMapper);
 
             _typeMapper = typeMapper;
         }
 
         public void Map(
-            PropertyInfo propertyInfo, EdmComplexType complexType,
+            PropertyInfo propertyInfo, ComplexType complexType,
             Func<ComplexTypeConfiguration> complexTypeConfiguration)
         {
-            Contract.Requires(propertyInfo != null);
-            Contract.Requires(complexType != null);
+            DebugCheck.NotNull(propertyInfo);
+            DebugCheck.NotNull(complexType);
 
             var property = MapPrimitiveOrComplexOrEnumProperty(
                 propertyInfo, complexTypeConfiguration, discoverComplexTypes: true);
 
             if (property != null)
             {
-                complexType.DeclaredProperties.Add(property);
+                complexType.AddMember(property);
             }
         }
 
         public void Map(
-            PropertyInfo propertyInfo, EdmEntityType entityType, Func<EntityTypeConfiguration> entityTypeConfiguration)
+            PropertyInfo propertyInfo, EntityType entityType, Func<EntityTypeConfiguration> entityTypeConfiguration)
         {
-            Contract.Requires(propertyInfo != null);
-            Contract.Requires(entityType != null);
+            DebugCheck.NotNull(propertyInfo);
+            DebugCheck.NotNull(entityType);
 
             var property = MapPrimitiveOrComplexOrEnumProperty(propertyInfo, entityTypeConfiguration);
 
             if (property != null)
             {
-                entityType.DeclaredProperties.Add(property);
+                entityType.AddMember(property);
             }
             else
             {
@@ -58,7 +58,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             PropertyInfo propertyInfo, Func<StructuralTypeConfiguration> structuralTypeConfiguration,
             bool discoverComplexTypes = false)
         {
-            Contract.Requires(propertyInfo != null);
+            DebugCheck.NotNull(propertyInfo);
 
             var property = propertyInfo.AsEdmPrimitiveProperty();
 
@@ -69,10 +69,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
                 if (complexType != null)
                 {
-                    property = new EdmProperty
-                        {
-                            Name = propertyInfo.Name
-                        }.AsComplex(complexType);
+                    property = EdmProperty.Complex(propertyInfo.Name, complexType);
                 }
                 else
                 {
@@ -84,11 +81,8 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
                         if (enumType != null)
                         {
-                            property = new EdmProperty
-                                {
-                                    Name = propertyInfo.Name,
-                                }.AsEnum(enumType);
-                            property.PropertyType.IsNullable = isNullable;
+                            property = EdmProperty.Enum(propertyInfo.Name, enumType);
+                            property.Nullable = isNullable;
                         }
                     }
                 }
@@ -101,7 +95,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
                 new AttributeMapper(_typeMapper.MappingContext.AttributeProvider)
                     .Map(propertyInfo, property.Annotations);
 
-                if (!property.PropertyType.IsComplexType)
+                if (!property.IsComplexType)
                 {
                     _typeMapper.MappingContext.ConventionsConfiguration.ApplyPropertyConfiguration(
                         propertyInfo, () => structuralTypeConfiguration().Property(new PropertyPath(propertyInfo)));

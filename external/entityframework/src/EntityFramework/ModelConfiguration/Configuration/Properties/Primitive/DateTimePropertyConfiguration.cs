@@ -1,16 +1,24 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Parsing.Xml.Internal.Ssdl;
-    using System.Diagnostics.Contracts;
-    using EdmProperty = System.Data.Entity.Edm.EdmProperty;
+    using System.Data.Entity.Utilities;
 
-    internal class DateTimePropertyConfiguration : PrimitivePropertyConfiguration
+    /// <summary>
+    ///     Used to configure a <see cref="DateTime" /> property of an entity type or
+    ///     complex type.
+    /// </summary>
+    public class DateTimePropertyConfiguration : PrimitivePropertyConfiguration
     {
+        /// <summary>
+        ///     Gets or sets the precision of the property.
+        /// </summary>
         public byte? Precision { get; set; }
 
+        /// <summary>
+        ///     Initializes a new instance of the DateTimePropertyConfiguration class.
+        /// </summary>
         public DateTimePropertyConfiguration()
         {
         }
@@ -18,7 +26,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
         private DateTimePropertyConfiguration(DateTimePropertyConfiguration source)
             : base(source)
         {
-            Contract.Requires(source != null);
+            DebugCheck.NotNull(source);
 
             Precision = source.Precision;
         }
@@ -34,18 +42,18 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
 
             if (Precision != null)
             {
-                property.PropertyType.PrimitiveTypeFacets.Precision = Precision;
+                property.Precision = Precision;
             }
         }
 
-        internal override void Configure(DbPrimitiveTypeFacets facets, FacetDescription facetDescription)
+        internal override void Configure(EdmProperty column, FacetDescription facetDescription)
         {
-            base.Configure(facets, facetDescription);
+            base.Configure(column, facetDescription);
 
             switch (facetDescription.FacetName)
             {
-                case SsdlConstants.Attribute_Precision:
-                    facets.Precision = facetDescription.IsConstant ? null : Precision ?? facets.Precision;
+                case XmlConstants.PrecisionElement:
+                    column.Precision = facetDescription.IsConstant ? null : Precision ?? column.Precision;
                     break;
             }
         }
@@ -60,7 +68,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             }
         }
 
-        public override void FillFrom(PrimitivePropertyConfiguration other, bool inCSpace)
+        internal override void FillFrom(PrimitivePropertyConfiguration other, bool inCSpace)
         {
             base.FillFrom(other, inCSpace);
             var strConfigRhs = other as DateTimePropertyConfiguration;
@@ -71,11 +79,11 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Primiti
             }
         }
 
-        public override bool IsCompatible(PrimitivePropertyConfiguration other, bool InCSpace, out string errorMessage)
+        internal override bool IsCompatible(PrimitivePropertyConfiguration other, bool inCSpace, out string errorMessage)
         {
             var dateRhs = other as DateTimePropertyConfiguration;
 
-            var baseIsCompatible = base.IsCompatible(other, InCSpace, out errorMessage);
+            var baseIsCompatible = base.IsCompatible(other, inCSpace, out errorMessage);
             var precisionIsCompatible = dateRhs == null || IsCompatible(c => c.Precision, dateRhs, ref errorMessage);
 
             return baseIsCompatible &&

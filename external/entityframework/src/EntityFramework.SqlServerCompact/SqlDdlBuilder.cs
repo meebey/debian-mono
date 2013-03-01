@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServerCompact
 {
     using System.Collections.Generic;
@@ -8,7 +9,7 @@ namespace System.Data.Entity.SqlServerCompact
     using System.Text;
 
     /// <summary>
-    /// Class for generating scripts to create schema objects.
+    ///     Class for generating scripts to create schema objects.
     /// </summary>
     internal sealed class SqlDdlBuilder
     {
@@ -27,10 +28,10 @@ namespace System.Data.Entity.SqlServerCompact
         private readonly List<EntitySet> ignoredEntitySets = new List<EntitySet>();
 
         /// <summary>
-        /// Helper function for generating the scripts for tables & constraints.
+        ///     Helper function for generating the scripts for tables & constraints.
         /// </summary>
-        /// <param name="itemCollection"></param>
-        /// <returns></returns> 
+        /// <param name="itemCollection"> </param>
+        /// <returns> </returns>
         internal static List<string> CreateObjectsScript(StoreItemCollection itemCollection, bool returnWarnings)
         {
             var builder = new SqlDdlBuilder();
@@ -66,9 +67,9 @@ namespace System.Data.Entity.SqlServerCompact
         }
 
         /// <summary>
-        /// Function that returns final command text by appending Constraints to ObjectBuilder.
+        ///     Function that returns final command text by appending Constraints to ObjectBuilder.
         /// </summary>
-        /// <returns></returns> 
+        /// <returns> </returns>
         internal List<string> GetCommandText(bool returnWarnings)
         {
             objects.AddRange(constraints);
@@ -85,9 +86,9 @@ namespace System.Data.Entity.SqlServerCompact
         }
 
         /// <summary>
-        /// Function for generating foreign key constraints.
+        ///     Function for generating foreign key constraints.
         /// </summary>
-        /// <param name="associationSet"></param>
+        /// <param name="associationSet"> </param>
         private void AppendCreateForeignKeys(AssociationSet associationSet)
         {
             var constraintBuilder = new StringBuilder();
@@ -137,9 +138,9 @@ namespace System.Data.Entity.SqlServerCompact
         }
 
         /// <summary>
-        /// Function for generating create table statements.
+        ///     Function for generating create table statements.
         /// </summary>
-        /// <param name="entitySet"></param>
+        /// <param name="entitySet"> </param>
         private void AppendCreateTable(EntitySet entitySet)
         {
             var objectBuilder = new StringBuilder();
@@ -177,10 +178,9 @@ namespace System.Data.Entity.SqlServerCompact
                     var first = true;
                     foreach (var keyMember in entitySet.ElementType.KeyMembers)
                     {
-                        // VSTS Bug ID: 845968
+                        // CodePlex issue: http://entityframework.codeplex.com/workitem/437
                         // Throw an exception if key member is of server generated guid type.
                         // This is because DML operations won't succeed if key column is of server generated with GUID type.
-                        // TODO: Remove this once the DML is fixed to retrieve back server generated GUID column values.
                         if (IsServerGeneratedGuid(keyMember))
                         {
                             throw ADP1.ServerGeneratedGuidKeyNotSupportedException(keyMember.Name);
@@ -236,9 +236,12 @@ namespace System.Data.Entity.SqlServerCompact
             // check for rowversion-like configurations
             Facet storeGenFacet;
             var isTimestamp = false;
-            if (type.EdmType.Name == "binary" &&
-                8 == (int)type.Facets["MaxLength"].Value &&
-                column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet) &&
+            if (type.EdmType.Name == "binary"
+                &&
+                8 == (int)type.Facets["MaxLength"].Value
+                &&
+                column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet)
+                &&
                 storeGenFacet.Value != null
                 &&
                 StoreGeneratedPattern.Computed == (StoreGeneratedPattern)storeGenFacet.Value)
@@ -271,7 +274,8 @@ namespace System.Data.Entity.SqlServerCompact
             }
             builder.Append(column.Nullable ? " null" : " not null");
 
-            if (!isTimestamp && column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet)
+            if (!isTimestamp
+                && column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet)
                 &&
                 storeGenFacet.Value != null)
             {
@@ -316,10 +320,10 @@ namespace System.Data.Entity.SqlServerCompact
         }
 
         /// <summary>
-        /// Append raw SQL into the string builder with formatting options and invariant culture formatting.
+        ///     Append raw SQL into the string builder with formatting options and invariant culture formatting.
         /// </summary>
-        /// <param name="format">A composite format string.</param>
-        /// <param name="args">An array of objects to format.</param>
+        /// <param name="format"> A composite format string. </param>
+        /// <param name="args"> An array of objects to format. </param>
         private static void AppendSqlInvariantFormat(StringBuilder builder, string format, params object[] args)
         {
             builder.AppendFormat(CultureInfo.InvariantCulture, format, args);

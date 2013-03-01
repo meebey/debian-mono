@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace CmdLine
 {
     using System;
@@ -8,6 +9,7 @@ namespace CmdLine
     using System.Reflection;
 
     [AttributeUsage(AttributeTargets.Property)]
+    [Serializable]
     public class CommandLineParameterAttribute : Attribute
     {
         private int parameterIndex = -1;
@@ -61,7 +63,7 @@ namespace CmdLine
         private string description;
 
         /// <summary>
-        ///   The description of the command
+        ///     The description of the command
         /// </summary>
         public string Description
         {
@@ -86,7 +88,7 @@ namespace CmdLine
         private string descriptionResourceId;
 
         /// <summary>
-        ///   The resource id of the command description
+        ///     The resource id of the command description
         /// </summary>
         public string DescriptionResourceId
         {
@@ -141,7 +143,7 @@ namespace CmdLine
         {
             return
                 GetCustomAttributes(member, typeof(CommandLineParameterAttribute)).Cast<CommandLineParameterAttribute>()
-                    .FirstOrDefault();
+                                                                                  .FirstOrDefault();
         }
 
         public static IEnumerable<CommandLineParameterAttribute> GetAll(MemberInfo member)
@@ -179,21 +181,21 @@ namespace CmdLine
         }
 
         /// <summary>
-        /// Searches a type for all properties with the CommandLineParameterAttribute and does action
+        ///     Searches a type for all properties with the CommandLineParameterAttribute and does action
         /// </summary>
-        /// <param name="argumentType">The argument type</param>
-        /// <param name="action">The action to apply</param>
+        /// <param name="argumentType"> The argument type </param>
+        /// <param name="action"> The action to apply </param>
         internal static void ForEach(Type argumentType, Action<CommandLineParameter> action)
         {
             ForEach(argumentType, GetAll, action);
         }
 
         /// <summary>
-        /// Searches a type for all properties with the CommandLineParameterAttribute and does action
+        ///     Searches a type for all properties with the CommandLineParameterAttribute and does action
         /// </summary>
-        /// <param name="argumentType">The argument type</param>
-        /// <param name="selector"></param>
-        /// <param name="action">The action to apply</param>
+        /// <param name="argumentType"> The argument type </param>
+        /// <param name="selector"> </param>
+        /// <param name="action"> The action to apply </param>
         internal static void ForEach(
             Type argumentType, Func<PropertyInfo, IEnumerable<CommandLineParameterAttribute>> selector,
             Action<CommandLineParameter> action)

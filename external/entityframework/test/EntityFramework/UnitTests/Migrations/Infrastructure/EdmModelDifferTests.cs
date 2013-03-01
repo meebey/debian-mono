@@ -1,17 +1,15 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
 
-namespace System.Data.Entity.Migrations
+namespace System.Data.Entity.Migrations.Infrastructure
 {
     using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Migrations.History;
-    using System.Data.Entity.Utilities;
     using System.Data.Entity.Infrastructure;
-    using System.Data.Entity.Migrations.Extensions;
-    using System.Data.Entity.Migrations.Infrastructure;
+    using System.Data.Entity.Migrations.Edm;
     using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Migrations.UserRoles_v1;
     using System.Data.Entity.Migrations.UserRoles_v2;
+    using System.Data.Entity.Utilities;
     using System.Linq;
     using Xunit;
 
@@ -27,10 +25,10 @@ namespace System.Data.Entity.Migrations
             var model1 = modelBuilder.Build(ProviderInfo).GetModel();
 
             modelBuilder = new DbModelBuilder();
+            modelBuilder.Entity<MigrationsCustomer>();
 
             var model2 = modelBuilder.Build(ProviderInfo).GetModel();
-
-            new HistoryRepository(ConnectionString, ProviderFactory).AppendHistoryModel(model2, ProviderInfo);
+            model2.Descendants().Each(e => e.SetAttributeValue(EdmXNames.IsSystemName, true));
 
             var operations = new EdmModelDiffer().Diff(model1, model2);
 
@@ -45,22 +43,24 @@ namespace System.Data.Entity.Migrations
             var model1 = modelBuilder.Build(ProviderInfo).GetModel();
 
             modelBuilder = new DbModelBuilder();
+            modelBuilder.Entity<MigrationsCustomer>();
 
             var model2 = modelBuilder.Build(ProviderInfo).GetModel();
-
-            new HistoryRepository(ConnectionString, ProviderFactory).AppendHistoryModel(model2, ProviderInfo);
+            model2.Descendants().Each(e => e.SetAttributeValue(EdmXNames.IsSystemName, true));
 
             var operations = new EdmModelDiffer().Diff(model1, model2, includeSystemOperations: true);
 
+            Assert.True(operations.All(o => o.IsSystem));
+
             var createTableOperation
-                = operations.OfType<CreateTableOperation>().Single();
+                = operations.OfType<CreateTableOperation>().First();
 
             Assert.True(createTableOperation.IsSystem);
 
             operations = new EdmModelDiffer().Diff(model2, model1, includeSystemOperations: true);
 
             var dropTableOperation
-                = operations.OfType<DropTableOperation>().Single();
+                = operations.OfType<DropTableOperation>().First();
 
             Assert.True(dropTableOperation.IsSystem);
         }
@@ -304,6 +304,7 @@ namespace System.Data.Entity.Migrations
                 model1.GetModel(), model2.GetModel());
 
             Assert.Equal(1, operations.Count());
+
             var dropColumnOperation = operations.OfType<DropColumnOperation>().Single();
 
             Assert.Equal("ordering.Orders", dropColumnOperation.Table);
@@ -331,10 +332,10 @@ namespace System.Data.Entity.Migrations
 
             var model1 = modelBuilder.Build(ProviderInfo);
 
-            var operations = new EdmModelDiffer().Diff(
-                model1.GetModel(), model2.GetModel());
+            var operations = new EdmModelDiffer().Diff(model1.GetModel(), model2.GetModel());
 
             Assert.Equal(1, operations.Count());
+
             var column = operations.OfType<AddColumnOperation>().Single().Column;
 
             Assert.True(column.IsTimestamp);
@@ -529,6 +530,22 @@ namespace System.Data.Entity.Migrations
             Assert.Equal(4, operations.Count());
             Assert.Equal(2, operations.OfType<CreateTableOperation>().Count());
             Assert.Equal(1, operations.OfType<CreateIndexOperation>().Count());
+
+            // create fk indexes first
+            Assert.True(
+                operations.Select(
+                    (o, i) => new
+                                  {
+                                      o,
+                                      i
+                                  }).Single(a => a.o is CreateIndexOperation).i <
+                operations.Select(
+                    (o, i) => new
+                                  {
+                                      o,
+                                      i
+                                  }).Single(a => a.o is AddForeignKeyOperation).i);
+
             var addForeignKeyOperation = operations.OfType<AddForeignKeyOperation>().Single();
 
             Assert.Equal("ordering.Orders", addForeignKeyOperation.PrincipalTable);
@@ -603,6 +620,22 @@ namespace System.Data.Entity.Migrations
             Assert.Equal(4, operations.Count());
             Assert.Equal(2, operations.OfType<DropTableOperation>().Count());
             Assert.Equal(1, operations.OfType<DropIndexOperation>().Count());
+
+            // drop fks before indexes
+            Assert.True(
+                operations.Select(
+                    (o, i) => new
+                                  {
+                                      o,
+                                      i
+                                  }).Single(a => a.o is DropForeignKeyOperation).i <
+                operations.Select(
+                    (o, i) => new
+                                  {
+                                      o,
+                                      i
+                                  }).Single(a => a.o is DropIndexOperation).i);
+
             var dropForeignKeyOperation = operations.OfType<DropForeignKeyOperation>().Single();
 
             Assert.Equal("ordering.Orders", dropForeignKeyOperation.PrincipalTable);
@@ -642,7 +675,7 @@ namespace System.Data.Entity.Migrations
         }
 
         [MigrationsTheory]
-        public void Can_detect_table_move()
+        public void Can_detect_moved_tables()
         {
             var modelBuilder = new DbModelBuilder();
 
@@ -662,6 +695,31 @@ namespace System.Data.Entity.Migrations
 
             Assert.Equal("dbo.MigrationsCustomers", moveTableOperation.Name);
             Assert.Equal("foo", moveTableOperation.NewSchema);
+        }
+
+        [MigrationsTheory]
+        public void Can_detect_moved_system_tables()
+        {
+            var modelBuilder = new DbModelBuilder();
+            modelBuilder.Entity<MigrationsCustomer>();
+
+            var model1 = modelBuilder.Build(ProviderInfo).GetModel();
+
+            modelBuilder = new DbModelBuilder();
+            modelBuilder.Entity<MigrationsCustomer>().ToTable("MigrationsCustomer", "foo");
+
+            var model2 = modelBuilder.Build(ProviderInfo).GetModel();
+            model2.Descendants().Each(e => e.SetAttributeValue(EdmXNames.IsSystemName, true));
+
+            var operations = new EdmModelDiffer().Diff(model1, model2, includeSystemOperations: true);
+
+            var moveTableOperation
+                = operations.OfType<MoveTableOperation>().Single();
+
+            Assert.True(moveTableOperation.IsSystem);
+            Assert.NotNull(moveTableOperation.CreateTableOperation);
+            Assert.Equal("dbo.MigrationsCustomer", moveTableOperation.Name);
+            Assert.Equal("foo.MigrationsCustomer", moveTableOperation.CreateTableOperation.Name);
         }
 
         [MigrationsTheory]

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -21,8 +22,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     // LOJ, FOJs
     internal class BasicViewGenerator : InternalBase
     {
-        #region Constructor
-
         // effects: Creates a view generator object that can be used to generate views
         // based on usedCells (projectedSlotMap are useful for deciphering the fields)
         internal BasicViewGenerator(
@@ -39,10 +38,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             m_domainMap = domainMap;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly MemberProjectionIndex m_projectedSlotMap;
         private readonly List<LeftCellWrapper> m_usedCells;
         // Active domain comprises all multiconstants that need to be reconstructed
@@ -53,18 +48,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         private readonly ConfigViewGenerator m_config;
         private readonly MemberDomainMap m_domainMap;
 
-        #endregion
-
-        #region Properties
-
         private FragmentQueryProcessor LeftQP
         {
             get { return m_viewgenContext.LeftFragmentQP; }
         }
-
-        #endregion
-
-        #region Exposed Methods
 
         // effects: Given the set of used cells for an extent, returns a
         // view to generate that extent
@@ -105,10 +92,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
 
             return rootNode;
         }
-
-        #endregion
-
-        #region Private Methods
 
         // requires: The tree rooted at cellTreeNode is an FOJ tree of
         // LeafCellTreeNodes only, i.e., there is an FOJ node with the
@@ -235,18 +218,17 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Traverse the tree and perform the following rewrites:
+        ///     Traverse the tree and perform the following rewrites:
         ///     1. Flatten unions contained as left children of LOJs: LOJ(A, Union(B, C)) -> LOJ(A, B, C).
         ///     2. Rewrite flat LOJs into nested LOJs. The nesting is determined by FKs between right cell table PKs.
-        ///        Example: if we have an LOJ(A, B, C, D) and we know there are FKs from C.PK and D.PK to B.PK,
-        ///        we want to rewrite into this - LOJ(A, LOJ(B, C, D)).
+        ///     Example: if we have an LOJ(A, B, C, D) and we know there are FKs from C.PK and D.PK to B.PK,
+        ///     we want to rewrite into this - LOJ(A, LOJ(B, C, D)).
         ///     3. As a special case we also look into LOJ driving node (left most child in LOJ) and if it is an IJ,
-        ///        then we consider attaching LOJ children to nodes inside IJ based on the same principle as above.
-        ///        Example: LOJ(IJ(A, B, C), D, E, F) -> LOJ(IJ(LOJ(A, D), B, LOJ(C, E)), F) iff D has FK to A and E has FK to C.
-        ///        
-        /// This normalization enables FK-based join elimination in plan compiler, so for a query such as
-        /// "select e.ID from ABCDSet" we want plan compiler to produce "select a.ID from A" instead of 
-        /// "select a.ID from A LOJ B LOJ C LOJ D".
+        ///     then we consider attaching LOJ children to nodes inside IJ based on the same principle as above.
+        ///     Example: LOJ(IJ(A, B, C), D, E, F) -> LOJ(IJ(LOJ(A, D), B, LOJ(C, E)), F) iff D has FK to A and E has FK to C.
+        ///     This normalization enables FK-based join elimination in plan compiler, so for a query such as
+        ///     "select e.ID from ABCDSet" we want plan compiler to produce "select a.ID from A" instead of
+        ///     "select a.ID from A LOJ B LOJ C LOJ D".
         /// </summary>
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private CellTreeNode ConvertUnionsToNormalizedLOJs(CellTreeNode rootNode)
@@ -415,7 +397,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
                 foreach (var fkExtent in m.Value)
                 {
                     OpCellTreeNode fkExtentLOJ;
-                    if (extentLOJs.TryGetValue(fkExtent, out fkExtentLOJ) &&
+                    if (extentLOJs.TryGetValue(fkExtent, out fkExtentLOJ)
+                        &&
                         // make sure we don't nest twice and we don't create a cycle.
                         !nestedExtents.ContainsKey(fkExtent)
                         && !CheckLOJCycle(fkExtent, principalExtent, nestedExtents))
@@ -658,7 +641,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             CellTreeNode n = new OpCellTreeNode(m_viewgenContext, CellTreeOpType.IJ, n1, n2);
             var isDisjointRight = n.IsEmptyRightFragmentQuery;
 
-            if (m_viewgenContext.ViewTarget == ViewTarget.UpdateView &&
+            if (m_viewgenContext.ViewTarget == ViewTarget.UpdateView
+                &&
                 isDisjointLeft
                 && !isDisjointRight)
             {
@@ -718,16 +702,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return IsContainedIn(n1, n2) && IsContainedIn(n2, n1);
         }
 
-        #endregion
-
-        #region String methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             // We just print the slotmap for now
             m_projectedSlotMap.ToCompactString(builder);
         }
-
-        #endregion
     }
 }

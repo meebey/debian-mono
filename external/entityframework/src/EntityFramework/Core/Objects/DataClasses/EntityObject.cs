@@ -1,15 +1,17 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.DataClasses
 {
     using System.ComponentModel;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Runtime.Serialization;
     using System.Xml.Serialization;
 
     /// <summary>
-    /// This is the class is the basis for all perscribed EntityObject classes.
+    ///     This is the class is the basis for all perscribed EntityObject classes.
     /// </summary>
     [DataContract(IsReference = true)]
     [Serializable]
@@ -31,8 +33,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         private static readonly DetachedEntityChangeTracker _detachedEntityChangeTracker = new DetachedEntityChangeTracker();
 
         /// <summary>
-        /// Helper class used when we are not currently attached to a change tracker.
-        /// Simplifies the code so we don't always have to check for null before using the change tracker
+        ///     Helper class used when we are not currently attached to a change tracker.
+        ///     Simplifies the code so we don't always have to check for null before using the change tracker
         /// </summary>
         private class DetachedEntityChangeTracker : IEntityChangeTracker
         {
@@ -76,11 +78,9 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         #region Publics
 
         /// <summary>
-        /// The storage state of this EntityObject 
+        ///     The storage state of this EntityObject
         /// </summary>
-        /// <value>
-        /// This property returns a value from the EntityState enum.
-        /// </value>
+        /// <value> This property returns a value from the EntityState enum. </value>
         [Browsable(false)]
         [XmlIgnore]
         public EntityState EntityState
@@ -101,7 +101,7 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         #region IEntityWithKey
 
         /// <summary>
-        /// Returns the EntityKey for this EntityObject.
+        ///     Returns the EntityKey for this EntityObject.
         /// </summary>
         [Browsable(false)]
         [DataMember]
@@ -127,18 +127,17 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         #region IEntityWithChangeTracker
 
         /// <summary>
-        /// Used by the ObjectStateManager to attach or detach this EntityObject to the cache.
+        ///     Used by the ObjectStateManager to attach or detach this EntityObject to the cache.
         /// </summary>
-        /// <param name="changeTracker">
-        /// Reference to the ObjectStateEntry that contains this entity
-        /// </param>
+        /// <param name="changeTracker"> Reference to the ObjectStateEntry that contains this entity </param>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         void IEntityWithChangeTracker.SetChangeTracker(IEntityChangeTracker changeTracker)
         {
             // Fail if the change tracker is already set for this EntityObject and it's being set to something different
             // If the original change tracker is associated with a disposed ObjectStateManager, then allow
             // the entity to be attached
-            if (changeTracker != null && EntityChangeTracker != _detachedEntityChangeTracker
+            if (changeTracker != null
+                && EntityChangeTracker != _detachedEntityChangeTracker
                 && !ReferenceEquals(changeTracker, EntityChangeTracker))
             {
                 var entry = EntityChangeTracker as EntityEntry;
@@ -157,8 +156,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         #region IEntityWithRelationships
 
         /// <summary>
-        /// Returns the container for the lazily created relationship 
-        /// navigation property objects, collections and refs.
+        ///     Returns the container for the lazily created relationship
+        ///     navigation property objects, collections and refs.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         RelationshipManager IEntityWithRelationships.RelationshipManager
@@ -181,19 +180,15 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         #region Protected Change Tracking Methods
 
         /// <summary>
-        /// This method is called whenever a change is going to be made to an EntityObject 
-        /// property.
+        ///     This method is called whenever a change is going to be made to an EntityObject
+        ///     property.
         /// </summary>
-        /// <param name="property">
-        /// The name of the changing property.
-        /// </param>        
-        /// <exception cref="System.ArgumentNullException">
-        /// When parameter member is null (Nothing in Visual Basic).
-        /// </exception>
+        /// <param name="property"> The name of the changing property. </param>
+        /// <exception cref="System.ArgumentNullException">When parameter member is null (Nothing in Visual Basic).</exception>
         protected override sealed void ReportPropertyChanging(
             string property)
         {
-            EntityUtil.CheckStringArgument(property, "property");
+            Check.NotEmpty(property, "property");
 
             Debug.Assert(
                 EntityChangeTracker != null,
@@ -205,19 +200,15 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         }
 
         /// <summary>
-        /// This method is called whenever a change is made to an EntityObject 
-        /// property.
+        ///     This method is called whenever a change is made to an EntityObject
+        ///     property.
         /// </summary>
-        /// <param name="property">
-        /// The name of the changed property.
-        /// </param>        
-        /// <exception cref="System.ArgumentNullException">
-        /// When parameter member is null (Nothing in Visual Basic).
-        /// </exception>
+        /// <param name="property"> The name of the changed property. </param>
+        /// <exception cref="System.ArgumentNullException">When parameter member is null (Nothing in Visual Basic).</exception>
         protected override sealed void ReportPropertyChanged(
             string property)
         {
-            EntityUtil.CheckStringArgument(property, "property");
+            Check.NotEmpty(property, "property");
 
             Debug.Assert(
                 EntityChangeTracker != null,
@@ -237,47 +228,35 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         }
 
         /// <summary>
-        /// This method is called by a ComplexObject contained in this Entity 
-        /// whenever a change is about to be made to a property of the  
-        /// ComplexObject so that the change can be forwarded to the change tracker.
+        ///     This method is called by a ComplexObject contained in this Entity
+        ///     whenever a change is about to be made to a property of the
+        ///     ComplexObject so that the change can be forwarded to the change tracker.
         /// </summary>
-        /// <param name="entityMemberName">
-        /// The name of the top-level entity property that contains the ComplexObject that is calling this method.
-        /// </param>
-        /// <param name="complexObject">
-        /// The instance of the ComplexObject on which the property is changing.
-        /// </param>
-        /// <param name="complexMemberName">
-        /// The name of the changing property on complexObject.
-        /// </param>        
+        /// <param name="entityMemberName"> The name of the top-level entity property that contains the ComplexObject that is calling this method. </param>
+        /// <param name="complexObject"> The instance of the ComplexObject on which the property is changing. </param>
+        /// <param name="complexMemberName"> The name of the changing property on complexObject. </param>
         internal override sealed void ReportComplexPropertyChanging(
             string entityMemberName, ComplexObject complexObject, string complexMemberName)
         {
-            Debug.Assert(complexObject != null, "invalid complexObject");
-            Debug.Assert(!String.IsNullOrEmpty(complexMemberName), "invalid complexMemberName");
+            DebugCheck.NotNull(complexObject);
+            DebugCheck.NotEmpty(complexMemberName);
 
             EntityChangeTracker.EntityComplexMemberChanging(entityMemberName, complexObject, complexMemberName);
         }
 
         /// <summary>
-        /// This method is called by a ComplexObject contained in this Entity 
-        /// whenever a change has been made to a property of the  
-        /// ComplexObject so that the change can be forwarded to the change tracker.
+        ///     This method is called by a ComplexObject contained in this Entity
+        ///     whenever a change has been made to a property of the
+        ///     ComplexObject so that the change can be forwarded to the change tracker.
         /// </summary>
-        /// <param name="entityMemberName">
-        /// The name of the top-level entity property that contains the ComplexObject that is calling this method.
-        /// </param>
-        /// <param name="complexObject">
-        /// The instance of the ComplexObject on which the property is changing.
-        /// </param>
-        /// <param name="complexMemberName">
-        /// The name of the changing property on complexObject.
-        /// </param>        
+        /// <param name="entityMemberName"> The name of the top-level entity property that contains the ComplexObject that is calling this method. </param>
+        /// <param name="complexObject"> The instance of the ComplexObject on which the property is changing. </param>
+        /// <param name="complexMemberName"> The name of the changing property on complexObject. </param>
         internal override sealed void ReportComplexPropertyChanged(
             string entityMemberName, ComplexObject complexObject, string complexMemberName)
         {
-            Debug.Assert(complexObject != null, "invalid complexObject");
-            Debug.Assert(!String.IsNullOrEmpty(complexMemberName), "invalid complexMemberName");
+            DebugCheck.NotNull(complexObject);
+            DebugCheck.NotEmpty(complexMemberName);
 
             EntityChangeTracker.EntityComplexMemberChanged(entityMemberName, complexObject, complexMemberName);
         }

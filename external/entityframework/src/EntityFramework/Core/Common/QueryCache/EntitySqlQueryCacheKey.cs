@@ -1,64 +1,70 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.QueryCache
 {
     using System.Data.Entity.Core.Objects;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// Represents an Entity-SQL-based ObjectQuery Cache key context
+    ///     Represents an Entity-SQL-based ObjectQuery Cache key context
     /// </summary>
     internal sealed class EntitySqlQueryCacheKey : QueryCacheKey
     {
         /// <summary>
-        /// Aggregate hashcode based the hashcode of the properties of this cache key
+        ///     Aggregate hashcode based the hashcode of the properties of this cache key
         /// </summary>
         private readonly int _hashCode;
 
         /// <summary>
-        /// The name of the default container in effect when the Entity-SQL text was parsed
-        /// (affects whether or not the text can be successfully parsed)
+        ///     The name of the default container in effect when the Entity-SQL text was parsed
+        ///     (affects whether or not the text can be successfully parsed)
         /// </summary>
         private readonly string _defaultContainer;
 
         /// <summary>
-        /// Entity Sql statement
+        ///     Entity Sql statement
         /// </summary>
         private readonly string _eSqlStatement;
 
         /// <summary>
-        /// Parameter collection token
+        ///     Parameter collection token
         /// </summary>
         private readonly string _parametersToken;
 
         /// <summary>
-        /// Number of parameters
+        ///     Number of parameters
         /// </summary>
         private readonly int _parameterCount;
 
         /// <summary>
-        /// Concatenated representation of the Include span paths
+        ///     Concatenated representation of the Include span paths
         /// </summary>
         private readonly string _includePathsToken;
 
         /// <summary>
-        /// The merge option in effect
+        ///     The merge option in effect
         /// </summary>
         private readonly MergeOption _mergeOption;
 
         /// <summary>
-        /// Result type affects assembly plan.
+        ///     Result type affects assembly plan
         /// </summary>
         private readonly Type _resultType;
 
         /// <summary>
-        /// Creates a new instance of ObjectQueryCacheKey given a entityCommand instance
+        ///     Whether the query is streaming or buffering
         /// </summary>
-        /// <param name="defaultContainerName">The default container name in effect when parsing the query (may be null)</param>
-        /// <param name="eSqlStatement">The Entity-SQL text of the query</param>
-        /// <param name="parameterCount">The number of parameters to the query</param>
-        /// <param name="parametersToken">A string representation of the parameters to the query (may be null)</param>
-        /// <param name="includePathsToken">A string representation of the Include span paths in effect (may be null)</param>
-        /// <param name="mergeOption">The merge option in effect. Required for result assembly.</param>
+        private readonly bool _streaming;
+
+        /// <summary>
+        ///     Creates a new instance of ObjectQueryCacheKey given a entityCommand instance
+        /// </summary>
+        /// <param name="defaultContainerName"> The default container name in effect when parsing the query (may be null) </param>
+        /// <param name="eSqlStatement"> The Entity-SQL text of the query </param>
+        /// <param name="parameterCount"> The number of parameters to the query </param>
+        /// <param name="parametersToken"> A string representation of the parameters to the query (may be null) </param>
+        /// <param name="includePathsToken"> A string representation of the Include span paths in effect (may be null) </param>
+        /// <param name="mergeOption"> The merge option in effect. Required for result assembly. </param>
         internal EntitySqlQueryCacheKey(
             string defaultContainerName,
             string eSqlStatement,
@@ -66,9 +72,10 @@ namespace System.Data.Entity.Core.Common.QueryCache
             string parametersToken,
             string includePathsToken,
             MergeOption mergeOption,
+            bool streaming,
             Type resultType)
         {
-            Debug.Assert(null != eSqlStatement, "eSqlStatement must not be null");
+            DebugCheck.NotNull(eSqlStatement);
 
             _defaultContainer = defaultContainerName;
             _eSqlStatement = eSqlStatement;
@@ -76,6 +83,7 @@ namespace System.Data.Entity.Core.Common.QueryCache
             _parametersToken = parametersToken;
             _includePathsToken = includePathsToken;
             _mergeOption = mergeOption;
+            _streaming = streaming;
             _resultType = resultType;
 
             var combinedHash = _eSqlStatement.GetHashCode() ^
@@ -100,15 +108,14 @@ namespace System.Data.Entity.Core.Common.QueryCache
         }
 
         /// <summary>
-        /// Determines equality of two cache keys based on cache context values
+        ///     Determines equality of two cache keys based on cache context values
         /// </summary>
-        /// <param name="otherObject"></param>
-        /// <returns></returns>
+        /// <param name="otherObject"> </param>
+        /// <returns> </returns>
         public override bool Equals(object otherObject)
         {
-            Debug.Assert(null != otherObject, "otherObject must not be null");
-            if (typeof(EntitySqlQueryCacheKey)
-                != otherObject.GetType())
+            DebugCheck.NotNull(otherObject);
+            if (typeof(EntitySqlQueryCacheKey) != otherObject.GetType())
             {
                 return false;
             }
@@ -118,6 +125,7 @@ namespace System.Data.Entity.Core.Common.QueryCache
             // also use result type...
             return (_parameterCount == otherObjectQueryCacheKey._parameterCount) &&
                    (_mergeOption == otherObjectQueryCacheKey._mergeOption) &&
+                   (_streaming == otherObjectQueryCacheKey._streaming) &&
                    Equals(otherObjectQueryCacheKey._defaultContainer, _defaultContainer) &&
                    Equals(otherObjectQueryCacheKey._eSqlStatement, _eSqlStatement) &&
                    Equals(otherObjectQueryCacheKey._includePathsToken, _includePathsToken) &&
@@ -126,21 +134,18 @@ namespace System.Data.Entity.Core.Common.QueryCache
         }
 
         /// <summary>
-        /// Returns the hashcode for this cache key
+        ///     Returns the hashcode for this cache key
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         public override int GetHashCode()
         {
             return _hashCode;
         }
 
         /// <summary>
-        /// Returns a string representation of the state of this cache key
+        ///     Returns a string representation of the state of this cache key
         /// </summary>
-        /// <returns>
-        /// A string representation that includes query text, parameter information, include path information
-        /// and merge option information about this cache key.
-        /// </returns>
+        /// <returns> A string representation that includes query text, parameter information, include path information and merge option information about this cache key. </returns>
         public override string ToString()
         {
             return String.Join(

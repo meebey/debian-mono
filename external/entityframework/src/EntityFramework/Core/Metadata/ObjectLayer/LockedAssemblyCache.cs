@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.Generic;
@@ -15,10 +16,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         {
             _lockObject = lockObject;
             _globalAssemblyCache = globalAssemblyCache;
-#pragma warning disable 0618
-            //@TODO: This overload of Monitor.Enter is obsolete.  Please change this to use Monitor.Enter(ref bool), and remove the pragmas   -- ericeil
             Monitor.Enter(_lockObject);
-#pragma warning restore 0618
         }
 
         public void Dispose()

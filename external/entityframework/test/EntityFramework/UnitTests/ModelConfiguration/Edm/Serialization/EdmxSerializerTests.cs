@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Edm.Serialization.UnitTests
 {
-    using System.Data.Entity;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Metadata;
+    using System.Data.Entity.Core.Metadata.Edm;
+    
+    using System.Data.Entity.ModelConfiguration.Edm.Common;
     using System.Data.Entity.ModelConfiguration.Edm.Services;
     using System.Reflection;
     using System.Xml;
@@ -43,16 +45,20 @@ namespace System.Data.Entity.ModelConfiguration.Edm.Serialization.UnitTests
 
         private static DbDatabaseMapping CreateSimpleModel(double version)
         {
-            var model = new EdmModel().Initialize(version);
+            var model = new EdmModel(DataSpace.CSpace, version);
 
             var entityType = model.AddEntityType("E");
-            entityType.SetClrType(typeof(object));
+            var type = typeof(object);
+
+            entityType.Annotations.SetClrType(type);
             model.AddEntitySet("ESet", entityType);
 
-            var property = entityType.AddPrimitiveProperty("Id");
-            property.PropertyType.EdmType = EdmPrimitiveType.Int32;
-            property.PropertyType.IsNullable = false;
-            entityType.DeclaredKeyProperties.Add(property);
+            var property1 = EdmProperty.Primitive("Id", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+
+            entityType.AddMember(property1);
+            var property = property1;
+            property.Nullable = false;
+            entityType.AddKeyMember(property);
 
             return new DatabaseMappingGenerator(ProviderRegistry.Sql2008_ProviderManifest).Generate(model);
         }
@@ -66,15 +72,15 @@ namespace System.Data.Entity.ModelConfiguration.Edm.Serialization.UnitTests
             var assembly = Assembly.GetExecutingAssembly();
 
             foreach (var schema in new[]
-                {
-                    "Microsoft.Data.Entity.Design.Edmx_" + version + ".xsd",
-                    "System.Data.Resources.AnnotationSchema.xsd",
-                    "System.Data.Resources.CodeGenerationSchema.xsd",
-                    "System.Data.Resources.CSDLSchema_" + version + ".xsd",
-                    "System.Data.Resources.CSMSL_" + version + ".xsd",
-                    "System.Data.Resources.EntityStoreSchemaGenerator.xsd",
-                    "System.Data.Resources.SSDLSchema_" + version + ".xsd"
-                })
+                                       {
+                                           "Microsoft.Data.Entity.Design.Edmx_" + version + ".xsd",
+                                           "System.Data.Resources.AnnotationSchema.xsd",
+                                           "System.Data.Resources.CodeGenerationSchema.xsd",
+                                           "System.Data.Resources.CSDLSchema_" + version + ".xsd",
+                                           "System.Data.Resources.CSMSL_" + version + ".xsd",
+                                           "System.Data.Resources.EntityStoreSchemaGenerator.xsd",
+                                           "System.Data.Resources.SSDLSchema_" + version + ".xsd"
+                                       })
             {
                 schemaSet.Add(null, XmlReader.Create(assembly.GetManifestResourceStream(resourcePath + schema)));
             }

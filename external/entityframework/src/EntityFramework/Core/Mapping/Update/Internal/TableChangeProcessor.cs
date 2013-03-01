@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
@@ -10,31 +11,28 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
     using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
 
     /// <summary>
-    /// Processes changes applying to a table by merging inserts and deletes into updates
-    /// where appropriate.
+    ///     Processes changes applying to a table by merging inserts and deletes into updates
+    ///     where appropriate.
     /// </summary>
     /// <remarks>
-    /// This class is essentially responsible for identifying inserts, deletes
-    /// and updates in a particular table based on the <see cref="ChangeNode" />
-    /// produced by value propagation w.r.t. the update mapping view for that table.
-    /// Assumes the change node includes at most a single insert and at most a single delete
-    /// for a given key (where we have both, the change is treated as an update).
+    ///     This class is essentially responsible for identifying inserts, deletes
+    ///     and updates in a particular table based on the <see cref="ChangeNode" />
+    ///     produced by value propagation w.r.t. the update mapping view for that table.
+    ///     Assumes the change node includes at most a single insert and at most a single delete
+    ///     for a given key (where we have both, the change is treated as an update).
     /// </remarks>
     internal class TableChangeProcessor
     {
-        #region Constructors
-
         /// <summary>
-        /// Constructs processor based on the contents of a change node.
+        ///     Constructs processor based on the contents of a change node.
         /// </summary>
-        /// <param name="table">Table for which changes are being processed.</param>
+        /// <param name="table"> Table for which changes are being processed. </param>
         internal TableChangeProcessor(EntitySet table)
         {
-            Contract.Requires(table != null);
+            DebugCheck.NotNull(table);
 
             m_table = table;
 
@@ -43,25 +41,17 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// For testing purposes only
+        ///     For testing purposes only
         /// </summary>
         protected TableChangeProcessor()
         {
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly EntitySet m_table;
         private readonly int[] m_keyOrdinals;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Gets metadata for the table being modified.
+        ///     Gets metadata for the table being modified.
         /// </summary>
         internal EntitySet Table
         {
@@ -69,17 +59,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets a map from column ordinal to property descriptions for columns that are components of the table's
-        /// primary key.
+        ///     Gets a map from column ordinal to property descriptions for columns that are components of the table's
+        ///     primary key.
         /// </summary>
         internal int[] KeyOrdinals
         {
             get { return m_keyOrdinals; }
         }
-
-        #endregion
-
-        #region Methods
 
         // Determines whether the given ordinal position in the property list
         // for this table is a key value.
@@ -247,7 +233,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             {
                 // if the duplication is due to shared principals, there is a duplicate key exception
                 var stateEntries = SourceInterpreter.GetAllStateEntries(change, compiler.m_translator, m_table)
-                    .Concat(SourceInterpreter.GetAllStateEntries(other, compiler.m_translator, m_table));
+                                                    .Concat(SourceInterpreter.GetAllStateEntries(other, compiler.m_translator, m_table));
                 throw new UpdateException(Strings.Update_DuplicateKeys, null, stateEntries.Cast<ObjectStateEntry>().Distinct());
             }
             else
@@ -299,7 +285,5 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
             return keyConstants;
         }
-
-        #endregion
     }
 }

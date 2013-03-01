@@ -1,15 +1,16 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.ComponentModel;
     using System.Data.Entity.Config;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Configuration relating to the use of migrations for a given model.
     /// </summary>
-    /// <typeparam name = "TContext">The context representing the model that this configuration applies to.</typeparam>
+    /// <typeparam name="TContext"> The context representing the model that this configuration applies to. </typeparam>
     public class DbMigrationsConfiguration<TContext> : DbMigrationsConfiguration
         where TContext : DbContext
     {
@@ -31,10 +32,10 @@ namespace System.Data.Entity.Migrations
         /// <summary>
         ///     Runs after upgrading to the latest migration to allow seed data to be updated.
         /// </summary>
-        /// <param name = "context">Context to be used for updating seed data.</param>
+        /// <param name="context"> Context to be used for updating seed data. </param>
         protected virtual void Seed(TContext context)
         {
-            Contract.Requires(context != null);
+            Check.NotNull(context, "context");
         }
 
         internal override void OnSeed(DbContext context)

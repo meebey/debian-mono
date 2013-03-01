@@ -1,58 +1,50 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Edm;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
     ///     Convention to discover foreign key properties whose names are a combination
     ///     of the dependent navigation property name and the principal type primary key property name(s).
     /// </summary>
-    public sealed class NavigationPropertyNameForeignKeyDiscoveryConvention : IEdmConvention<EdmAssociationType>
+    public class NavigationPropertyNameForeignKeyDiscoveryConvention : ForeignKeyDiscoveryConvention
     {
-        private readonly IEdmConvention<EdmAssociationType> _impl =
-            new NavigationPropertyNameForeignKeyDiscoveryConventionImpl();
-
-        internal NavigationPropertyNameForeignKeyDiscoveryConvention()
+        protected override bool MatchDependentKeyProperty(
+            AssociationType associationType,
+            AssociationEndMember dependentAssociationEnd,
+            EdmProperty dependentProperty,
+            EntityType principalEntityType,
+            EdmProperty principalKeyProperty)
         {
-        }
+            Check.NotNull(associationType, "associationType");
+            Check.NotNull(dependentAssociationEnd, "dependentAssociationEnd");
+            Check.NotNull(dependentProperty, "dependentProperty");
+            Check.NotNull(principalEntityType, "principalEntityType");
+            Check.NotNull(principalKeyProperty, "principalKeyProperty");
 
-        void IEdmConvention<EdmAssociationType>.Apply(EdmAssociationType associationType, EdmModel model)
-        {
-            _impl.Apply(associationType, model);
-        }
+            var otherEnd = associationType.GetOtherEnd(dependentAssociationEnd);
 
-        // Nested impl. because ForeignKeyDiscoveryConvention needs to be internal for now
-        private sealed class NavigationPropertyNameForeignKeyDiscoveryConventionImpl : ForeignKeyDiscoveryConvention
-        {
-            protected override bool MatchDependentKeyProperty(
-                EdmAssociationType associationType,
-                EdmAssociationEnd dependentAssociationEnd,
-                EdmProperty dependentProperty,
-                EdmEntityType principalEntityType,
-                EdmProperty principalKeyProperty)
+            var navigationProperty
+                = dependentAssociationEnd.GetEntityType().NavigationProperties
+                                         .SingleOrDefault(n => n.ResultEnd == otherEnd);
+
+            if (navigationProperty == null)
             {
-                var otherEnd = associationType.GetOtherEnd(dependentAssociationEnd);
-
-                var navigationProperty
-                    = dependentAssociationEnd.EntityType.NavigationProperties
-                        .SingleOrDefault(n => n.ResultEnd == otherEnd);
-
-                if (navigationProperty == null)
-                {
-                    return false;
-                }
-
-                return string.Equals(
-                    dependentProperty.Name, navigationProperty.Name + principalKeyProperty.Name,
-                    StringComparison.OrdinalIgnoreCase);
+                return false;
             }
 
-            protected override bool SupportsMultipleAssociations
-            {
-                get { return true; }
-            }
+            return string.Equals(
+                dependentProperty.Name, navigationProperty.Name + principalKeyProperty.Name,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        protected override bool SupportsMultipleAssociations
+        {
+            get { return true; }
         }
     }
 }

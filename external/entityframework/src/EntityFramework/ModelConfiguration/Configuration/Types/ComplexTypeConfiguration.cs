@@ -1,9 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Types
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
 
-    internal class ComplexTypeConfiguration : StructuralTypeConfiguration
+    /// <summary>
+    ///     Allows configuration to be performed for a complex type in a model.
+    /// </summary>
+    public class ComplexTypeConfiguration : StructuralTypeConfiguration
     {
         internal ComplexTypeConfiguration(Type structuralType)
             : base(structuralType)
@@ -20,9 +24,9 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
             return new ComplexTypeConfiguration(this);
         }
 
-        internal virtual void Configure(EdmComplexType complexType)
+        internal virtual void Configure(ComplexType complexType)
         {
-            Configure(complexType.Name, complexType.DeclaredProperties, complexType.Annotations);
+            Configure(complexType.Name, complexType.Properties, complexType.Annotations);
         }
     }
 }

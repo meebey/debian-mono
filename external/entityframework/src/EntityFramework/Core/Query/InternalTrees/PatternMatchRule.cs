@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Query.InternalTrees
 {
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// A PatternMatchRule allows for a pattern to be specified to identify interesting
-    /// subtrees, rather than just an OpType
+    ///     A PatternMatchRule allows for a pattern to be specified to identify interesting
+    ///     subtrees, rather than just an OpType
     /// </summary>
     internal sealed class PatternMatchRule : Rule
     {
@@ -18,15 +19,15 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         #region constructors
 
         /// <summary>
-        /// Basic constructor
+        ///     Basic constructor
         /// </summary>
-        /// <param name="pattern">The pattern to look for</param>
-        /// <param name="processDelegate">The callback to invoke when such a pattern is identified</param>
+        /// <param name="pattern"> The pattern to look for </param>
+        /// <param name="processDelegate"> The callback to invoke when such a pattern is identified </param>
         internal PatternMatchRule(Node pattern, ProcessNodeDelegate processDelegate)
             : base(pattern.Op.OpType, processDelegate)
         {
-            Debug.Assert(pattern != null, "null pattern");
-            Debug.Assert(pattern.Op != null, "null pattern Op");
+            DebugCheck.NotNull(pattern);
+            DebugCheck.NotNull(pattern.Op);
             m_pattern = pattern;
         }
 

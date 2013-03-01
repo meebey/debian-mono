@@ -36,14 +36,14 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 @INSTALL_4_0_TRUE@am__append_1 = etc/mono/4.0/machine.config etc/mono/4.0/web.config etc/mono/4.5/web.config etc/mono/4.5/machine.config
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_2 = moonlight_raw
-@INSTALL_2_0_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_3 = net_2_0 net_3_5
-@INSTALL_4_0_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_4 = net_4_0
-@INSTALL_4_5_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_5 = net_4_5
-@INSTALL_MONODROID_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_6 = monodroid
-@INSTALL_MONOTOUCH_TRUE@@ONLY_MOONLIGHT_FALSE@am__append_7 = monotouch monotouch_runtime
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@am__append_2 = moonlight_raw
+@INSTALL_2_0_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@am__append_3 = net_2_0 net_3_5
+@INSTALL_4_0_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@am__append_4 = net_4_0
+@INSTALL_4_5_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@am__append_5 = net_4_5
+@INSTALL_MONODROID_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@am__append_6 = monodroid
+@INSTALL_MONOTOUCH_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@am__append_7 = monotouch monotouch_runtime
 subdir = runtime
-DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
+DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/mono-wrapper.in $(srcdir)/monodis-wrapper.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/iconv.m4 \
@@ -61,8 +61,6 @@ CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES = mono-wrapper monodis-wrapper
 CONFIG_CLEAN_VPATH_FILES =
 SCRIPTS = $(noinst_SCRIPTS)
-depcomp =
-am__depfiles_maybe =
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
@@ -70,6 +68,8 @@ AM_V_at = $(am__v_at_$(V))
 am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
 am__v_at_0 = @
 SOURCES =
+DIST_SOURCES =
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
@@ -267,9 +267,6 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-
-# hack to prevent 'check' from depending on 'all'
-AUTOMAKE_OPTIONS = cygnus
 tmpinst = _tmpinst
 noinst_SCRIPTS = mono-wrapper monodis-wrapper
 etctmp = etc
@@ -277,18 +274,30 @@ symlinks = etc/mono/1.0/machine.config etc/mono/2.0/machine.config \
 	etc/mono/2.0/web.config etc/mono/browscap.ini \
 	etc/mono/2.0/Browsers/Compat.browser $(am__append_1)
 SUPPORT_FILES = $(symlinks) mono-wrapper etc/mono/config
-@ONLY_MOONLIGHT_FALSE@build_profiles = $(am__append_2) $(am__append_3) \
-@ONLY_MOONLIGHT_FALSE@	$(am__append_4) $(am__append_5) \
-@ONLY_MOONLIGHT_FALSE@	$(am__append_6) $(am__append_7)
-@ONLY_MOONLIGHT_TRUE@build_profiles = moonlight_raw $(am__append_2) \
-@ONLY_MOONLIGHT_TRUE@	$(am__append_3) $(am__append_4) \
-@ONLY_MOONLIGHT_TRUE@	$(am__append_5) $(am__append_6) \
-@ONLY_MOONLIGHT_TRUE@	$(am__append_7)
-@ONLY_MOONLIGHT_FALSE@test_profiles = $(build_profiles)
-@ONLY_MOONLIGHT_TRUE@test_profiles = moonlight_raw
-@INSTALL_2_0_TRUE@@ONLY_MOONLIGHT_FALSE@al_profile = net_2_0
-@INSTALL_4_0_TRUE@@ONLY_MOONLIGHT_FALSE@al_profile = net_4_0
-@INSTALL_4_5_TRUE@@ONLY_MOONLIGHT_FALSE@al_profile = net_4_5
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@build_profiles =  \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	$(am__append_2) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	$(am__append_3) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	$(am__append_4) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	$(am__append_5) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	$(am__append_6) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	$(am__append_7)
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@build_profiles =  \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	moonlight_raw \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	$(am__append_2) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	$(am__append_3) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	$(am__append_4) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	$(am__append_5) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	$(am__append_6) \
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@	$(am__append_7)
+@ONLY_MONOTOUCH_TRUE@build_profiles = monotouch $(am__append_2) \
+@ONLY_MONOTOUCH_TRUE@	$(am__append_3) $(am__append_4) \
+@ONLY_MONOTOUCH_TRUE@	$(am__append_5) $(am__append_6) \
+@ONLY_MONOTOUCH_TRUE@	$(am__append_7)
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@test_profiles = $(build_profiles)
+@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@test_profiles = moonlight_raw
+@INSTALL_2_0_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@al_profile = net_2_0
+@INSTALL_4_0_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@al_profile = net_4_0
+@INSTALL_4_5_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@al_profile = net_4_5
 @BUILD_MCS_TRUE@MAKE_FLAGS = $(if $(V),,--no-print-directory -s)
 TEST_SUPPORT_FILES = $(tmpinst)/bin/mono $(tmpinst)/bin/ilasm $(tmpinst)/bin/mcs $(tmpinst)/bin/gmcs $(tmpinst)/bin/dmcs $(tmpinst)/bin/al2 $(tmpinst)/bin/al
 @ENABLE_NUNIT_TESTS_FALSE@test_select = ONLY_CENTUM_TESTS=yes
@@ -354,7 +363,7 @@ TAGS:
 ctags: CTAGS
 CTAGS:
 
-check-am:
+check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-am
 @BUILD_MCS_FALSE@all-local:
@@ -457,15 +466,15 @@ uninstall-am:
 
 .PHONY: all all-am all-local check check-am check-local clean \
 	clean-generic clean-libtool clean-local distclean \
-	distclean-generic distclean-libtool dvi dvi-am html html-am \
-	info info-am install install-am install-data install-data-am \
-	install-dvi install-dvi-am install-exec install-exec-am \
-	install-html install-html-am install-info install-info-am \
-	install-man install-pdf install-pdf-am install-ps \
-	install-ps-am install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-generic mostlyclean-libtool pdf pdf-am \
-	ps ps-am uninstall uninstall-am
+	distclean-generic distclean-libtool distdir dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-man install-pdf install-pdf-am \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am uninstall uninstall-am
 
 
 etc/mono/2.0/machine.config: $(top_srcdir)/data/net_2_0/machine.config
@@ -486,14 +495,14 @@ $(symlinks):
 @MOONLIGHT_TRUE@moon-do-basic-clean:
 @MOONLIGHT_TRUE@	cd $(mcs_topdir)/ && $(MAKE) NO_DIR_CHECK=1 PROFILE=moonlight_raw clean
 
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@moon-do-moonlight-raw: Makefile $(SUPPORT_FILES)
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@	cd $(mcs_topdir) && $(MAKE) NO_DIR_CHECK=1 PROFILES='moonlight_raw' CC='$(CC)' all-profiles
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@moon-do-moonlight-raw: Makefile $(SUPPORT_FILES)
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	cd $(mcs_topdir) && $(MAKE) NO_DIR_CHECK=1 PROFILES='moonlight_raw' CC='$(CC)' all-profiles
 
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@moon-do-moonlight-raw-clean:
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@	cd $(mcs_topdir) && $(MAKE) NO_DIR_CHECK=1 PROFILES='moonlight_raw' CC='$(CC)' clean-profiles
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@moon-do-moonlight-raw-clean:
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@	cd $(mcs_topdir) && $(MAKE) NO_DIR_CHECK=1 PROFILES='moonlight_raw' CC='$(CC)' clean-profiles
 
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@moon-do-build: moon-do-moonlight-raw moon-do-basic
-@MOONLIGHT_TRUE@@ONLY_MOONLIGHT_FALSE@moon-do-clean: moon-do-moonlight-raw-clean moon-do-basic-clean
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@moon-do-build: moon-do-moonlight-raw moon-do-basic
+@MOONLIGHT_TRUE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@moon-do-clean: moon-do-moonlight-raw-clean moon-do-basic-clean
 
 # The write check is to foil 'make distcheck'
 @BUILD_MCS_TRUE@all-local: $(SUPPORT_FILES) $(TEST_SUPPORT_FILES)
@@ -545,7 +554,7 @@ mcs-compileall: mono-wrapper etc/mono/config
 		if [ ! -f $$i ] ; then \
 			continue ; \
 		fi ;  \
-	    if ./mono-wrapper --compile-all --verify-all --security=validil $$i; then \
+	    if ./mono-wrapper --compile-all --verify-all --security=verifiable $$i; then \
 	      echo $$i verified OK; \
 	    else \
 	      echo $$i verification failed; ok=false; \

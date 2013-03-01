@@ -1,5 +1,4 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-using som = System.Data.Entity.Core.EntityModel.SchemaObjectModel;
 
 namespace System.Data.Entity.Core.Mapping
 {
@@ -12,15 +11,17 @@ namespace System.Data.Entity.Core.Mapping
     using System.Data.Entity.Core.Mapping.Update.Internal;
     using System.Data.Entity.Core.Mapping.ViewGeneration;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Core.SchemaObjectModel;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
     using System.Reflection;
     using System.Runtime.Versioning;
     using System.Xml;
+    using EntityContainer = System.Data.Entity.Core.Metadata.Edm.EntityContainer;
     using OfTypeQVCacheKey =
         System.Data.Entity.Core.Common.Utils.Pair<Metadata.Edm.EntitySetBase, Common.Utils.Pair<Metadata.Edm.EntityTypeBase, bool>>;
 
@@ -45,12 +46,12 @@ namespace System.Data.Entity.Core.Mapping
             private bool m_generatedViewsMode = true;
 
             /// <summary>
-            /// Caches computation of view generation per <see cref="StorageEntityContainerMapping"/>. Cached value contains both query and update views.
+            ///     Caches computation of view generation per <see cref="StorageEntityContainerMapping" />. Cached value contains both query and update views.
             /// </summary>
             private readonly Memoizer<EntityContainer, Dictionary<EntitySetBase, GeneratedView>> m_generatedViewsMemoizer;
 
             /// <summary>
-            /// Caches computation of getting Type-specific Query Views - either by view gen or user-defined input.
+            ///     Caches computation of getting Type-specific Query Views - either by view gen or user-defined input.
             /// </summary>
             private readonly Memoizer<OfTypeQVCacheKey, GeneratedView> m_generatedViewOfTypeMemoizer;
 
@@ -74,7 +75,7 @@ namespace System.Data.Entity.Core.Mapping
 
             private Dictionary<EntitySetBase, GeneratedView> SerializedGetGeneratedViews(EntityContainer container)
             {
-                Debug.Assert(container != null);
+                DebugCheck.NotNull(container);
 
                 // Note that extentMappingViews will contain both query and update views.
                 Dictionary<EntitySetBase, GeneratedView> extentMappingViews;
@@ -126,11 +127,11 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Call the View Generator's Generate view method
-            /// and collect the Views and store it in a local dictionary.
+            ///     Call the View Generator's Generate view method
+            ///     and collect the Views and store it in a local dictionary.
             /// </summary>
-            /// <param name="entityContainerMap"></param>
-            /// <param name="resultDictionary"></param>
+            /// <param name="entityContainerMap"> </param>
+            /// <param name="resultDictionary"> </param>
             private static void SerializedGenerateViews(
                 StorageEntityContainerMapping entityContainerMap, Dictionary<EntitySetBase, GeneratedView> resultDictionary)
             {
@@ -162,16 +163,16 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Generates a single query view for a given Extent and type. It is used to generate OfType and OfTypeOnly views.
+            ///     Generates a single query view for a given Extent and type. It is used to generate OfType and OfTypeOnly views.
             /// </summary>
-            /// <param name="includeSubtypes">Whether the view should include extents that are subtypes of the given entity</param>
+            /// <param name="includeSubtypes"> Whether the view should include extents that are subtypes of the given entity </param>
             private bool TryGenerateQueryViewOfType(
                 EntityContainer entityContainer, EntitySetBase entity, EntityTypeBase type, bool includeSubtypes,
                 out GeneratedView generatedView)
             {
-                Debug.Assert(entityContainer != null);
-                Debug.Assert(entity != null);
-                Debug.Assert(type != null);
+                DebugCheck.NotNull(entityContainer);
+                DebugCheck.NotNull(entity);
+                DebugCheck.NotNull(type);
 
                 if (type.Abstract)
                 {
@@ -206,11 +207,11 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Tries to generate the Oftype or OfTypeOnly query view for a given entity set and type. 
-            /// Returns false if the view could not be generated.
-            /// Possible reasons for failing are 
-            ///   1) Passing in OfTypeOnly on an abstract type
-            ///   2) In user-specified query views mode a query for the given type is absent
+            ///     Tries to generate the Oftype or OfTypeOnly query view for a given entity set and type.
+            ///     Returns false if the view could not be generated.
+            ///     Possible reasons for failing are
+            ///     1) Passing in OfTypeOnly on an abstract type
+            ///     2) In user-specified query views mode a query for the given type is absent
             /// </summary>
             internal bool TryGetGeneratedViewOfType(
                 EntitySetBase entity, EntityTypeBase type, bool includeSubtypes, out GeneratedView generatedView)
@@ -221,9 +222,9 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Note: Null return value implies QV was not generated.
+            ///     Note: Null return value implies QV was not generated.
             /// </summary>
-            /// <returns></returns>
+            /// <returns> </returns>
             private GeneratedView SerializedGeneratedViewOfType(OfTypeQVCacheKey arg)
             {
                 GeneratedView generatedView;
@@ -247,28 +248,28 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Returns the update or query view for an Extent as a
-            /// string.
-            /// There are a series of steps that we go through for discovering a view for an extent.
-            /// To start with we assume that we are working with Generated Views. To find out the 
-            /// generated view we go to the ObjectItemCollection and see if it is not-null. If the ObjectItemCollection
-            /// is non-null, we get the view generation assemblies that it might have cached during the
-            /// Object metadata discovery.If there are no view generation assemblies we switch to the
-            /// runtime view generation strategy. If there are view generation assemblies, we get the list and
-            /// go through them and see if there are any assemblies that are there from which we have not already loaded
-            /// the views. We collect the views from assemblies that we have not already collected from earlier.
-            /// If the ObjectItemCollection is null and we are in the view generation mode, that means that
-            /// the query or update is issued from the Value layer and this is the first time view has been asked for.
-            /// The compile time view gen for value layer queries will work for very simple scenarios.
-            /// If the users wants to get the performance benefit, they should call MetadataWorkspace.LoadFromAssembly.
-            /// At this point we go through the referenced assemblies of the entry assembly( this wont work for Asp.net 
-            /// or if the viewgen assembly was not referenced by the executing application).
-            /// and try to see if there were any view gen assemblies. If there are, we collect the views for all extents.
-            /// Once we have all the generated views gathered, we try to get the view for the extent passed in.
-            /// If we find one we will return it. If we can't find one an exception will be thrown.
-            /// If there were no view gen assemblies either in the ObjectItemCollection or in the list of referenced
-            /// assemblies of calling assembly, we change the mode to runtime view generation and will continue to
-            /// be in that mode for the rest of the lifetime of the mapping item collection.
+            ///     Returns the update or query view for an Extent as a
+            ///     string.
+            ///     There are a series of steps that we go through for discovering a view for an extent.
+            ///     To start with we assume that we are working with Generated Views. To find out the
+            ///     generated view we go to the ObjectItemCollection and see if it is not-null. If the ObjectItemCollection
+            ///     is non-null, we get the view generation assemblies that it might have cached during the
+            ///     Object metadata discovery.If there are no view generation assemblies we switch to the
+            ///     runtime view generation strategy. If there are view generation assemblies, we get the list and
+            ///     go through them and see if there are any assemblies that are there from which we have not already loaded
+            ///     the views. We collect the views from assemblies that we have not already collected from earlier.
+            ///     If the ObjectItemCollection is null and we are in the view generation mode, that means that
+            ///     the query or update is issued from the Value layer and this is the first time view has been asked for.
+            ///     The compile time view gen for value layer queries will work for very simple scenarios.
+            ///     If the users wants to get the performance benefit, they should call MetadataWorkspace.LoadFromAssembly.
+            ///     At this point we go through the referenced assemblies of the entry assembly( this wont work for Asp.net
+            ///     or if the viewgen assembly was not referenced by the executing application).
+            ///     and try to see if there were any view gen assemblies. If there are, we collect the views for all extents.
+            ///     Once we have all the generated views gathered, we try to get the view for the extent passed in.
+            ///     If we find one we will return it. If we can't find one an exception will be thrown.
+            ///     If there were no view gen assemblies either in the ObjectItemCollection or in the list of referenced
+            ///     assemblies of calling assembly, we change the mode to runtime view generation and will continue to
+            ///     be in that mode for the rest of the lifetime of the mapping item collection.
             /// </summary>
             internal GeneratedView GetGeneratedView(
                 EntitySetBase extent, MetadataWorkspace workspace, StorageMappingItemCollection storageMappingItemCollection)
@@ -382,10 +383,10 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Collect the views from object collection's view gen assembly
+            ///     Collect the views from object collection's view gen assembly
             /// </summary>
-            /// <param name="workspace"></param>
-            /// <param name="objectCollection"></param>
+            /// <param name="workspace"> </param>
+            /// <param name="objectCollection"> </param>
             private void SerializedCollectViewsFromObjectCollection(
                 MetadataWorkspace workspace, Dictionary<EntitySetBase, GeneratedView> extentMappingViews)
             {
@@ -420,16 +421,16 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// this method do the following check on the generated views in the EntityViewContainer, 
-            /// then add those views all at once to the dictionary
-            /// 1. there should be one storeageEntityContainerMapping that has the same h
+            ///     this method do the following check on the generated views in the EntityViewContainer,
+            ///     then add those views all at once to the dictionary
+            ///     1. there should be one storeageEntityContainerMapping that has the same h
             ///     C side and S side names as the EnittyViewcontainer
-            /// 2. Generate the hash for the storageEntityContainerMapping in the MM closure, 
+            ///     2. Generate the hash for the storageEntityContainerMapping in the MM closure,
             ///     and this hash should be the same in EntityViewContainer
-            /// 3. Generate the hash for all of the view text in the EntityViewContainer and 
+            ///     3. Generate the hash for all of the view text in the EntityViewContainer and
             ///     this hash should be the same as the stored on in the EntityViewContainer
             /// </summary>
-            /// <param name="entityViewContainer"></param>
+            /// <param name="entityViewContainer"> </param>
             private void SerializedAddGeneratedViewsInEntityViewContainer(
                 MetadataWorkspace workspace, EntityViewContainer entityViewContainer,
                 Dictionary<EntitySetBase, GeneratedView> extentMappingViews)
@@ -567,9 +568,9 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Tries to collect the views from the referenced assemblies of Entry assembly.
+            ///     Tries to collect the views from the referenced assemblies of Entry assembly.
             /// </summary>
-            /// <param name="workspace"></param>
+            /// <param name="workspace"> </param>
             private void SerializedCollectViewsFromReferencedAssemblies(
                 MetadataWorkspace workspace, Dictionary<EntitySetBase, GeneratedView> extentMappingViews)
             {
@@ -592,17 +593,15 @@ namespace System.Data.Entity.Core.Mapping
             }
         }
 
-        #region Fields
-
         //EdmItemCollection that is associated with the MSL Loader.
-        private EdmItemCollection m_edmCollection;
+        private EdmItemCollection _edmCollection;
 
         //StoreItemCollection that is associated with the MSL Loader.
-        private StoreItemCollection m_storeItemCollection;
+        private StoreItemCollection _storeItemCollection;
         private ViewDictionary m_viewDictionary;
         private double m_mappingVersion = XmlConstants.UndefinedVersion;
 
-        private MetadataWorkspace m_workspace;
+        private MetadataWorkspace _workspace;
 
         // In this version, we won't allow same types in CSpace to map to different types in store. If the same type
         // need to be reused, the store type must be the same. To keep track of this, we need to keep track of the member 
@@ -628,17 +627,13 @@ namespace System.Data.Entity.Core.Mapping
             _cachedInterestingMembers =
                 new ConcurrentDictionary<Tuple<EntitySetBase, EntityTypeBase, InterestingMembersKind>, ReadOnlyCollection<EdmMember>>();
 
-        #endregion
-
-        #region Constructors
-
         /// <summary>
-        /// constructor that takes in a list of folder or files or a mix of both and
-        /// creates metadata for mapping in all the files.
+        ///     constructor that takes in a list of folder or files or a mix of both and
+        ///     creates metadata for mapping in all the files.
         /// </summary>
-        /// <param name="edmCollection"></param>
-        /// <param name="storeCollection"></param>
-        /// <param name="filePaths"></param>
+        /// <param name="edmCollection"> </param>
+        /// <param name="storeCollection"> </param>
+        /// <param name="filePaths"> </param>
         [ResourceExposure(ResourceScope.Machine)] //Exposes the file path names which are a Machine resource
         [ResourceConsumption(ResourceScope.Machine)]
         //For MetadataArtifactLoader.CreateCompositeFromFilePaths method call but we do not create the file paths in this method
@@ -648,12 +643,12 @@ namespace System.Data.Entity.Core.Mapping
             params string[] filePaths)
             : base(DataSpace.CSSpace)
         {
-            Contract.Requires(edmCollection != null);
-            Contract.Requires(storeCollection != null);
-            Contract.Requires(filePaths != null);
+            Check.NotNull(edmCollection, "edmCollection");
+            Check.NotNull(storeCollection, "storeCollection");
+            Check.NotNull(filePaths, "filePaths");
 
-            m_edmCollection = edmCollection;
-            m_storeItemCollection = storeCollection;
+            _edmCollection = edmCollection;
+            _storeItemCollection = storeCollection;
 
             // Wrap the file paths in instances of the MetadataArtifactLoader class, which provides
             // an abstraction and a uniform interface over a diverse set of metadata artifacts.
@@ -679,12 +674,12 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// constructor that takes in a list of XmlReaders and creates metadata for mapping 
-        /// in all the files.  
+        ///     constructor that takes in a list of XmlReaders and creates metadata for mapping
+        ///     in all the files.
         /// </summary>
-        /// <param name="edmCollection">The edm metadata collection that this mapping is to use</param>
-        /// <param name="storeCollection">The store metadata collection that this mapping is to use</param>
-        /// <param name="xmlReaders">The XmlReaders to load mapping from</param>
+        /// <param name="edmCollection"> The edm metadata collection that this mapping is to use </param>
+        /// <param name="storeCollection"> The store metadata collection that this mapping is to use </param>
+        /// <param name="xmlReaders"> The XmlReaders to load mapping from </param>
         [SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         public StorageMappingItemCollection(
             EdmItemCollection edmCollection,
@@ -692,7 +687,7 @@ namespace System.Data.Entity.Core.Mapping
             IEnumerable<XmlReader> xmlReaders)
             : base(DataSpace.CSSpace)
         {
-            Contract.Requires(xmlReaders != null);
+            Check.NotNull(xmlReaders, "xmlReaders");
 
             var composite = MetadataArtifactLoader.CreateCompositeFromXmlReaders(xmlReaders);
 
@@ -705,76 +700,70 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// constructor that takes in a list of XmlReaders and creates metadata for mapping 
-        /// in all the files.  
+        ///     constructor that takes in a list of XmlReaders and creates metadata for mapping
+        ///     in all the files.
         /// </summary>
-        /// <param name="edmCollection">The edm metadata collection that this mapping is to use</param>
-        /// <param name="storeCollection">The store metadata collection that this mapping is to use</param>
-        /// <param name="filePaths">Mapping URIs</param>
-        /// <param name="xmlReaders">The XmlReaders to load mapping from</param>
-        /// <param name="errors">a list of errors for each file loaded</param>
-        // referenced by System.Data.Entity.Design.dll
-        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        [SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
-        internal StorageMappingItemCollection(
-            EdmItemCollection edmCollection,
-            StoreItemCollection storeCollection,
+        /// <param name="edmItemCollection"> The edm metadata collection that this mapping is to use </param>
+        /// <param name="storeItemCollection"> The store metadata collection that this mapping is to use </param>
+        /// <param name="filePaths"> Mapping URIs </param>
+        /// <param name="xmlReaders"> The XmlReaders to load mapping from </param>
+        /// <param name="errors"> a list of errors for each file loaded </param>
+        private StorageMappingItemCollection(
+            EdmItemCollection edmItemCollection,
+            StoreItemCollection storeItemCollection,
             IEnumerable<XmlReader> xmlReaders,
-            List<string> filePaths,
+            IList<string> filePaths,
             out IList<EdmSchemaError> errors)
             : base(DataSpace.CSSpace)
         {
-            // we will check the parameters for this internal ctor becuase
-            // it is pretty much publicly exposed through the MetadataItemCollectionFactory
-            // in System.Data.Entity.Design
-            Contract.Requires(xmlReaders != null);
-            EntityUtil.CheckArgumentContainsNull(ref xmlReaders, "xmlReaders");
-            // filePaths is allowed to be null
+            DebugCheck.NotNull(edmItemCollection);
+            DebugCheck.NotNull(storeItemCollection);
+            DebugCheck.NotNull(xmlReaders);
 
-            errors = Init(edmCollection, storeCollection, xmlReaders, filePaths, false /*throwOnError*/);
+            errors = Init(edmItemCollection, storeItemCollection, xmlReaders, filePaths, false /*throwOnError*/);
         }
 
         /// <summary>
-        /// constructor that takes in a list of XmlReaders and creates metadata for mapping 
-        /// in all the files.  
+        ///     constructor that takes in a list of XmlReaders and creates metadata for mapping
+        ///     in all the files.
         /// </summary>
-        /// <param name="edmCollection">The edm metadata collection that this mapping is to use</param>
-        /// <param name="storeCollection">The store metadata collection that this mapping is to use</param>
-        /// <param name="filePaths">Mapping URIs</param>
-        /// <param name="xmlReaders">The XmlReaders to load mapping from</param>
+        /// <param name="edmCollection"> The edm metadata collection that this mapping is to use </param>
+        /// <param name="storeCollection"> The store metadata collection that this mapping is to use </param>
+        /// <param name="filePaths"> Mapping URIs </param>
+        /// <param name="xmlReaders"> The XmlReaders to load mapping from </param>
         [SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         internal StorageMappingItemCollection(
             EdmItemCollection edmCollection,
             StoreItemCollection storeCollection,
             IEnumerable<XmlReader> xmlReaders,
-            List<string> filePaths)
+            IList<string> filePaths)
             : base(DataSpace.CSSpace)
         {
             Init(edmCollection, storeCollection, xmlReaders, filePaths, true /*throwOnError*/);
         }
 
         /// <summary>
-        /// Initializer that takes in a list of XmlReaders and creates metadata for mapping 
-        /// in all the files.  
+        ///     Initializer that takes in a list of XmlReaders and creates metadata for mapping
+        ///     in all the files.
         /// </summary>
-        /// <param name="edmCollection">The edm metadata collection that this mapping is to use</param>
-        /// <param name="storeCollection">The store metadata collection that this mapping is to use</param>
-        /// <param name="filePaths">Mapping URIs</param>
-        /// <param name="xmlReaders">The XmlReaders to load mapping from</param>
-        /// <param name="errors">a list of errors for each file loaded</param>
+        /// <param name="edmCollection"> The edm metadata collection that this mapping is to use </param>
+        /// <param name="storeCollection"> The store metadata collection that this mapping is to use </param>
+        /// <param name="filePaths"> Mapping URIs </param>
+        /// <param name="xmlReaders"> The XmlReaders to load mapping from </param>
+        /// <param name="errors"> a list of errors for each file loaded </param>
         private IList<EdmSchemaError> Init(
             EdmItemCollection edmCollection,
             StoreItemCollection storeCollection,
             IEnumerable<XmlReader> xmlReaders,
-            List<string> filePaths,
+            IList<string> filePaths,
             bool throwOnError)
         {
-            Contract.Requires(xmlReaders != null);
-            Contract.Requires(edmCollection != null);
-            Contract.Requires(storeCollection != null);
+            DebugCheck.NotNull(xmlReaders);
+            DebugCheck.NotNull(edmCollection);
+            DebugCheck.NotNull(storeCollection);
 
-            m_edmCollection = edmCollection;
-            m_storeItemCollection = storeCollection;
+            _edmCollection = edmCollection;
+            _storeItemCollection = storeCollection;
 
             Dictionary<EntitySetBase, GeneratedView> userDefinedQueryViewsDict;
             Dictionary<OfTypeQVCacheKey, GeneratedView> userDefinedQueryViewsOfTypeDict;
@@ -783,10 +772,9 @@ namespace System.Data.Entity.Core.Mapping
 
             var errors = new List<EdmSchemaError>();
 
-            if (m_edmCollection.EdmVersion != XmlConstants.UndefinedVersion &&
-                m_storeItemCollection.StoreSchemaVersion != XmlConstants.UndefinedVersion
-                &&
-                m_edmCollection.EdmVersion != m_storeItemCollection.StoreSchemaVersion)
+            if (_edmCollection.EdmVersion != XmlConstants.UndefinedVersion
+                && _storeItemCollection.StoreSchemaVersion != XmlConstants.UndefinedVersion
+                && _edmCollection.EdmVersion != _storeItemCollection.StoreSchemaVersion)
             {
                 errors.Add(
                     new EdmSchemaError(
@@ -795,9 +783,9 @@ namespace System.Data.Entity.Core.Mapping
             }
             else
             {
-                var expectedVersion = m_edmCollection.EdmVersion != XmlConstants.UndefinedVersion
-                                          ? m_edmCollection.EdmVersion
-                                          : m_storeItemCollection.StoreSchemaVersion;
+                var expectedVersion = _edmCollection.EdmVersion != XmlConstants.UndefinedVersion
+                                          ? _edmCollection.EdmVersion
+                                          : _storeItemCollection.StoreSchemaVersion;
                 errors.AddRange(
                     LoadItems(xmlReaders, filePaths, userDefinedQueryViewsDict, userDefinedQueryViewsOfTypeDict, expectedVersion));
             }
@@ -820,33 +808,31 @@ namespace System.Data.Entity.Core.Mapping
             return errors;
         }
 
-        #endregion Constructors
-
         internal MetadataWorkspace Workspace
         {
             get
             {
-                if (m_workspace == null)
+                if (_workspace == null)
                 {
-                    m_workspace = new MetadataWorkspace();
-                    m_workspace.RegisterItemCollection(m_edmCollection);
-                    m_workspace.RegisterItemCollection(m_storeItemCollection);
-                    m_workspace.RegisterItemCollection(this);
+                    _workspace = new MetadataWorkspace(
+                        () => _edmCollection,
+                        () => _storeItemCollection,
+                        () => this);
                 }
-                return m_workspace;
+                return _workspace;
             }
         }
 
         /// <summary>
-        /// Return the EdmItemCollection associated with the Mapping Collection
+        ///     Return the EdmItemCollection associated with the Mapping Collection
         /// </summary>
         internal EdmItemCollection EdmItemCollection
         {
-            get { return m_edmCollection; }
+            get { return _edmCollection; }
         }
 
         /// <summary>
-        /// Version of this StorageMappingItemCollection represents.
+        ///     Version of this StorageMappingItemCollection represents.
         /// </summary>
         public double MappingVersion
         {
@@ -854,20 +840,20 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Return the StoreItemCollection associated with the Mapping Collection
+        ///     Return the StoreItemCollection associated with the Mapping Collection
         /// </summary>
         internal StoreItemCollection StoreItemCollection
         {
-            get { return m_storeItemCollection; }
+            get { return _storeItemCollection; }
         }
 
         /// <summary>
-        /// Search for a Mapping metadata with the specified type key.
+        ///     Search for a Mapping metadata with the specified type key.
         /// </summary>
-        /// <param name="identity">identity of the type</param>
-        /// <param name="typeSpace">The dataspace that the type for which map needs to be returned belongs to</param>
-        /// <param name="ignoreCase">true for case-insensitive lookup</param>
-        /// <exception cref="ArgumentException"> Thrown if mapping space is not valid</exception>
+        /// <param name="identity"> identity of the type </param>
+        /// <param name="typeSpace"> The dataspace that the type for which map needs to be returned belongs to </param>
+        /// <param name="ignoreCase"> true for case-insensitive lookup </param>
+        /// <exception cref="ArgumentException">Thrown if mapping space is not valid</exception>
         internal override Map GetMap(string identity, DataSpace typeSpace, bool ignoreCase)
         {
             if (typeSpace != DataSpace.CSpace)
@@ -878,13 +864,13 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Search for a Mapping metadata with the specified type key.
+        ///     Search for a Mapping metadata with the specified type key.
         /// </summary>
-        /// <param name="identity">identity of the type</param>
-        /// <param name="typeSpace">The dataspace that the type for which map needs to be returned belongs to</param>
-        /// <param name="ignoreCase">true for case-insensitive lookup</param>
-        /// <param name="map"></param>
-        /// <returns>Returns false if no match found.</returns>
+        /// <param name="identity"> identity of the type </param>
+        /// <param name="typeSpace"> The dataspace that the type for which map needs to be returned belongs to </param>
+        /// <param name="ignoreCase"> true for case-insensitive lookup </param>
+        /// <param name="map"> </param>
+        /// <returns> Returns false if no match found. </returns>
         internal override bool TryGetMap(string identity, DataSpace typeSpace, bool ignoreCase, out Map map)
         {
             if (typeSpace != DataSpace.CSpace)
@@ -895,32 +881,32 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Search for a Mapping metadata with the specified type key.
+        ///     Search for a Mapping metadata with the specified type key.
         /// </summary>
-        /// <param name="identity">identity of the type</param>
-        /// <param name="typeSpace">The dataspace that the type for which map needs to be returned belongs to</param>
-        /// <exception cref="ArgumentException"> Thrown if mapping space is not valid</exception>
+        /// <param name="identity"> identity of the type </param>
+        /// <param name="typeSpace"> The dataspace that the type for which map needs to be returned belongs to </param>
+        /// <exception cref="ArgumentException">Thrown if mapping space is not valid</exception>
         internal override Map GetMap(string identity, DataSpace typeSpace)
         {
             return GetMap(identity, typeSpace, false /*ignoreCase*/);
         }
 
         /// <summary>
-        /// Search for a Mapping metadata with the specified type key.
+        ///     Search for a Mapping metadata with the specified type key.
         /// </summary>
-        /// <param name="identity">identity of the type</param>
-        /// <param name="typeSpace">The dataspace that the type for which map needs to be returned belongs to</param>
-        /// <param name="map"></param>
-        /// <returns>Returns false if no match found.</returns>
+        /// <param name="identity"> identity of the type </param>
+        /// <param name="typeSpace"> The dataspace that the type for which map needs to be returned belongs to </param>
+        /// <param name="map"> </param>
+        /// <returns> Returns false if no match found. </returns>
         internal override bool TryGetMap(string identity, DataSpace typeSpace, out Map map)
         {
             return TryGetMap(identity, typeSpace, false /*ignoreCase*/, out map);
         }
 
         /// <summary>
-        /// Search for a Mapping metadata with the specified type key.
+        ///     Search for a Mapping metadata with the specified type key.
         /// </summary>
-        /// <param name="item"></param>
+        /// <param name="item"> </param>
         internal override Map GetMap(GlobalItem item)
         {
             var typeSpace = item.DataSpace;
@@ -932,11 +918,11 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Search for a Mapping metadata with the specified type key.
+        ///     Search for a Mapping metadata with the specified type key.
         /// </summary>
-        /// <param name="item"></param>
-        /// <param name="map"></param>
-        /// <returns>Returns false if no match found.</returns>
+        /// <param name="item"> </param>
+        /// <param name="map"> </param>
+        /// <returns> Returns false if no match found. </returns>
         internal override bool TryGetMap(GlobalItem item, out Map map)
         {
             if (item == null)
@@ -954,11 +940,11 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// This method
+        ///     This method
         ///     - generates views from the mapping elements in the collection;
         ///     - does not process user defined views - these are processed during mapping collection loading;
         ///     - does not cache generated views in the mapping collection.
-        /// The main purpose is design-time view validation and generation.
+        ///     The main purpose is design-time view validation and generation.
         /// </summary>
         internal Dictionary<EntitySetBase, string> GenerateEntitySetViews(out IList<EdmSchemaError> errors)
         {
@@ -991,9 +977,9 @@ namespace System.Data.Entity.Core.Mapping
                     {
                         var viewGenResults = ViewgenGatekeeper.GenerateViewsFromMapping(
                             entityContainerMapping, new ConfigViewGenerator
-                                {
-                                    GenerateEsql = true
-                                });
+                                                        {
+                                                            GenerateEsql = true
+                                                        });
                         if (viewGenResults.HasErrors)
                         {
                             ((List<EdmSchemaError>)errors).AddRange(viewGenResults.Errors);
@@ -1013,38 +999,46 @@ namespace System.Data.Entity.Core.Mapping
             return esqlViews;
         }
 
-        #region Get interesting members
-
         /// <summary>
-        /// Return members for MetdataWorkspace.GetRequiredOriginalValueMembers() and MetdataWorkspace.GetRelevantMembersForUpdate() methods.
+        ///     Return members for MetdataWorkspace.GetRequiredOriginalValueMembers() and MetdataWorkspace.GetRelevantMembersForUpdate() methods.
         /// </summary>
-        /// <param name="entitySet">An EntitySet belonging to the C-Space. Must not be null.</param>
-        /// <param name="entityType">An EntityType that participates in the given EntitySet. Must not be null.</param>
-        /// <param name="interestingMembersKind">Scenario the members should be returned for.</param>
-        /// <returns>ReadOnlyCollection of interesting members for the requested scenario (<paramref name="interestingMembersKind"/>).</returns>        
+        /// <param name="entitySet"> An EntitySet belonging to the C-Space. Must not be null. </param>
+        /// <param name="entityType"> An EntityType that participates in the given EntitySet. Must not be null. </param>
+        /// <param name="interestingMembersKind"> Scenario the members should be returned for. </param>
+        /// <returns>
+        ///     ReadOnlyCollection of interesting members for the requested scenario (
+        ///     <paramref
+        ///         name="interestingMembersKind" />
+        ///     ).
+        /// </returns>
         internal ReadOnlyCollection<EdmMember> GetInterestingMembers(
             EntitySetBase entitySet, EntityTypeBase entityType, InterestingMembersKind interestingMembersKind)
         {
-            Debug.Assert(entitySet != null, "entitySet != null");
-            Debug.Assert(entityType != null, "entityType != null");
+            DebugCheck.NotNull(entitySet);
+            DebugCheck.NotNull(entityType);
 
             var key = new Tuple<EntitySetBase, EntityTypeBase, InterestingMembersKind>(entitySet, entityType, interestingMembersKind);
             return _cachedInterestingMembers.GetOrAdd(key, FindInterestingMembers(entitySet, entityType, interestingMembersKind));
         }
 
         /// <summary>
-        /// Finds interesting members for MetdataWorkspace.GetRequiredOriginalValueMembers() and MetdataWorkspace.GetRelevantMembersForUpdate() methods
-        /// for the given <paramref name="entitySet"/> and <paramref name="entityType"/>.
+        ///     Finds interesting members for MetdataWorkspace.GetRequiredOriginalValueMembers() and MetdataWorkspace.GetRelevantMembersForUpdate() methods
+        ///     for the given <paramref name="entitySet" /> and <paramref name="entityType" />.
         /// </summary>
-        /// <param name="entitySet">An EntitySet belonging to the C-Space. Must not be null.</param>
-        /// <param name="entityType">An EntityType that participates in the given EntitySet. Must not be null.</param>
-        /// <param name="interestingMembersKind">Scenario the members should be returned for.</param>
-        /// <returns>ReadOnlyCollection of interesting members for the requested scenario (<paramref name="interestingMembersKind"/>).</returns>        
+        /// <param name="entitySet"> An EntitySet belonging to the C-Space. Must not be null. </param>
+        /// <param name="entityType"> An EntityType that participates in the given EntitySet. Must not be null. </param>
+        /// <param name="interestingMembersKind"> Scenario the members should be returned for. </param>
+        /// <returns>
+        ///     ReadOnlyCollection of interesting members for the requested scenario (
+        ///     <paramref
+        ///         name="interestingMembersKind" />
+        ///     ).
+        /// </returns>
         private ReadOnlyCollection<EdmMember> FindInterestingMembers(
             EntitySetBase entitySet, EntityTypeBase entityType, InterestingMembersKind interestingMembersKind)
         {
-            Debug.Assert(entitySet != null, "entitySet != null");
-            Debug.Assert(entityType != null, "entityType != null");
+            DebugCheck.NotNull(entitySet);
+            DebugCheck.NotNull(entityType);
 
             var interestingMembers = new List<EdmMember>();
 
@@ -1085,15 +1079,15 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Finds members participating in the assocciation and adds them to the <paramref name="interestingMembers"/>.
+        ///     Finds members participating in the assocciation and adds them to the <paramref name="interestingMembers" />.
         /// </summary>
-        /// <param name="associationTypeMapping">Association type mapping. Must not be null.</param>
-        /// <param name="interestingMembers">The list the interesting members (if any) will be added to. Must not be null.</param>
+        /// <param name="associationTypeMapping"> Association type mapping. Must not be null. </param>
+        /// <param name="interestingMembers"> The list the interesting members (if any) will be added to. Must not be null. </param>
         private static void FindInterestingAssociationMappingMembers(
             StorageAssociationTypeMapping associationTypeMapping, List<EdmMember> interestingMembers)
         {
-            Debug.Assert(associationTypeMapping != null, "entityTypeMapping != null");
-            Debug.Assert(interestingMembers != null, "interestingMembers != null");
+            DebugCheck.NotNull(associationTypeMapping);
+            DebugCheck.NotNull(interestingMembers);
 
             //(2) Ends participating in association are "interesting"
             interestingMembers.AddRange(
@@ -1105,17 +1099,20 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Finds interesting entity properties - primary keys (if requested), properties (including complex properties and nested properties)
-        /// with concurrency mode set to fixed and C-Side condition members and adds them to the <paramref name="interestingMembers"/>.
+        ///     Finds interesting entity properties - primary keys (if requested), properties (including complex properties and nested properties)
+        ///     with concurrency mode set to fixed and C-Side condition members and adds them to the
+        ///     <paramref
+        ///         name="interestingMembers" />
+        ///     .
         /// </summary>
-        /// <param name="entityTypeMapping">Entity type mapping. Must not be null.</param>
-        /// <param name="interestingMembersKind">Scenario the members should be returned for.</param>
-        /// <param name="interestingMembers">The list the interesting members (if any) will be added to. Must not be null.</param>
+        /// <param name="entityTypeMapping"> Entity type mapping. Must not be null. </param>
+        /// <param name="interestingMembersKind"> Scenario the members should be returned for. </param>
+        /// <param name="interestingMembers"> The list the interesting members (if any) will be added to. Must not be null. </param>
         private static void FindInterestingEntityMappingMembers(
             StorageEntityTypeMapping entityTypeMapping, InterestingMembersKind interestingMembersKind, List<EdmMember> interestingMembers)
         {
-            Debug.Assert(entityTypeMapping != null, "entityTypeMapping != null");
-            Debug.Assert(interestingMembers != null, "interestingMembers != null");
+            DebugCheck.NotNull(entityTypeMapping);
+            DebugCheck.NotNull(interestingMembers);
 
             foreach (var propertyMapping in entityTypeMapping.MappingFragments.SelectMany(mf => mf.AllProperties))
             {
@@ -1154,7 +1151,8 @@ namespace System.Data.Entity.Core.Mapping
                 {
                     // (7) All complex members - partial update scenarios only
                     // (3.1) The complex property or its one of its children has fixed concurrency mode
-                    if (interestingMembersKind == InterestingMembersKind.PartialUpdate ||
+                    if (interestingMembersKind == InterestingMembersKind.PartialUpdate
+                        ||
                         MetadataHelper.GetConcurrencyMode(complexPropMapping.EdmProperty) == ConcurrencyMode.Fixed
                         || HasFixedConcurrencyModeInAnyChildProperty(complexPropMapping))
                     {
@@ -1173,13 +1171,15 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Recurses down the complex property to find whether any of the nseted properties has concurrency mode set to "Fixed"
+        ///     Recurses down the complex property to find whether any of the nseted properties has concurrency mode set to "Fixed"
         /// </summary>
-        /// <param name="complexMapping">Complex property mapping. Must not be null.</param>
-        /// <returns><c>true</c> if any of the descendant properties has concurrency mode set to "Fixed". Otherwise <c>false</c>.</returns>
+        /// <param name="complexMapping"> Complex property mapping. Must not be null. </param>
+        /// <returns>
+        ///     <c>true</c> if any of the descendant properties has concurrency mode set to "Fixed". Otherwise <c>false</c> .
+        /// </returns>
         private static bool HasFixedConcurrencyModeInAnyChildProperty(StorageComplexPropertyMapping complexMapping)
         {
-            Debug.Assert(complexMapping != null, "complexMapping != null");
+            DebugCheck.NotNull(complexMapping);
 
             foreach (var propertyMapping in complexMapping.TypeMappings.SelectMany(m => m.AllProperties))
             {
@@ -1210,11 +1210,13 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Finds foreign key properties and adds them to the <paramref name="interestingMembers"/>.
+        ///     Finds foreign key properties and adds them to the <paramref name="interestingMembers" />.
         /// </summary>
-        /// <param name="entitySetBase">Entity set <paramref name="entityType"/> relates to. Must not be null.</param>
-        /// <param name="entityType">Entity type for which to find foreign key properties. Must not be null.</param>
-        /// <param name="interestingMembers">The list the interesting members (if any) will be added to. Must not be null.</param>
+        /// <param name="entitySetBase">
+        ///     Entity set <paramref name="entityType" /> relates to. Must not be null.
+        /// </param>
+        /// <param name="entityType"> Entity type for which to find foreign key properties. Must not be null. </param>
+        /// <param name="interestingMembers"> The list the interesting members (if any) will be added to. Must not be null. </param>
         private static void FindForeignKeyProperties(
             EntitySetBase entitySetBase, EntityTypeBase entityType, List<EdmMember> interestingMembers)
         {
@@ -1226,25 +1228,27 @@ namespace System.Data.Entity.Core.Mapping
                 // select all foreign key properties defined on the entityType and all its ancestors
                 interestingMembers.AddRange(
                     MetadataHelper.GetTypeAndParentTypesOf(entityType, true)
-                        .SelectMany(e => ((EntityType)e).Properties)
-                        .Where(p => entitySet.ForeignKeyDependents.SelectMany(fk => fk.Item2.ToProperties).Contains(p)));
+                                  .SelectMany(e => ((EntityType)e).Properties)
+                                  .Where(p => entitySet.ForeignKeyDependents.SelectMany(fk => fk.Item2.ToProperties).Contains(p)));
             }
         }
 
         /// <summary>
-        /// Finds interesting members for modification functions mapped to stored procedures and adds them to the <paramref name="interestingMembers"/>.
+        ///     Finds interesting members for modification functions mapped to stored procedures and adds them to the
+        ///     <paramref
+        ///         name="interestingMembers" />
+        ///     .
         /// </summary>
-        /// <param name="functionMappings">Modification function mapping. Must not be null.</param>
-        /// <param name="interestingMembersKind">Update scenario the members will be used in (in general - partial update vs. full update).</param>
-        /// <param name="interestingMembers"></param>
+        /// <param name="functionMappings"> Modification function mapping. Must not be null. </param>
+        /// <param name="interestingMembersKind"> Update scenario the members will be used in (in general - partial update vs. full update). </param>
+        /// <param name="interestingMembers"> </param>
         private static void FindInterestingFunctionMappingMembers(
             StorageEntityTypeModificationFunctionMapping functionMappings, InterestingMembersKind interestingMembersKind,
             ref List<EdmMember> interestingMembers)
         {
-            Debug.Assert(
-                functionMappings != null && functionMappings.UpdateFunctionMapping != null,
-                "Expected function mapping fragment with non-null update function mapping");
-            Debug.Assert(interestingMembers != null, "interestingMembers != null");
+            DebugCheck.NotNull(functionMappings);
+            DebugCheck.NotNull(functionMappings.UpdateFunctionMapping);
+            DebugCheck.NotNull(interestingMembers);
 
             // for partial update scenarios (e.g. EntityDataSourceControl) all members are interesting otherwise the data may be corrupt. 
             // See bugs #272992 and #124460 in DevDiv database for more details. For full update scenarios and the obsolete 
@@ -1281,10 +1285,8 @@ namespace System.Data.Entity.Core.Mapping
             }
         }
 
-        #endregion
-
         /// <summary>
-        /// Calls the view dictionary to load the view, see detailed comments in the view dictionary class.
+        ///     Calls the view dictionary to load the view, see detailed comments in the view dictionary class.
         /// </summary>
         internal GeneratedView GetGeneratedView(EntitySetBase extent, MetadataWorkspace workspace)
         {
@@ -1315,15 +1317,15 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// This helper method loads items based on contents of in-memory XmlReader instances.
-        /// Assumption: This method is called only from the constructor because m_extentMappingViews is not thread safe.
+        ///     This helper method loads items based on contents of in-memory XmlReader instances.
+        ///     Assumption: This method is called only from the constructor because m_extentMappingViews is not thread safe.
         /// </summary>
-        /// <param name="xmlReaders">A list of XmlReader instances</param>
-        /// <param name="mappingSchemaUris">A list of URIs</param>
-        /// <returns>A list of schema errors</returns>
+        /// <param name="xmlReaders"> A list of XmlReader instances </param>
+        /// <param name="mappingSchemaUris"> A list of URIs </param>
+        /// <returns> A list of schema errors </returns>
         private List<EdmSchemaError> LoadItems(
             IEnumerable<XmlReader> xmlReaders,
-            List<string> mappingSchemaUris,
+            IList<string> mappingSchemaUris,
             Dictionary<EntitySetBase, GeneratedView> userDefinedQueryViewsDict,
             Dictionary<OfTypeQVCacheKey, GeneratedView> userDefinedQueryViewsOfTypeDict,
             double expectedVersion)
@@ -1341,7 +1343,7 @@ namespace System.Data.Entity.Core.Mapping
                 string location = null;
                 if (mappingSchemaUris == null)
                 {
-                    som.SchemaManager.TryGetBaseUri(xmlReader, out location);
+                    SchemaManager.TryGetBaseUri(xmlReader, out location);
                 }
                 else
                 {
@@ -1379,7 +1381,7 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// This method compiles all the user defined query views in the <paramref name="entityContainerMapping"/>.
+        ///     This method compiles all the user defined query views in the <paramref name="entityContainerMapping" />.
         /// </summary>
         private static void CompileUserDefinedQueryViews(
             StorageEntityContainerMapping entityContainerMapping,
@@ -1439,7 +1441,8 @@ namespace System.Data.Entity.Core.Mapping
             {
                 m_mappingVersion = currentLoaderVersion;
             }
-            if (expectedVersion != XmlConstants.UndefinedVersion && currentLoaderVersion != XmlConstants.UndefinedVersion
+            if (expectedVersion != XmlConstants.UndefinedVersion
+                && currentLoaderVersion != XmlConstants.UndefinedVersion
                 && currentLoaderVersion != expectedVersion)
             {
                 // Check that the mapping version is the same as the storage and model version
@@ -1461,9 +1464,9 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Return the update view loader
+        ///     Return the update view loader
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         internal ViewLoader GetUpdateViewLoader()
         {
             if (_viewLoader == null)
@@ -1475,13 +1478,13 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// this method will be called in metadatworkspace, the signature is the same as the one in ViewDictionary
+        ///     this method will be called in metadatworkspace, the signature is the same as the one in ViewDictionary
         /// </summary>
-        /// <param name="entity"></param>
-        /// <param name="type"></param>
-        /// <param name="includeSubtypes"></param>
-        /// <param name="generatedView"></param>
-        /// <returns></returns>
+        /// <param name="entity"> </param>
+        /// <param name="type"> </param>
+        /// <param name="includeSubtypes"> </param>
+        /// <param name="generatedView"> </param>
+        /// <returns> </returns>
         internal bool TryGetGeneratedViewOfType(
             EntitySetBase entity, EntityTypeBase type, bool includeSubtypes, out GeneratedView generatedView)
         {
@@ -1495,9 +1498,9 @@ namespace System.Data.Entity.Core.Mapping
         private static void CheckForDuplicateItems(
             EdmItemCollection edmItemCollection, StoreItemCollection storeItemCollection, List<EdmSchemaError> errorCollection)
         {
-            Debug.Assert(
-                edmItemCollection != null && storeItemCollection != null && errorCollection != null,
-                "The parameters must not be null in CheckForDuplicateItems");
+            DebugCheck.NotNull(edmItemCollection);
+            DebugCheck.NotNull(storeItemCollection);
+            DebugCheck.NotNull(errorCollection);
 
             foreach (var item in edmItemCollection)
             {
@@ -1510,5 +1513,45 @@ namespace System.Data.Entity.Core.Mapping
                 }
             }
         }
+
+        /// <summary>
+        /// Factory method that creates a <see cref="StorageMappingItemCollection"/>. 
+        /// </summary>
+        /// <param name="edmItemCollection"> 
+        /// The edm metadata collection to map. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="storeItemCollection"> 
+        /// The store metadata collection to map. Must not be <c>null</c>.
+        /// </param>
+        /// <param name="xmlReaders">MSL artifacts to load. Must not be <c>null</c>.</param>
+        /// <param name="filePaths">
+        /// Paths to MSL artifacts. Used in error messages. Can be <c>null</c> in which case 
+        /// the base Uri of the XmlReader will be used as a path.
+        /// </param>
+        /// <param name="errors">
+        /// The collection of errors encountered while loading.
+        /// </param>
+        /// <returns>
+        /// <see cref="EdmItemCollection"/> instance if no errors encountered. Otherwise <c>null</c>.
+        /// </returns>
+        public static StorageMappingItemCollection Create(
+            EdmItemCollection edmItemCollection,
+            StoreItemCollection storeItemCollection,
+            IEnumerable<XmlReader> xmlReaders,
+            IList<string> filePaths,
+            out IList<EdmSchemaError> errors)
+        {
+            Check.NotNull(edmItemCollection, "edmItemCollection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
+            Check.NotNull(xmlReaders, "xmlReaders");
+            EntityUtil.CheckArgumentContainsNull(ref xmlReaders, "xmlReaders");
+            // filePaths is allowed to be null
+
+            var storageMappingItemCollection
+                = new StorageMappingItemCollection(edmItemCollection, storeItemCollection, xmlReaders, filePaths, out errors);
+
+            return errors != null && errors.Count > 0 ? null : storageMappingItemCollection;
+        }
+
     }
 }

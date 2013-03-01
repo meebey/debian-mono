@@ -1,18 +1,18 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.CommandTrees.Internal;
-    using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.IO;
     using System.Text.RegularExpressions;
 
     /// <summary>
-    /// DbCommandTree is the abstract base type for the Delete, Query, Insert and Update DbCommandTree types.
+    ///     DbCommandTree is the abstract base type for the Delete, Query, Insert and Update DbCommandTree types.
     /// </summary>
     public abstract class DbCommandTree
     {
@@ -25,14 +25,14 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Initializes a new command tree with a given metadata workspace.
+        ///     Initializes a new command tree with a given metadata workspace.
         /// </summary>
-        /// <param name="metadata">The metadata workspace against which the command tree should operate.</param>
-        /// <param name="dataSpace">The logical 'space' that metadata in the expressions used in this command tree must belong to.</param>
+        /// <param name="metadata"> The metadata workspace against which the command tree should operate. </param>
+        /// <param name="dataSpace"> The logical 'space' that metadata in the expressions used in this command tree must belong to. </param>
         internal DbCommandTree(MetadataWorkspace metadata, DataSpace dataSpace)
         {
             // Ensure the metadata workspace is non-null
-            Contract.Requires(metadata != null);
+            DebugCheck.NotNull(metadata);
 
             // Ensure that the data space value is valid
             if (!IsValidDataSpace(dataSpace))
@@ -40,29 +40,12 @@ namespace System.Data.Entity.Core.Common.CommandTrees
                 throw new ArgumentException(Strings.Cqt_CommandTree_InvalidDataSpace, "dataSpace");
             }
 
-            //
-            // Create the tree's metadata workspace and initalize commonly used types.
-            //
-            var effectiveMetadata = new MetadataWorkspace();
-
-            //While EdmItemCollection and StorageitemCollections are required
-            //ObjectItemCollection may or may not be registered on the workspace yet.
-            //So register the ObjectItemCollection if it exists.
-            ItemCollection objectItemCollection;
-            if (metadata.TryGetItemCollection(DataSpace.OSpace, out objectItemCollection))
-            {
-                effectiveMetadata.RegisterItemCollection(objectItemCollection);
-            }
-            effectiveMetadata.RegisterItemCollection(metadata.GetItemCollection(DataSpace.CSpace));
-            effectiveMetadata.RegisterItemCollection(metadata.GetItemCollection(DataSpace.CSSpace));
-            effectiveMetadata.RegisterItemCollection(metadata.GetItemCollection(DataSpace.SSpace));
-
-            _metadata = effectiveMetadata;
+            _metadata = metadata;
             _dataSpace = dataSpace;
         }
 
         /// <summary>
-        /// Gets the name and corresponding type of each parameter that can be referenced within this command tree.
+        ///     Gets the name and corresponding type of each parameter that can be referenced within this command tree.
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1006:DoNotNestGenericTypesInMemberSignatures")]
         public IEnumerable<KeyValuePair<string, TypeUsage>> Parameters
@@ -73,18 +56,18 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         #region Internal Implementation
 
         /// <summary>
-        /// Gets the kind of this command tree.
+        ///     Gets the kind of this command tree.
         /// </summary>
         public abstract DbCommandTreeKind CommandTreeKind { get; }
 
         /// <summary>
-        /// Gets the name and type of each parameter declared on the command tree.
+        ///     Gets the name and type of each parameter declared on the command tree.
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         internal abstract IEnumerable<KeyValuePair<string, TypeUsage>> GetParameters();
 
         /// <summary>
-        /// Gets the metadata workspace used by this command tree.
+        ///     Gets the metadata workspace used by this command tree.
         /// </summary>
         public MetadataWorkspace MetadataWorkspace
         {
@@ -92,7 +75,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the data space in which metadata used by this command tree must reside.
+        ///     Gets the data space in which metadata used by this command tree must reside.
         /// </summary>
         public DataSpace DataSpace
         {
@@ -148,24 +131,25 @@ namespace System.Data.Entity.Core.Common.CommandTrees
             //
             // Create a new MemoryStream that the XML dumper should write to.
             //
-            var stream = new MemoryStream();
+            using (var stream = new MemoryStream())
+            {
+                //
+                // Create the dumper
+                //
+                var dumper = new XmlExpressionDumper(stream);
 
-            //
-            // Create the dumper
-            //
-            var dumper = new XmlExpressionDumper(stream);
+                //
+                // Dump this tree and then close the XML dumper so that the end document tag is written
+                // and the output is flushed to the stream.
+                //
+                Dump(dumper);
+                dumper.Close();
 
-            //
-            // Dump this tree and then close the XML dumper so that the end document tag is written
-            // and the output is flushed to the stream.
-            //
-            Dump(dumper);
-            dumper.Close();
-
-            //
-            // Construct a string from the resulting memory stream and return it to the caller
-            //
-            return XmlExpressionDumper.DefaultEncoding.GetString(stream.ToArray());
+                //
+                // Construct a string from the resulting memory stream and return it to the caller
+                //
+                return XmlExpressionDumper.DefaultEncoding.GetString(stream.ToArray());
+            }
         }
 #endif
 
@@ -187,8 +171,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees
 
         internal static bool IsValidParameterName(string name)
         {
-            return (!StringUtil.IsNullOrEmptyOrWhiteSpace(name) &&
-                    _paramNameRegex.IsMatch(name));
+            return (!string.IsNullOrWhiteSpace(name)
+                    && _paramNameRegex.IsMatch(name));
         }
 
         private static readonly Regex _paramNameRegex = new Regex("^([A-Za-z])([A-Za-z0-9_])*$");

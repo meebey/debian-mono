@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.Generic;
     using System.Data.Entity.Resources;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
     using System.Text;
 
     internal class LoadMessageLogger
@@ -34,7 +35,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
         private string GetTypeRelatedLogMessage(EdmType relatedType)
         {
-            Debug.Assert(relatedType != null, "have to pass in a type to get the message");
+            DebugCheck.NotNull(relatedType);
 
             if (_messages.ContainsKey(relatedType))
             {
@@ -51,7 +52,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
         private void LogMessagesWithTypeInfo(string message, EdmType relatedType)
         {
-            Debug.Assert(relatedType != null, "have to have a type with this message");
+            DebugCheck.NotNull(relatedType);
 
             if (_messages.ContainsKey(relatedType))
             {

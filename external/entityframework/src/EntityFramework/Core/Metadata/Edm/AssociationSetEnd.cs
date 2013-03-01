@@ -1,41 +1,34 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
+    using System.Data.Entity.Utilities;
+
     /// <summary>
-    /// Class representing a AssociationSet End
+    ///     Class representing a AssociationSet End
     /// </summary>
     public sealed class AssociationSetEnd : MetadataItem
     {
-        #region Constructors
-
         /// <summary>
-        /// Initializes a new instance of AssocationSetEnd
+        ///     Initializes a new instance of AssocationSetEnd
         /// </summary>
-        /// <param name="entitySet">Entity set that this end refers to</param>
-        /// <param name="parentSet">The association set which this belongs to</param>
-        /// <param name="endMember">The end member of the association set which this is an instance of</param>
-        /// <exception cref="System.ArgumentNullException">Thrown if either the role,entitySet, parentSet or endMember arguments are null </exception>
+        /// <param name="entitySet"> Entity set that this end refers to </param>
+        /// <param name="parentSet"> The association set which this belongs to </param>
+        /// <param name="endMember"> The end member of the association set which this is an instance of </param>
+        /// <exception cref="System.ArgumentNullException">Thrown if either the role,entitySet, parentSet or endMember arguments are null</exception>
         internal AssociationSetEnd(EntitySet entitySet, AssociationSet parentSet, AssociationEndMember endMember)
         {
-            _entitySet = EntityUtil.GenericCheckArgumentNull(entitySet, "entitySet");
-            _parentSet = EntityUtil.GenericCheckArgumentNull(parentSet, "parentSet");
-            _endMember = EntityUtil.GenericCheckArgumentNull(endMember, "endMember");
+            _entitySet = Check.NotNull(entitySet, "entitySet");
+            _parentSet = Check.NotNull(parentSet, "parentSet");
+            _endMember = Check.NotNull(endMember, "endMember");
         }
-
-        #endregion
-
-        #region Fields
 
         private readonly EntitySet _entitySet;
         private readonly AssociationSet _parentSet;
         private readonly AssociationEndMember _endMember;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Returns the kind of the type
+        ///     Returns the kind of the type
         /// </summary>
         public override BuiltInTypeKind BuiltInTypeKind
         {
@@ -43,9 +36,9 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// The parent association set for this AssociationSetEnd.
+        ///     The parent association set for this AssociationSetEnd.
         /// </summary>
-        /// <exception cref="System.ArgumentNullException">Thrown if the value passed in for the setter is null </exception>
+        /// <exception cref="System.ArgumentNullException">Thrown if the value passed in for the setter is null</exception>
         /// <exception cref="System.InvalidOperationException">Thrown if Setter is called when the AssociationSetEnd instance is in ReadOnly state</exception>
         [MetadataProperty(BuiltInTypeKind.AssociationSet, false)]
         public AssociationSet ParentAssociationSet
@@ -54,9 +47,9 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// The EndMember which this AssociationSetEnd corresponds to.
+        ///     The EndMember which this AssociationSetEnd corresponds to.
         /// </summary>
-        /// <exception cref="System.ArgumentNullException">Thrown if the value passed in for the setter is null </exception>
+        /// <exception cref="System.ArgumentNullException">Thrown if the value passed in for the setter is null</exception>
         /// <exception cref="System.InvalidOperationException">Thrown if Setter is called when the AssociationSetEnd instance is in ReadOnly state</exception>
         [MetadataProperty(BuiltInTypeKind.AssociationEndMember, false)]
         public AssociationEndMember CorrespondingAssociationEndMember
@@ -65,7 +58,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Name of the end
+        ///     Name of the end
         /// </summary>
         [MetadataProperty(PrimitiveTypeKind.String, false)]
         public string Name
@@ -74,9 +67,9 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Name of the end role
+        ///     Name of the end role
         /// </summary>
-        /// <exception cref="System.ArgumentNullException">Thrown if the value passed in for the setter is null </exception>
+        /// <exception cref="System.ArgumentNullException">Thrown if the value passed in for the setter is null</exception>
         /// <exception cref="System.InvalidOperationException">Thrown if Setter is called when the AssociationSetEnd instance is in ReadOnly state</exception>
         [MetadataProperty(PrimitiveTypeKind.String, false)]
         [Obsolete("This property is going away, please use the Name property instead")]
@@ -86,7 +79,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Returns the entity set referred by this end role
+        ///     Returns the entity set referred by this end role
         /// </summary>
         [MetadataProperty(BuiltInTypeKind.EntitySet, false)]
         public EntitySet EntitySet
@@ -95,20 +88,16 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the identity of this item
+        ///     Gets the identity of this item
         /// </summary>
         internal override string Identity
         {
             get { return Name; }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Overriding System.Object.ToString to provide better String representation 
-        /// for this type.
+        ///     Overriding System.Object.ToString to provide better String representation
+        ///     for this type.
         /// </summary>
         public override string ToString()
         {
@@ -116,7 +105,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Sets this item to be readonly, once this is set, the item will never be writable again.
+        ///     Sets this item to be readonly, once this is set, the item will never be writable again.
         /// </summary>
         internal override void SetReadOnly()
         {
@@ -143,7 +132,5 @@ namespace System.Data.Entity.Core.Metadata.Edm
                 }
             }
         }
-
-        #endregion
     }
 }

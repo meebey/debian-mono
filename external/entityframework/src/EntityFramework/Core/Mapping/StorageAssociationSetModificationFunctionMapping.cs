@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Globalization;
-    using System.Text;
 
     /// <summary>
-    /// Describes modification function mappings for an association set.
+    ///     Describes modification function mappings for an association set.
     /// </summary>
     internal sealed class StorageAssociationSetModificationFunctionMapping
     {
@@ -16,7 +16,7 @@ namespace System.Data.Entity.Core.Mapping
             StorageModificationFunctionMapping deleteFunctionMapping,
             StorageModificationFunctionMapping insertFunctionMapping)
         {
-            Contract.Requires(associationSet != null);
+            DebugCheck.NotNull(associationSet);
 
             AssociationSet = associationSet;
             DeleteFunctionMapping = deleteFunctionMapping;
@@ -24,17 +24,17 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Association set these functions handles.
+        ///     Association set these functions handles.
         /// </summary>
         internal readonly AssociationSet AssociationSet;
 
         /// <summary>
-        /// Delete function for this association set.
+        ///     Delete function for this association set.
         /// </summary>
         internal readonly StorageModificationFunctionMapping DeleteFunctionMapping;
 
         /// <summary>
-        /// Insert function for this association set.
+        ///     Insert function for this association set.
         /// </summary>
         internal readonly StorageModificationFunctionMapping InsertFunctionMapping;
 
@@ -45,17 +45,5 @@ namespace System.Data.Entity.Core.Mapping
                 "AS{{{0}}}:{3}DFunc={{{1}}},{3}IFunc={{{2}}}", AssociationSet, DeleteFunctionMapping,
                 InsertFunctionMapping, Environment.NewLine + "  ");
         }
-
-#if DEBUG
-        internal void Print(int index)
-        {
-            StorageEntityContainerMapping.GetPrettyPrintString(ref index);
-            var sb = new StringBuilder();
-            sb.Append("Association Set Function Mapping");
-            sb.Append("   ");
-            sb.Append(ToString());
-            Console.WriteLine(sb.ToString());
-        }
-#endif
     }
 }

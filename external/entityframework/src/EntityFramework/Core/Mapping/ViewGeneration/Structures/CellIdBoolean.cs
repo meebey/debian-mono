@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -9,14 +10,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Text;
 
     /// <summary>
-    /// Wraps from0, from1, etc. boolean fields that identify the source of tuples (# of respective cell query) in the view statements.
+    ///     Wraps from0, from1, etc. boolean fields that identify the source of tuples (# of respective cell query) in the view statements.
     /// </summary>
     internal class CellIdBoolean : TrueFalseLiteral
     {
-        #region Constructor
-
         /// <summary>
-        /// Creates a boolean expression for the variable name specified by <paramref name="index"/>, e.g., 0 results in from0, 1 into from1.
+        ///     Creates a boolean expression for the variable name specified by <paramref name="index" />, e.g., 0 results in from0, 1 into from1.
         /// </summary>
         internal CellIdBoolean(CqlIdentifiers identifiers, int index)
         {
@@ -25,32 +24,20 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_slotName = identifiers.GetFromVariable(index);
         }
 
-        #endregion
-
-        #region Fields
-
         /// <summary>
-        /// e.g., from0, from1.
+        ///     e.g., from0, from1.
         /// </summary>
         private readonly int m_index;
 
         private readonly string m_slotName;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Returns the slotName corresponding to this, ie., _from0 etc.
+        ///     Returns the slotName corresponding to this, ie., _from0 etc.
         /// </summary>
         internal string SlotName
         {
             get { return m_slotName; }
         }
-
-        #endregion
-
-        #region BoolLiteral members
 
         internal override StringBuilder AsEsql(StringBuilder builder, string blockAlias, bool skipIsNotNull)
         {
@@ -107,15 +94,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             return this;
         }
 
-        #endregion
-
-        #region Other Methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             builder.Append(SlotName);
         }
-
-        #endregion
     }
 }

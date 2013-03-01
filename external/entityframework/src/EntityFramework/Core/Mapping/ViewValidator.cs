@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
@@ -7,21 +8,22 @@ namespace System.Data.Entity.Core.Mapping
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
 
     /// <summary>
-    /// Verifies that only legal expressions exist in a user-defined query mapping view.
+    ///     Verifies that only legal expressions exist in a user-defined query mapping view.
     /// </summary>
     internal static class ViewValidator
     {
         /// <summary>
-        /// Determines whether the given view is valid.
+        ///     Determines whether the given view is valid.
         /// </summary>
-        /// <param name="view">Query view to validate.</param>
-        /// <param name="storeItemCollection">Store item collection.</param>
-        /// <param name="setMapping">Mapping in which view is declared.</param>
-        /// <returns>Errors in view definition.</returns>
+        /// <param name="view"> Query view to validate. </param>
+        /// <param name="storeItemCollection"> Store item collection. </param>
+        /// <param name="setMapping"> Mapping in which view is declared. </param>
+        /// <returns> Errors in view definition. </returns>
         internal static IEnumerable<EdmSchemaError> ValidateQueryView(
             DbQueryCommandTree view, StorageSetMapping setMapping, EntityTypeBase elementType, bool includeSubtypes)
         {
@@ -30,7 +32,7 @@ namespace System.Data.Entity.Core.Mapping
             if (validator.Errors.Count() == 0)
             {
                 //For AssociationSet views, we have to check for a specific pattern of errors where
-                //the Ref expression passed into the construcor might use an EntitySet that is different from
+                //the Ref expression passed into the constructor might use an EntitySet that is different from
                 //the EntitySet defined in the CSDL.
                 if (setMapping.Set.BuiltInTypeKind
                     == BuiltInTypeKind.AssociationSet)
@@ -62,8 +64,8 @@ namespace System.Data.Entity.Core.Mapping
 
             internal ViewExpressionValidator(StorageSetMapping setMapping, EntityTypeBase elementType, bool includeSubtypes)
             {
-                Debug.Assert(null != setMapping);
-                Debug.Assert(null != elementType);
+                DebugCheck.NotNull(setMapping);
+                DebugCheck.NotNull(elementType);
 
                 _setMapping = setMapping;
                 _elementType = elementType;
@@ -79,10 +81,10 @@ namespace System.Data.Entity.Core.Mapping
 
             public override void VisitExpression(DbExpression expression)
             {
-                if (null != expression)
-                {
-                    ValidateExpressionKind(expression.ExpressionKind);
-                }
+                Check.NotNull(expression, "expression");
+
+                ValidateExpressionKind(expression.ExpressionKind);
+
                 base.VisitExpression(expression);
             }
 
@@ -134,6 +136,8 @@ namespace System.Data.Entity.Core.Mapping
 
             public override void Visit(DbPropertyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 base.Visit(expression);
                 if (expression.Property.BuiltInTypeKind
                     != BuiltInTypeKind.EdmProperty)
@@ -150,6 +154,8 @@ namespace System.Data.Entity.Core.Mapping
 
             public override void Visit(DbNewInstanceExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 base.Visit(expression);
                 var type = expression.ResultType.EdmType;
                 if (type.BuiltInTypeKind
@@ -173,7 +179,7 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Retrieves all complex types that can be constructed as part of the view.
+            ///     Retrieves all complex types that can be constructed as part of the view.
             /// </summary>
             private IEnumerable<ComplexType> GetComplexTypes()
             {
@@ -183,7 +189,7 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Recursively identify complex types.
+            ///     Recursively identify complex types.
             /// </summary>
             private IEnumerable<ComplexType> GetComplexTypes(IEnumerable<EdmProperty> properties)
             {
@@ -199,7 +205,7 @@ namespace System.Data.Entity.Core.Mapping
             }
 
             /// <summary>
-            /// Gets all entity types in scope for this view.
+            ///     Gets all entity types in scope for this view.
             /// </summary>
             private IEnumerable<EntityType> GetEntityTypes()
             {
@@ -223,6 +229,8 @@ namespace System.Data.Entity.Core.Mapping
 
             public override void Visit(DbFunctionExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 base.Visit(expression);
 
                 // Verify function is defined in S-space or it is a built-in canonical function.
@@ -257,6 +265,8 @@ namespace System.Data.Entity.Core.Mapping
 
             public override void Visit(DbScanExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 base.Visit(expression);
                 Debug.Assert(null != expression.Target);
 
@@ -278,9 +288,9 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// The visitor validates that the QueryView for an AssociationSet uses the same EntitySets when
-        /// creating the ends that were used in CSDL. Since the Query View is already validated, we can expect to
-        /// see only a very restricted set of expressions in the tree.
+        ///     The visitor validates that the QueryView for an AssociationSet uses the same EntitySets when
+        ///     creating the ends that were used in CSDL. Since the Query View is already validated, we can expect to
+        ///     see only a very restricted set of expressions in the tree.
         /// </summary>
         private class AssociationSetViewValidator : DbExpressionVisitor<DbExpressionEntitySetInfo>
         {
@@ -292,7 +302,7 @@ namespace System.Data.Entity.Core.Mapping
 
             internal AssociationSetViewValidator(StorageSetMapping setMapping)
             {
-                Debug.Assert(setMapping != null);
+                DebugCheck.NotNull(setMapping);
                 _setMapping = setMapping;
             }
 
@@ -359,20 +369,24 @@ namespace System.Data.Entity.Core.Mapping
                 }
             }
 
-            #region DbExpressionVisitor<DbExpression> Members
-
             public override DbExpressionEntitySetInfo Visit(DbExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbVariableReferenceExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return variableScopes.Where(it => (it.Key == expression.VariableName)).Select(it => it.Value).FirstOrDefault();
             }
 
             public override DbExpressionEntitySetInfo Visit(DbPropertyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 var setInfos = VisitExpression(expression.Instance) as DbExpressionStructuralTypeEntitySetInfo;
                 if (setInfos != null)
                 {
@@ -383,6 +397,8 @@ namespace System.Data.Entity.Core.Mapping
 
             public override DbExpressionEntitySetInfo Visit(DbProjectExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 VisitExpressionBindingEnterScope(expression.Input);
                 var setInfo = VisitExpression(expression.Projection);
                 VisitExpressionBindingExitScope();
@@ -391,6 +407,8 @@ namespace System.Data.Entity.Core.Mapping
 
             public override DbExpressionEntitySetInfo Visit(DbNewInstanceExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 var argumentSetInfos = VisitExpressionList(expression.Arguments);
                 var structuralType = (expression.ResultType.EdmType as StructuralType);
                 if (argumentSetInfos != null
@@ -422,202 +440,281 @@ namespace System.Data.Entity.Core.Mapping
 
             public override DbExpressionEntitySetInfo Visit(DbRefExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return new DbExpressionSimpleTypeEntitySetInfo(expression.EntitySet);
             }
 
             public override DbExpressionEntitySetInfo Visit(DbComparisonExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbLikeExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbLimitExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbIsNullExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbArithmeticExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbAndExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbOrExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
+                return null;
+            }
+
+            public override DbExpressionEntitySetInfo Visit(DbInExpression expression)
+            {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbNotExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbDistinctExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbElementExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbIsEmptyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbUnionAllExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbIntersectExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbExceptExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbTreatExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbIsOfExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbCastExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbCaseExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbOfTypeExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbRelationshipNavigationExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbDerefExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbRefKeyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbEntityRefExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbScanExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbFilterExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbConstantExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbNullExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbCrossJoinExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbJoinExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbParameterReferenceExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbFunctionExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbLambdaExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbApplyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbGroupByExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbSkipExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbSortExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
 
             public override DbExpressionEntitySetInfo Visit(DbQuantifierExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 return null;
             }
-
-            #endregion
         }
 
         internal abstract class DbExpressionEntitySetInfo
         {
         }
-
-        #region DbExpressionEntitySetInfo implementations
 
         private class DbExpressionSimpleTypeEntitySetInfo : DbExpressionEntitySetInfo
         {
@@ -673,7 +770,5 @@ namespace System.Data.Entity.Core.Mapping
                 get { return m_entitySets; }
             }
         }
-
-        #endregion
     }
 }

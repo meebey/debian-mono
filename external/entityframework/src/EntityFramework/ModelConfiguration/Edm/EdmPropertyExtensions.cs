@@ -1,85 +1,183 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Edm
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Parsing.Xml.Internal.Ssdl;
-    using System.Data.Entity.ModelConfiguration.Edm.Common;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Core.Metadata.Edm.Provider;
     using System.Data.Entity.ModelConfiguration.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
 
     internal static class EdmPropertyExtensions
     {
-        public static DbStoreGeneratedPattern? GetStoreGeneratedPattern(this EdmProperty property)
-        {
-            Contract.Requires(property != null);
+        private const string OrderAnnotation = "Order";
+        private const string PreferredNameAnnotation = "PreferredName";
+        private const string UnpreferredUniqueNameAnnotation = "UnpreferredUniqueName";
+        private const string AllowOverrideAnnotation = "AllowOverride";
 
-            return
-                (DbStoreGeneratedPattern?)
-                property.Annotations.GetAnnotation(SsdlConstants.Attribute_StoreGeneratedPattern);
+        public static void CopyFrom(this EdmProperty column, EdmProperty other)
+        {
+            DebugCheck.NotNull(column);
+            DebugCheck.NotNull(other);
+
+            column.IsFixedLength = other.IsFixedLength;
+            column.IsMaxLength = other.IsMaxLength;
+            column.IsUnicode = other.IsUnicode;
+            column.MaxLength = other.MaxLength;
+            column.Precision = other.Precision;
+            column.Scale = other.Scale;
+        }
+
+        public static EdmProperty Clone(this EdmProperty tableColumn)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            var columnMetadata
+                = new EdmProperty(tableColumn.Name, tableColumn.TypeUsage)
+                      {
+                          Nullable = tableColumn.Nullable,
+                          StoreGeneratedPattern = tableColumn.StoreGeneratedPattern,
+                          IsFixedLength = tableColumn.IsFixedLength,
+                          IsMaxLength = tableColumn.IsMaxLength,
+                          IsUnicode = tableColumn.IsUnicode,
+                          MaxLength = tableColumn.MaxLength,
+                          Precision = tableColumn.Precision,
+                          Scale = tableColumn.Scale
+                      };
+
+            tableColumn.Annotations.Each(a => columnMetadata.Annotations.Add(a));
+
+            return columnMetadata;
+        }
+
+        public static int? GetOrder(this EdmProperty tableColumn)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            return (int?)tableColumn.Annotations.GetAnnotation(OrderAnnotation);
+        }
+
+        public static void SetOrder(this EdmProperty tableColumn, int order)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            tableColumn.Annotations.SetAnnotation(OrderAnnotation, order);
+        }
+
+        public static string GetPreferredName(this EdmProperty tableColumn)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            return (string)tableColumn.Annotations.GetAnnotation(PreferredNameAnnotation);
+        }
+
+        public static void SetPreferredName(this EdmProperty tableColumn, string name)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            tableColumn.Annotations.SetAnnotation(PreferredNameAnnotation, name);
+        }
+
+        public static string GetUnpreferredUniqueName(this EdmProperty tableColumn)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            return (string)tableColumn.Annotations.GetAnnotation(UnpreferredUniqueNameAnnotation);
+        }
+
+        public static void SetUnpreferredUniqueName(this EdmProperty tableColumn, string name)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            tableColumn.Annotations.SetAnnotation(UnpreferredUniqueNameAnnotation, name);
+        }
+
+        public static void RemoveStoreGeneratedIdentityPattern(this EdmProperty tableColumn)
+        {
+            DebugCheck.NotNull(tableColumn);
+
+            if (tableColumn.StoreGeneratedPattern
+                == StoreGeneratedPattern.Identity)
+            {
+                tableColumn.StoreGeneratedPattern = StoreGeneratedPattern.None;
+            }
+        }
+
+        public static bool GetAllowOverride(this EdmProperty column)
+        {
+            DebugCheck.NotNull(column);
+
+            return (bool)column.Annotations.GetAnnotation(AllowOverrideAnnotation);
+        }
+
+        public static void SetAllowOverride(this EdmProperty column, bool allowOverride)
+        {
+            DebugCheck.NotNull(column);
+
+            column.Annotations.SetAnnotation(AllowOverrideAnnotation, allowOverride);
+        }
+
+        public static bool HasStoreGeneratedPattern(this EdmProperty property)
+        {
+            DebugCheck.NotNull(property);
+
+            var storeGeneratedPattern = property.GetStoreGeneratedPattern();
+
+            return storeGeneratedPattern != null
+                   && storeGeneratedPattern != StoreGeneratedPattern.None;
+        }
+
+        public static StoreGeneratedPattern? GetStoreGeneratedPattern(this EdmProperty property)
+        {
+            DebugCheck.NotNull(property);
+
+            MetadataProperty metadataProperty;
+            if (property.MetadataProperties.TryGetValue(
+                XmlConstants.StoreGeneratedPatternAnnotation,
+                false,
+                out metadataProperty))
+            {
+                return (StoreGeneratedPattern?)Enum.Parse(typeof(StoreGeneratedPattern), (string)metadataProperty.Value);
+            }
+
+            return null;
         }
 
         public static void SetStoreGeneratedPattern(
-            this EdmProperty property, DbStoreGeneratedPattern storeGeneratedPattern)
+            this EdmProperty property, StoreGeneratedPattern storeGeneratedPattern)
         {
-            Contract.Requires(property != null);
+            DebugCheck.NotNull(property);
 
-            property.Annotations.SetAnnotation(SsdlConstants.Attribute_StoreGeneratedPattern, storeGeneratedPattern);
+            MetadataProperty metadataProperty;
+            if (!property.MetadataProperties.TryGetValue(
+                XmlConstants.StoreGeneratedPatternAnnotation,
+                false,
+                out metadataProperty))
+            {
+                property.MetadataProperties.Source.Add(
+                    new MetadataProperty(
+                        XmlConstants.StoreGeneratedPatternAnnotation,
+                        TypeUsage.Create(EdmProviderManifest.Instance.GetPrimitiveType(PrimitiveTypeKind.String)),
+                        storeGeneratedPattern.ToString()));
+            }
+            else
+            {
+                metadataProperty.Value = storeGeneratedPattern.ToString();
+            }
         }
 
         public static object GetConfiguration(this EdmProperty property)
         {
-            Contract.Requires(property != null);
+            DebugCheck.NotNull(property);
 
             return property.Annotations.GetConfiguration();
         }
 
         public static void SetConfiguration(this EdmProperty property, object configuration)
         {
-            Contract.Requires(property != null);
+            DebugCheck.NotNull(property);
 
             property.Annotations.SetConfiguration(configuration);
-        }
-
-        public static EdmProperty AsPrimitive(this EdmProperty property)
-        {
-            Contract.Requires(property != null);
-
-            property.PropertyType = new EdmTypeReference
-                {
-                    PrimitiveTypeFacets = new EdmPrimitiveTypeFacets()
-                };
-
-            return property;
-        }
-
-        public static EdmProperty AsComplex(this EdmProperty property, EdmComplexType complexType)
-        {
-            Contract.Requires(property != null);
-            Contract.Requires(complexType != null);
-
-            property.PropertyType = new EdmTypeReference
-                {
-                    EdmType = complexType,
-                    IsNullable = false
-                };
-
-            return property;
-        }
-
-        public static EdmProperty AsEnum(this EdmProperty property, EdmEnumType enumType)
-        {
-            Contract.Requires(property != null);
-            Contract.Requires(enumType != null);
-
-            property.PropertyType = new EdmTypeReference
-                {
-                    EdmType = enumType,
-                    PrimitiveTypeFacets = new EdmPrimitiveTypeFacets()
-                };
-
-            return property;
         }
 
         public static List<EdmPropertyPath> ToPropertyPathList(this EdmProperty property)
@@ -98,13 +196,13 @@ namespace System.Data.Entity.ModelConfiguration.Edm
             List<EdmPropertyPath> propertyPaths, List<EdmProperty> currentPath, EdmProperty property)
         {
             currentPath.Add(property);
-            if (property.PropertyType.IsUnderlyingPrimitiveType)
+            if (property.IsUnderlyingPrimitiveType)
             {
                 propertyPaths.Add(new EdmPropertyPath(currentPath));
             }
-            else if (property.PropertyType.IsComplexType)
+            else if (property.IsComplexType)
             {
-                foreach (var p in property.PropertyType.ComplexType.Properties)
+                foreach (var p in property.ComplexType.Properties)
                 {
                     IncludePropertyPath(propertyPaths, currentPath, p);
                 }

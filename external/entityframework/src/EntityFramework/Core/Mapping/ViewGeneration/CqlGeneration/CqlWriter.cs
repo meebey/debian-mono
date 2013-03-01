@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
 {
     using System.Data.Entity.Core.Common.Utils;
@@ -10,13 +11,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
     // This class contains helper methods needed for generating Cql
     internal static class CqlWriter
     {
-        #region Fields
-
         private static readonly Regex _wordIdentifierRegex = new Regex(@"^[_A-Za-z]\w*$", RegexOptions.ECMAScript | RegexOptions.Compiled);
-
-        #endregion
-
-        #region Helper Methods
 
         // effects: Given a block name and a field in it -- returns a string
         // of form "blockName.field". Does not perform any escaping
@@ -53,11 +48,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
             {
                 var newName = name.Replace("]", "]]");
                 builder.Append('[')
-                    .Append(newName)
-                    .Append(']');
+                       .Append(newName)
+                       .Append(']');
             }
         }
-
-        #endregion
     }
 }

@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Edm;
 
     internal class TestModelBuilder
@@ -12,18 +13,19 @@ namespace System.Data.Entity
         }
 
         private readonly EdmModel _model;
-        private EdmEntityType _entityType;
+        private EntityType _entityType;
+        private int _counter;
 
         public TestModelBuilder()
         {
-            _model = new EdmModel().Initialize();
+            _model = new EdmModel(DataSpace.CSpace);
         }
 
         public TestModelBuilder Entities(params string[] names)
         {
             foreach (var name in names)
             {
-                _model.AddEntityType(name);
+                Entity(name);
             }
 
             return this;
@@ -32,7 +34,10 @@ namespace System.Data.Entity
         public TestModelBuilder Entity(string name, bool addSet = true)
         {
             _entityType = _model.AddEntityType(name);
-            _entityType.SetClrType(new MockType(name));
+
+            Type type = new MockType(name);
+
+            _entityType.Annotations.SetClrType(type);
 
             if (addSet)
             {
@@ -44,19 +49,23 @@ namespace System.Data.Entity
 
         public TestModelBuilder Property(string propertyName)
         {
-            var property = _entityType.AddPrimitiveProperty(propertyName);
-            property.PropertyType.EdmType = EdmPrimitiveType.String;
+            var property1 = EdmProperty.Primitive(propertyName, PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+
+            _entityType.AddMember(property1);
+            var property = property1;
             property.SetClrPropertyInfo(new MockPropertyInfo(typeof(string), propertyName));
             return this;
         }
 
         public TestModelBuilder Key(string key)
         {
-            var property = _entityType.AddPrimitiveProperty(key);
-            property.SetClrPropertyInfo(new MockPropertyInfo(typeof(int), key));
-            property.PropertyType.EdmType = EdmPrimitiveType.Int32;
+            var property1 = EdmProperty.Primitive(key, PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
 
-            _entityType.DeclaredKeyProperties.Add(property);
+            _entityType.AddMember(property1);
+            var property = property1;
+            property.SetClrPropertyInfo(new MockPropertyInfo(typeof(int), key));
+
+            _entityType.AddKeyMember(property);
 
             return this;
         }
@@ -73,11 +82,11 @@ namespace System.Data.Entity
         }
 
         public TestModelBuilder Association(
-            string sourceEntity, EdmAssociationEndKind sourceEndKind,
-            string targetEntity, EdmAssociationEndKind targetEndKind)
+            string sourceEntity, RelationshipMultiplicity sourceEndKind,
+            string targetEntity, RelationshipMultiplicity targetEndKind)
         {
             _model.AddAssociationSet(
-                "AssociationSet",
+                "AssociationSet" + _counter++,
                 _model.AddAssociationType(
                     "Association",
                     _model.GetEntityType(sourceEntity), sourceEndKind,
@@ -86,9 +95,10 @@ namespace System.Data.Entity
             return this;
         }
 
-        public TestModelBuilder Association(string name,
-            string sourceEntity, EdmAssociationEndKind sourceEndKind, string sourceNavigationProperty,
-            string targetEntity, EdmAssociationEndKind targetEndKind, string targetNavigationProperty)
+        public TestModelBuilder Association(
+            string name,
+            string sourceEntity, RelationshipMultiplicity sourceEndKind, string sourceNavigationProperty,
+            string targetEntity, RelationshipMultiplicity targetEndKind, string targetNavigationProperty)
         {
             var sourceEntityType = _model.GetEntityType(sourceEntity);
             var targetEntityType = _model.GetEntityType(targetEntity);

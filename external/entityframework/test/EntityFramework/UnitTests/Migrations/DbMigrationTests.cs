@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
-    using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Migrations.Model;
     using System.Linq;
     using Xunit;
 
@@ -20,6 +21,7 @@ namespace System.Data.Entity.Migrations
             Assert.Equal("t", addPrimaryKeyOperation.Table);
             Assert.Equal("c", addPrimaryKeyOperation.Columns.Single());
             Assert.Equal("pk", addPrimaryKeyOperation.Name);
+            Assert.True(addPrimaryKeyOperation.IsClustered);
         }
 
         [Fact]
@@ -35,6 +37,19 @@ namespace System.Data.Entity.Migrations
             Assert.Equal("c1", addPrimaryKeyOperation.Columns.First());
             Assert.Equal("c2", addPrimaryKeyOperation.Columns.Last());
             Assert.Equal("pk", addPrimaryKeyOperation.Name);
+            Assert.True(addPrimaryKeyOperation.IsClustered);
+        }
+
+        [Fact]
+        public void AddPrimaryKey_can_set_clustered_parameter()
+        {
+            var migration = new TestMigration();
+
+            migration.AddPrimaryKey("t", "c", "pk", clustered: false);
+
+            var addPrimaryKeyOperation = migration.Operations.Cast<AddPrimaryKeyOperation>().Single();
+
+            Assert.False(addPrimaryKeyOperation.IsClustered);
         }
 
         [Fact]
@@ -160,7 +175,14 @@ namespace System.Data.Entity.Migrations
         {
             var migration = new TestMigration();
 
-            migration.CreateTable("Foo", cs => new { Id = cs.Int() }, new { Foo = 123 });
+            migration.CreateTable(
+                "Foo", cs => new
+                                 {
+                                     Id = cs.Int()
+                                 }, new
+                                        {
+                                            Foo = 123
+                                        });
 
             var createTableOperation = migration.Operations.Cast<CreateTableOperation>().Single();
 
@@ -190,10 +212,10 @@ namespace System.Data.Entity.Migrations
             migration.CreateTable(
                 "Customers",
                 cs => new
-                    {
-                        Id = cs.Int(),
-                        Name = cs.String()
-                    });
+                          {
+                              Id = cs.Int(),
+                              Name = cs.String()
+                          });
 
             var createTableOperation = migration.Operations.Cast<CreateTableOperation>().Single();
 
@@ -219,9 +241,9 @@ namespace System.Data.Entity.Migrations
             migration.CreateTable(
                 "Customers",
                 cs => new
-                    {
-                        Id = cs.Int(name: "Customer Id")
-                    });
+                          {
+                              Id = cs.Int(name: "Customer Id")
+                          });
 
             var createTableOperation = migration.Operations.Cast<CreateTableOperation>().Single();
 
@@ -239,17 +261,23 @@ namespace System.Data.Entity.Migrations
             migration.CreateTable(
                 "Customers",
                 cs => new
-                    {
-                        Id = cs.Int(),
-                        Name = cs.String()
-                    })
-                .Index(t => new { t.Id, t.Name }, unique: true);
+                          {
+                              Id = cs.Int(),
+                              Name = cs.String()
+                          })
+                     .Index(
+                         t => new
+                                  {
+                                      t.Id,
+                                      t.Name
+                                  }, unique: true, clustered: true);
 
             var createIndexOperation = migration.Operations.OfType<CreateIndexOperation>().Single();
 
             Assert.NotNull(createIndexOperation.Table);
             Assert.Equal(2, createIndexOperation.Columns.Count());
             Assert.True(createIndexOperation.IsUnique);
+            Assert.True(createIndexOperation.IsClustered);
         }
 
         [Fact]
@@ -307,6 +335,19 @@ namespace System.Data.Entity.Migrations
             Assert.Equal("Foo", createIndexOperation.Columns.First());
             Assert.Equal("Bar", createIndexOperation.Columns.Last());
             Assert.True(createIndexOperation.IsUnique);
+            Assert.False(createIndexOperation.IsClustered);
+        }
+
+        [Fact]
+        public void CreateIndex_can_set_clustered_parameter()
+        {
+            var migration = new TestMigration();
+
+            migration.CreateIndex("table", new[] { "Foo", "Bar" }, clustered: true);
+
+            var createIndexOperation = migration.Operations.Cast<CreateIndexOperation>().Single();
+
+            Assert.True(createIndexOperation.IsClustered);
         }
 
         [Fact]

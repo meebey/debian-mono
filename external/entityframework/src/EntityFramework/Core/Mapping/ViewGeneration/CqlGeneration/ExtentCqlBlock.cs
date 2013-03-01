@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
 {
     using System.Collections.Generic;
@@ -10,15 +11,16 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
     using System.Text;
 
     /// <summary>
-    /// A class that represents leaf <see cref="CqlBlock"/>s in the <see cref="CqlBlock"/> tree.
+    ///     A class that represents leaf <see cref="CqlBlock" />s in the <see cref="CqlBlock" /> tree.
     /// </summary>
     internal sealed class ExtentCqlBlock : CqlBlock
     {
-        #region Constructors
-
         /// <summary>
-        /// Creates an cql block representing the <paramref name="extent"/> (the FROM part).
-        /// SELECT is given by <paramref name="slots"/>, WHERE by <paramref name="whereClause"/> and AS by <paramref name="blockAliasNum"/>.
+        ///     Creates an cql block representing the <paramref name="extent" /> (the FROM part).
+        ///     SELECT is given by <paramref name="slots" />, WHERE by <paramref name="whereClause" /> and AS by
+        ///     <paramref
+        ///         name="blockAliasNum" />
+        ///     .
         /// </summary>
         internal ExtentCqlBlock(
             EntitySetBase extent,
@@ -34,18 +36,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
             m_selectDistinct = selectDistinct;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly EntitySetBase m_extent;
         private readonly string m_nodeTableAlias;
         private readonly CellQuery.SelectDistinct m_selectDistinct;
         private static readonly List<CqlBlock> _emptyChildren = new List<CqlBlock>();
-
-        #endregion
-
-        #region Methods
 
         internal override StringBuilder AsEsql(StringBuilder builder, bool isTopLevel, int indentLevel)
         {
@@ -94,7 +88,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
 
             return cqt;
         }
-
-        #endregion
     }
 }

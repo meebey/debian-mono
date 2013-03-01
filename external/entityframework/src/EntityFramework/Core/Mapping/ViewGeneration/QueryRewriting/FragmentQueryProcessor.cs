@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 {
     using System.Collections.Generic;
@@ -12,16 +13,16 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 
     internal class FragmentQueryProcessor : TileQueryProcessor<FragmentQuery>
     {
-        private readonly FragmentQueryKB _kb;
+        private readonly FragmentQueryKBChaseSupport _kb;
 
-        public FragmentQueryProcessor(FragmentQueryKB kb)
+        public FragmentQueryProcessor(FragmentQueryKBChaseSupport kb)
         {
             _kb = kb;
         }
 
         internal static FragmentQueryProcessor Merge(FragmentQueryProcessor qp1, FragmentQueryProcessor qp2)
         {
-            var mergedKB = new FragmentQueryKB();
+            var mergedKB = new FragmentQueryKBChaseSupport();
             mergedKB.AddKnowledgeBase(qp1.KnowledgeBase);
             mergedKB.AddKnowledgeBase(qp2.KnowledgeBase);
             return new FragmentQueryProcessor(mergedKB);
@@ -84,13 +85,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 
         private bool IsSatisfiable(BoolExpression condition)
         {
-            // instantiate conversion context for each check - gives better performance
-            var conditionUnderKB = condition.Create(
-                new AndExpr<BoolDomainConstraint>(_kb.KbExpression, condition.Tree));
-            var context = IdentifierService<BoolDomainConstraint>.Instance.CreateConversionContext();
-            var converter = new Converter<BoolDomainConstraint>(conditionUnderKB.Tree, context);
-            var isSatisfiable = converter.Vertex.IsZero() == false;
-            return isSatisfiable;
+            return _kb.IsSatisfiable(condition.Tree);
         }
 
         // creates "derived" views that may be helpful for answering the query
@@ -154,12 +149,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
             return _kb.ToString();
         }
 
-        #region Private class AttributeSetComparator
-
         private class AttributeSetComparator : IEqualityComparer<HashSet<MemberPath>>
         {
-            #region IEqualityComparer<HashSet<MemberPath>> Members
-
             [SuppressMessage("Microsoft.Security", "CA2140:TransparentMethodsMustNotReferenceCriticalCode",
                 Justification = "Based on Bug VSTS Pioneer #433188: IsVisibleOutsideAssembly is wrong on generic instantiations.")]
             public bool Equals(HashSet<MemberPath> x, HashSet<MemberPath> y)
@@ -176,10 +167,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
                 }
                 return hashCode;
             }
-
-            #endregion
         }
-
-        #endregion
     }
 }

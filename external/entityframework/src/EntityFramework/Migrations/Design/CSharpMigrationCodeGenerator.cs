@@ -1,15 +1,14 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Design
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Migrations.Extensions;
     using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Migrations.Utilities;
     using System.Data.Entity.Spatial;
     using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.IO;
     using System.Linq;
@@ -33,6 +32,11 @@ namespace System.Data.Entity.Migrations.Design
             string @namespace,
             string className)
         {
+            Check.NotEmpty(migrationId, "migrationId");
+            Check.NotNull(operations, "operations");
+            Check.NotEmpty(targetModel, "targetModel");
+            Check.NotEmpty(className, "className");
+
             className = ScrubName(className);
 
             _newTableForeignKeys
@@ -49,12 +53,12 @@ namespace System.Data.Entity.Migrations.Design
 
             var generatedMigration
                 = new ScaffoldedMigration
-                    {
-                        MigrationId = migrationId,
-                        Language = "cs",
-                        UserCode = Generate(operations, @namespace, className),
-                        DesignerCode = Generate(migrationId, sourceModel, targetModel, @namespace, className)
-                    };
+                      {
+                          MigrationId = migrationId,
+                          Language = "cs",
+                          UserCode = Generate(operations, @namespace, className),
+                          DesignerCode = Generate(migrationId, sourceModel, targetModel, @namespace, className)
+                      };
 
             if (!string.IsNullOrWhiteSpace(sourceModel))
             {
@@ -69,17 +73,17 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates the primary code file that the user can view and edit.
         /// </summary>
-        /// <param name = "operations">Operations to be performed by the migration.</param>
-        /// <param name = "namespace">Namespace that code should be generated in.</param>
-        /// <param name = "className">Name of the class that should be generated.</param>
-        /// <returns>The generated code.</returns>
+        /// <param name="operations"> Operations to be performed by the migration. </param>
+        /// <param name="namespace"> Namespace that code should be generated in. </param>
+        /// <param name="className"> Name of the class that should be generated. </param>
+        /// <returns> The generated code. </returns>
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "namespace")]
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         protected virtual string Generate(
             IEnumerable<MigrationOperation> operations, string @namespace, string className)
         {
-            Contract.Requires(operations != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(className));
+            Check.NotNull(operations, "operations");
+            Check.NotEmpty(className, "className");
 
             using (var stringWriter = new StringWriter(CultureInfo.InvariantCulture))
             {
@@ -126,20 +130,20 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates the code behind file with migration metadata.
         /// </summary>
-        /// <param name = "migrationId">Unique identifier of the migration.</param>
-        /// <param name = "sourceModel">Source model to be stored in the migration metadata.</param>
-        /// <param name = "targetModel">Target model to be stored in the migration metadata.</param>
-        /// <param name = "namespace">Namespace that code should be generated in.</param>
-        /// <param name = "className">Name of the class that should be generated.</param>
-        /// <returns>The generated code.</returns>
+        /// <param name="migrationId"> Unique identifier of the migration. </param>
+        /// <param name="sourceModel"> Source model to be stored in the migration metadata. </param>
+        /// <param name="targetModel"> Target model to be stored in the migration metadata. </param>
+        /// <param name="namespace"> Namespace that code should be generated in. </param>
+        /// <param name="className"> Name of the class that should be generated. </param>
+        /// <returns> The generated code. </returns>
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "namespace")]
         [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")]
         protected virtual string Generate(
             string migrationId, string sourceModel, string targetModel, string @namespace, string className)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(migrationId));
-            Contract.Requires(!string.IsNullOrWhiteSpace(targetModel));
-            Contract.Requires(!string.IsNullOrWhiteSpace(className));
+            Check.NotEmpty(migrationId, "migrationId");
+            Check.NotEmpty(targetModel, "targetModel");
+            Check.NotEmpty(className, "className");
 
             using (var stringWriter = new StringWriter(CultureInfo.InvariantCulture))
             {
@@ -175,13 +179,13 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates a property to return the source or target model in the code behind file.
         /// </summary>
-        /// <param name = "name">Name of the property.</param>
-        /// <param name = "value">Value to be returned.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="name"> Name of the property. </param>
+        /// <param name="value"> Value to be returned. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void WriteProperty(string name, string value, IndentedTextWriter writer)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(name));
-            Contract.Requires(writer != null);
+            Check.NotEmpty(name, "name");
+            Check.NotNull(writer, "writer");
 
             writer.Write("string IMigrationMetadata.");
             writer.WriteLine(name);
@@ -206,12 +210,12 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates a namespace, using statements and class definition.
         /// </summary>
-        /// <param name = "namespace">Namespace that code should be generated in.</param>
-        /// <param name = "className">Name of the class that should be generated.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
-        /// <param name = "base">Base class for the generated class.</param>
-        /// <param name = "designer">A value indicating if this class is being generated for a code-behind file.</param>
-        /// <param name="namespaces">Namespaces for which using directives will be added. If null, then the namespaces returned from GetDefaultNamespaces will be used.</param>
+        /// <param name="namespace"> Namespace that code should be generated in. </param>
+        /// <param name="className"> Name of the class that should be generated. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
+        /// <param name="base"> Base class for the generated class. </param>
+        /// <param name="designer"> A value indicating if this class is being generated for a code-behind file. </param>
+        /// <param name="namespaces"> Namespaces for which using directives will be added. If null, then the namespaces returned from GetDefaultNamespaces will be used. </param>
         [SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed")]
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "namespace")]
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "base")]
@@ -219,9 +223,9 @@ namespace System.Data.Entity.Migrations.Design
             string @namespace, string className, IndentedTextWriter writer, string @base, bool designer = false,
             IEnumerable<string> namespaces = null)
         {
-            Contract.Requires(writer != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(className));
-            Contract.Requires(!string.IsNullOrWhiteSpace(@base));
+            Check.NotNull(writer, "writer");
+            Check.NotEmpty(className, "className");
+            Check.NotEmpty(@base, "@base");
 
             if (!string.IsNullOrWhiteSpace(@namespace))
             {
@@ -234,6 +238,13 @@ namespace System.Data.Entity.Migrations.Design
             (namespaces ?? GetDefaultNamespaces(designer)).Each(n => writer.WriteLine("using " + n + ";"));
 
             writer.WriteLine();
+
+            if (designer)
+            {
+                writer.WriteLine(
+                    "[GeneratedCode(\"EntityFramework.Migrations\", \"{0}\")]",
+                    GetType().Assembly.GetInformationalVersion());
+            }
 
             writer.Write("public ");
 
@@ -254,11 +265,11 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates the closing code for a class that was started with WriteClassStart.
         /// </summary>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         [SuppressMessage("Microsoft.Naming", "CA1716:IdentifiersShouldNotMatchKeywords", MessageId = "namespace")]
         protected virtual void WriteClassEnd(string @namespace, IndentedTextWriter writer)
         {
-            Contract.Requires(writer != null);
+            Check.NotNull(writer, "writer");
 
             writer.Indent--;
             writer.WriteLine("}");
@@ -271,14 +282,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform an <see cref = "AddColumnOperation" />.
+        ///     Generates code to perform an <see cref="AddColumnOperation" />.
         /// </summary>
-        /// <param name = "addColumnOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="addColumnOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(AddColumnOperation addColumnOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(addColumnOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(addColumnOperation, "addColumnOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("AddColumn(");
             writer.Write(Quote(addColumnOperation.Table));
@@ -290,14 +301,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "DropColumnOperation" />.
+        ///     Generates code to perform a <see cref="DropColumnOperation" />.
         /// </summary>
-        /// <param name = "dropColumnOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="dropColumnOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(DropColumnOperation dropColumnOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(dropColumnOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(dropColumnOperation, "dropColumnOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("DropColumn(");
             writer.Write(Quote(dropColumnOperation.Table));
@@ -307,14 +318,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform an <see cref = "AlterColumnOperation" />.
+        ///     Generates code to perform an <see cref="AlterColumnOperation" />.
         /// </summary>
-        /// <param name = "alterColumnOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="alterColumnOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(AlterColumnOperation alterColumnOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(alterColumnOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(alterColumnOperation, "alterColumnOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("AlterColumn(");
             writer.Write(Quote(alterColumnOperation.Table));
@@ -326,14 +337,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "CreateTableOperation" />.
+        ///     Generates code to perform a <see cref="CreateTableOperation" />.
         /// </summary>
-        /// <param name = "createTableOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="createTableOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(CreateTableOperation createTableOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(createTableOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(createTableOperation, "createTableOperation");
+            Check.NotNull(writer, "writer");
 
             writer.WriteLine("CreateTable(");
             writer.Indent++;
@@ -376,13 +387,13 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform an <see cref = "AddPrimaryKeyOperation" /> as part of a <see cref = "CreateTableOperation" />.
+        ///     Generates code to perform an <see cref="AddPrimaryKeyOperation" /> as part of a <see cref="CreateTableOperation" />.
         /// </summary>
-        /// <param name = "addPrimaryKeyOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="addPrimaryKeyOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void GenerateInline(AddPrimaryKeyOperation addPrimaryKeyOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(writer != null);
+            Check.NotNull(writer, "writer");
 
             if (addPrimaryKeyOperation != null)
             {
@@ -402,14 +413,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform an <see cref = "AddForeignKeyOperation" /> as part of a <see cref = "CreateTableOperation" />.
+        ///     Generates code to perform an <see cref="AddForeignKeyOperation" /> as part of a <see cref="CreateTableOperation" />.
         /// </summary>
-        /// <param name = "addForeignKeyOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="addForeignKeyOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void GenerateInline(AddForeignKeyOperation addForeignKeyOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(addForeignKeyOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(addForeignKeyOperation, "addForeignKeyOperation");
+            Check.NotNull(writer, "writer");
 
             writer.WriteLine();
             writer.Write(".ForeignKey(" + Quote(addForeignKeyOperation.PrincipalTable) + ", ");
@@ -424,14 +435,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "CreateIndexOperation" /> as part of a <see cref = "CreateTableOperation" />.
+        ///     Generates code to perform a <see cref="CreateIndexOperation" /> as part of a <see cref="CreateTableOperation" />.
         /// </summary>
-        /// <param name = "createIndexOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="createIndexOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void GenerateInline(CreateIndexOperation createIndexOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(createIndexOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(createIndexOperation, "createIndexOperation");
+            Check.NotNull(writer, "writer");
 
             writer.WriteLine();
             writer.Write(".Index(");
@@ -442,12 +453,12 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates code to specify a set of column names using a lambda expression.
         /// </summary>
-        /// <param name = "columns">The columns to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="columns"> The columns to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(IEnumerable<string> columns, IndentedTextWriter writer)
         {
-            Contract.Requires(columns != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(columns, "columns");
+            Check.NotNull(writer, "writer");
 
             writer.Write("t => ");
 
@@ -462,14 +473,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform an <see cref = "AddPrimaryKeyOperation" />.
+        ///     Generates code to perform an <see cref="AddPrimaryKeyOperation" />.
         /// </summary>
-        /// <param name = "addPrimaryKeyOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="addPrimaryKeyOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(AddPrimaryKeyOperation addPrimaryKeyOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(addPrimaryKeyOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(addPrimaryKeyOperation, "addPrimaryKeyOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("AddPrimaryKey(");
             writer.Write(Quote(addPrimaryKeyOperation.Table));
@@ -499,14 +510,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "DropPrimaryKeyOperation" />.
+        ///     Generates code to perform a <see cref="DropPrimaryKeyOperation" />.
         /// </summary>
-        /// <param name = "dropPrimaryKeyOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="dropPrimaryKeyOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(DropPrimaryKeyOperation dropPrimaryKeyOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(dropPrimaryKeyOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(dropPrimaryKeyOperation, "dropPrimaryKeyOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("DropPrimaryKey(");
             writer.Write(Quote(dropPrimaryKeyOperation.Table));
@@ -527,14 +538,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform an <see cref = "AddForeignKeyOperation" />.
+        ///     Generates code to perform an <see cref="AddForeignKeyOperation" />.
         /// </summary>
-        /// <param name = "addForeignKeyOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="addForeignKeyOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(AddForeignKeyOperation addForeignKeyOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(addForeignKeyOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(addForeignKeyOperation, "addForeignKeyOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("AddForeignKey(");
             writer.Write(Quote(addForeignKeyOperation.DependentTable));
@@ -589,14 +600,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "DropForeignKeyOperation" />.
+        ///     Generates code to perform a <see cref="DropForeignKeyOperation" />.
         /// </summary>
-        /// <param name = "dropForeignKeyOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="dropForeignKeyOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(DropForeignKeyOperation dropForeignKeyOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(dropForeignKeyOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(dropForeignKeyOperation, "dropForeignKeyOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("DropForeignKey(");
             writer.Write(Quote(dropForeignKeyOperation.DependentTable));
@@ -630,14 +641,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "CreateIndexOperation" />.
+        ///     Generates code to perform a <see cref="CreateIndexOperation" />.
         /// </summary>
-        /// <param name = "createIndexOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="createIndexOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(CreateIndexOperation createIndexOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(createIndexOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(createIndexOperation, "createIndexOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("CreateIndex(");
             writer.Write(Quote(createIndexOperation.Table));
@@ -672,14 +683,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "DropIndexOperation" />.
+        ///     Generates code to perform a <see cref="DropIndexOperation" />.
         /// </summary>
-        /// <param name = "dropIndexOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="dropIndexOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(DropIndexOperation dropIndexOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(dropIndexOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(dropIndexOperation, "dropIndexOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("DropIndex(");
             writer.Write(Quote(dropIndexOperation.Table));
@@ -700,17 +711,17 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to specify the definition for a <see cref = "ColumnModel" />.
+        ///     Generates code to specify the definition for a <see cref="ColumnModel" />.
         /// </summary>
-        /// <param name = "column">The column definition to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
-        /// <param name = "emitName">A value indicating whether to include the column name in the definition.</param>
+        /// <param name="column"> The column definition to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
+        /// <param name="emitName"> A value indicating whether to include the column name in the definition. </param>
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase")]
         [SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed")]
         protected virtual void Generate(ColumnModel column, IndentedTextWriter writer, bool emitName = false)
         {
-            Contract.Requires(column != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(column, "column");
+            Check.NotNull(writer, "writer");
 
             writer.Write(" c.");
             writer.Write(TranslateColumnType(column.Type));
@@ -783,20 +794,20 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "T:byte[]" /> column.
+        ///     Generates code to specify the default value for a <see cref="T:byte[]" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(byte[] defaultValue)
         {
             return "new byte[] {" + defaultValue.Join() + "}";
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "DateTime" /> column.
+        ///     Generates code to specify the default value for a <see cref="DateTime" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(DateTime defaultValue)
         {
             return "new DateTime(" + defaultValue.Ticks + ", DateTimeKind."
@@ -804,10 +815,10 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "DateTimeOffset" /> column.
+        ///     Generates code to specify the default value for a <see cref="DateTimeOffset" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(DateTimeOffset defaultValue)
         {
             return "new DateTimeOffset(" + defaultValue.Ticks + ", new TimeSpan("
@@ -815,90 +826,80 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "byte" /> column.
+        ///     Generates code to specify the default value for a <see cref="decimal" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
-        protected virtual string Generate(byte defaultValue)
-        {
-            return defaultValue.ToString(CultureInfo.InvariantCulture);
-        }
-
-        /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "decimal" /> column.
-        /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(decimal defaultValue)
         {
-            return defaultValue + "m";
+            return defaultValue.ToString(CultureInfo.InvariantCulture) + "m";
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "Guid" /> column.
+        ///     Generates code to specify the default value for a <see cref="Guid" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(Guid defaultValue)
         {
             return "new Guid(\"" + defaultValue + "\")";
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "long" /> column.
+        ///     Generates code to specify the default value for a <see cref="long" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(long defaultValue)
         {
             return defaultValue.ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "float" /> column.
+        ///     Generates code to specify the default value for a <see cref="float" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(float defaultValue)
         {
-            return defaultValue + "f";
+            return defaultValue.ToString(CultureInfo.InvariantCulture) + "f";
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "string" /> column.
+        ///     Generates code to specify the default value for a <see cref="string" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(string defaultValue)
         {
             return Quote(defaultValue);
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "TimeSpan" /> column.
+        ///     Generates code to specify the default value for a <see cref="TimeSpan" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(TimeSpan defaultValue)
         {
             return "new TimeSpan(" + defaultValue.Ticks + ")";
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "DbGeography" /> column.
+        ///     Generates code to specify the default value for a <see cref="DbGeography" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(DbGeography defaultValue)
         {
             return "DbGeography.FromText(\"" + defaultValue.AsText() + "\", " + defaultValue.CoordinateSystemId + ")";
         }
 
         /// <summary>
-        ///     Generates code to specify the default value for a <see cref = "DbGeometry" /> column.
+        ///     Generates code to specify the default value for a <see cref="DbGeometry" /> column.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         protected virtual string Generate(DbGeometry defaultValue)
         {
             return "DbGeometry.FromText(\"" + defaultValue.AsText() + "\", " + defaultValue.CoordinateSystemId + ")";
@@ -907,23 +908,23 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Generates code to specify the default value for a column of unknown data type.
         /// </summary>
-        /// <param name = "defaultValue">The value to be used as the default.</param>
-        /// <returns>Code representing the default value.</returns>
+        /// <param name="defaultValue"> The value to be used as the default. </param>
+        /// <returns> Code representing the default value. </returns>
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase")]
         protected virtual string Generate(object defaultValue)
         {
-            return defaultValue.ToString().ToLowerInvariant();
+            return string.Format(CultureInfo.InvariantCulture, "{0}", defaultValue).ToLowerInvariant();
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "DropTableOperation" />.
+        ///     Generates code to perform a <see cref="DropTableOperation" />.
         /// </summary>
-        /// <param name = "dropTableOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="dropTableOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(DropTableOperation dropTableOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(dropTableOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(dropTableOperation, "dropTableOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("DropTable(");
             writer.Write(Quote(dropTableOperation.Name));
@@ -931,14 +932,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "MoveTableOperation" />.
+        ///     Generates code to perform a <see cref="MoveTableOperation" />.
         /// </summary>
-        /// <param name = "moveTableOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="moveTableOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(MoveTableOperation moveTableOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(moveTableOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(moveTableOperation, "moveTableOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("MoveTable(name: ");
             writer.Write(Quote(moveTableOperation.Name));
@@ -949,14 +950,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "RenameTableOperation" />.
+        ///     Generates code to perform a <see cref="RenameTableOperation" />.
         /// </summary>
-        /// <param name = "renameTableOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="renameTableOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(RenameTableOperation renameTableOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(renameTableOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(renameTableOperation, "renameTableOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("RenameTable(name: ");
             writer.Write(Quote(renameTableOperation.Name));
@@ -966,14 +967,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "RenameColumnOperation" />.
+        ///     Generates code to perform a <see cref="RenameColumnOperation" />.
         /// </summary>
-        /// <param name = "renameColumnOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="renameColumnOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(RenameColumnOperation renameColumnOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(renameColumnOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(renameColumnOperation, "renameColumnOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("RenameColumn(table: ");
             writer.Write(Quote(renameColumnOperation.Table));
@@ -985,14 +986,14 @@ namespace System.Data.Entity.Migrations.Design
         }
 
         /// <summary>
-        ///     Generates code to perform a <see cref = "SqlOperation" />.
+        ///     Generates code to perform a <see cref="SqlOperation" />.
         /// </summary>
-        /// <param name = "sqlOperation">The operation to generate code for.</param>
-        /// <param name = "writer">Text writer to add the generated code to.</param>
+        /// <param name="sqlOperation"> The operation to generate code for. </param>
+        /// <param name="writer"> Text writer to add the generated code to. </param>
         protected virtual void Generate(SqlOperation sqlOperation, IndentedTextWriter writer)
         {
-            Contract.Requires(sqlOperation != null);
-            Contract.Requires(writer != null);
+            Check.NotNull(sqlOperation, "sqlOperation");
+            Check.NotNull(writer, "writer");
 
             writer.Write("Sql(@");
             writer.Write(Quote(sqlOperation.Sql));
@@ -1008,8 +1009,8 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Removes any invalid characters from the name of an database artifact.
         /// </summary>
-        /// <param name = "name">The name to be scrubbed.</param>
-        /// <returns>The scrubbed name.</returns>
+        /// <param name="name"> The name to be scrubbed. </param>
+        /// <returns> The scrubbed name. </returns>
         [SuppressMessage("Microsoft.Security", "CA2141:TransparentMethodsMustNotSatisfyLinkDemandsFxCopRule")]
         protected virtual string ScrubName(string name)
         {
@@ -1033,8 +1034,8 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Gets the type name to use for a column of the given data type.
         /// </summary>
-        /// <param name = "primitiveTypeKind">The data type to translate.</param>
-        /// <returns>The type name to use in the generated migration.</returns>
+        /// <param name="primitiveTypeKind"> The data type to translate. </param>
+        /// <returns> The type name to use in the generated migration. </returns>
         protected virtual string TranslateColumnType(PrimitiveTypeKind primitiveTypeKind)
         {
             switch (primitiveTypeKind)
@@ -1053,8 +1054,8 @@ namespace System.Data.Entity.Migrations.Design
         /// <summary>
         ///     Quotes an identifier using appropriate escaping to allow it to be stored in a string.
         /// </summary>
-        /// <param name = "identifier">The identifier to be quoted.</param>
-        /// <returns>The quoted identifier.</returns>
+        /// <param name="identifier"> The identifier to be quoted. </param>
+        /// <returns> The quoted identifier. </returns>
         protected virtual string Quote(string identifier)
         {
             return "\"" + identifier + "\"";

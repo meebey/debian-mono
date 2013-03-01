@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.ELinq
 {
     using System.Collections.Generic;
@@ -6,13 +7,13 @@ namespace System.Data.Entity.Core.Objects.ELinq
     using System.Data.Entity.Core.Common.QueryCache;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects.Internal;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Linq.Expressions;
 
     /// <summary>
-    /// Models a compiled Linq to Entities ObjectQuery
+    ///     Models a compiled Linq to Entities ObjectQuery
     /// </summary>
     internal sealed class CompiledELinqQueryState : ELinqQueryState
     {
@@ -22,19 +23,21 @@ namespace System.Data.Entity.Core.Objects.ELinq
         private readonly ObjectQueryExecutionPlanFactory _objectQueryExecutionPlanFactory;
 
         /// <summary>
-        /// Creates a new compiled query state instance
+        ///     Creates a new compiled query state instance
         /// </summary>
-        /// <param name="elementType">The element type of the new instance (the 'T' of the ObjectQuery&lt;T&gt; that the new state instance will back)"</param>
-        /// <param name="context">The object context with which the new instance should be associated</param>
-        /// <param name="lambda">The compiled query definition, as a <see cref="LambdaExpression"/></param>
-        /// <param name="cacheToken">The cache token to use when retrieving or storing the new instance's execution plan in the query cache</param>
-        /// <param name="parameterValues">The values passed into the CompiledQuery delegate</param>
+        /// <param name="elementType"> The element type of the new instance (the 'T' of the ObjectQuery &lt; T &gt; that the new state instance will back)" </param>
+        /// <param name="context"> The object context with which the new instance should be associated </param>
+        /// <param name="lambda">
+        ///     The compiled query definition, as a <see cref="LambdaExpression" />
+        /// </param>
+        /// <param name="cacheToken"> The cache token to use when retrieving or storing the new instance's execution plan in the query cache </param>
+        /// <param name="parameterValues"> The values passed into the CompiledQuery delegate </param>
         internal CompiledELinqQueryState(
             Type elementType, ObjectContext context, LambdaExpression lambda, Guid cacheToken, object[] parameterValues,
             ObjectQueryExecutionPlanFactory objectQueryExecutionPlanFactory = null)
             : base(elementType, context, lambda)
         {
-            Contract.Requires(parameterValues != null);
+            DebugCheck.NotNull(parameterValues);
 
             _cacheToken = cacheToken;
             _parameterValues = parameterValues;
@@ -49,9 +52,6 @@ namespace System.Data.Entity.Core.Objects.ELinq
         {
             Debug.Assert(Span == null, "Include span specified on compiled LINQ-based ObjectQuery instead of within the expression tree?");
             Debug.Assert(_cachedPlan == null, "Cached plan should not be set on compiled LINQ queries");
-
-            // Metadata is required to generate the execution plan or to retrieve it from the cache.
-            ObjectContext.EnsureMetadata();
 
             ObjectQueryExecutionPlan plan = null;
             var cacheEntry = _cacheEntry;
@@ -77,7 +77,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     // Prepare the execution plan using the command tree and the computed effective merge option
                     var tree = DbQueryCommandTree.FromValidExpression(ObjectContext.MetadataWorkspace, DataSpace.CSpace, queryExpression);
                     plan = _objectQueryExecutionPlanFactory.Prepare(
-                        ObjectContext, tree, ElementType, mergeOption, converter.PropagatedSpan, parameters, converter.AliasGenerator);
+                        ObjectContext, tree, ElementType, mergeOption, EffectiveStreamingBehaviour, converter.PropagatedSpan, parameters, converter.AliasGenerator);
 
                     // Update and retrieve the execution plan
                     plan = cacheEntry.SetExecutionPlan(plan, useCSharpNullComparisonBehavior);
@@ -136,7 +136,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     {
                         // The plan is not present, so prepare it now using the computed effective merge option
                         plan = _objectQueryExecutionPlanFactory.Prepare(
-                            ObjectContext, tree, ElementType, mergeOption, converter.PropagatedSpan, parameters, converter.AliasGenerator);
+                            ObjectContext, tree, ElementType, mergeOption, EffectiveStreamingBehaviour, converter.PropagatedSpan, parameters, converter.AliasGenerator);
 
                         // Update the execution plan on the cache entry.
                         // If the execution plan was set in the meantime, SetExecutionPlan will return that value, otherwise it will return 'plan'.
@@ -176,16 +176,19 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Overrides GetResultType and attempts to first retrieve the result type from the cache entry.
+        ///     Overrides GetResultType and attempts to first retrieve the result type from the cache entry.
         /// </summary>
-        /// <returns>The query result type from this compiled query's cache entry, if possible; otherwise defers to <see cref="ELinqQueryState.GetResultType"/></returns>
+        /// <returns>
+        ///     The query result type from this compiled query's cache entry, if possible; otherwise defers to
+        ///     <see
+        ///         cref="ELinqQueryState.GetResultType" />
+        /// </returns>
         protected override TypeUsage GetResultType()
         {
             var cacheEntry = _cacheEntry;
             TypeUsage resultType;
             if (cacheEntry != null
-                &&
-                cacheEntry.TryGetResultType(out resultType))
+                && cacheEntry.TryGetResultType(out resultType))
             {
                 return resultType;
             }
@@ -194,9 +197,9 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Gets a LINQ expression that defines this query. 
-        /// This is overridden to remove parameter references from the underlying expression,
-        /// producing an expression that contains the values of those parameters as <see cref="ConstantExpression"/>s.
+        ///     Gets a LINQ expression that defines this query.
+        ///     This is overridden to remove parameter references from the underlying expression,
+        ///     producing an expression that contains the values of those parameters as <see cref="ConstantExpression" />s.
         /// </summary>
         internal override Expression Expression
         {
@@ -204,10 +207,10 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Overrides CreateExpressionConverter to return a converter that uses a binding context based on the compiled query parameters,
-        /// rather than a default binding context.
+        ///     Overrides CreateExpressionConverter to return a converter that uses a binding context based on the compiled query parameters,
+        ///     rather than a default binding context.
         /// </summary>
-        /// <returns>An expression converter appropriate for converting this compiled query state instance</returns>
+        /// <returns> An expression converter appropriate for converting this compiled query state instance </returns>
         protected override ExpressionConverter CreateExpressionConverter()
         {
             var lambda = (LambdaExpression)base.Expression;
@@ -218,8 +221,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Replaces ParameterExpresion with ConstantExpression
-        /// to make the expression usable as a donor expression
+        ///     Replaces ParameterExpresion with ConstantExpression
+        ///     to make the expression usable as a donor expression
         /// </summary>
         private sealed class CreateDonateableExpressionVisitor : EntityExpressionVisitor
         {

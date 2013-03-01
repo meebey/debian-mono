@@ -1,22 +1,24 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.Generic;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using System.Text;
 
     /// <summary>
-    /// Class for representing a function
+    ///     Class for representing a function
     /// </summary>
     public class EdmFunction : EdmType
     {
-        #region Constructors
-
         internal EdmFunction()
+            : base("F", "N", DataSpace.SSpace)
         {
+            // testing only
         }
 
         [SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
@@ -26,9 +28,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
             //---- name of the 'schema'
             //---- this is used by the SQL Gen utility and update pipeline to support generation of the correct function name in the store
             _schemaName = payload.Schema;
-            _fullName = NamespaceName + "." + Name;
 
-            var returnParameters = payload.ReturnParameters;
+            var returnParameters = payload.ReturnParameters ?? new FunctionParameter[0];
 
             Debug.Assert(returnParameters.All((returnParameter) => returnParameter != null), "All return parameters must be non-null");
             Debug.Assert(
@@ -129,26 +130,17 @@ namespace System.Data.Entity.Core.Metadata.Edm
             }
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly ReadOnlyMetadataCollection<FunctionParameter> _returnParameters;
         private readonly ReadOnlyMetadataCollection<FunctionParameter> _parameters;
         private readonly FunctionAttributes _functionAttributes = FunctionAttributes.Default;
         private readonly string _storeFunctionNameAttribute;
         private readonly ParameterTypeSemantics _parameterTypeSemantics;
         private readonly string _commandTextAttribute;
-        private readonly string _schemaName;
+        private string _schemaName;
         private readonly ReadOnlyMetadataCollection<EntitySet> _entitySets;
-        private readonly string _fullName;
-
-        #endregion
-
-        #region Properties
 
         /// <summary>
-        /// Returns the kind of the type
+        ///     Returns the kind of the type
         /// </summary>
         public override BuiltInTypeKind BuiltInTypeKind
         {
@@ -156,15 +148,15 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Returns the full name of this type, which is namespace + "." + name. 
+        ///     Returns the full name of this type, which is namespace + "." + name.
         /// </summary>
         public override string FullName
         {
-            get { return _fullName; }
+            get { return NamespaceName + "." + Name; }
         }
 
         /// <summary>
-        /// Gets the collection of parameters
+        ///     Gets the collection of parameters
         /// </summary>
         public ReadOnlyMetadataCollection<FunctionParameter> Parameters
         {
@@ -172,7 +164,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Returns true if this is a C-space function and it has an eSQL body defined as DefiningExpression.
+        ///     Returns true if this is a C-space function and it has an eSQL body defined as DefiningExpression.
         /// </summary>
         internal bool HasUserDefinedBody
         {
@@ -180,8 +172,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// For function imports, optionally indicates the entity set to which the result is bound.
-        /// If the function import has multiple result sets, returns the entity set to which the first result is bound
+        ///     For function imports, optionally indicates the entity set to which the result is bound.
+        ///     If the function import has multiple result sets, returns the entity set to which the first result is bound
         /// </summary>
         [MetadataProperty(BuiltInTypeKind.EntitySet, false)]
         internal EntitySet EntitySet
@@ -190,9 +182,9 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// For function imports, indicates the entity sets to which the return parameters are bound.
-        /// The number of elements in the collection matches the number of return parameters. 
-        /// A null element in the collection indicates that the corresponding are not bound to an entity set.
+        ///     For function imports, indicates the entity sets to which the return parameters are bound.
+        ///     The number of elements in the collection matches the number of return parameters.
+        ///     A null element in the collection indicates that the corresponding are not bound to an entity set.
         /// </summary>
         [MetadataProperty(BuiltInTypeKind.EntitySet, true)]
         internal ReadOnlyMetadataCollection<EntitySet> EntitySets
@@ -201,7 +193,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the return parameter of this function
+        ///     Gets the return parameter of this function
         /// </summary>
         [MetadataProperty(BuiltInTypeKind.FunctionParameter, false)]
         public FunctionParameter ReturnParameter
@@ -210,7 +202,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the return parameters of this function
+        ///     Gets the return parameters of this function
         /// </summary>
         [MetadataProperty(BuiltInTypeKind.FunctionParameter, true)]
         public ReadOnlyMetadataCollection<FunctionParameter> ReturnParameters
@@ -287,14 +279,17 @@ namespace System.Data.Entity.Core.Metadata.Edm
         public string Schema
         {
             get { return _schemaName; }
+            set
+            {
+                Check.NotEmpty(value, "value");
+                Util.ThrowIfReadOnly(this);
+
+                _schemaName = value;
+            }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Sets this item to be readonly, once this is set, the item will never be writable again.
+        ///     Sets this item to be readonly, once this is set, the item will never be writable again.
         /// </summary>
         internal override void SetReadOnly()
         {
@@ -310,7 +305,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Builds function identity string in the form of "functionName (param1, param2, ... paramN)".
+        ///     Builds function identity string in the form of "functionName (param1, param2, ... paramN)".
         /// </summary>
         internal override void BuildIdentity(StringBuilder builder)
         {
@@ -330,8 +325,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Builds identity based on the functionName and parameter types. All parameters are assumed to be <see cref="ParameterMode.In"/>.
-        /// Returns string in the form of "functionName (param1, param2, ... paramN)".
+        ///     Builds identity based on the functionName and parameter types. All parameters are assumed to be
+        ///     <see
+        ///         cref="ParameterMode.In" />
+        ///     .
+        ///     Returns string in the form of "functionName (param1, param2, ... paramN)".
         /// </summary>
         internal static string BuildIdentity(string functionName, IEnumerable<TypeUsage> functionParameters)
         {
@@ -348,8 +346,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Builds identity based on the functionName and parameters metadata.
-        /// Returns string in the form of "functionName (param1, param2, ... paramN)".
+        ///     Builds identity based on the functionName and parameters metadata.
+        ///     Returns string in the form of "functionName (param1, param2, ... paramN)".
         /// </summary>
         internal static void BuildIdentity<TParameterMetadata>(
             StringBuilder builder,
@@ -404,10 +402,6 @@ namespace System.Data.Entity.Core.Metadata.Edm
             }
         }
 
-        #endregion
-
-        #region Nested types
-
         [Flags]
         private enum FunctionAttributes : byte
         {
@@ -421,8 +415,6 @@ namespace System.Data.Entity.Core.Metadata.Edm
             IsFunctionImport = 64,
             Default = IsComposable,
         }
-
-        #endregion
     }
 
     internal struct EdmFunctionPayload

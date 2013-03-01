@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
@@ -8,12 +9,14 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
     using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Internal;
     using System.Data.Entity.Spatial;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using IEntityStateEntry = System.Data.Entity.Core.IEntityStateEntry;
 
     internal class DynamicUpdateCommand : UpdateCommand
     {
@@ -29,9 +32,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             DbModificationCommandTree tree, Dictionary<int, string> outputIdentifiers)
             : base(translator, originalValues, currentValues)
         {
-            Contract.Requires(processor != null);
-            Contract.Requires(translator != null);
-            Contract.Requires(tree != null);
+            DebugCheck.NotNull(processor);
+            DebugCheck.NotNull(translator);
+            DebugCheck.NotNull(tree);
 
             _processor = processor;
             _operator = modificationOperator;
@@ -97,11 +100,12 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        ///     See comments in <see cref = "UpdateCommand" />.
+        ///     See comments in <see cref="UpdateCommand" />.
         /// </summary>
         internal override long Execute(
             Dictionary<int, object> identifierValues,
-            List<KeyValuePair<PropagatorResult, object>> generatedValues)
+            List<KeyValuePair<PropagatorResult, object>> generatedValues,
+            IDbCommandInterceptor commandInterceptor)
         {
             // Compile command
             using (var command = CreateCommand(identifierValues))
@@ -170,15 +174,26 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 }
                 else
                 {
-                    rowsAffected = command.ExecuteNonQuery();
+                    // We currently only intercept commands on this code path.
+
+                    var executeCommand = true;
+
+                    if (commandInterceptor != null)
+                    {
+                        executeCommand = commandInterceptor.Intercept(command);
+                    }
+
+                    rowsAffected = executeCommand ? command.ExecuteNonQuery() : 1;
                 }
 
                 return rowsAffected;
             }
         }
 
+#if !NET40
+
         /// <summary>
-        ///     See comments in <see cref = "UpdateCommand" />.
+        ///     See comments in <see cref="UpdateCommand" />.
         /// </summary>
         internal override async Task<long> ExecuteAsync(
             Dictionary<int, object> identifierValues,
@@ -204,9 +219,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 {
                     // retrieve server gen results
                     rowsAffected = 0;
-                    using (var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken))
+                    using (
+                        var reader =
+                            await
+                            command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(
+                                continueOnCapturedContext: false))
                     {
-                        if (await reader.ReadAsync(cancellationToken))
+                        if (await reader.ReadAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                         {
                             rowsAffected++;
 
@@ -219,16 +238,21 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                                 var member = members[columnName];
                                 object value;
                                 if (Helper.IsSpatialType(member.TypeUsage)
-                                    && !await reader.IsDBNullAsync(ordinal, cancellationToken))
+                                    &&
+                                    !await reader.IsDBNullAsync(ordinal, cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                                 {
                                     value =
                                         await
                                         SpatialHelpers.GetSpatialValueAsync(
-                                            Translator.MetadataWorkspace, reader, member.TypeUsage, ordinal, cancellationToken);
+                                            Translator.MetadataWorkspace, reader, member.TypeUsage, ordinal, cancellationToken).
+                                                       ConfigureAwait(continueOnCapturedContext: false);
                                 }
                                 else
                                 {
-                                    value = await reader.GetFieldValueAsync<object>(ordinal, cancellationToken);
+                                    value =
+                                        await
+                                        reader.GetFieldValueAsync<object>(ordinal, cancellationToken).ConfigureAwait(
+                                            continueOnCapturedContext: false);
                                 }
 
                                 // retrieve result which includes the context for back-propagation
@@ -249,20 +273,22 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
                         // Consume the current reader (and subsequent result sets) so that any errors
                         // executing the command can be intercepted
-                        await CommandHelper.ConsumeReaderAsync(reader, cancellationToken);
+                        await CommandHelper.ConsumeReaderAsync(reader, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
                     }
                 }
                 else
                 {
-                    rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+                    rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
                 }
 
                 return rowsAffected;
             }
         }
 
+#endif
+
         /// <summary>
-        /// Gets DB command definition encapsulating store logic for this command.
+        ///     Gets DB command definition encapsulating store logic for this command.
         /// </summary>
         protected virtual DbCommand CreateCommand(Dictionary<int, object> identifierValues)
         {
@@ -324,7 +350,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Creates a new list of modification clauses with the specified remapped clauses replaced.
+        ///     Creates a new list of modification clauses with the specified remapped clauses replaced.
         /// </summary>
         private static List<DbModificationClause> ReplaceClauses(
             IList<DbModificationClause> originalClauses, Dictionary<DbSetClause, DbSetClause> mappings)

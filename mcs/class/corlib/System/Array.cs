@@ -40,7 +40,9 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Runtime.ConstrainedExecution;
+#if !FULL_AOT_RUNTIME
 using System.Reflection.Emit;
+#endif
 
 namespace System
 {
@@ -48,7 +50,7 @@ namespace System
 	[ComVisible (true)]
 	// FIXME: We are doing way to many double/triple exception checks for the overloaded functions"
 	public abstract class Array : ICloneable, ICollection, IList, IEnumerable
-#if NET_4_0 || MOONLIGHT || MOBILE
+#if NET_4_0
 		, IStructuralComparable, IStructuralEquatable
 #endif
 	{
@@ -137,6 +139,23 @@ namespace System
 
 			Copy (this, this.GetLowerBound (0), array, index, this.GetLength (0));
 		}
+
+#if NET_4_5
+		internal T InternalArray__IReadOnlyList_get_Item<T> (int index)
+		{
+			if (unchecked ((uint) index) >= unchecked ((uint) Length))
+				throw new ArgumentOutOfRangeException ("index");
+
+			T value;
+			GetGenericValueImpl (index, out value);
+			return value;
+		}
+
+		internal int InternalArray__IReadOnlyCollection_get_Count ()
+		{
+			return Length;
+		}
+#endif
 
 		internal void InternalArray__Insert<T> (int index, T item)
 		{
@@ -434,7 +453,7 @@ namespace System
 			return new SimpleEnumerator (this);
 		}
 
-#if NET_4_0 || MOONLIGHT || MOBILE
+#if NET_4_0
 		int IStructuralComparable.CompareTo (object other, IComparer comparer)
 		{
 			if (other == null)
@@ -673,8 +692,10 @@ namespace System
 				throw new NotSupportedException ("Array type can not be void");
 			if (elementType.ContainsGenericParameters)
 				throw new NotSupportedException ("Array type can not be an open generic type");
+#if !FULL_AOT_RUNTIME
 			if ((elementType is TypeBuilder) && !(elementType as TypeBuilder).IsCreated ())
 				throw new NotSupportedException ("Can't create an array of the unfinished type '" + elementType + "'.");
+#endif
 			
 			return CreateInstanceImpl (elementType, lengths, bounds);
 		}
@@ -1248,7 +1269,6 @@ namespace System
 				return;
 
 			case TypeCode.String:
-			case TypeCode.Object:
 				while (index < end) {
 					object a, b;
 
@@ -1262,7 +1282,7 @@ namespace System
 				return;
 			default:
 				if (array is object[])
-					goto case TypeCode.Object;
+					goto case TypeCode.String;
 
 				// Very slow fallback
 				while (index < end) {
@@ -1711,7 +1731,7 @@ namespace System
 			if (index + length > array.Length)
 				throw new ArgumentException ();
 				
-			SortImpl<T, T> (array, null, index, length, comparer);
+			SortImpl<T> (array, index, length, comparer);
 		}
 
 		[ReliabilityContractAttribute (Consistency.MayCorruptInstance, Cer.MayFail)]
@@ -1749,6 +1769,8 @@ namespace System
 			// Check for value types which can be sorted without Compare () method
 			//
 			if (comparer == null) {
+				/* Avoid this when using full-aot to prevent the generation of many unused qsort<K,T> instantiations */
+#if FULL_AOT_RUNTIME
 #if !BOOTSTRAP_BASIC
 				switch (Type.GetTypeCode (typeof (TKey))) {
 				case TypeCode.Int32:
@@ -1791,6 +1813,7 @@ namespace System
 					qsort (keys as UInt64[], items, low, high);
 					return;
 				}
+#endif
 #endif
 				// Using Comparer<TKey> adds a small overload, but with value types it
 				// helps us to not box them.
@@ -2660,6 +2683,7 @@ namespace System
 			}
 		}
 
+		[MethodImpl ((MethodImplOptions)256)]
 		private static void swap<K, V> (K [] keys, V [] items, int i, int j)
 		{
 			K tmp;
@@ -2676,6 +2700,7 @@ namespace System
 			}
 		}
 
+		[MethodImpl ((MethodImplOptions)256)]
 		private static void swap<T> (T [] array, int i, int j)
 		{
 			T tmp = array [i];
@@ -2770,20 +2795,21 @@ namespace System
 		public static void Resize<T> (ref T [] array, int newSize)
 		{
 			if (newSize < 0)
-				throw new ArgumentOutOfRangeException ();
+				throw new ArgumentOutOfRangeException ("newSize");
 			
 			if (array == null) {
 				array = new T [newSize];
 				return;
 			}
 
-			int length = array.Length;
+			var arr = array;
+			int length = arr.Length;
 			if (length == newSize)
 				return;
 			
 			T [] a = new T [newSize];
 			if (length != 0)
-				FastCopy (array, 0, a, 0, Math.Min (newSize, length));
+				FastCopy (arr, 0, a, 0, Math.Min (newSize, length));
 			array = a;
 		}
 		

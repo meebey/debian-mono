@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -11,24 +12,14 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     // generation - errors and correct views
     internal class ViewGenResults : InternalBase
     {
-        #region Constructor
-
         internal ViewGenResults()
         {
             m_views = new KeyToListMap<EntitySetBase, GeneratedView>(EqualityComparer<EntitySetBase>.Default);
             m_errorLog = new ErrorLog();
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly KeyToListMap<EntitySetBase, GeneratedView> m_views;
         private readonly ErrorLog m_errorLog;
-
-        #endregion
-
-        #region Properties
 
         // effects: Returns the generated views
         internal KeyToListMap<EntitySetBase, GeneratedView> Views
@@ -48,10 +39,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         {
             get { return m_errorLog.Count > 0; }
         }
-
-        #endregion
-
-        #region Methods
 
         // effects: Add the set of errors in errorLog to this
         internal void AddErrors(ErrorLog errorLog)
@@ -74,7 +61,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             // Print the errors only
             m_errorLog.ToCompactString(builder);
         }
-
-        #endregion
     }
 }

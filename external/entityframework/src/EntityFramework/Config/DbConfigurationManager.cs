@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Config
 {
     using System.Collections.Concurrent;
@@ -7,46 +8,49 @@ namespace System.Data.Entity.Config
     using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Linq;
     using System.Reflection;
 
     /// <summary>
-    /// This class is responsible for managing the app-domain instance of the <see cref="DbConfiguration"/> class.
-    /// This includes loading from config, discovery from the context assembly and pushing/popping configurations
-    /// used by <see cref="DbContextInfo"/>.
+    ///     This class is responsible for managing the app-domain instance of the <see cref="DbConfiguration" /> class.
+    ///     This includes loading from config, discovery from the context assembly and pushing/popping configurations
+    ///     used by <see cref="DbContextInfo" />.
     /// </summary>
     internal class DbConfigurationManager
     {
         private static readonly DbConfigurationManager _configManager
             = new DbConfigurationManager(new DbConfigurationLoader(), new DbConfigurationFinder());
 
+        private EventHandler<DbConfigurationEventArgs> _onLockingConfiguration;
+
         private readonly DbConfigurationLoader _loader;
         private readonly DbConfigurationFinder _finder;
-        
-        private readonly Lazy<DbConfiguration> _configuration;
+
+        private readonly Lazy<InternalConfiguration> _configuration;
         private DbConfiguration _newConfiguration = new DbConfiguration();
-        
+
         private readonly object _lock = new object();
 
         // We don't need a dictionary here, just a set, but there is no ConcurrentSet in the BCL.
         private readonly ConcurrentDictionary<Assembly, object> _knownAssemblies = new ConcurrentDictionary<Assembly, object>();
-        private readonly Lazy<List<Tuple<AppConfig, DbConfiguration>>> _configurationOverrides
-            = new Lazy<List<Tuple<AppConfig, DbConfiguration>>>(
-                () => new List<Tuple<AppConfig, DbConfiguration>>());
+
+        private readonly Lazy<List<Tuple<AppConfig, InternalConfiguration>>> _configurationOverrides
+            = new Lazy<List<Tuple<AppConfig, InternalConfiguration>>>(
+                () => new List<Tuple<AppConfig, InternalConfiguration>>());
 
         public DbConfigurationManager(DbConfigurationLoader loader, DbConfigurationFinder finder)
         {
-            Contract.Requires(loader != null);
-            Contract.Requires(finder != null);
+            DebugCheck.NotNull(loader);
+            DebugCheck.NotNull(finder);
 
             _loader = loader;
             _finder = finder;
-            _configuration = new Lazy<DbConfiguration>(
+            _configuration = new Lazy<InternalConfiguration>(
                 () =>
                     {
-                        _newConfiguration.Lock();
-                        return _newConfiguration;
+                        _newConfiguration.InternalConfiguration.Lock();
+                        return _newConfiguration.InternalConfiguration;
                     });
         }
 
@@ -55,7 +59,37 @@ namespace System.Data.Entity.Config
             get { return _configManager; }
         }
 
-        public virtual DbConfiguration GetConfiguration()
+        public virtual void AddOnLockingHandler(EventHandler<DbConfigurationEventArgs> handler)
+        {
+            DebugCheck.NotNull(handler);
+
+            if (ConfigurationSet)
+            {
+                throw new InvalidOperationException(Strings.AddHandlerToInUseConfiguration);
+            }
+            _onLockingConfiguration += handler;
+        }
+
+        public virtual void RemoveOnLockingHandler(EventHandler<DbConfigurationEventArgs> handler)
+        {
+            DebugCheck.NotNull(handler);
+
+            _onLockingConfiguration -= handler;
+        }
+
+        public virtual void OnLocking(InternalConfiguration configuration)
+        {
+            DebugCheck.NotNull(configuration);
+
+            var handler = _onLockingConfiguration;
+
+            if (handler != null)
+            {
+                handler(configuration.Owner, new DbConfigurationEventArgs(configuration));
+            }
+        }
+
+        public virtual InternalConfiguration GetConfiguration()
         {
             // The common case is that no overrides have ever been set so we don't take the time to do
             // the locking and checking.
@@ -73,29 +107,33 @@ namespace System.Data.Entity.Config
             return _configuration.Value;
         }
 
-        public virtual void SetConfiguration(DbConfiguration configuration)
+        public virtual void SetConfiguration(InternalConfiguration configuration, bool lookInConfig = true)
         {
-            Contract.Requires(configuration != null);
+            DebugCheck.NotNull(configuration);
 
-            configuration = _loader.TryLoadFromConfig(AppConfig.DefaultInstance) ?? configuration;
-            _newConfiguration = configuration;
-
-            if (_configuration.Value.GetType() != configuration.GetType())
+            if (lookInConfig)
             {
-                if (_configuration.Value.GetType() == typeof(DbConfiguration))
+                configuration = _loader.TryLoadFromConfig(AppConfig.DefaultInstance) ?? configuration;
+            }
+
+            _newConfiguration = configuration.Owner;
+
+            if (_configuration.Value.Owner.GetType() != configuration.Owner.GetType())
+            {
+                if (_configuration.Value.Owner.GetType() == typeof(DbConfiguration))
                 {
-                    throw new InvalidOperationException(Strings.DefaultConfigurationUsedBeforeSet(configuration.GetType().Name));
+                    throw new InvalidOperationException(Strings.DefaultConfigurationUsedBeforeSet(configuration.Owner.GetType().Name));
                 }
 
                 throw new InvalidOperationException(
-                    Strings.ConfigurationSetTwice(configuration.GetType().Name, _configuration.Value.GetType().Name));
+                    Strings.ConfigurationSetTwice(configuration.Owner.GetType().Name, _configuration.Value.Owner.GetType().Name));
             }
         }
 
         public virtual void EnsureLoadedForContext(Type contextType)
         {
-            Contract.Requires(contextType != null);
-            Contract.Requires(typeof(DbContext).IsAssignableFrom(contextType));
+            DebugCheck.NotNull(contextType);
+            Debug.Assert(typeof(DbContext).IsAssignableFrom(contextType));
 
             var contextAssembly = contextType.Assembly;
 
@@ -116,34 +154,31 @@ namespace System.Data.Entity.Config
                 }
             }
 
-            if (!_configuration.IsValueCreated)
+            if (!ConfigurationSet)
             {
-                var foundConfiguration = _finder.TryCreateConfiguration(contextType.Assembly.GetAccessibleTypes());
+                var foundConfiguration =
+                    _loader.TryLoadFromConfig(AppConfig.DefaultInstance) ??
+                    _finder.TryCreateConfiguration(contextType);
+
                 if (foundConfiguration != null)
                 {
-                    SetConfiguration(foundConfiguration);
+                    SetConfiguration(foundConfiguration, lookInConfig: false);
                 }
             }
-            else if (!contextAssembly.IsDynamic) // Don't throw for proxy contexts created in dynamic assemblies
+            else if (!contextAssembly.IsDynamic // Don't throw for proxy contexts created in dynamic assemblies
+                     && !_loader.AppConfigContainsDbConfigurationType(AppConfig.DefaultInstance))
             {
-                var foundType = _finder.TryFindConfigurationType(contextType.Assembly.GetAccessibleTypes());
-                if (!typeof(DbNullConfiguration).IsAssignableFrom(foundType))
+                var foundType = _finder.TryFindConfigurationType(contextType);
+                if (foundType != null)
                 {
-                    if (_configuration.Value.GetType() == typeof(DbConfiguration))
+                    if (_configuration.Value.Owner.GetType() == typeof(DbConfiguration))
                     {
-                        if (foundType != null)
-                        {
-                            throw new InvalidOperationException(Strings.ConfigurationNotDiscovered(foundType.Name));
-                        }
+                        throw new InvalidOperationException(Strings.ConfigurationNotDiscovered(foundType.Name));
                     }
-                    else
+                    if (foundType != _configuration.Value.Owner.GetType())
                     {
-                        if (foundType == null
-                            || foundType != _configuration.Value.GetType())
-                        {
-                            throw new InvalidOperationException(
-                                Strings.SetConfigurationNotDiscovered(_configuration.Value.GetType().Name, contextType.Name));
-                        }
+                        throw new InvalidOperationException(
+                            Strings.SetConfigurationNotDiscovered(_configuration.Value.Owner.GetType().Name, contextType.Name));
                     }
                 }
             }
@@ -151,29 +186,35 @@ namespace System.Data.Entity.Config
             _knownAssemblies.TryAdd(contextAssembly, null);
         }
 
+        private bool ConfigurationSet
+        {
+            get { return _configuration.IsValueCreated; }
+        }
+
         public virtual void PushConfiguration(AppConfig config, Type contextType)
         {
-            Contract.Requires(config != null);
-            Contract.Requires(contextType != null);
-            Contract.Requires(typeof(DbContext).IsAssignableFrom(contextType));
+            DebugCheck.NotNull(config);
+            DebugCheck.NotNull(contextType);
+            Debug.Assert(typeof(DbContext).IsAssignableFrom(contextType));
 
             var configuration = _loader.TryLoadFromConfig(config)
-                                ?? _finder.TryCreateConfiguration(contextType.Assembly.GetAccessibleTypes())
-                                ?? new DbConfiguration();
+                                ?? _finder.TryCreateConfiguration(contextType)
+                                ?? new DbConfiguration().InternalConfiguration;
 
+            configuration.SwitchInRootResolver(_configuration.Value.RootResolver);
             configuration.AddAppConfigResolver(new AppConfigDependencyResolver(config));
-
-            configuration.Lock();
 
             lock (_lock)
             {
                 _configurationOverrides.Value.Add(Tuple.Create(config, configuration));
             }
+
+            configuration.Lock();
         }
 
         public virtual void PopConfiguration(AppConfig config)
         {
-            Contract.Requires(config != null);
+            DebugCheck.NotNull(config);
 
             lock (_lock)
             {

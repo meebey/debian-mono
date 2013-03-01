@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -9,12 +10,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Text;
 
     /// <summary>
-    /// Denotes the fact that the key of the current tuple comes from a specific extent, or association role.
+    ///     Denotes the fact that the key of the current tuple comes from a specific extent, or association role.
     /// </summary>
     internal sealed class RoleBoolean : TrueFalseLiteral
     {
-        #region Constructor
-
         internal RoleBoolean(EntitySetBase extent)
         {
             m_metadataItem = extent;
@@ -25,18 +24,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_metadataItem = end;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly MetadataItem m_metadataItem;
 
-        #endregion
-
-        #region BoolLiteral members
-
         /// <summary>
-        /// Not supported in this class.
+        ///     Not supported in this class.
         /// </summary>
         internal override StringBuilder AsEsql(StringBuilder builder, string blockAlias, bool skipIsNotNull)
         {
@@ -45,7 +36,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Not supported in this class.
+        ///     Not supported in this class.
         /// </summary>
         internal override DbExpression AsCqt(DbExpression row, bool skipIsNotNull)
         {
@@ -106,10 +97,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             return this;
         }
 
-        #endregion
-
-        #region Other Methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             var end = m_metadataItem as AssociationSetEnd;
@@ -122,7 +109,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 builder.Append("InSet:" + m_metadataItem);
             }
         }
-
-        #endregion
     }
 }

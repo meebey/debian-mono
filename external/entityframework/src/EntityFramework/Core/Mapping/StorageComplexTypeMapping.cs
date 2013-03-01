@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
@@ -6,32 +7,12 @@ namespace System.Data.Entity.Core.Mapping
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Text;
 
     /// <summary>
-    /// Mapping metadata for Complex Types.
+    ///     Mapping metadata for Complex Types.
     /// </summary>
-    internal class StorageComplexTypeMapping
+    internal class StorageComplexTypeMapping : IStructuralTypeMapping
     {
-        #region Constructors
-
-        /// <summary>
-        /// Construct a new Complex Property mapping object
-        /// </summary>
-        /// <param name="isPartial">Whether the property mapping representation is 
-        ///                         totally represented in this table mapping fragment or not. </param>
-        [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "isPartial")]
-        internal StorageComplexTypeMapping(bool isPartial)
-        {
-#if DEBUG
-            m_isPartial = isPartial;
-#endif
-        }
-
-        #endregion
-
-        #region Fields
-
         private readonly Dictionary<string, StoragePropertyMapping> m_properties =
             new Dictionary<string, StoragePropertyMapping>(StringComparer.Ordinal);
 
@@ -55,12 +36,20 @@ namespace System.Data.Entity.Core.Mapping
 
         // not only the type specified but the sub-types of that type as well.        
 
-        #endregion
-
-        #region Properties
+        /// <summary>
+        ///     Construct a new Complex Property mapping object
+        /// </summary>
+        /// <param name="isPartial"> Whether the property mapping representation is totally represented in this table mapping fragment or not. </param>
+        [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "isPartial")]
+        internal StorageComplexTypeMapping(bool isPartial)
+        {
+#if DEBUG
+            m_isPartial = isPartial;
+#endif
+        }
 
         /// <summary>
-        /// a list of TypeMetadata that this mapping holds true for.
+        ///     a list of TypeMetadata that this mapping holds true for.
         /// </summary>
         internal ReadOnlyCollection<ComplexType> Types
         {
@@ -68,8 +57,8 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// a list of TypeMetadatas for which the mapping holds true for
-        /// not only the type specified but the sub-types of that type as well.        
+        ///     a list of TypeMetadatas for which the mapping holds true for
+        ///     not only the type specified but the sub-types of that type as well.
         /// </summary>
         internal ReadOnlyCollection<ComplexType> IsOfTypes
         {
@@ -77,16 +66,16 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// List of child properties that make up this complex property
+        ///     List of child properties that make up this complex property
         /// </summary>
-        internal ReadOnlyCollection<StoragePropertyMapping> Properties
+        public ReadOnlyCollection<StoragePropertyMapping> Properties
         {
             get { return new List<StoragePropertyMapping>(m_properties.Values).AsReadOnly(); }
         }
 
         /// <summary>
-        /// Returns all the property mappings defined in the complex type mapping
-        /// including Properties and Condition Properties
+        ///     Returns all the property mappings defined in the complex type mapping
+        ///     including Properties and Condition Properties
         /// </summary>
         internal ReadOnlyCollection<StoragePropertyMapping> AllProperties
         {
@@ -99,22 +88,8 @@ namespace System.Data.Entity.Core.Mapping
             }
         }
 
-        ///// <summary>
-        ///// Whether the property mapping representation is 
-        ///// totally represented in this table mapping fragment or not.
-        ///// </summary>
-        //internal bool IsPartial {
-        //    get {
-        //        return m_isPartial;
-        //    }
-        //}
-
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Add a Type to the list of types that this mapping is valid for
+        ///     Add a Type to the list of types that this mapping is valid for
         /// </summary>
         internal void AddType(ComplexType type)
         {
@@ -122,7 +97,7 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Add a Type to the list of Is-Of types that this mapping is valid for
+        ///     Add a Type to the list of Is-Of types that this mapping is valid for
         /// </summary>
         internal void AddIsOfType(ComplexType type)
         {
@@ -130,19 +105,24 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Add a property mapping as a child of this complex property mapping
+        ///     Add a property mapping as a child of this complex property mapping
         /// </summary>
-        /// <param name="prop">The mapping that needs to be added</param>
-        internal void AddProperty(StoragePropertyMapping prop)
+        /// <param name="prop"> The mapping that needs to be added </param>
+        public void AddProperty(StoragePropertyMapping prop)
         {
             m_properties.Add(prop.EdmProperty.Name, prop);
         }
 
+        public void RemoveProperty(StoragePropertyMapping prop)
+        {
+            m_properties.Remove(prop.EdmProperty.Name);
+        }
+
         /// <summary>
-        /// Add a condition property mapping as a child of this complex property mapping
-        /// Condition Property Mapping specifies a Condition either on the C side property or S side property.
+        ///     Add a condition property mapping as a child of this complex property mapping
+        ///     Condition Property Mapping specifies a Condition either on the C side property or S side property.
         /// </summary>
-        /// <param name="conditionPropertyMap">The Condition Property mapping that needs to be added</param>
+        /// <param name="conditionPropertyMap"> The Condition Property mapping that needs to be added </param>
         internal void AddConditionProperty(
             StorageConditionPropertyMapping conditionPropertyMap, Action<EdmMember> duplicateMemberConditionError)
         {
@@ -163,10 +143,10 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// The method finds the type in which the member with the given name exists
-        /// form the list of IsOfTypes and Type.
+        ///     The method finds the type in which the member with the given name exists
+        ///     form the list of IsOfTypes and Type.
         /// </summary>
-        /// <param name="memberName"></param>
+        /// <param name="memberName"> </param>
         internal ComplexType GetOwnerType(string memberName)
         {
             foreach (var type in m_types.Values)
@@ -190,48 +170,5 @@ namespace System.Data.Entity.Core.Mapping
             }
             return null;
         }
-
-#if DEBUG
-    /// <summary>
-    /// This method is primarily for debugging purposes.
-    /// Will be removed shortly.
-    /// </summary>
-    /// <param name="index"></param>
-        internal void Print(int index)
-        {
-            StorageEntityContainerMapping.GetPrettyPrintString(ref index);
-            var sb = new StringBuilder();
-            sb.Append("ComplexTypeMapping");
-            sb.Append("   ");
-            if (m_isPartial)
-            {
-                sb.Append("IsPartial:True");
-            }
-            sb.Append("   ");
-            foreach (var type in m_types.Values)
-            {
-                sb.Append("Types:");
-                sb.Append(type.FullName);
-                sb.Append("   ");
-            }
-            foreach (var type in m_isOfTypes.Values)
-            {
-                sb.Append("Is-Of Types:");
-                sb.Append(type.FullName);
-                sb.Append("   ");
-            }
-            Console.WriteLine(sb.ToString());
-            foreach (StorageConditionPropertyMapping conditionMap in m_conditionProperties.Values)
-            {
-                (conditionMap).Print(index + 5);
-            }
-            foreach (var propertyMapping in Properties)
-            {
-                propertyMapping.Print(index + 5);
-            }
-        }
-#endif
-
-        #endregion
     }
 }

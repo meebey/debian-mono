@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServerCompact.SqlGen
 {
     using System.Collections.Generic;
@@ -31,7 +32,8 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
         {
             boolValue = false;
             Facet boolFacet;
-            if (type.Facets.TryGetValue(facetName, false, out boolFacet) && boolFacet.Value != null
+            if (type.Facets.TryGetValue(facetName, false, out boolFacet)
+                && boolFacet.Value != null
                 && !Helper.IsUnboundedFacetValue(boolFacet))
             {
                 boolValue = (bool)boolFacet.Value;
@@ -45,7 +47,8 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
         {
             intValue = 0;
             Facet intFacet;
-            if (type.Facets.TryGetValue(facetName, false, out intFacet) && intFacet.Value != null
+            if (type.Facets.TryGetValue(facetName, false, out intFacet)
+                && intFacet.Value != null
                 && !Helper.IsUnboundedFacetValue(intFacet))
             {
                 intValue = (int)intFacet.Value;
@@ -59,7 +62,8 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
         {
             byteValue = 0;
             Facet byteFacet;
-            if (type.Facets.TryGetValue(facetName, false, out byteFacet) && byteFacet.Value != null
+            if (type.Facets.TryGetValue(facetName, false, out byteFacet)
+                && byteFacet.Value != null
                 && !Helper.IsUnboundedFacetValue(byteFacet))
             {
                 byteValue = (byte)byteFacet.Value;
@@ -71,7 +75,8 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
 
         internal static bool TryGetPrimitiveTypeKind(TypeUsage type, out PrimitiveTypeKind typeKind)
         {
-            if (type != null && type.EdmType != null
+            if (type != null
+                && type.EdmType != null
                 && type.EdmType.BuiltInTypeKind == BuiltInTypeKind.PrimitiveType)
             {
                 typeKind = ((PrimitiveType)type.EdmType).PrimitiveTypeKind;
@@ -151,16 +156,13 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
         }
 
         /// <summary>
-        /// It will return true if there there non-boolean facets types that
-        /// are nulled out.
-        /// This function needs to be removed till the
-        /// HasNulledOutFacetValues of TypeUsage class become public
-        ///
+        ///     It will return true if there there non-boolean facets types that
+        ///     are nulled out.
+        ///     This function needs to be removed till the
+        ///     HasNulledOutFacetValues of TypeUsage class become public
         /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        /// 
-        ///
+        /// <param name="type"> </param>
+        /// <returns> </returns>
         internal static bool HasNulledOutFacetValues(TypeUsage type)
         {
             var primitiveType = GetEdmType<PrimitiveType>(type);
@@ -189,10 +191,10 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
         }
 
         /// <summary>
-        /// Returns the name of Primitive Data Type
+        ///     Returns the name of Primitive Data Type
         /// </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
+        /// <param name="type"> </param>
+        /// <returns> </returns>
         internal static string PrimitiveTypeName(TypeUsage type)
         {
             var primitiveType = GetEdmType<PrimitiveType>(type);
@@ -228,13 +230,8 @@ namespace System.Data.Entity.SqlServerCompact.SqlGen
             {
                 return ((CollectionType)type.EdmType).TypeUsage;
             }
-            else if (TypeSemantics.IsReferenceType(type))
+            if (TypeSemantics.IsReferenceType(type))
             {
-                // TODO: pragyaa. Uncomment code when TypeUsage constructor
-                // has been made public.
-                // We should typically not reach this code path anyway.
-                //
-                //return new TypeUsage(((RefType)type.EdmType).ElementType);
                 throw new NotSupportedException(String.Empty);
             }
             return null;

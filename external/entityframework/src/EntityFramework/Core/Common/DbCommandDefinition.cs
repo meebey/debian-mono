@@ -1,29 +1,30 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common
 {
     using System.Data.Common;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// A prepared command definition, can be cached and reused to avoid 
-    /// repreparing a command.
+    ///     A prepared command definition, can be cached and reused to avoid
+    ///     repreparing a command.
     /// </summary>
     public class DbCommandDefinition
     {
         private readonly ICloneable _prototype;
 
         /// <summary>
-        /// Internal factory method to create the default Command Definition object
-        /// based on a prototype command. The prototype command is cloned 
-        /// before the protected constructor is invoked
+        ///     Internal factory method to create the default Command Definition object
+        ///     based on a prototype command. The prototype command is cloned
+        ///     before the protected constructor is invoked
         /// </summary>
-        /// <param name="prototype">prototype DbCommand</param>
-        /// <returns>the DbCommandDefinition</returns>
+        /// <param name="prototype"> prototype DbCommand </param>
+        /// <returns> the DbCommandDefinition </returns>
         internal static DbCommandDefinition CreateCommandDefinition(DbCommand prototype)
         {
-            Contract.Requires(prototype != null);
+            Check.NotNull(prototype, "prototype");
             var cloneablePrototype = prototype as ICloneable;
             if (null == cloneablePrototype)
             {
@@ -34,12 +35,12 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Protected constructor; the command is assumed to be a prototype
-        /// that will be cloned on CreateCommand, and the cloned command will be executed.
+        ///     Protected constructor; the command is assumed to be a prototype
+        ///     that will be cloned on CreateCommand, and the cloned command will be executed.
         /// </summary>
         protected DbCommandDefinition(DbCommand prototype)
         {
-            Contract.Requires(prototype != null);
+            Check.NotNull(prototype, "prototype");
             _prototype = prototype as ICloneable;
             if (null == _prototype)
             {
@@ -48,16 +49,16 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Constructor overload for subclasses to use
+        ///     Constructor overload for subclasses to use
         /// </summary>
         protected DbCommandDefinition()
         {
         }
 
         /// <summary>
-        /// Create a DbCommand object from the definition, that can be executed.
+        ///     Create a DbCommand object from the definition, that can be executed.
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         public virtual DbCommand CreateCommand()
         {
             return (DbCommand)(_prototype.Clone());
@@ -65,8 +66,8 @@ namespace System.Data.Entity.Core.Common
 
         internal static void PopulateParameterFromTypeUsage(DbParameter parameter, TypeUsage type, bool isOutParam)
         {
-            Contract.Requires(parameter != null);
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(parameter);
+            DebugCheck.NotNull(type);
 
             // parameter.IsNullable - from the NullableConstraintAttribute value
             parameter.IsNullable = TypeSemantics.IsNullable(type);

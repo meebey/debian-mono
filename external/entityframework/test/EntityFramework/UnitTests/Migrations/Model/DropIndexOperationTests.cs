@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Model
 {
-    using System.Data.Entity.Migrations.Model;
     using System.Linq;
     using Xunit;
 
@@ -12,10 +12,10 @@ namespace System.Data.Entity.Migrations
         {
             var dropIndexOperation
                 = new DropIndexOperation
-                    {
-                        Table = "T",
-                        Name = "Custom"
-                    };
+                      {
+                          Table = "T",
+                          Name = "Custom"
+                      };
 
             dropIndexOperation.Columns.Add("foo");
             dropIndexOperation.Columns.Add("bar");

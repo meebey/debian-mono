@@ -34,6 +34,7 @@ using System.Reflection;
 namespace System.Runtime.InteropServices
 {
 	
+#if !MOBILE	
 	[ComVisible(true)]
 	[Guid ("475e398f-8afa-43a7-a3be-f4ef8d6787c9")]
 	[ClassInterface (ClassInterfaceType.None)]
@@ -50,10 +51,9 @@ namespace System.Runtime.InteropServices
 			return guidManagedCategory;
 		}
 
-		[MonoTODO ("implement")]
 		public virtual string GetProgIdForType (Type type)
 		{
-			throw new NotImplementedException ();
+			return Marshal.GenerateProgIdForType(type);
 		}
 
 		[MonoTODO ("implement")]
@@ -107,4 +107,5 @@ namespace System.Runtime.InteropServices
 		}
 		
 	}
+#endif
 }

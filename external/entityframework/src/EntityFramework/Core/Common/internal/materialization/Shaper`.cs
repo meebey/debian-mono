@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Internal.Materialization
 {
     using System.Collections;
-    using System.Collections.Generic;
     using System.Data.Common;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects;
@@ -15,31 +15,31 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
     using System.Threading.Tasks;
 
     /// <summary>
-    /// Typed Shaper. Includes logic to enumerate results and wraps the _rootCoordinator,
-    /// which includes materializer delegates for the root query collection.
+    ///     Typed Shaper. Includes logic to enumerate results and wraps the _rootCoordinator,
+    ///     which includes materializer delegates for the root query collection.
     /// </summary>
     internal class Shaper<T> : Shaper
     {
         #region Private Fields
 
         /// <summary>
-        /// Which type of query is this, object layer (true) or value layer (false)
+        ///     Which type of query is this, object layer (true) or value layer (false)
         /// </summary>
         private readonly bool _isObjectQuery;
 
         /// <summary>
-        /// Keeps track of whether we've completed processing or not.
+        ///     Keeps track of whether we've completed processing or not.
         /// </summary>
         private bool _isActive;
 
         /// <summary>
-        /// The enumerator we're using to read data; really only populated for value
-        /// layer queries.
+        ///     The enumerator we're using to read data; really only populated for value
+        ///     layer queries.
         /// </summary>
         private IDbEnumerator<T> _rootEnumerator;
 
         /// <summary>
-        /// Is the reader owned by the EF or was it supplied by the user?
+        ///     Is the reader owned by the EF or was it supplied by the user?
         /// </summary>
         private readonly bool _readerOwned;
 
@@ -47,14 +47,12 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
 
         internal Shaper(
             DbDataReader reader, ObjectContext context, MetadataWorkspace workspace, MergeOption mergeOption, int stateCount,
-            CoordinatorFactory<T> rootCoordinatorFactory, Action checkPermissions, bool readerOwned)
-            : base(reader, context, workspace, mergeOption, stateCount)
+            CoordinatorFactory<T> rootCoordinatorFactory, bool readerOwned, bool useSpatialReader)
+            : base(reader, context, workspace, mergeOption, stateCount, useSpatialReader)
         {
+            DebugCheck.NotNull(rootCoordinatorFactory);
+
             RootCoordinator = (Coordinator<T>)rootCoordinatorFactory.CreateCoordinator(parent: null, next: null);
-            if (null != checkPermissions)
-            {
-                checkPermissions();
-            }
             _isObjectQuery = !(typeof(T) == typeof(RecordState));
             _isActive = true;
             RootCoordinator.Initialize(this);
@@ -64,31 +62,31 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         #region "Public" Surface Area
 
         /// <summary>
-        /// Events raised when the shaper has finished enumerating results. Useful for callback 
-        /// to set parameter values.
+        ///     Events raised when the shaper has finished enumerating results. Useful for callback
+        ///     to set parameter values.
         /// </summary>
         internal event EventHandler OnDone;
 
         /// <summary>
-        /// Used to handle the read-ahead requirements of value-layer queries.  This
-        /// field indicates the status of the current value of the _rootEnumerator; when
-        /// a bridge data reader "accepts responsibility" for the current value, it sets
-        /// this to false.
+        ///     Used to handle the read-ahead requirements of value-layer queries.  This
+        ///     field indicates the status of the current value of the _rootEnumerator; when
+        ///     a bridge data reader "accepts responsibility" for the current value, it sets
+        ///     this to false.
         /// </summary>
         internal bool DataWaiting { get; set; }
 
         /// <summary>
-        /// Shapers and Coordinators work together in harmony to materialize the data
-        /// from the store; the shaper contains the state, the coordinator contains the
-        /// code.
+        ///     Shapers and Coordinators work together in harmony to materialize the data
+        ///     from the store; the shaper contains the state, the coordinator contains the
+        ///     code.
         /// </summary>
         internal readonly Coordinator<T> RootCoordinator;
 
         /// <summary>
-        /// The enumerator that the value-layer bridge will use to read data; all nested
-        /// data readers need to use the same enumerator, so we put it on the Shaper, since
-        /// that is something that all the nested data readers (and data records) have access
-        /// to -- it prevents us from having to pass two objects around.
+        ///     The enumerator that the value-layer bridge will use to read data; all nested
+        ///     data readers need to use the same enumerator, so we put it on the Shaper, since
+        ///     that is something that all the nested data readers (and data records) have access
+        ///     to -- it prevents us from having to pass two objects around.
         /// </summary>
         internal IDbEnumerator<T> RootEnumerator
         {
@@ -104,7 +102,7 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         }
 
         /// <summary>
-        /// Initialize the RecordStateFactory objects in their StateSlots.
+        ///     Initialize the RecordStateFactory objects in their StateSlots.
         /// </summary>
         private void InitializeRecordStates(CoordinatorFactory coordinatorFactory)
         {
@@ -148,7 +146,7 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         #region Private Methods
 
         /// <summary>
-        /// Called when enumeration of results has completed.
+        ///     Called when enumeration of results has completed.
         /// </summary>
         private void Finally()
         {
@@ -182,9 +180,9 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         }
 
         /// <summary>
-        /// Reads the next row from the store. If there is a failure, throws an exception message
-        /// in some scenarios (note that we respond to failure rather than anticipate failure,
-        /// avoiding repeated checks in the inner materialization loop)
+        ///     Reads the next row from the store. If there is a failure, throws an exception message
+        ///     in some scenarios (note that we respond to failure rather than anticipate failure,
+        ///     avoiding repeated checks in the inner materialization loop)
         /// </summary>
         private bool StoreRead()
         {
@@ -202,12 +200,14 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
             return readSucceeded;
         }
 
+#if !NET40
+
         private async Task<bool> StoreReadAsync(CancellationToken cancellationToken)
         {
             bool readSucceeded;
             try
             {
-                readSucceeded = await Reader.ReadAsync(cancellationToken);
+                readSucceeded = await Reader.ReadAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
             catch (Exception e)
             {
@@ -218,24 +218,25 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
             return readSucceeded;
         }
 
+#endif
+
         private void HandleReaderException(Exception e)
         {
-            // check if the reader is closed; if so, throw friendlier exception
-            if (Reader.IsClosed)
-            {
-                const string operation = "Read";
-                throw new InvalidOperationException(Strings.ADP_DataReaderClosed(operation));
-            }
-
             // wrap exception if necessary
             if (e.IsCatchableEntityExceptionType())
             {
+                // check if the reader is closed; if so, throw friendlier exception
+                if (Reader.IsClosed)
+                {
+                    throw new EntityCommandExecutionException((Strings.ADP_DataReaderClosed("Read")), e);
+                }
+
                 throw new EntityCommandExecutionException(Strings.EntityClient_StoreReaderFailed, e);
             }
         }
 
         /// <summary>
-        /// Notify ObjectContext that we are about to start materializing an element
+        ///     Notify ObjectContext that we are about to start materializing an element
         /// </summary>
         private void StartMaterializingElement()
         {
@@ -247,8 +248,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         }
 
         /// <summary>
-        /// Notify ObjectContext that we are finished materializing the element
-        /// </summary>        
+        ///     Notify ObjectContext that we are finished materializing the element
+        /// </summary>
         private void StopMaterializingElement()
         {
             if (Context != null)
@@ -263,7 +264,7 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         #region Simple Enumerator
 
         /// <summary>
-        /// Optimized enumerator for queries not including nested results.
+        ///     Optimized enumerator for queries not including nested results.
         /// </summary>
         private class SimpleEnumerator : IDbEnumerator<T>
         {
@@ -284,10 +285,14 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 get { return _shaper.RootCoordinator.Current; }
             }
 
+#if !NET40
+
             object IDbAsyncEnumerator.Current
             {
                 get { return _shaper.RootCoordinator.Current; }
             }
+
+#endif
 
             public void Dispose()
             {
@@ -324,13 +329,15 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return false;
             }
 
+#if !NET40
+
             public async Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 if (!_shaper._isActive)
                 {
                     return false;
                 }
-                if (await _shaper.StoreReadAsync(cancellationToken))
+                if (await _shaper.StoreReadAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                 {
                     try
                     {
@@ -347,6 +354,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return false;
             }
 
+#endif
+
             public void Reset()
             {
                 throw new NotSupportedException();
@@ -358,10 +367,10 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         #region Nested Enumerator
 
         /// <summary>
-        /// Enumerates (for each row in the input) an array of all coordinators producing new elements. The array
-        /// contains a position for each 'depth' in the result. A null value in any position indicates that no new
-        /// results were produced for the given row at the given depth. It is possible for a row to contain no
-        /// results for any row.
+        ///     Enumerates (for each row in the input) an array of all coordinators producing new elements. The array
+        ///     contains a position for each 'depth' in the result. A null value in any position indicates that no new
+        ///     results were produced for the given row at the given depth. It is possible for a row to contain no
+        ///     results for any row.
         /// </summary>
         private class RowNestedResultEnumerator : IDbEnumerator<Coordinator[]>
         {
@@ -384,10 +393,14 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 get { return _current; }
             }
 
+#if !NET40
+
             object IDbAsyncEnumerator.Current
             {
                 get { return _current; }
             }
+
+#endif
 
             public void Dispose()
             {
@@ -421,13 +434,15 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return true;
             }
 
+#if !NET40
+
             public async Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 try
                 {
                     _shaper.StartMaterializingElement();
 
-                    if (!await _shaper.StoreReadAsync(cancellationToken))
+                    if (!await _shaper.StoreReadAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                     {
                         // Reset all collections
                         RootCoordinator.ResetCollection(_shaper);
@@ -443,6 +458,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
 
                 return true;
             }
+
+#endif
 
             private void MaterializeRow()
             {
@@ -511,8 +528,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
         }
 
         /// <summary>
-        /// Wraps RowNestedResultEnumerator and yields results appropriate to an ObjectQuery instance. In particular,
-        /// root level elements (T) are returned only after aggregating all child elements.
+        ///     Wraps RowNestedResultEnumerator and yields results appropriate to an ObjectQuery instance. In particular,
+        ///     root level elements (T) are returned only after aggregating all child elements.
         /// </summary>
         private class ObjectQueryNestedEnumerator : IDbEnumerator<T>
         {
@@ -537,10 +554,14 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 get { return Current; }
             }
 
+#if !NET40
+
             object IDbAsyncEnumerator.Current
             {
                 get { return Current; }
             }
+
+#endif
 
             public void Dispose()
             {
@@ -592,6 +613,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return result;
             }
 
+#if !NET40
+
             public async Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 // See the documentation for enum State to understand the behaviors and requirements
@@ -599,10 +622,10 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 switch (_state)
                 {
                     case State.Start:
-                        if (await TryReadToNextElementAsync(cancellationToken))
+                        if (await TryReadToNextElementAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                         {
                             // if there's an element in the reader...
-                            await ReadElementAsync(cancellationToken);
+                            await ReadElementAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
                         }
                         else
                         {
@@ -611,7 +634,7 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                         }
                         break;
                     case State.Reading:
-                        await ReadElementAsync(cancellationToken);
+                        await ReadElementAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
                         break;
                     case State.NoRowsLastElementPending:
                         // nothing to do but move to the next state...
@@ -633,10 +656,11 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return result;
             }
 
+#endif
+
             /// <summary>
-            /// Requires: the row is currently positioned at the start of an element.
-            /// 
-            /// Reads all rows in the element and sets up state for the next element (if any).
+            ///     Requires: the row is currently positioned at the start of an element.
+            ///     Reads all rows in the element and sets up state for the next element (if any).
             /// </summary>
             private void ReadElement()
             {
@@ -658,6 +682,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 }
             }
 
+#if !NET40
+
             private async Task ReadElementAsync(CancellationToken cancellationToken)
             {
                 // remember the element we're currently reading
@@ -665,7 +691,7 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
 
                 // now we need to read to the next element (or the end of the
                 // reader) so that we can return the first element
-                if (await TryReadToNextElementAsync(cancellationToken))
+                if (await TryReadToNextElementAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                 {
                     // we're positioned at the start of the next element (which
                     // corresponds to the 'reading' state)
@@ -678,9 +704,11 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 }
             }
 
+#endif
+
             /// <summary>
-            /// Reads rows until the start of a new element is found. If no element
-            /// is found before all rows are consumed, returns false.
+            ///     Reads rows until the start of a new element is found. If no element
+            ///     is found before all rows are consumed, returns false.
             /// </summary>
             private bool TryReadToNextElement()
             {
@@ -695,9 +723,11 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return false;
             }
 
+#if !NET40
+
             private async Task<bool> TryReadToNextElementAsync(CancellationToken cancellationToken)
             {
-                while (await _rowEnumerator.MoveNextAsync(cancellationToken))
+                while (await _rowEnumerator.MoveNextAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                 {
                     // if we hit a new element, return true
                     if (_rowEnumerator.Current[0] != null)
@@ -708,47 +738,49 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return false;
             }
 
+#endif
+
             public void Reset()
             {
                 _rowEnumerator.Reset();
             }
 
             /// <summary>
-            /// Describes the state of this enumerator with respect to the _rowEnumerator
-            /// it wraps.
+            ///     Describes the state of this enumerator with respect to the _rowEnumerator
+            ///     it wraps.
             /// </summary>
             private enum State
             {
                 /// <summary>
-                /// No rows have been read yet
+                ///     No rows have been read yet
                 /// </summary>
                 Start,
 
                 /// <summary>
-                /// Positioned at the start of a new root element. The previous element must
-                /// be stored in _previousElement. We read ahead in this manner so that
-                /// the previous element is fully populated (all of its children loaded)
-                /// before returning.
+                ///     Positioned at the start of a new root element. The previous element must
+                ///     be stored in _previousElement. We read ahead in this manner so that
+                ///     the previous element is fully populated (all of its children loaded)
+                ///     before returning.
                 /// </summary>
                 Reading,
 
                 /// <summary>
-                /// Positioned past the end of the rows. The last element in the enumeration
-                /// has not yet been returned to the user however, and is stored in _previousElement.
+                ///     Positioned past the end of the rows. The last element in the enumeration
+                ///     has not yet been returned to the user however, and is stored in _previousElement.
                 /// </summary>
                 NoRowsLastElementPending,
 
                 /// <summary>
-                /// Positioned past the end of the rows. The last element has been returned to
-                /// the user.
+                ///     Positioned past the end of the rows. The last element has been returned to
+                ///     the user.
                 /// </summary>
                 NoRows,
             }
         }
 
         /// <summary>
-        /// Wraps RowNestedResultEnumerator and yields results appropriate to an EntityReader instance. In particular,
-        /// yields RecordState whenever a new element becomes available at any depth in the result hierarchy.
+        ///     Wraps RowNestedResultEnumerator and yields results appropriate to an EntityReader instance. In particular,
+        ///     yields RecordState whenever a new element becomes available at any depth in the result hierarchy.
         /// </summary>
         private class RecordStateEnumerator : IDbEnumerator<RecordState>
         {
@@ -756,8 +788,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
             private RecordState _current;
 
             /// <summary>
-            /// Gets depth of coordinator we're currently consuming. If _depth == -1, it means we haven't started
-            /// to consume the next row yet.
+            ///     Gets depth of coordinator we're currently consuming. If _depth == -1, it means we haven't started
+            ///     to consume the next row yet.
             /// </summary>
             private int _depth;
 
@@ -781,10 +813,14 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 get { return _current; }
             }
 
+#if !NET40
+
             object IDbAsyncEnumerator.Current
             {
                 get { return _current; }
             }
+
+#endif
 
             public void Dispose()
             {
@@ -833,6 +869,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                 return !_readerConsumed;
             }
 
+#if !NET40
+
             public async Task<bool> MoveNextAsync(CancellationToken cancellationToken)
             {
                 if (!_readerConsumed)
@@ -844,7 +882,7 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
                             || _rowEnumerator.Current.Length == _depth)
                         {
                             // time to move to the next row...
-                            if (!await _rowEnumerator.MoveNextAsync(cancellationToken))
+                            if (!await _rowEnumerator.MoveNextAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false))
                             {
                                 // no more rows...
                                 _current = null;
@@ -870,6 +908,8 @@ namespace System.Data.Entity.Core.Common.Internal.Materialization
 
                 return !_readerConsumed;
             }
+
+#endif
 
             public void Reset()
             {

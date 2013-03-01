@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 {
     using System.Collections.Generic;
@@ -105,8 +106,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
             }
         }
 
-        #region Static methods
-
         // creates a condition member=value
         internal static BoolExpression CreateMemberCondition(MemberPath path, Constant domainValue, MemberDomainMap domainMap)
         {
@@ -131,10 +130,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
             return new FragmentQueryEqualityComparer(qp);
         }
 
-        #endregion
-
-        #region Equality Comparer
-
         // Two queries are "equal" if they project the same set of attributes
         // and their WHERE clauses are equivalent
         private class FragmentQueryEqualityComparer : IEqualityComparer<FragmentQuery>
@@ -145,8 +140,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
             {
                 _qp = qp;
             }
-
-            #region IEqualityComparer<FragmentQuery> Members
 
             [SuppressMessage("Microsoft.Security", "CA2140:TransparentMethodsMustNotReferenceCriticalCode",
                 Justification = "Based on Bug VSTS Pioneer #433188: IsVisibleOutsideAssembly is wrong on generic instantiations.")]
@@ -181,10 +174,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
                 }
                 return attrHashCode * 13 + varHashCode * 7 + constHashCode;
             }
-
-            #endregion
         }
-
-        #endregion
     }
 }

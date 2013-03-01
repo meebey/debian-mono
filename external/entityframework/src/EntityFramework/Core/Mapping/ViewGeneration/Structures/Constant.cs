@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -8,31 +9,25 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Text;
 
     /// <summary>
-    /// This class denotes a constant that can be stored in multiconstants or projected in fields.
+    ///     This class denotes a constant that can be stored in multiconstants or projected in fields.
     /// </summary>
     internal abstract class Constant : InternalBase
     {
-        #region Fields
-
         internal static readonly IEqualityComparer<Constant> EqualityComparer = new CellConstantComparer();
         internal static readonly Constant Null = NullConstant.Instance;
         internal static readonly Constant NotNull = new NegatedConstant(new[] { NullConstant.Instance });
         internal static readonly Constant Undefined = UndefinedConstant.Instance;
 
         /// <summary>
-        /// Represents scalar constants within a finite set that are not specified explicitly in the domain.
-        /// Currently only used as a Sentinel node to prevent expression optimization
+        ///     Represents scalar constants within a finite set that are not specified explicitly in the domain.
+        ///     Currently only used as a Sentinel node to prevent expression optimization
         /// </summary>
         internal static readonly Constant AllOtherConstants = AllOtherConstantsConstant.Instance;
-
-        #endregion
-
-        #region Methods
 
         internal abstract bool IsNull();
 
@@ -41,22 +36,22 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         internal abstract bool IsUndefined();
 
         /// <summary>
-        /// Returns true if this constant contains not null. 
-        /// Implemented in <see cref="NegatedConstant"/> class, all other implementations return false.
+        ///     Returns true if this constant contains not null.
+        ///     Implemented in <see cref="NegatedConstant" /> class, all other implementations return false.
         /// </summary>
         internal abstract bool HasNotNull();
 
         /// <summary>
-        /// Generates eSQL for the constant expression.
+        ///     Generates eSQL for the constant expression.
         /// </summary>
-        /// <param name="outputMember">The member to which this constant is directed</param>
+        /// <param name="outputMember"> The member to which this constant is directed </param>
         internal abstract StringBuilder AsEsql(StringBuilder builder, MemberPath outputMember, string blockAlias);
 
         /// <summary>
-        /// Generates CQT for the constant expression.
+        ///     Generates CQT for the constant expression.
         /// </summary>
-        /// <param name="row">The input row.</param>
-        /// <param name="outputMember">The member to which this constant is directed</param>
+        /// <param name="row"> The input row. </param>
+        /// <param name="outputMember"> The member to which this constant is directed </param>
         internal abstract DbExpression AsCqt(DbExpression row, MemberPath outputMember);
 
         public override bool Equals(object obj)
@@ -96,10 +91,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region Comparer class
-
         private class CellConstantComparer : IEqualityComparer<Constant>
         {
             public bool Equals(Constant left, Constant right)
@@ -127,10 +118,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region Special constant classes (NullConstant, UndefinedConstant, AllOtherConstants)
-
         private sealed class NullConstant : Constant
         {
             internal static readonly Constant Instance = new NullConstant();
@@ -138,8 +125,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             private NullConstant()
             {
             }
-
-            #region Methods
 
             internal override bool IsNull()
             {
@@ -163,7 +148,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
             internal override StringBuilder AsEsql(StringBuilder builder, MemberPath outputMember, string blockAlias)
             {
-                Debug.Assert(outputMember.LeafEdmMember != null, "Constant can't correspond to an empty member path.");
+                DebugCheck.NotNull(outputMember.LeafEdmMember);
                 var constType = Helper.GetModelTypeUsage(outputMember.LeafEdmMember).EdmType;
 
                 builder.Append("CAST(NULL AS ");
@@ -174,7 +159,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
             internal override DbExpression AsCqt(DbExpression row, MemberPath outputMember)
             {
-                Debug.Assert(outputMember.LeafEdmMember != null, "Constant can't correspond to an empty path.");
+                DebugCheck.NotNull(outputMember.LeafEdmMember);
                 var constType = Helper.GetModelTypeUsage(outputMember.LeafEdmMember).EdmType;
 
                 return TypeUsage.Create(constType).Null();
@@ -200,8 +185,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             {
                 builder.Append("NULL");
             }
-
-            #endregion
         }
 
         private sealed class UndefinedConstant : Constant
@@ -211,8 +194,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             private UndefinedConstant()
             {
             }
-
-            #region Methods
 
             internal override bool IsNull()
             {
@@ -235,21 +216,21 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
 
             /// <summary>
-            /// Not supported in this class.
+            ///     Not supported in this class.
             /// </summary>
             internal override StringBuilder AsEsql(StringBuilder builder, MemberPath outputMember, string blockAlias)
             {
-                Debug.Fail("Should not be called.");
-                return null; // To keep the compiler happy
+                // This code should never be called. Throw to keep compiler happy and make debug easier if it does get called.
+                throw new NotSupportedException();
             }
 
             /// <summary>
-            /// Not supported in this class.
+            ///     Not supported in this class.
             /// </summary>
             internal override DbExpression AsCqt(DbExpression row, MemberPath outputMember)
             {
-                Debug.Fail("Should not be called.");
-                return null; // To keep the compiler happy
+                // This code should never be called. Throw to keep compiler happy and make debug easier if it does get called.
+                throw new NotSupportedException();
             }
 
             public override int GetHashCode()
@@ -264,20 +245,18 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
 
             /// <summary>
-            /// Not supported in this class.
+            ///     Not supported in this class.
             /// </summary>
             internal override string ToUserString()
             {
-                Debug.Fail("We should not emit a message about Undefined constants to the user.");
-                return null;
+                // This code should never be called. Throw to keep compiler happy and make debug easier if it does get called.
+                throw new NotSupportedException();
             }
 
             internal override void ToCompactString(StringBuilder builder)
             {
                 builder.Append("?");
             }
-
-            #endregion
         }
 
         private sealed class AllOtherConstantsConstant : Constant
@@ -287,8 +266,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             private AllOtherConstantsConstant()
             {
             }
-
-            #region Methods
 
             internal override bool IsNull()
             {
@@ -311,21 +288,21 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
 
             /// <summary>
-            /// Not supported in this class.
+            ///     Not supported in this class.
             /// </summary>
             internal override StringBuilder AsEsql(StringBuilder builder, MemberPath outputMember, string blockAlias)
             {
-                Debug.Fail("Should not be called.");
-                return null; // To keep the compiler happy
+                // This code should never be called. Throw to keep compiler happy and make debug easier if it does get called.
+                throw new NotSupportedException();
             }
 
             /// <summary>
-            /// Not supported in this class.
+            ///     Not supported in this class.
             /// </summary>
             internal override DbExpression AsCqt(DbExpression row, MemberPath outputMember)
             {
-                Debug.Fail("Should not be called.");
-                return null; // To keep the compiler happy
+                // This code should never be called. Throw to keep compiler happy and make debug easier if it does get called.
+                throw new NotSupportedException();
             }
 
             public override int GetHashCode()
@@ -340,22 +317,18 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
 
             /// <summary>
-            /// Not supported in this class.
+            ///     Not supported in this class.
             /// </summary>
             internal override string ToUserString()
             {
-                Debug.Fail("We should not emit a message about Undefined constants to the user.");
-                return null;
+                // This code should never be called. Throw to keep compiler happy and make debug easier if it does get called.
+                throw new NotSupportedException();
             }
 
             internal override void ToCompactString(StringBuilder builder)
             {
                 builder.Append("AllOtherConstants");
             }
-
-            #endregion
         }
-
-        #endregion
     }
 }

@@ -1,13 +1,12 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common
 {
     using System.Data.Common;
-
     using System.Data.Entity.Config;
-    using System.Data.Entity.Core.Common.CommandTrees;
-
+    using System.Data.Entity.Core.EntityClient;
+    using System.Data.Entity.Infrastructure;
     using System.Data.Entity.ModelConfiguration.Internal.UnitTests;
-
     using System.Data.Entity.Resources;
     using System.Data.Entity.Spatial;
     using System.Data.Entity.SqlServer;
@@ -77,19 +76,27 @@ namespace System.Data.Entity.Core.Common
 
                 TestWithDataDirectory(
                     @"C:\MelancholyBlues",
-                    () => Assert.Equal(@"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|SheerHeartAttack")));
+                    () =>
+                    Assert.Equal(
+                        @"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|SheerHeartAttack")));
 
                 TestWithDataDirectory(
                     @"C:\MelancholyBlues",
-                    () => Assert.Equal(@"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|\SheerHeartAttack")));
+                    () =>
+                    Assert.Equal(
+                        @"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|\SheerHeartAttack")));
 
                 TestWithDataDirectory(
                     @"C:\MelancholyBlues\",
-                    () => Assert.Equal(@"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|SheerHeartAttack")));
+                    () =>
+                    Assert.Equal(
+                        @"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|SheerHeartAttack")));
 
                 TestWithDataDirectory(
                     @"C:\MelancholyBlues\",
-                    () => Assert.Equal(@"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|\SheerHeartAttack")));
+                    () =>
+                    Assert.Equal(
+                        @"C:\MelancholyBlues\SheerHeartAttack", DbProviderServices.ExpandDataDirectory(@"|DataDirectory|\SheerHeartAttack")));
             }
 
             [Fact]
@@ -130,12 +137,58 @@ namespace System.Data.Entity.Core.Common
             [Fact]
             public void GetProviderServices_returns_provider_registered_in_app_config()
             {
-                var mockConnection = new Mock<DbConnection>();
-                mockConnection.Protected().Setup<DbProviderFactory>("DbProviderFactory").Returns(FakeSqlProviderFactory.Instance);
-
                 Assert.Same(
                     FakeSqlProviderServices.Instance,
-                    DbProviderServices.GetProviderServices(mockConnection.Object));
+                    DbProviderServices.GetProviderServices(new FakeSqlConnection()));
+            }
+        }
+
+        public class GetExecutionStrategy : TestBase
+        {
+            [Fact]
+            public void Instance_method_returns_SimpleExecutionStrategy()
+            {
+                var mockProviderServices = new Mock<DbProviderServices>
+                                              {
+                                                  CallBase = true
+                                              }.Object;
+
+                Assert.IsType<NonRetryingExecutionStrategy>(mockProviderServices.GetExecutionStrategy());
+            }
+
+            [Fact]
+            public void Static_method_returns_the_ExecutionStrategy_from_resolver()
+            {
+                var connectionMock = new Mock<DbConnection>();
+                connectionMock.Setup(m => m.DataSource).Returns("FooSource");
+
+                var entityConnection = new EntityConnection(
+                    workspace: null, connection: connectionMock.Object, skipInitialization: true, entityConnectionOwnsStoreConnection: false);
+
+                var mockExecutionStrategy = new Mock<IExecutionStrategy>().Object;
+                MutableResolver.AddResolver<IExecutionStrategy>(
+                    k =>
+                        {
+                            var key = k as ExecutionStrategyKey;
+                            Assert.Equal("System.Data.FakeSqlClient", key.InvariantProviderName);
+                            Assert.Equal("FooSource", key.DataSourceName);
+                            return mockExecutionStrategy;
+                        });
+
+                var providerFactoryServiceMock = new Mock<IDbProviderFactoryService>();
+                providerFactoryServiceMock.Setup(m => m.GetProviderFactory(It.IsAny<DbConnection>()))
+                                          .Returns(FakeSqlProviderFactory.Instance);
+
+                MutableResolver.AddResolver<IDbProviderFactoryService>(k => providerFactoryServiceMock.Object);
+                try
+                {
+                    Assert.Same(mockExecutionStrategy, DbProviderServices.GetExecutionStrategy(connectionMock.Object));
+                    Assert.Same(mockExecutionStrategy, DbProviderServices.GetExecutionStrategy(entityConnection));
+                }
+                finally
+                {
+                    MutableResolver.ClearResolvers();
+                }
             }
         }
 
@@ -151,7 +204,7 @@ namespace System.Data.Entity.Core.Common
                     .Returns(mockSpatialServices.Object);
 
                 Assert.Same(
-                    mockSpatialServices.Object, 
+                    mockSpatialServices.Object,
                     new Mock<DbProviderServices>(mockResolver.Object).Object.GetSpatialServices("X"));
             }
 
@@ -214,6 +267,41 @@ namespace System.Data.Entity.Core.Common
                 Assert.Equal(
                     Strings.ProviderDidNotReturnSpatialServices,
                     Assert.Throws<ProviderIncompatibleException>(() => testProvider.Object.GetSpatialServices("X")).Message);
+            }
+
+        }
+
+        public class GetConceptualSchemaDefinition
+        {
+            [Fact]
+            public void GetConceptualSchemaDefinition_throws_ArgumentNullException_for_null_or_empty_resource_name()
+            {
+                foreach (var csdlName in new[] { null, string.Empty })
+                {
+                    Assert.Throws<ArgumentException>(
+                        () => DbProviderServices.GetConceptualSchemaDefinition(csdlName));
+                }
+            }
+
+            [Fact]
+            public void GetConceptualSchemaDefinition_throws_ArgumentException_for_invalid_resource_name()
+            {
+                Assert.Equal(
+                    string.Format(Strings.InvalidResourceName("resource")),
+                    Assert.Throws<ArgumentException>(
+                        () => DbProviderServices.GetXmlResource("resource")).Message);
+            }
+
+            [Fact]
+            public void GetConceptualSchemaDefinition_returns_non_null_XmlReader_for_valid_resource_names()
+            {
+                foreach (var csdlName in new[] { "ConceptualSchemaDefinition", "ConceptualSchemaDefinitionVersion3" })
+                {
+                    using (var reader = DbProviderServices.GetConceptualSchemaDefinition(csdlName))
+                    {
+                        Assert.NotNull(reader);
+                    }
+                }
             }
         }
     }

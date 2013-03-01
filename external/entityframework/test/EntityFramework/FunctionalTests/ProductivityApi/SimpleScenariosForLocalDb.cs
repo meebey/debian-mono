@@ -1,4 +1,7 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
+#if !NET40
+
 namespace ProductivityApiTests
 {
     using System;
@@ -7,7 +10,6 @@ namespace ProductivityApiTests
     using System.IO;
     using System.Linq;
     using System.Transactions;
-    using FunctionalTests.TestHelpers;
     using SimpleModel;
     using Xunit;
 
@@ -15,16 +17,14 @@ namespace ProductivityApiTests
     {
         #region Infrastructure/setup
 
-        private readonly IDbConnectionFactory _previousConnectionFactory;
         private readonly object _previousDataDirectory;
 
         public SimpleScenariosForLocalDb()
         {
-            _previousConnectionFactory = DefaultConnectionFactoryResolver.Instance.ConnectionFactory;
             _previousDataDirectory = AppDomain.CurrentDomain.GetData("DataDirectory");
 
             AppDomain.CurrentDomain.SetData("DataDirectory", Path.GetTempPath());
-            DefaultConnectionFactoryResolver.Instance.ConnectionFactory = new LocalDbConnectionFactory("v11.0");
+            MutableResolver.AddResolver<IDbConnectionFactory>(k => new LocalDbConnectionFactory("v11.0"));
         }
 
         public void Dispose()
@@ -46,7 +46,7 @@ namespace ProductivityApiTests
             }
             finally
             {
-                DefaultConnectionFactoryResolver.Instance.ConnectionFactory = _previousConnectionFactory;
+                MutableResolver.ClearResolvers();
                 AppDomain.CurrentDomain.SetData("DataDirectory", _previousDataDirectory);
             }
         }
@@ -87,7 +87,10 @@ namespace ProductivityApiTests
             {
                 using (var context = new SimpleLocalDbModelContext())
                 {
-                    var product = new Product() { Name = "Vegemite" };
+                    var product = new Product
+                                      {
+                                          Name = "Vegemite"
+                                      };
                     context.Products.Add(product);
                     context.SaveChanges();
 
@@ -147,7 +150,11 @@ namespace ProductivityApiTests
                 using (var context = new SimpleLocalDbModelContext())
                 {
                     var category = context.Categories.Find("Foods");
-                    var product = new Product() { Name = "Bovril", Category = category };
+                    var product = new Product
+                                      {
+                                          Name = "Bovril",
+                                          Category = category
+                                      };
                     context.Products.Add(product);
                     context.SaveChanges();
 
@@ -176,7 +183,11 @@ namespace ProductivityApiTests
             {
                 using (var context = new SimpleLocalDbModelContext())
                 {
-                    var product = new Product() { Name = "Bovril", CategoryId = "Foods" };
+                    var product = new Product
+                                      {
+                                          Name = "Bovril",
+                                          CategoryId = "Foods"
+                                      };
                     context.Products.Add(product);
                     context.SaveChanges();
 
@@ -234,8 +245,17 @@ namespace ProductivityApiTests
 
         private void InsertIntoCleanContext(SimpleLocalDbModelContextWithNoData context)
         {
-            context.Categories.Add(new Category() { Id = "Large Hadron Collider" });
-            context.Products.Add(new Product() { Name = "Higgs Boson", CategoryId = "Large Hadron Collider" });
+            context.Categories.Add(
+                new Category
+                    {
+                        Id = "Large Hadron Collider"
+                    });
+            context.Products.Add(
+                new Product
+                    {
+                        Name = "Higgs Boson",
+                        CategoryId = "Large Hadron Collider"
+                    });
             context.SaveChanges();
 
             Assert.Equal(@"(localdb)\v11.0", context.Database.Connection.DataSource);
@@ -251,7 +271,11 @@ namespace ProductivityApiTests
             {
                 using (var context = new LocalDbLoginsContext())
                 {
-                    var login = new Login() { Id = Guid.NewGuid(), Username = "elmo" };
+                    var login = new Login
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Username = "elmo"
+                                    };
                     context.Logins.Add(login);
                     context.SaveChanges();
 
@@ -267,8 +291,15 @@ namespace ProductivityApiTests
             {
                 using (var context = new SimpleLocalDbModelContext())
                 {
-                    var category = new Category() { Id = "Books" };
-                    var product = new Product() { Name = "The Unbearable Lightness of Being", Category = category };
+                    var category = new Category
+                                       {
+                                           Id = "Books"
+                                       };
+                    var product = new Product
+                                      {
+                                          Name = "The Unbearable Lightness of Being",
+                                          Category = category
+                                      };
                     context.Products.Add(product);
                     context.SaveChanges();
 
@@ -340,3 +371,5 @@ namespace ProductivityApiTests
         #endregion
     }
 }
+
+#endif

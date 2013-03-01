@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration;
     using System.Data.Entity.ModelConfiguration.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
 
     internal sealed class MappingContext
     {
@@ -18,9 +19,9 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             ConventionsConfiguration conventionsConfiguration,
             EdmModel model)
         {
-            Contract.Requires(modelConfiguration != null);
-            Contract.Requires(conventionsConfiguration != null);
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(modelConfiguration);
+            DebugCheck.NotNull(conventionsConfiguration);
+            DebugCheck.NotNull(model);
 
             _modelConfiguration = modelConfiguration;
             _conventionsConfiguration = conventionsConfiguration;

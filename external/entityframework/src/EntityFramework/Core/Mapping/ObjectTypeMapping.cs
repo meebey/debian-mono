@@ -1,23 +1,23 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Represents the metadata for OCObjectMapping.
+    ///     Represents the metadata for OCObjectMapping.
     /// </summary>
     internal class ObjectTypeMapping : Map
     {
-        #region Constructors
-
         /// <summary>
-        /// Construct a new ObjectTypeMapping object
+        ///     Construct a new ObjectTypeMapping object
         /// </summary>
-        /// <param name="clrType"></param>
-        /// <param name="cdmType"></param>
+        /// <param name="clrType"> </param>
+        /// <param name="cdmType"> </param>
         internal ObjectTypeMapping(EdmType clrType, EdmType cdmType)
         {
             Debug.Assert(clrType.BuiltInTypeKind == cdmType.BuiltInTypeKind, "BuiltInTypeKind must be the same for both types");
@@ -35,12 +35,6 @@ namespace System.Data.Entity.Core.Mapping
             }
         }
 
-        #endregion
-
-        #region Fields
-
-        #region Internal
-
         private readonly EdmType m_clrType; //type on the Clr side that is being mapped
         private readonly EdmType m_cdmType; //type on the Cdm side that is being mapped
         private readonly string identity;
@@ -51,14 +45,8 @@ namespace System.Data.Entity.Core.Mapping
         private static readonly Dictionary<string, ObjectMemberMapping> EmptyMemberMapping
             = new Dictionary<string, ObjectMemberMapping>(0);
 
-        #endregion
-
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Gets the type kind for this item
+        ///     Gets the type kind for this item
         /// </summary>
         public override BuiltInTypeKind BuiltInTypeKind
         {
@@ -66,8 +54,8 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// The reference to the Clr type in Metadata
-        /// that participates in this mapping instance
+        ///     The reference to the Clr type in Metadata
+        ///     that participates in this mapping instance
         /// </summary>
         internal EdmType ClrType
         {
@@ -75,8 +63,8 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// The reference to the Cdm type in Metadata
-        /// that participates in this mapping instance
+        ///     The reference to the Cdm type in Metadata
+        ///     that participates in this mapping instance
         /// </summary>
         internal override MetadataItem EdmItem
         {
@@ -84,8 +72,8 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// The reference to the Cdm type in Metadata
-        /// that participates in this mapping instance
+        ///     The reference to the Cdm type in Metadata
+        ///     that participates in this mapping instance
         /// </summary>
         internal EdmType EdmType
         {
@@ -93,23 +81,19 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Returns the Identity of ObjectTypeMapping.
-        /// The identity for an Object Type Map is the concatenation of
-        /// CLR Type Idntity + ':' + CDM Type Identity
+        ///     Returns the Identity of ObjectTypeMapping.
+        ///     The identity for an Object Type Map is the concatenation of
+        ///     CLR Type Idntity + ':' + CDM Type Identity
         /// </summary>
         internal override string Identity
         {
             get { return identity; }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// get a MemberMap for the member name specified
+        ///     get a MemberMap for the member name specified
         /// </summary>
-        /// <param name="cdmPropertyName">the name of the CDM member for which map needs to be retrieved</param>
+        /// <param name="cdmPropertyName"> the name of the CDM member for which map needs to be retrieved </param>
         internal ObjectPropertyMapping GetPropertyMap(String propertyName)
         {
             var memberMapping = GetMemberMap(propertyName, false /*ignoreCase*/);
@@ -126,9 +110,9 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Add a member mapping as a child of this object mapping
+        ///     Add a member mapping as a child of this object mapping
         /// </summary>
-        /// <param name="property">child property mapping to be added</param>
+        /// <param name="property"> child property mapping to be added </param>
         internal void AddMemberMap(ObjectMemberMapping memberMapping)
         {
             Debug.Assert(
@@ -144,25 +128,25 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Returns the member map for the given clr member
+        ///     Returns the member map for the given clr member
         /// </summary>
-        /// <param name="clrPropertyName"></param>
-        /// <param name="ignoreCase"></param>
-        /// <returns></returns>
+        /// <param name="clrPropertyName"> </param>
+        /// <param name="ignoreCase"> </param>
+        /// <returns> </returns>
         internal ObjectMemberMapping GetMemberMapForClrMember(string clrMemberName, bool ignoreCase)
         {
             return GetMemberMap(clrMemberName, ignoreCase);
         }
 
         /// <summary>
-        /// returns the member mapping for the given member
+        ///     returns the member mapping for the given member
         /// </summary>
-        /// <param name="propertyName"></param>
-        /// <param name="ignoreCase"></param>
-        /// <returns></returns>
+        /// <param name="propertyName"> </param>
+        /// <param name="ignoreCase"> </param>
+        /// <returns> </returns>
         private ObjectMemberMapping GetMemberMap(string propertyName, bool ignoreCase)
         {
-            EntityUtil.CheckStringArgument(propertyName, "propertyName");
+            Check.NotEmpty(propertyName, "propertyName");
             ObjectMemberMapping memberMapping = null;
 
             if (!ignoreCase)
@@ -191,14 +175,12 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Overriding System.Object.ToString to provide better String representation 
-        /// for this type.
+        ///     Overriding System.Object.ToString to provide better String representation
+        ///     for this type.
         /// </summary>
         public override string ToString()
         {
             return Identity;
         }
-
-        #endregion
     }
 }

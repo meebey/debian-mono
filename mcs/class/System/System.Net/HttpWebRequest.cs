@@ -46,12 +46,8 @@ using System.Threading;
 
 namespace System.Net 
 {
-#if MOONLIGHT
-	internal class HttpWebRequest : WebRequest, ISerializable {
-#else
 	[Serializable]
 	public class HttpWebRequest : WebRequest, ISerializable {
-#endif
 		Uri requestUri;
 		Uri actualUri;
 		bool hostChanged;
@@ -316,6 +312,8 @@ namespace System.Net
 			}
 		}
 #endif
+
+#if !NET_2_1
 		[MonoTODO]
 		public static new RequestCachePolicy DefaultCachePolicy
 		{
@@ -326,6 +324,7 @@ namespace System.Net
 				throw GetMustImplement ();
 			}
 		}
+#endif
 		
 		[MonoTODO]
 		public static int DefaultMaximumErrorResponseLength
@@ -560,7 +559,7 @@ namespace System.Net
 		internal ServicePoint ServicePointNoLock {
 			get { return servicePoint; }
 		}
-#if NET_4_5 || MOBILE
+#if NET_4_5
 		[MonoTODO ("for portable library support")]
 		public bool SupportsCookieContainer { 
 			get {

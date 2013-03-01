@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
 
@@ -42,7 +44,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
         internal void ValidateExpression(DbExpression expression, string argumentName)
         {
-            Debug.Assert(expression != null, "Ensure expression is non-null before calling ValidateExpression");
+            DebugCheck.NotNull(expression);
             expressionArgumentName = argumentName;
             VisitExpression(expression);
             expressionArgumentName = null;
@@ -83,6 +85,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
         public override DbExpression Visit(DbVariableReferenceExpression expression)
         {
+            Check.NotNull(expression, "expression");
+
             var result = base.Visit(expression);
             if (result.ExpressionKind
                 == DbExpressionKind.VariableReference)
@@ -114,6 +118,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
         public override DbExpression Visit(DbParameterReferenceExpression expression)
         {
+            Check.NotNull(expression, "expression");
+
             var result = base.Visit(expression);
             if (result.ExpressionKind
                 == DbExpressionKind.ParameterReference)

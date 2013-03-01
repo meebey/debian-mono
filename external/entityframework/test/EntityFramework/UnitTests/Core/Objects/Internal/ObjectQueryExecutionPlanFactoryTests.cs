@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
@@ -20,14 +21,15 @@ namespace System.Data.Entity.Core.Objects.Internal
             var objectQueryExecutionPlanFactory = new ObjectQueryExecutionPlanFactory(
                 Common.Internal.Materialization.MockHelper.CreateTranslator<object>());
 
-            var metadataWorkspace = new MetadataWorkspace();
             var edmItemCollection = new EdmItemCollection();
-            metadataWorkspace.RegisterItemCollection(edmItemCollection);
-            metadataWorkspace.RegisterItemCollection(new ObjectItemCollection());
-            var fakeSqlProviderManifest = new FakeSqlProviderServices().GetProviderManifest("2008");
-            var storeItemCollection = new StoreItemCollection(FakeSqlProviderFactory.Instance, fakeSqlProviderManifest, "2008");
-            metadataWorkspace.RegisterItemCollection(storeItemCollection);
-            metadataWorkspace.RegisterItemCollection(new StorageMappingItemCollection(edmItemCollection, storeItemCollection, Enumerable.Empty<XmlReader>()));
+            var fakeSqlProviderManifest = FakeSqlProviderServices.Instance.GetProviderManifest("2008");
+            var storeItemCollection = new StoreItemCollection(FakeSqlProviderFactory.Instance, fakeSqlProviderManifest, "System.Data.SqlClient", "2008");
+            var mappingItemCollection = new StorageMappingItemCollection(edmItemCollection, storeItemCollection, Enumerable.Empty<XmlReader>());
+
+            var metadataWorkspace = new MetadataWorkspace(
+                () => edmItemCollection,
+                () => storeItemCollection,
+                () => mappingItemCollection);
 
             var fakeSqlConnection = new FakeSqlConnection();
             fakeSqlConnection.ConnectionString = "foo";
@@ -35,12 +37,14 @@ namespace System.Data.Entity.Core.Objects.Internal
 
             var objectContext = new ObjectContext(entityConnection);
             var dbExpression = new DbNullExpression(TypeUsage.Create(fakeSqlProviderManifest.GetStoreTypes().First()));
-            var dbQueryCommandTree = new DbQueryCommandTree(metadataWorkspace, DataSpace.CSpace,
-               dbExpression, validate: false);
+            var dbQueryCommandTree = new DbQueryCommandTree(
+                metadataWorkspace, DataSpace.CSpace,
+                dbExpression, validate: false);
             var parameters = new List<Tuple<ObjectParameter, QueryParameterExpression>>();
 
-            var objectQueryExecutionPlan = objectQueryExecutionPlanFactory.Prepare(objectContext, dbQueryCommandTree, typeof(object),
-                MergeOption.NoTracking, new Span(), parameters, aliasGenerator: null);
+            var objectQueryExecutionPlan = objectQueryExecutionPlanFactory.Prepare(
+                objectContext, dbQueryCommandTree, typeof(object),
+                MergeOption.NoTracking, false, new Span(), parameters, aliasGenerator: null);
 
             Assert.NotNull(objectQueryExecutionPlan);
         }

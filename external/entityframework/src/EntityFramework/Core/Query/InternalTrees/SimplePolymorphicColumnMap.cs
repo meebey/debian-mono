@@ -1,15 +1,17 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Query.InternalTrees
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Globalization;
     using System.Text;
 
     /// <summary>
-    /// Represents a polymorphic typed column - either an entity or
-    /// a complex type.
+    ///     Represents a polymorphic typed column - either an entity or
+    ///     a complex type.
     /// </summary>
     internal class SimplePolymorphicColumnMap : TypedColumnMap
     {
@@ -17,13 +19,13 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         private readonly Dictionary<object, TypedColumnMap> m_typedColumnMap;
 
         /// <summary>
-        /// Internal constructor
+        ///     Internal constructor
         /// </summary>
-        /// <param name="type">datatype of the column</param>
-        /// <param name="name">column name</param>
-        /// <param name="typeDiscriminator">column map for type discriminator column</param>
-        /// <param name="baseTypeColumns">base list of fields common to all types</param>
-        /// <param name="typeChoices">map from type discriminator value->columnMap</param>
+        /// <param name="type"> datatype of the column </param>
+        /// <param name="name"> column name </param>
+        /// <param name="typeDiscriminator"> column map for type discriminator column </param>
+        /// <param name="baseTypeColumns"> base list of fields common to all types </param>
+        /// <param name="typeChoices"> map from type discriminator value->columnMap </param>
         internal SimplePolymorphicColumnMap(
             TypeUsage type,
             string name,
@@ -32,14 +34,14 @@ namespace System.Data.Entity.Core.Query.InternalTrees
             Dictionary<object, TypedColumnMap> typeChoices)
             : base(type, name, baseTypeColumns)
         {
-            Debug.Assert(typeDiscriminator != null, "Must specify a type discriminator column");
-            Debug.Assert(typeChoices != null, "No type choices for polymorphic column");
+            DebugCheck.NotNull(typeDiscriminator);
+            DebugCheck.NotNull(typeChoices);
             m_typedColumnMap = typeChoices;
             m_typeDiscriminator = typeDiscriminator;
         }
 
         /// <summary>
-        /// Get the type discriminator column
+        ///     Get the type discriminator column
         /// </summary>
         internal SimpleColumnMap TypeDiscriminator
         {
@@ -47,7 +49,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Get the type mapping
+        ///     Get the type mapping
         /// </summary>
         internal Dictionary<object, TypedColumnMap> TypeChoices
         {
@@ -55,11 +57,11 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Visitor Design Pattern
+        ///     Visitor Design Pattern
         /// </summary>
-        /// <typeparam name="TArgType"></typeparam>
-        /// <param name="visitor"></param>
-        /// <param name="arg"></param>
+        /// <typeparam name="TArgType"> </typeparam>
+        /// <param name="visitor"> </param>
+        /// <param name="arg"> </param>
         [DebuggerNonUserCode]
         internal override void Accept<TArgType>(ColumnMapVisitor<TArgType> visitor, TArgType arg)
         {
@@ -67,12 +69,12 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Visitor Design Pattern
+        ///     Visitor Design Pattern
         /// </summary>
-        /// <typeparam name="TResultType"></typeparam>
-        /// <typeparam name="TArgType"></typeparam>
-        /// <param name="visitor"></param>
-        /// <param name="arg"></param>
+        /// <typeparam name="TResultType"> </typeparam>
+        /// <typeparam name="TArgType"> </typeparam>
+        /// <param name="visitor"> </param>
+        /// <param name="arg"> </param>
         [DebuggerNonUserCode]
         internal override TResultType Accept<TResultType, TArgType>(
             ColumnMapVisitorWithResults<TResultType, TArgType> visitor, TArgType arg)
@@ -81,9 +83,9 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Debugging support
+        ///     Debugging support
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         public override string ToString()
         {
             var sb = new StringBuilder();

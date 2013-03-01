@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Data.Entity.Core.Common.Utils;
@@ -7,12 +8,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     using System.Text;
 
     /// <summary>
-    /// This class holds some configuration information for the view generation code.
+    ///     This class holds some configuration information for the view generation code.
     /// </summary>
     internal sealed class ConfigViewGenerator : InternalBase
     {
-        #region Constructors
-
         internal ConfigViewGenerator()
         {
             m_watch = new Stopwatch();
@@ -24,21 +23,17 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             StartWatch();
         }
 
-        #endregion
-
-        #region Fields
-
         private ViewGenTraceLevel m_traceLevel;
         private readonly TimeSpan[] m_breakdownTimes;
         private readonly Stopwatch m_watch;
 
         /// <summary>
-        /// To measure a single thing at a time.
+        ///     To measure a single thing at a time.
         /// </summary>
         private readonly Stopwatch m_singleWatch;
 
         /// <summary>
-        /// Perf op being measured.
+        ///     Perf op being measured.
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private PerfType m_singlePerfOp;
@@ -46,17 +41,13 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         private bool m_enableValidation = true;
         private bool m_generateUpdateViews = true;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// If true then view generation will produce eSQL, otherwise CQTs only.
+        ///     If true then view generation will produce eSQL, otherwise CQTs only.
         /// </summary>
         internal bool GenerateEsql { get; set; }
 
         /// <summary>
-        /// Callers can set elements in this list.
+        ///     Callers can set elements in this list.
         /// </summary>
         internal TimeSpan[] BreakdownTimes
         {
@@ -98,10 +89,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             get { return IsTraceAllowed(ViewGenTraceLevel.Verbose); }
         }
 
-        #endregion
-
-        #region Methods
-
         private void StartWatch()
         {
             m_watch.Start();
@@ -114,7 +101,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Sets time for <paramref name="perfType"/> for the individual timer.
+        ///     Sets time for <paramref name="perfType" /> for the individual timer.
         /// </summary>
         internal void StopSingleWatch(PerfType perfType)
         {
@@ -127,9 +114,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Sets time for <paramref name="perfType"/> since the last call to <see cref="SetTimeForFinishedActivity"/>.
+        ///     Sets time for <paramref name="perfType" /> since the last call to <see cref="SetTimeForFinishedActivity" />.
         /// </summary>
-        /// <param name="perfType"></param>
+        /// <param name="perfType"> </param>
         internal void SetTimeForFinishedActivity(PerfType perfType)
         {
             var timeElapsed = m_watch.Elapsed;
@@ -148,7 +135,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         {
             StringUtil.FormatStringBuilder(builder, "Trace Switch: {0}", m_traceLevel);
         }
-
-        #endregion
     }
 }

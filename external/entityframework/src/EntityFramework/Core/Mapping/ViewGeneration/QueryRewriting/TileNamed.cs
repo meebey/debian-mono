@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 {
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     internal class TileNamed<T_Query> : Tile<T_Query>
         where T_Query : ITileQuery
@@ -9,7 +10,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
         public TileNamed(T_Query namedQuery)
             : base(TileOpKind.Named, namedQuery)
         {
-            Debug.Assert(namedQuery != null);
+            DebugCheck.NotNull((object)namedQuery);
         }
 
         public T_Query NamedQuery

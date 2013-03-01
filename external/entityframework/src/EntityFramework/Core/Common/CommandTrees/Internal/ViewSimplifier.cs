@@ -1,33 +1,29 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
     using System.Linq;
 
     /// <summary>
-    /// Utility class that walks a mapping view and returns a simplified expression with projection
-    /// nodes collapsed. Specifically recognizes the following common pattern in mapping views:
-    /// 
+    ///     Utility class that walks a mapping view and returns a simplified expression with projection
+    ///     nodes collapsed. Specifically recognizes the following common pattern in mapping views:
     ///     outerProject(outerBinding(innerProject(innerBinding, innerNew)), outerProjection)
-    ///     
-    /// Recognizes simple disciminator patterns of the form:
-    /// 
-    ///     select 
-    ///         case when Disc = value1 then value Type1(...)
-    ///         case when Disc = value2 then value Type2(...)
-    ///         ...
-    ///         
-    /// Recognizes redundant case statement of the form:
-    /// 
+    ///     Recognizes simple disciminator patterns of the form:
     ///     select
-    ///         case when (case when Predicate1 then true else false) ...
-    /// 
+    ///     case when Disc = value1 then value Type1(...)
+    ///     case when Disc = value2 then value Type2(...)
+    ///     ...
+    ///     Recognizes redundant case statement of the form:
+    ///     select
+    ///     case when (case when Predicate1 then true else false) ...
     /// </summary>
     internal class ViewSimplifier
     {
@@ -110,14 +106,14 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             var targetSet = (EntitySet)extent;
             var relSets =
                 targetSet.EntityContainer.BaseEntitySets
-                    .Where(es => es.BuiltInTypeKind == BuiltInTypeKind.AssociationSet)
-                    .Cast<AssociationSet>()
-                    .Where(
-                        assocSet =>
-                        assocSet.ElementType.IsForeignKey &&
-                        assocSet.AssociationSetEnds.Any(se => se.EntitySet == targetSet)
+                         .Where(es => es.BuiltInTypeKind == BuiltInTypeKind.AssociationSet)
+                         .Cast<AssociationSet>()
+                         .Where(
+                             assocSet =>
+                             assocSet.ElementType.IsForeignKey &&
+                             assocSet.AssociationSetEnds.Any(se => se.EntitySet == targetSet)
                     )
-                    .ToList();
+                         .ToList();
 
             // If no foreign key association sets that reference the entity set are present, then
             // no further processing is necessary, because FK-based related entity references cannot
@@ -329,7 +325,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
         #region Nested TPH Discriminator simplification
 
         /// <summary>
-        /// Matches the nested TPH discriminator pattern produced by view generation 
+        ///     Matches the nested TPH discriminator pattern produced by view generation
         /// </summary>
         private static readonly Func<DbExpression, bool> _patternNestedTphDiscriminator =
             Patterns.MatchProject(
@@ -374,40 +370,38 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                 );
 
         /// <summary>
-        /// Converts the DbExpression equivalent of:
-        /// 
-        /// SELECT CASE
+        ///     Converts the DbExpression equivalent of:
+        ///     SELECT CASE
         ///     WHEN a._from0 THEN SUBTYPE1()
         ///     ...
         ///     WHEN a._from[n-2] THEN SUBTYPE_n-1()
         ///     ELSE SUBTYPE_n
-        /// FROM
+        ///     FROM
         ///     SELECT
-        ///         b.C1..., b.Cn
-        ///         CASE WHEN b.Discriminator = SUBTYPE1_Value THEN true ELSE false AS _from0
-        ///         ...
-        ///         CASE WHEN b.Discriminator = SUBTYPE_n_Value THEN true ELSE false AS _from[n-1]
+        ///     b.C1..., b.Cn
+        ///     CASE WHEN b.Discriminator = SUBTYPE1_Value THEN true ELSE false AS _from0
+        ///     ...
+        ///     CASE WHEN b.Discriminator = SUBTYPE_n_Value THEN true ELSE false AS _from[n-1]
         ///     FROM TSet AS b
         ///     WHERE b.Discriminator = SUBTYPE1_Value... OR x.Discriminator = SUBTYPE_n_Value
-        /// AS a
-        /// WHERE a._from0... OR a._from[n-1]
-        /// 
-        /// into the DbExpression equivalent of the following, which is matched as a TPH discriminator
-        /// by the <see cref="System.Data.Entity.Core.Mapping.ViewGeneration.GeneratedView"/> class and so allows a <see cref="System.Data.Entity.Core.Mapping.ViewGeneration.DiscriminatorMap"/>
-        /// to be produced for the view, which would not otherwise be possible. Note that C1 through Cn
-        /// are only allowed to be scalars or complex type constructors based on direct property references
-        /// to the store entity set's scalar properties.
-        /// 
-        /// SELECT CASE
+        ///     AS a
+        ///     WHERE a._from0... OR a._from[n-1]
+        ///     into the DbExpression equivalent of the following, which is matched as a TPH discriminator
+        ///     by the <see cref="System.Data.Entity.Core.Mapping.ViewGeneration.GeneratedView" /> class and so allows a
+        ///     <see
+        ///         cref="System.Data.Entity.Core.Mapping.ViewGeneration.DiscriminatorMap" />
+        ///     to be produced for the view, which would not otherwise be possible. Note that C1 through Cn
+        ///     are only allowed to be scalars or complex type constructors based on direct property references
+        ///     to the store entity set's scalar properties.
+        ///     SELECT CASE
         ///     WHEN y.Discriminator = SUBTTYPE1_Value THEN SUBTYPE1()
         ///     ...
         ///     WHEN y.Discriminator = SUBTYPE_n-1_Value THEN SUBTYPE_n-1()
         ///     ELSE SUBTYPE_n()
-        /// FROM
+        ///     FROM
         ///     SELECT x.C1..., x.Cn, Discriminator FROM TSet AS x
-        ///     WHERE x.Discriminator = SUBTYPE1_Value... OR x.Discriminator = SUBTYPE_n_Value 
-        /// AS y
-        ///     
+        ///     WHERE x.Discriminator = SUBTYPE1_Value... OR x.Discriminator = SUBTYPE_n_Value
+        ///     AS y
         /// </summary>
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
@@ -421,9 +415,10 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             var predicates = FlattenOr(booleanColumnFilter.Predicate).ToList();
             var propertyPredicates =
                 predicates.OfType<DbPropertyExpression>()
-                    .Where(
-                        px => px.Instance.ExpressionKind == DbExpressionKind.VariableReference &&
-                              ((DbVariableReferenceExpression)px.Instance).VariableName == booleanColumnFilter.Input.VariableName).ToList();
+                          .Where(
+                              px => px.Instance.ExpressionKind == DbExpressionKind.VariableReference &&
+                                    ((DbVariableReferenceExpression)px.Instance).VariableName == booleanColumnFilter.Input.VariableName)
+                          .ToList();
             if (predicates.Count
                 != propertyPredicates.Count)
             {
@@ -458,11 +453,14 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                         return null;
                     }
                     var casePredicate = (DbCaseExpression)columnVal;
-                    if (casePredicate.When.Count != 1 ||
+                    if (casePredicate.When.Count != 1
+                        ||
                         !TypeSemantics.IsBooleanType(casePredicate.Then[0].ResultType)
-                        || !TypeSemantics.IsBooleanType(casePredicate.Else.ResultType) ||
+                        || !TypeSemantics.IsBooleanType(casePredicate.Else.ResultType)
+                        ||
                         casePredicate.Then[0].ExpressionKind != DbExpressionKind.Constant
-                        || casePredicate.Else.ExpressionKind != DbExpressionKind.Constant ||
+                        || casePredicate.Else.ExpressionKind != DbExpressionKind.Constant
+                        ||
                         (bool)((DbConstantExpression)casePredicate.Then[0]).Value != true
                         || (bool)((DbConstantExpression)casePredicate.Else).Value)
                     {
@@ -473,7 +471,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                     object constValue;
                     if (
                         !TryMatchPropertyEqualsValue(
-                            casePredicate.When[0], rowProjection.Input.VariableName, out comparedProp, out constValue) ||
+                            casePredicate.When[0], rowProjection.Input.VariableName, out comparedProp, out constValue)
+                        ||
                         comparedProp.Property != discriminatorProp
                         ||
                         !discriminatorPredicates.ContainsKey(constValue))
@@ -527,7 +526,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             internal static DbExpression Substitute(
                 DbExpression original, string referencedVariable, Dictionary<string, DbExpression> propertyValues)
             {
-                Debug.Assert(original != null, "Original expression cannot be null");
+                DebugCheck.NotNull(original);
                 var visitor = new ValueSubstituter(referencedVariable, propertyValues);
                 return visitor.VisitExpression(original);
             }
@@ -537,8 +536,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             private ValueSubstituter(string varName, Dictionary<string, DbExpression> replValues)
             {
-                Debug.Assert(varName != null, "Variable name cannot be null");
-                Debug.Assert(replValues != null, "Replacement values cannot be null");
+                DebugCheck.NotNull(varName);
+                DebugCheck.NotNull(replValues);
 
                 variableName = varName;
                 replacements = replValues;
@@ -546,10 +545,13 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override DbExpression Visit(DbPropertyExpression expression)
             {
+                Check.NotNull(expression, "expression");
+
                 DbExpression result = null;
 
                 DbExpression replacementValue;
-                if (expression.Instance.ExpressionKind == DbExpressionKind.VariableReference &&
+                if (expression.Instance.ExpressionKind == DbExpressionKind.VariableReference
+                    &&
                     (((DbVariableReferenceExpression)expression.Instance).VariableName == variableName)
                     &&
                     replacements.TryGetValue(expression.Property.Name, out replacementValue))
@@ -569,7 +571,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
         #region Case Statement Simplification
 
         /// <summary>
-        /// Matches any Case expression 
+        ///     Matches any Case expression
         /// </summary>
         private static readonly Func<DbExpression, bool> _patternCase = Patterns.MatchKind(DbExpressionKind.Case);
 
@@ -644,7 +646,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
         #region Nested Projection Collapsing
 
         /// <summary>
-        /// Determines if an expression is of the form outerProject(outerProjection(innerProject(innerNew)))
+        ///     Determines if an expression is of the form outerProject(outerProjection(innerProject(innerNew)))
         /// </summary>
         private static readonly Func<DbExpression, bool> _patternCollapseNestedProjection =
             Patterns.MatchProject(
@@ -656,7 +658,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
                 );
 
         /// <summary>
-        /// Collapses outerProject(outerProjection(innerProject(innerNew)))
+        ///     Collapses outerProject(outerProjection(innerProject(innerNew)))
         /// </summary>
         private static DbExpression CollapseNestedProjection(DbExpression expression)
         {
@@ -697,41 +699,29 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
         }
 
         /// <summary>
-        /// This expression visitor supports collapsing a nested projection matching the pattern described above.
-        /// 
-        /// For instance:
-        ///
+        ///     This expression visitor supports collapsing a nested projection matching the pattern described above.
+        ///     For instance:
         ///     select T.a as x, T.b as y, true as z from (select E.a as x, E.b as y from Extent E)
-        ///
-        /// resolves to:
-        ///
+        ///     resolves to:
         ///     select E.a, E.b, true as z from Extent E
-        ///
-        /// In general, 
-        ///
+        ///     In general,
         ///     outerProject(
-        ///         outerBinding(
-        ///             innerProject(innerBinding, innerNew)
-        ///         ), 
-        ///         outerNew)
-        ///
-        /// resolves to:
-        ///
+        ///     outerBinding(
+        ///     innerProject(innerBinding, innerNew)
+        ///     ),
+        ///     outerNew)
+        ///     resolves to:
         ///     replacementOuterProject(
-        ///         innerBinding, 
-        ///         replacementOuterNew)
-        ///
-        /// The outer projection is bound to the inner input source (outerBinding -> innerBinding) and
-        /// the outer new instance expression has its properties remapped to the inner new instance
-        /// expression member expressions.
-        /// 
-        /// This replacer is used to simplify argument value in a new instance expression OuterNew
-        /// from an expression of the form:
-        ///
-        ///      outerProject(outerBinding(innerProject(innerBinding, innerNew)), outerProjection)
-        ///
-        /// The replacer collapses the outer project terms to point at the innerNew expression.
-        /// Where possible, VarRef_outer.Property_outer is collapsed to VarRef_inner.Property.
+        ///     innerBinding,
+        ///     replacementOuterNew)
+        ///     The outer projection is bound to the inner input source (outerBinding -> innerBinding) and
+        ///     the outer new instance expression has its properties remapped to the inner new instance
+        ///     expression member expressions.
+        ///     This replacer is used to simplify argument value in a new instance expression OuterNew
+        ///     from an expression of the form:
+        ///     outerProject(outerBinding(innerProject(innerBinding, innerNew)), outerProjection)
+        ///     The replacer collapses the outer project terms to point at the innerNew expression.
+        ///     Where possible, VarRef_outer.Property_outer is collapsed to VarRef_inner.Property.
         /// </summary>
         private class ProjectionCollapser : DefaultExpressionVisitor
         {
@@ -758,6 +748,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override DbExpression Visit(DbPropertyExpression property)
             {
+                Check.NotNull(property, "property");
+
                 // check for a property of the outer projection binding (that can be remapped)
                 if (property.Instance.ExpressionKind == DbExpressionKind.VariableReference
                     &&
@@ -770,6 +762,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
 
             public override DbExpression Visit(DbVariableReferenceExpression varRef)
             {
+                Check.NotNull(varRef, "varRef");
+
                 // if we encounter an unsubstitutued var ref, give up...
                 if (IsOuterBindingVarRef(varRef))
                 {
@@ -779,7 +773,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             }
 
             /// <summary>
-            /// Heuristic check to make sure the var ref is the one we're supposed to be replacing.
+            ///     Heuristic check to make sure the var ref is the one we're supposed to be replacing.
             /// </summary>
             private bool IsOuterBindingVarRef(DbVariableReferenceExpression varRef)
             {
@@ -787,7 +781,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees.Internal
             }
 
             /// <summary>
-            /// Returns a value indicating that the transformation has failed.
+            ///     Returns a value indicating that the transformation has failed.
             /// </summary>
             internal bool IsDoomed
             {

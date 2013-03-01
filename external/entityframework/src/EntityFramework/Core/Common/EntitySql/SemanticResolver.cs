@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.EntitySql
 {
     using System.Collections.Generic;
@@ -7,15 +8,17 @@ namespace System.Data.Entity.Core.Common.EntitySql
     using System.Data.Entity.Core.Common.EntitySql.AST;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
 
     /// <summary>
-    /// Implements the semantic resolver in the context of a metadata workspace and typespace.
+    ///     Implements the semantic resolver in the context of a metadata workspace and typespace.
     /// </summary>
-    /// <remarks>not thread safe</remarks>
+    /// <remarks>
+    ///     not thread safe
+    /// </remarks>
     internal sealed class SemanticResolver
     {
         #region Fields
@@ -35,7 +38,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Constructors
 
         /// <summary>
-        /// Creates new instance of <see cref="SemanticResolver"/>.
+        ///     Creates new instance of <see cref="SemanticResolver" />.
         /// </summary>
         internal static SemanticResolver Create(
             Perspective perspective,
@@ -43,8 +46,8 @@ namespace System.Data.Entity.Core.Common.EntitySql
             IEnumerable<DbParameterReferenceExpression> parameters,
             IEnumerable<DbVariableReferenceExpression> variables)
         {
-            Contract.Requires(perspective != null);
-            Contract.Requires(parserOptions != null);
+            DebugCheck.NotNull(perspective);
+            DebugCheck.NotNull(parserOptions);
 
             return new SemanticResolver(
                 parserOptions,
@@ -54,7 +57,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Creates a copy of <see cref="SemanticResolver"/> with clean scopes and shared inline function definitions inside of the type resolver.
+        ///     Creates a copy of <see cref="SemanticResolver" /> with clean scopes and shared inline function definitions inside of the type resolver.
         /// </summary>
         internal SemanticResolver CloneForInlineFunctionConversion()
         {
@@ -96,10 +99,12 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Validates that the specified parameters have valid, non-duplicated names
+        ///     Validates that the specified parameters have valid, non-duplicated names
         /// </summary>
-        /// <param name="paramDefs">The set of query parameters</param>
-        /// <returns>A valid dictionary that maps parameter names to <see cref="DbParameterReferenceExpression"/>s using the current NameComparer</returns>
+        /// <param name="paramDefs"> The set of query parameters </param>
+        /// <returns>
+        ///     A valid dictionary that maps parameter names to <see cref="DbParameterReferenceExpression" /> s using the current NameComparer
+        /// </returns>
         private static Dictionary<string, DbParameterReferenceExpression> ProcessParameters(
             IEnumerable<DbParameterReferenceExpression> paramDefs, ParserOptions parserOptions)
         {
@@ -125,10 +130,12 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Validates that the specified variables have valid, non-duplicated names
+        ///     Validates that the specified variables have valid, non-duplicated names
         /// </summary>
-        /// <param name="varDefs">The set of free variables</param>
-        /// <returns>A valid dictionary that maps variable names to <see cref="DbVariableReferenceExpression"/>s using the current NameComparer</returns>
+        /// <param name="varDefs"> The set of free variables </param>
+        /// <returns>
+        ///     A valid dictionary that maps variable names to <see cref="DbVariableReferenceExpression" /> s using the current NameComparer
+        /// </returns>
         private static Dictionary<string, DbVariableReferenceExpression> ProcessVariables(
             IEnumerable<DbVariableReferenceExpression> varDefs, ParserOptions parserOptions)
         {
@@ -158,7 +165,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Properties
 
         /// <summary>
-        /// Returns ordinary command parameters. Empty dictionary in case of no parameters.
+        ///     Returns ordinary command parameters. Empty dictionary in case of no parameters.
         /// </summary>
         internal Dictionary<string, DbParameterReferenceExpression> Parameters
         {
@@ -166,7 +173,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns command free variables. Empty dictionary in case of no variables.
+        ///     Returns command free variables. Empty dictionary in case of no variables.
         /// </summary>
         internal Dictionary<string, DbVariableReferenceExpression> Variables
         {
@@ -174,7 +181,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// TypeSpace/Metadata/Perspective dependent type resolver.
+        ///     TypeSpace/Metadata/Perspective dependent type resolver.
         /// </summary>
         internal TypeResolver TypeResolver
         {
@@ -182,7 +189,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns current Parser Options.
+        ///     Returns current Parser Options.
         /// </summary>
         internal ParserOptions ParserOptions
         {
@@ -190,7 +197,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns the current string comparer.
+        ///     Returns the current string comparer.
         /// </summary>
         internal StringComparer NameComparer
         {
@@ -198,7 +205,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns the list of scope regions: outer followed by inner.
+        ///     Returns the list of scope regions: outer followed by inner.
         /// </summary>
         internal IEnumerable<ScopeRegion> ScopeRegions
         {
@@ -206,7 +213,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns the current scope region.
+        ///     Returns the current scope region.
         /// </summary>
         internal ScopeRegion CurrentScopeRegion
         {
@@ -214,7 +221,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns the current scope.
+        ///     Returns the current scope.
         /// </summary>
         internal Scope CurrentScope
         {
@@ -222,7 +229,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns index of the current scope.
+        ///     Returns index of the current scope.
         /// </summary>
         internal int CurrentScopeIndex
         {
@@ -230,7 +237,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns the current group aggregate info when processing group aggregate argument.
+        ///     Returns the current group aggregate info when processing group aggregate argument.
         /// </summary>
         internal GroupAggregateInfo CurrentGroupAggregateInfo
         {
@@ -242,8 +249,8 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region GetExpressionFromScopeEntry
 
         /// <summary>
-        /// Returns the appropriate expression from a given scope entry.
-        /// May return null for scope entries like <see cref="InvalidGroupInputRefScopeEntry"/>.
+        ///     Returns the appropriate expression from a given scope entry.
+        ///     May return null for scope entries like <see cref="InvalidGroupInputRefScopeEntry" />.
         /// </summary>
         private DbExpression GetExpressionFromScopeEntry(ScopeEntry scopeEntry, int scopeIndex, string varName, ErrorContext errCtx)
         {
@@ -418,7 +425,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
 
         internal ExpressionResolution ResolveSimpleName(string name, bool leftHandSideOfMemberAccess, ErrorContext errCtx)
         {
-            Debug.Assert(!String.IsNullOrEmpty(name), "name must not be null or empty");
+            DebugCheck.NotEmpty(name);
 
             //
             // Try resolving as a scope entry.
@@ -491,7 +498,8 @@ namespace System.Data.Entity.Core.Common.EntitySql
                 //
                 var defaultEntityContainer = TypeResolver.Perspective.GetDefaultContainer();
                 ExpressionResolution defaultEntityContainerResolution;
-                if (defaultEntityContainer != null &&
+                if (defaultEntityContainer != null
+                    &&
                     TryResolveEntityContainerMemberAccess(defaultEntityContainer, name, out defaultEntityContainerResolution)
                     &&
                     defaultEntityContainerResolution.ExpressionClass == ExpressionResolutionClass.MetadataMember)
@@ -503,7 +511,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Performs scope lookup returning the scope entry and its index.
+        ///     Performs scope lookup returning the scope entry and its index.
         /// </summary>
         private bool TryScopeLookup(string key, out ScopeEntry scopeEntry, out int scopeIndex)
         {
@@ -534,7 +542,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Resolve property access
 
         /// <summary>
-        /// Resolve property <paramref name="name"/> off the <paramref name="valueExpr"/>.
+        ///     Resolve property <paramref name="name" /> off the <paramref name="valueExpr" />.
         /// </summary>
         internal ValueExpression ResolvePropertyAccess(DbExpression valueExpr, string name, ErrorContext errCtx)
         {
@@ -563,11 +571,11 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Try resolving <paramref name="name"/> as a property of the value returned by the <paramref name="valueExpr"/>.
+        ///     Try resolving <paramref name="name" /> as a property of the value returned by the <paramref name="valueExpr" />.
         /// </summary>
         private bool TryResolveAsPropertyAccess(DbExpression valueExpr, string name, out DbExpression propertyExpr)
         {
-            Debug.Assert(valueExpr != null, "valueExpr != null");
+            DebugCheck.NotNull(valueExpr);
 
             propertyExpr = null;
 
@@ -589,11 +597,11 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// If <paramref name="valueExpr"/> returns a reference, then deref and try resolving <paramref name="name"/> as a property of the dereferenced value.
+        ///     If <paramref name="valueExpr" /> returns a reference, then deref and try resolving <paramref name="name" /> as a property of the dereferenced value.
         /// </summary>
         private bool TryResolveAsRefPropertyAccess(DbExpression valueExpr, string name, ErrorContext errCtx, out DbExpression propertyExpr)
         {
-            Debug.Assert(valueExpr != null, "valueExpr != null");
+            DebugCheck.NotNull(valueExpr);
 
             propertyExpr = null;
 
@@ -621,7 +629,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Resolve entity container member access
 
         /// <summary>
-        /// Resolve entity set or function import <paramref name="name"/> in the <paramref name="entityContainer"/>
+        ///     Resolve entity set or function import <paramref name="name" /> in the <paramref name="entityContainer" />
         /// </summary>
         internal ExpressionResolution ResolveEntityContainerMemberAccess(EntityContainer entityContainer, string name, ErrorContext errCtx)
         {
@@ -666,7 +674,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Resolve metadata member access
 
         /// <summary>
-        /// Resolve namespace, type or function <paramref name="name"/> in the <paramref name="metadataMember"/>
+        ///     Resolve namespace, type or function <paramref name="name" /> in the <paramref name="metadataMember" />
         /// </summary>
         internal MetadataMember ResolveMetadataMemberAccess(MetadataMember metadataMember, string name, ErrorContext errCtx)
         {
@@ -680,7 +688,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Resolve internal aggregate name / alternative group key name
 
         /// <summary>
-        /// Try resolving an internal aggregate name.
+        ///     Try resolving an internal aggregate name.
         /// </summary>
         internal bool TryResolveInternalAggregateName(string name, ErrorContext errCtx, out DbExpression dbExpression)
         {
@@ -704,7 +712,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Try resolving multipart identifier as an alternative name of a group key (see SemanticAnalyzer.ProcessGroupByClause(...) for more info).
+        ///     Try resolving multipart identifier as an alternative name of a group key (see SemanticAnalyzer.ProcessGroupByClause(...) for more info).
         /// </summary>
         internal bool TryResolveDotExprAsGroupKeyAlternativeName(DotExpr dotExpr, out ValueExpression groupKeyResolution)
         {
@@ -713,7 +721,8 @@ namespace System.Data.Entity.Core.Common.EntitySql
             string[] names;
             ScopeEntry scopeEntry;
             int scopeIndex;
-            if (IsInAnyGroupScope() &&
+            if (IsInAnyGroupScope()
+                &&
                 dotExpr.IsMultipartIdentifier(out names)
                 &&
                 TryScopeLookup(TypeResolver.GetFullName(names), out scopeEntry, out scopeIndex))
@@ -723,7 +732,8 @@ namespace System.Data.Entity.Core.Common.EntitySql
                 //
                 // Accept only if names[] match alternative name part by part.
                 //
-                if (iGetAlternativeName != null && iGetAlternativeName.AlternativeName != null
+                if (iGetAlternativeName != null
+                    && iGetAlternativeName.AlternativeName != null
                     &&
                     names.SequenceEqual(iGetAlternativeName.AlternativeName, NameComparer))
                 {
@@ -748,7 +758,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Name generation utils (GenerateInternalName, CreateNewAlias, InferAliasName)
 
         /// <summary>
-        /// Generates unique internal name.
+        ///     Generates unique internal name.
         /// </summary>
         internal string GenerateInternalName(string hint)
         {
@@ -757,7 +767,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Creates a new alias name based on the <paramref name="expr"/> information.
+        ///     Creates a new alias name based on the <paramref name="expr" /> information.
         /// </summary>
         private string CreateNewAlias(DbExpression expr)
         {
@@ -783,8 +793,11 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns alias name from <paramref name="aliasedExpr"/> ast node if it contains an alias,
-        /// otherwise creates a new alias name based on the <paramref name="aliasedExpr"/>.Expr or <paramref name="convertedExpression"/> information.
+        ///     Returns alias name from <paramref name="aliasedExpr" /> ast node if it contains an alias,
+        ///     otherwise creates a new alias name based on the <paramref name="aliasedExpr" />.Expr or
+        ///     <paramref
+        ///         name="convertedExpression" />
+        ///     information.
         /// </summary>
         internal string InferAliasName(AliasedExpr aliasedExpr, DbExpression convertedExpression)
         {
@@ -815,7 +828,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Scope/ScopeRegion utils
 
         /// <summary>
-        /// Enters a new scope region.
+        ///     Enters a new scope region.
         /// </summary>
         internal IDisposable EnterScopeRegion()
         {
@@ -861,7 +874,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Rollback all scopes above the <paramref name="scopeIndex"/>.
+        ///     Rollback all scopes above the <paramref name="scopeIndex" />.
         /// </summary>
         internal void RollbackToScope(int scopeIndex)
         {
@@ -869,7 +882,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Enter a new scope.
+        ///     Enter a new scope.
         /// </summary>
         internal void EnterScope()
         {
@@ -877,7 +890,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Leave the current scope.
+        ///     Leave the current scope.
         /// </summary>
         internal void LeaveScope()
         {
@@ -885,7 +898,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns true if any of the ScopeRegions from the closest to the outermost has IsAggregating = true
+        ///     Returns true if any of the ScopeRegions from the closest to the outermost has IsAggregating = true
         /// </summary>
         internal bool IsInAnyGroupScope()
         {
@@ -916,7 +929,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Sets the scope region correlation flag based on the scope index of the referenced scope entry.
+        ///     Sets the scope region correlation flag based on the scope index of the referenced scope entry.
         /// </summary>
         private void SetScopeRegionCorrelationFlag(int scopeIndex)
         {
@@ -928,7 +941,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         #region Group aggregate utils
 
         /// <summary>
-        /// Enters processing of a function group aggregate.
+        ///     Enters processing of a function group aggregate.
         /// </summary>
         internal IDisposable EnterFunctionAggregate(MethodExpr methodExpr, ErrorContext errCtx, out FunctionAggregateInfo aggregateInfo)
         {
@@ -937,7 +950,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Enters processing of a group partition aggregate.
+        ///     Enters processing of a group partition aggregate.
         /// </summary>
         internal IDisposable EnterGroupPartition(
             GroupPartitionExpr groupPartitionExpr, ErrorContext errCtx, out GroupPartitionInfo aggregateInfo)
@@ -947,7 +960,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Enters processing of a group partition aggregate.
+        ///     Enters processing of a group partition aggregate.
         /// </summary>
         internal IDisposable EnterGroupKeyDefinition(
             GroupAggregateKind aggregateKind, ErrorContext errCtx, out GroupKeyAggregateInfo aggregateInfo)

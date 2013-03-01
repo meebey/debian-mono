@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Data.Entity.Core.Common;
@@ -7,46 +8,35 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
     using System.Text;
 
     /// <summary>
-    /// A class that denotes a constant value that can be stored in a multiconstant or in a projected slot of a <see cref="CellQuery"/>.
+    ///     A class that denotes a constant value that can be stored in a multiconstant or in a projected slot of a
+    ///     <see
+    ///         cref="CellQuery" />
+    ///     .
     /// </summary>
     internal sealed class ScalarConstant : Constant
     {
-        #region Constructor
-
         /// <summary>
-        /// Creates a scalar constant corresponding to the <paramref name="value"/>.
+        ///     Creates a scalar constant corresponding to the <paramref name="value" />.
         /// </summary>
         internal ScalarConstant(object value)
         {
-            Debug.Assert(value != null, "Scalar const value must not be null.");
+            DebugCheck.NotNull(value);
             m_scalar = value;
         }
 
-        #endregion
-
-        #region Fields
-
         /// <summary>
-        /// The actual value of the scalar.
+        ///     The actual value of the scalar.
         /// </summary>
         private readonly object m_scalar;
-
-        #endregion
-
-        #region Properties
 
         internal object Value
         {
             get { return m_scalar; }
         }
-
-        #endregion
-
-        #region Methods
 
         internal override bool IsNull()
         {
@@ -70,7 +60,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
         internal override StringBuilder AsEsql(StringBuilder builder, MemberPath outputMember, string blockAlias)
         {
-            Debug.Assert(outputMember.LeafEdmMember != null, "Constant can't correspond to an empty member path.");
+            DebugCheck.NotNull(outputMember.LeafEdmMember);
             var modelTypeUsage = Helper.GetModelTypeUsage(outputMember.LeafEdmMember);
             var modelType = modelTypeUsage.EdmType;
 
@@ -138,7 +128,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
         internal override DbExpression AsCqt(DbExpression row, MemberPath outputMember)
         {
-            Debug.Assert(outputMember.LeafEdmMember != null, "Constant can't correspond to an empty member path.");
+            DebugCheck.NotNull(outputMember.LeafEdmMember);
             var modelTypeUsage = Helper.GetModelTypeUsage(outputMember.LeafEdmMember);
             return modelTypeUsage.Constant(m_scalar);
         }
@@ -178,7 +168,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 builder.Append(StringUtil.FormatInvariant("'{0}'", m_scalar));
             }
         }
-
-        #endregion
     }
 }

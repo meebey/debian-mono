@@ -121,10 +121,6 @@
     <value>The argument '{0}' cannot be null, empty or contain only white space.</value>
     <comment>## ExceptionType=ArgumentException</comment>
   </data>
-  <data name="PreconditionFailed" xml:space="preserve">
-    <value>The precondition '{0}' failed. {1}</value>
-    <comment>## ExceptionType=ArgumentException</comment>
-  </data>
   <data name="SqlProvider_GeographyValueNotSqlCompatible" xml:space="preserve">
     <value>The specified DbGeography value could not be converted to a SQL Server compatible value.</value>
   </data>
@@ -150,7 +146,7 @@
     <value>Could not determine storage version; a valid storage connection or a version hint is required.</value>
   </data>
   <data name="SqlProvider_NeedSqlDataReader" xml:space="preserve">
-    <value>Spatial readers can only be produced from readers of type SqlDataReader.   A reader of type {0} was provided.</value>
+    <value>Spatial readers can only be produced from readers of type SqlDataReader. A reader of type {0} was provided.</value>
   </data>
   <data name="SqlProvider_Sql2008RequiredForSpatial" xml:space="preserve">
     <value>Spatial types and functions are only supported by SQL Server 2008 or later.</value>
@@ -250,5 +246,8 @@
   </data>
   <data name="SqlSpatialservices_CouldNotCreateWellKnownGeometryValueNoWkbOrWkt" xml:space="preserve">
     <value>The specified DbGeometry value did not provide either Well-Known Binary or Well-Known Text.</value>
+  </data>
+  <data name="TransientExceptionDetected" xml:space="preserve">
+    <value>An exception has been raised that is likely due to a transient failure. If you are connecting to a SQL Azure database consider using the SQL Azure executionStrategy, see SqlAzureDbConfiguration.</value>
   </data>
 </root>

@@ -1,9 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Utilities
 {
     using System.Configuration;
-    using System.Data.Entity;
-    using System.Data.Entity.Migrations.Utilities;
     using System.IO;
     using System.Linq;
     using Xunit;
@@ -26,25 +25,25 @@ namespace System.Data.Entity.Migrations
                 var updatedConfigurationFile = new ConfigurationFileUpdater().Update(configurationFile);
                 Assert.True(File.Exists(updatedConfigurationFile));
 
-
                 try
                 {
                     var updatedConfiguration = File.ReadAllText(updatedConfigurationFile);
                     var entityFrameworkAssemblyName = typeof(DbContext).Assembly.GetName();
 
                     Assert.Equal(
-                            @"<?xml version=""1.0"" encoding=""utf-8""?>
+                        @"<?xml version=""1.0"" encoding=""utf-8""?>
 <configuration>
   <runtime>
     <assemblyBinding xmlns=""urn:schemas-microsoft-com:asm.v1"">
       <dependentAssembly>
         <assemblyIdentity name=""EntityFramework"" culture=""neutral"" publicKeyToken=""b77a5c561934e089"" />
-        <codeBase version=""" + entityFrameworkAssemblyName.Version + @""" href=""" + entityFrameworkAssemblyName.CodeBase + @""" />
+        <codeBase version=""" + entityFrameworkAssemblyName.Version + @""" href="""
+                        + entityFrameworkAssemblyName.CodeBase + @""" />
       </dependentAssembly>
     </assemblyBinding>
   </runtime>
 </configuration>",
-                            updatedConfiguration);
+                        updatedConfiguration);
                 }
                 finally
                 {
@@ -72,18 +71,19 @@ namespace System.Data.Entity.Migrations
                 var entityFrameworkAssemblyName = typeof(DbContext).Assembly.GetName();
 
                 Assert.Equal(
-                        @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    @"<?xml version=""1.0"" encoding=""utf-8""?>
 <configuration>
   <runtime>
     <assemblyBinding xmlns=""urn:schemas-microsoft-com:asm.v1"">
       <dependentAssembly>
         <assemblyIdentity name=""EntityFramework"" culture=""neutral"" publicKeyToken=""b77a5c561934e089"" />
-        <codeBase version=""" + entityFrameworkAssemblyName.Version + @""" href=""" + entityFrameworkAssemblyName.CodeBase + @""" />
+        <codeBase version=""" + entityFrameworkAssemblyName.Version + @""" href="""
+                    + entityFrameworkAssemblyName.CodeBase + @""" />
       </dependentAssembly>
     </assemblyBinding>
   </runtime>
 </configuration>",
-                        updatedConfiguration);
+                    updatedConfiguration);
             }
             finally
             {
@@ -126,7 +126,9 @@ namespace System.Data.Entity.Migrations
                             },
                         ConfigurationUserLevel.None);
 
-                    Assert.True(config.ConnectionStrings.ConnectionStrings.Cast<ConnectionStringSettings>().Any(css => css.Name == "MyConnectionString"));
+                    Assert.True(
+                        config.ConnectionStrings.ConnectionStrings.Cast<ConnectionStringSettings>().Any(
+                            css => css.Name == "MyConnectionString"));
                 }
                 finally
                 {

@@ -45,7 +45,7 @@ DIST_COMMON = README $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(srcdir)/mono-lineeditor.pc.in $(srcdir)/mono-nunit.pc.in \
 	$(srcdir)/mono-options.pc.in $(srcdir)/mono.pc.in \
 	$(srcdir)/mono.web.pc.in $(srcdir)/monodoc.pc.in \
-	$(srcdir)/monosgen-2.pc.in \
+	$(srcdir)/monosgen-2.pc.in $(srcdir)/reactive.pc.in \
 	$(srcdir)/system.web.extensions.design_1.0.pc.in \
 	$(srcdir)/system.web.extensions_1.0.pc.in \
 	$(srcdir)/system.web.mvc.pc.in $(srcdir)/system.web.mvc2.pc.in \
@@ -68,7 +68,8 @@ CONFIG_CLEAN_FILES = mint.pc mono-2.pc monosgen-2.pc mono.pc \
 	monodoc.pc mono.web.pc dotnet.pc dotnet35.pc wcf.pc cecil.pc \
 	system.web.extensions_1.0.pc \
 	system.web.extensions.design_1.0.pc system.web.mvc.pc \
-	system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc config
+	system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc \
+	reactive.pc config
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
@@ -348,7 +349,7 @@ EXTRA_DIST = \
 	mono.pc.in mono-2.pc.in monosgen-2.pc.in mint.pc.in dotnet.pc.in dotnet35.pc.in wcf.pc.in monodoc.pc.in \
 	mono-nunit.pc.in mono-cairo.pc.in mono-options.pc.in cecil.pc.in \
 	mono-lineeditor.pc.in system.web.extensions_1.0.pc.in system.web.extensions.design_1.0.pc.in\
-	dtrace-prelink.sh mono.web.pc.in system.web.mvc.pc.in system.web.mvc2.pc.in system.web.mvc3.pc.in aspnetwebstack.pc.in \
+	dtrace-prelink.sh mono.web.pc.in system.web.mvc.pc.in system.web.mvc2.pc.in system.web.mvc3.pc.in aspnetwebstack.pc.in reactive.pc.in \
 	net_1_1/machine.config \
 	gdb/mono-gdb.py \
 	gdb/gdb-python.diff
@@ -357,14 +358,14 @@ pkgconfigdir = $(libdir)/pkgconfig
 @SUPPORT_SGEN_FALSE@SGENPCFILE = 
 @SUPPORT_SGEN_TRUE@SGENPCFILE = monosgen-2.pc
 @INTERP_SUPPORTED_FALSE@@JIT_SUPPORTED_TRUE@pkgconfig_DATA = mono.pc mono-2.pc dotnet.pc dotnet35.pc wcf.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc system.web.extensions_1.0.pc \
-@INTERP_SUPPORTED_FALSE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc $(SGENPCFILE)
+@INTERP_SUPPORTED_FALSE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc reactive.pc $(SGENPCFILE)
 
 @INTERP_SUPPORTED_TRUE@@JIT_SUPPORTED_TRUE@pkgconfig_DATA = mono.pc mono-2.pc mint.pc dotnet.pc dotnet35.pc wcf.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc system.web.extensions_1.0.pc \
-@INTERP_SUPPORTED_TRUE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc $(SGENPCFILE)
+@INTERP_SUPPORTED_TRUE@@JIT_SUPPORTED_TRUE@		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc reactive.pc $(SGENPCFILE)
 
 @JIT_SUPPORTED_FALSE@pkgconfig_DATA = mint.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc
 DISTCLEANFILES = mono-2.pc mono.pc mint.pc dotnet.pc dotnet35.pc wcf.pc mono-nunit.pc mono-cairo.pc mono-options.pc cecil.pc monodoc.pc mono-lineeditor.pc system.web.extensions_1.0.pc \
-		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc $(SGENPCFILE) mono-sgen-gdb.py
+		system.web.extensions.design_1.0.pc mono.web.pc system.web.mvc.pc system.web.mvc2.pc system.web.mvc3.pc aspnetwebstack.pc reactive.pc $(SGENPCFILE) mono-sgen-gdb.py
 
 mono_DATA = config \
 	     browscap.ini
@@ -443,6 +444,8 @@ system.web.mvc2.pc: $(top_builddir)/config.status $(srcdir)/system.web.mvc2.pc.i
 system.web.mvc3.pc: $(top_builddir)/config.status $(srcdir)/system.web.mvc3.pc.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 aspnetwebstack.pc: $(top_builddir)/config.status $(srcdir)/aspnetwebstack.pc.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+reactive.pc: $(top_builddir)/config.status $(srcdir)/reactive.pc.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 config: $(top_builddir)/config.status $(srcdir)/config.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@

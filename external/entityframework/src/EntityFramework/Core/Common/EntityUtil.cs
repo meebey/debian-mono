@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core
 {
     using System.Collections.Generic;
@@ -7,16 +8,12 @@ namespace System.Data.Entity.Core
     using System.Data.Entity.Core.Objects;
     using System.Data.Entity.Core.Objects.Internal;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Data.SqlTypes;
-    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
-    using System.IO;
     using System.Linq;
     using System.Reflection;
-    using System.Runtime.Versioning;
-    using System.Security;
-    using System.Security.Permissions;
     using System.Text;
 
     [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
@@ -31,7 +28,7 @@ namespace System.Data.Entity.Core
             CompareOptions.IgnoreKanaType | CompareOptions.IgnoreWidth | CompareOptions.IgnoreCase;
 
         /// <summary>
-        /// Zips two enumerables together (e.g., given {1, 3, 5} and {2, 4, 6} returns {{1, 2}, {3, 4}, {5, 6}})
+        ///     Zips two enumerables together (e.g., given {1, 3, 5} and {2, 4, 6} returns {{1, 2}, {3, 4}, {5, 6}})
         /// </summary>
         internal static IEnumerable<KeyValuePair<T1, T2>> Zip<T1, T2>(this IEnumerable<T1> first, IEnumerable<T2> second)
         {
@@ -54,7 +51,7 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// Returns true if the type implements ICollection<>
+        ///     Returns true if the type implements ICollection<>
         /// </summary>
         internal static bool IsAnICollection(Type type)
         {
@@ -63,13 +60,13 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// Given a type that represents a collection, determine if the type implements ICollection&lt&gt, and if
-        /// so return the element type of the collection.  Currently, if the collection implements ICollection&lt&gt
-        /// multiple times with different types, then we will return false since this is not supported.
+        ///     Given a type that represents a collection, determine if the type implements ICollection&lt&gt, and if
+        ///     so return the element type of the collection.  Currently, if the collection implements ICollection&lt&gt
+        ///     multiple times with different types, then we will return false since this is not supported.
         /// </summary>
-        /// <param name="collectionType">the collection type to examine</param>
-        /// <param name="elementType">the type of element</param>
-        /// <returns>true if the collection implement ICollection&lt&gt; false otherwise</returns>
+        /// <param name="collectionType"> the collection type to examine </param>
+        /// <param name="elementType"> the type of element </param>
+        /// <returns> true if the collection implement ICollection &lt &gt; false otherwise </returns>
         internal static bool TryGetICollectionElementType(Type collectionType, out Type elementType)
         {
             elementType = null;
@@ -97,8 +94,8 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// Helper method to determine the element type of the collection contained by the given property.
-        /// If an unambiguous element type cannot be found, then an InvalidOperationException is thrown.
+        ///     Helper method to determine the element type of the collection contained by the given property.
+        ///     If an unambiguous element type cannot be found, then an InvalidOperationException is thrown.
         /// </summary>
         internal static Type GetCollectionElementType(Type propertyType)
         {
@@ -114,18 +111,23 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// This is used when we need to determine a concrete collection type given some type that may be
-        /// abstract or an interface.
+        ///     This is used when we need to determine a concrete collection type given some type that may be
+        ///     abstract or an interface.
         /// </summary>
         /// <remarks>
-        /// The rules are:
-        /// If the collection is defined as a concrete type with a publicly accessible parameterless constructor, then create an instance of that type
-        /// Else, if HashSet<T> can be assigned to the type, then use HashSet<T>
-        /// Else, if List<T> can be assigned to the type, then use List<T>
-        /// Else, throw a nice exception.
+        ///     The rules are:
+        ///     If the collection is defined as a concrete type with a publicly accessible parameterless constructor, then create an instance of that type
+        ///     Else, if HashSet
+        ///     <T>
+        ///         can be assigned to the type, then use HashSet
+        ///         <T>
+        ///             Else, if List
+        ///             <T>
+        ///                 can be assigned to the type, then use List
+        ///                 <T>Else, throw a nice exception.
         /// </remarks>
-        /// <param name="requestedType">The type of collection that was requested</param>
-        /// <returns>The type to instantiate, or null if we cannot find a supported type to instantiate</returns>
+        /// <param name="requestedType"> The type of collection that was requested </param>
+        /// <returns> The type to instantiate, or null if we cannot find a supported type to instantiate </returns>
         internal static Type DetermineCollectionType(Type requestedType)
         {
             const BindingFlags constructorBinding = BindingFlags.Public | BindingFlags.Instance | BindingFlags.CreateInstance;
@@ -162,11 +164,11 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// Returns the Type object that should be used to identify the type in the o-space
-        /// metadata.  This is normally just the type that is passed in, but if the type
-        /// is a proxy that we have generated, then its base type is returned instead.
-        /// This ensures that both proxy entities and normal entities are treated as the
-        /// same kind of entity in the metadata and places where the metadata is used.
+        ///     Returns the Type object that should be used to identify the type in the o-space
+        ///     metadata.  This is normally just the type that is passed in, but if the type
+        ///     is a proxy that we have generated, then its base type is returned instead.
+        ///     This ensures that both proxy entities and normal entities are treated as the
+        ///     same kind of entity in the metadata and places where the metadata is used.
         /// </summary>
         internal static Type GetEntityIdentityType(Type entityType)
         {
@@ -174,13 +176,13 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// Provides a standard helper method for quoting identifiers
+        ///     Provides a standard helper method for quoting identifiers
         /// </summary>
-        /// <param name="identifier">Identifier to be quoted. Does not validate that this identifier is valid.</param>
-        /// <returns>Quoted string</returns>
+        /// <param name="identifier"> Identifier to be quoted. Does not validate that this identifier is valid. </param>
+        /// <returns> Quoted string </returns>
         internal static string QuoteIdentifier(string identifier)
         {
-            Debug.Assert(identifier != null, "identifier should not be null");
+            DebugCheck.NotNull(identifier);
             return "[" + identifier.Replace("]", "]]") + "]";
         }
 
@@ -221,7 +223,7 @@ namespace System.Data.Entity.Core
             ColumnCountMismatch = 1003,
 
             /// <summary>
-            /// Some assertion failed
+            ///     Some assertion failed
             /// </summary>
             AssertionFailed = 1004,
 
@@ -238,53 +240,53 @@ namespace System.Data.Entity.Core
             InvalidParserState2 = 1016,
 
             /// <summary>
-            /// Thrown when SQL gen produces parameters for anything other than a 
-            /// modification command tree.
+            ///     Thrown when SQL gen produces parameters for anything other than a
+            ///     modification command tree.
             /// </summary>
             SqlGenParametersNotPermitted = 1017,
             EntityKeyMissingKeyValue = 1018,
 
             /// <summary>
-            /// Thrown when an invalid data request is presented to a PropagatorResult in
-            /// the update pipeline (confusing simple/complex values, missing key values, etc.).
+            ///     Thrown when an invalid data request is presented to a PropagatorResult in
+            ///     the update pipeline (confusing simple/complex values, missing key values, etc.).
             /// </summary>
             UpdatePipelineResultRequestInvalid = 1019,
             InvalidStateEntry = 1020,
 
             /// <summary>
-            /// Thrown when the update pipeline encounters an invalid PrimitiveTypeKind
-            /// during a cast.
+            ///     Thrown when the update pipeline encounters an invalid PrimitiveTypeKind
+            ///     during a cast.
             /// </summary>
             InvalidPrimitiveTypeKind = 1021,
 
             /// <summary>
-            /// Thrown when an unknown node type is encountered in ELinq expression translation.
+            ///     Thrown when an unknown node type is encountered in ELinq expression translation.
             /// </summary>
             UnknownLinqNodeType = 1023,
 
             /// <summary>
-            /// Thrown by result assembly upon encountering a collection column that does not use any columns
-            /// nor has a descriminated nested collection.
+            ///     Thrown by result assembly upon encountering a collection column that does not use any columns
+            ///     nor has a descriminated nested collection.
             /// </summary>
             CollectionWithNoColumns = 1024,
 
             /// <summary>
-            /// Thrown when a lambda expression argument has an unexpected node type.
+            ///     Thrown when a lambda expression argument has an unexpected node type.
             /// </summary>
             UnexpectedLinqLambdaExpressionFormat = 1025,
 
             /// <summary>
-            /// Thrown when a CommandTree is defined on a stored procedure EntityCommand instance.
+            ///     Thrown when a CommandTree is defined on a stored procedure EntityCommand instance.
             /// </summary>
             CommandTreeOnStoredProcedureEntityCommand = 1026,
 
             /// <summary>
-            /// Thrown when an operation in the BoolExpr library is exceeding anticipated complexity.
+            ///     Thrown when an operation in the BoolExpr library is exceeding anticipated complexity.
             /// </summary>
             BoolExprAssert = 1027,
             // AttemptToGenerateDefinitionForFunctionWithoutDef = 1028,
             /// <summary>
-            /// Thrown when type A is promotable to type B, but ranking algorithm fails to rank the promotion.
+            ///     Thrown when type A is promotable to type B, but ranking algorithm fails to rank the promotion.
             /// </summary>
             FailedToGeneratePromotionRank = 1029,
         }
@@ -369,9 +371,10 @@ namespace System.Data.Entity.Core
 
         internal static InvalidOperationException ValueInvalidCast(Type valueType, Type destinationType)
         {
-            Debug.Assert(null != valueType, "null valueType");
-            Debug.Assert(null != destinationType, "null destinationType");
-            if (destinationType.IsValueType && destinationType.IsGenericType
+            DebugCheck.NotNull(valueType);
+            DebugCheck.NotNull(destinationType);
+            if (destinationType.IsValueType
+                && destinationType.IsGenericType
                 && (typeof(Nullable<>) == destinationType.GetGenericTypeDefinition()))
             {
                 return new InvalidOperationException(
@@ -458,9 +461,9 @@ namespace System.Data.Entity.Core
 
         internal static void ValidateEntitySetInKey(EntityKey key, EntitySet entitySet, string argument)
         {
-            Debug.Assert(null != (object)key, "Null entity key");
-            Debug.Assert(null != entitySet, "Null entity set");
-            Debug.Assert(null != entitySet.EntityContainer, "Null entity container in the entity set");
+            DebugCheck.NotNull((object)key);
+            DebugCheck.NotNull(entitySet);
+            DebugCheck.NotNull(entitySet.EntityContainer);
 
             var containerName1 = key.EntityContainerName;
             var setName1 = key.EntitySetName;
@@ -541,21 +544,12 @@ namespace System.Data.Entity.Core
 
         internal static T CheckArgumentOutOfRange<T>(T[] values, int index, string parameterName)
         {
-            Debug.Assert(null != values, "null values"); // use a different method if values can be null
+            DebugCheck.NotNull(values);
             if (unchecked((uint)values.Length <= (uint)index))
             {
                 throw new ArgumentOutOfRangeException(parameterName);
             }
             return values[index];
-        }
-
-        internal static T CheckArgumentNull<T>(T value, string parameterName) where T : class
-        {
-            if (null == value)
-            {
-                throw new ArgumentNullException(parameterName);
-            }
-            return value;
         }
 
         internal static IEnumerable<T> CheckArgumentContainsNull<T>(ref IEnumerable<T> enumerableArgument, string argumentName)
@@ -604,24 +598,6 @@ namespace System.Data.Entity.Core
             return enumerable as ICollection<T>;
         }
 
-        internal static T GenericCheckArgumentNull<T>(T value, string parameterName) where T : class
-        {
-            return CheckArgumentNull(value, parameterName);
-        }
-
-        // Invalid string argument
-        internal static void CheckStringArgument(string value, string parameterName)
-        {
-            // Throw ArgumentNullException when string is null
-            CheckArgumentNull(value, parameterName);
-
-            // Throw ArgumentException when string is empty
-            if (value.Length == 0)
-            {
-                throw new ArgumentException(Strings.InvalidStringArgument(parameterName), parameterName);
-            }
-        }
-
         internal static bool IsNull(object value)
         {
             if ((null == value)
@@ -639,12 +615,12 @@ namespace System.Data.Entity.Core
         }
 
         /// <summary>
-        /// Returns the PropertyInfo and Type where a given property is defined
-        /// This is done by traversing the type hierarchy to find the type match.
+        ///     Returns the PropertyInfo and Type where a given property is defined
+        ///     This is done by traversing the type hierarchy to find the type match.
         /// </summary>
-        /// <param name="t"></param>
-        /// <param name="propertyName"></param>
-        /// <returns></returns>
+        /// <param name="t"> </param>
+        /// <param name="propertyName"> </param>
+        /// <returns> </returns>
         internal static PropertyInfo GetTopProperty(ref Type t, string propertyName)
         {
             PropertyInfo propertyInfo = null;
@@ -673,18 +649,8 @@ namespace System.Data.Entity.Core
         }
 
         internal static Dictionary<string, string> COMPILER_VERSION = new Dictionary<string, string>
-            {
-                { "CompilerVersion", "V3.5" }
-            }; //v3.5 required for compiling model files with partial methods.
-
-        [FileIOPermission(SecurityAction.Assert, AllFiles = FileIOPermissionAccess.PathDiscovery)]
-        [SecuritySafeCritical]
-        [ResourceExposure(ResourceScope.Machine)]
-        [ResourceConsumption(ResourceScope.Machine)]
-        internal static string GetFullPath(string filename)
-        {
-            // MDAC 77686
-            return Path.GetFullPath(filename);
-        }
+                                                                          {
+                                                                              { "CompilerVersion", "V3.5" }
+                                                                          }; //v3.5 required for compiling model files with partial methods.
     }
 }

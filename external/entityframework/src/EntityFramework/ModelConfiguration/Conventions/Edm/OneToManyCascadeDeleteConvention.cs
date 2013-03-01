@@ -1,44 +1,53 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
+    using System.Diagnostics;
 
     /// <summary>
     ///     Convention to enable cascade delete for any required relationships.
     /// </summary>
-    public sealed class OneToManyCascadeDeleteConvention : IEdmConvention<EdmAssociationType>
+    public class OneToManyCascadeDeleteConvention : IEdmConvention<AssociationType>
     {
-        internal OneToManyCascadeDeleteConvention()
+        public void Apply(AssociationType edmDataModelItem, EdmModel model)
         {
-        }
+            Check.NotNull(edmDataModelItem, "edmDataModelItem");
+            Check.NotNull(model, "model");
 
-        void IEdmConvention<EdmAssociationType>.Apply(EdmAssociationType associationType, EdmModel model)
-        {
-            Contract.Assert(associationType.SourceEnd != null);
-            Contract.Assert(associationType.TargetEnd != null);
+            Debug.Assert(edmDataModelItem.SourceEnd != null);
+            Debug.Assert(edmDataModelItem.TargetEnd != null);
 
-            if (associationType.IsSelfReferencing() // EF DDL gen will fail for self-ref
-                || associationType.HasDeleteAction())
+            if (edmDataModelItem.IsSelfReferencing()) // EF DDL gen will fail for self-ref
             {
                 return;
             }
 
-            EdmAssociationEnd principalEnd = null;
+            var configuration = edmDataModelItem.GetConfiguration() as NavigationPropertyConfiguration;
 
-            if (associationType.IsRequiredToMany())
+            if ((configuration != null)
+                && (configuration.DeleteAction != null))
             {
-                principalEnd = associationType.SourceEnd;
+                return;
             }
-            else if (associationType.IsManyToRequired())
+
+            AssociationEndMember principalEnd = null;
+
+            if (edmDataModelItem.IsRequiredToMany())
             {
-                principalEnd = associationType.TargetEnd;
+                principalEnd = edmDataModelItem.SourceEnd;
+            }
+            else if (edmDataModelItem.IsManyToRequired())
+            {
+                principalEnd = edmDataModelItem.TargetEnd;
             }
 
             if (principalEnd != null)
             {
-                principalEnd.DeleteAction = EdmOperationAction.Cascade;
+                principalEnd.DeleteBehavior = OperationAction.Cascade;
             }
         }
     }

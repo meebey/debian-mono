@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -6,6 +7,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Data.Entity.Core.Mapping.ViewGeneration.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
     using System.Text;
@@ -19,8 +21,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     // (nullable) System.Int32 property is {Null, NotNull}.
     internal class Domain : InternalBase
     {
-        #region Constructors
-
         // effects: Creates an "fully-done" set with no values -- possibleDiscreteValues are the values
         // that this domain can take
         internal Domain(Constant value, IEnumerable<Constant> possibleDiscreteValues)
@@ -36,8 +36,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             IEnumerable<Constant> possibleDiscreteValues)
         {
             // Note that the values can contain both null and not null
-            Debug.Assert(values != null);
-            Debug.Assert(possibleDiscreteValues != null);
+            DebugCheck.NotNull(values);
+            DebugCheck.NotNull(possibleDiscreteValues);
             // Determine the possibleValues first and then create the negatedConstant
             m_possibleValues = DeterminePossibleValues(values, possibleDiscreteValues);
 
@@ -65,19 +65,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             AssertInvariant();
         }
 
-        #endregion
-
-        #region Fields
-
         // The set of values in the cell constant domain
         private readonly CellConstantSet m_domain; // e.g., 1, 2, NULL, NOT(1, 2, NULL)
         private readonly CellConstantSet m_possibleValues; // e.g., 1, 2, NULL, Undefined
         // Invariant: m_domain is a subset of m_possibleValues except for a
         // negated constant
-
-        #endregion
-
-        #region Properties
 
         // effects: Returns all the possible values that this can contain (including the negated constants)
         internal IEnumerable<Constant> AllPossibleValues
@@ -102,16 +94,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Yields the set of all values in the domain.
+        ///     Yields the set of all values in the domain.
         /// </summary>
         internal IEnumerable<Constant> Values
         {
             get { return m_domain; }
         }
-
-        #endregion
-
-        #region Static Helper Methods to create cell constant sets from metadata
 
         // effects: Given a member, determines all possible values that can be created from Metadata
         internal static CellConstantSet DeriveDomainFromMemberPath(
@@ -210,10 +198,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             return defaultValue;
         }
 
-        #endregion
-
-        #region External methods
-
         internal int GetHash()
         {
             var result = 0;
@@ -241,7 +225,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Returns true if the domain contains the given Cell Constant
+        ///     Returns true if the domain contains the given Cell Constant
         /// </summary>
         internal bool Contains(Constant constant)
         {
@@ -328,10 +312,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
             return result;
         }
-
-        #endregion
-
-        #region Helper methods for determining domains from cells
 
         // effects: Given a set of cells, returns all the different values
         // that each memberPath in cells can take
@@ -463,8 +443,12 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             IEnumerable<Constant> domain, MemberProjectedSlot slot, CellQuery cellQuery, out CellConstantSet result)
         {
             var conditionsForSlot = cellQuery.GetConjunctsFromWhereClause()
-                .Where(restriction => MemberPath.EqualityComparer.Equals(restriction.RestrictedMemberSlot.MemberPath, slot.MemberPath))
-                .Select(restriction => new CellConstantSet(restriction.Domain.Values, Constant.EqualityComparer));
+                                             .Where(
+                                                 restriction =>
+                                                 MemberPath.EqualityComparer.Equals(
+                                                     restriction.RestrictedMemberSlot.MemberPath, slot.MemberPath))
+                                             .Select(
+                                                 restriction => new CellConstantSet(restriction.Domain.Values, Constant.EqualityComparer));
 
             //Debug.Assert(!conditionsForSlot.Skip(1).Any(), "More than one Clause with the same path");
 
@@ -488,10 +472,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             result = new CellConstantSet(restrictedDomain.Values, Constant.EqualityComparer);
             return !domain.SequenceEqual(result);
         }
-
-        #endregion
-
-        #region Private helper methods
 
         // effects: Intersects the values in second with this domain and
         // returns the result
@@ -565,10 +545,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 "All domain values must be contained in possibleValues");
         }
 
-        #endregion
-
-        #region String methods
-
         // effects: Returns a user-friendly string that can be reported to an end-user
         internal string ToUserString()
         {
@@ -590,7 +566,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             builder.Append(ToUserString());
         }
-
-        #endregion
     }
 }

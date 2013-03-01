@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
@@ -27,7 +28,8 @@ namespace System.Data.Entity.Core.Objects.Internal
             foreach (var member in ospaceEntityType.Members)
             {
                 var clrProperty = EntityUtil.GetTopProperty(ospaceEntityType.ClrType, member.Name);
-                if (clrProperty != null &&
+                if (clrProperty != null
+                    &&
                     EntityProxyFactory.CanProxyGetter(clrProperty)
                     &&
                     LazyLoadBehavior.IsLazyLoadCandidate(ospaceEntityType, member))

@@ -1,14 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 {
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
     using System.Data.Entity.Resources;
     using System.Linq;
     using Xunit;
@@ -21,16 +18,25 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             var mockPropertyInfo = new MockPropertyInfo();
             var navigationPropertyConfiguration = new NavigationPropertyConfiguration(mockPropertyInfo);
 
-            Assert.Equal(Strings.NavigationInverseItself("P", typeof(object)), Assert.Throws<InvalidOperationException>(() => navigationPropertyConfiguration.InverseNavigationProperty = mockPropertyInfo).Message);
+            Assert.Equal(
+                Strings.NavigationInverseItself("P", typeof(object)),
+                Assert.Throws<InvalidOperationException>(() => navigationPropertyConfiguration.InverseNavigationProperty = mockPropertyInfo)
+                      .Message);
         }
 
         [Fact]
         public void Configure_should_set_configuration_annotations()
         {
             var navigationPropertyConfiguration = new NavigationPropertyConfiguration(new MockPropertyInfo());
-            var navigationProperty = new EdmNavigationProperty { Association = new EdmAssociationType().Initialize() };
+            var navigationProperty = new NavigationProperty("N", TypeUsage.Create(new EntityType()))
+                                         {
+                                             RelationshipType = new AssociationType()
+                                         };
 
-            navigationPropertyConfiguration.Configure(navigationProperty, new EdmModel(), new EntityTypeConfiguration(typeof(object)));
+            navigationProperty.Association.SourceEnd = new AssociationEndMember("S", new EntityType());
+            navigationProperty.Association.TargetEnd = new AssociationEndMember("T", new EntityType());
+
+            navigationPropertyConfiguration.Configure(navigationProperty, new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)));
 
             Assert.NotNull(navigationProperty.GetConfiguration());
             Assert.NotNull(navigationProperty.Association.GetConfiguration());
@@ -40,18 +46,23 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         public void Configure_should_configure_ends()
         {
             var navigationPropertyConfiguration = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                {
-                    EndKind = EdmAssociationEndKind.Optional,
-                    InverseEndKind = EdmAssociationEndKind.Many
-                };
-            var associationType = new EdmAssociationType().Initialize();
+                                                      {
+                                                          RelationshipMultiplicity = RelationshipMultiplicity.ZeroOrOne,
+                                                          InverseEndKind = RelationshipMultiplicity.Many
+                                                      };
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
 
             navigationPropertyConfiguration.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)));
+                new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                    {
+                        RelationshipType = associationType
+                    },
+                new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)));
 
-            Assert.Equal(EdmAssociationEndKind.Many, associationType.SourceEnd.EndKind);
-            Assert.Equal(EdmAssociationEndKind.Optional, associationType.TargetEnd.EndKind);
+            Assert.Equal(RelationshipMultiplicity.Many, associationType.SourceEnd.RelationshipMultiplicity);
+            Assert.Equal(RelationshipMultiplicity.ZeroOrOne, associationType.TargetEnd.RelationshipMultiplicity);
         }
 
         [Fact]
@@ -59,24 +70,32 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         {
             var inverseMockPropertyInfo = new MockPropertyInfo();
             var navigationPropertyConfiguration = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                {
-                    InverseNavigationProperty = inverseMockPropertyInfo
-                };
-            var associationType = new EdmAssociationType().Initialize();
-            var inverseAssociationType = new EdmAssociationType().Initialize();
-            var model = new EdmModel().Initialize();
+                                                      {
+                                                          InverseNavigationProperty = inverseMockPropertyInfo
+                                                      };
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
+            var inverseAssociationType = new AssociationType();
+            inverseAssociationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            inverseAssociationType.TargetEnd = new AssociationEndMember("T", new EntityType());
+            var model = new EdmModel(DataSpace.CSpace);
             model.AddAssociationType(inverseAssociationType);
             var inverseNavigationProperty
                 = model.AddEntityType("T")
-                    .AddNavigationProperty("N", inverseAssociationType);
+                       .AddNavigationProperty("N", inverseAssociationType);
             inverseNavigationProperty.SetClrPropertyInfo(inverseMockPropertyInfo);
 
             navigationPropertyConfiguration.Configure(
-                new EdmNavigationProperty { Association = associationType }, model, new EntityTypeConfiguration(typeof(object)));
+                new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                    {
+                        RelationshipType = associationType
+                    }, model, new EntityTypeConfiguration(typeof(object)));
 
             Assert.Same(associationType, inverseNavigationProperty.Association);
             Assert.Same(associationType.SourceEnd, inverseNavigationProperty.ResultEnd);
-            Assert.Equal(0, model.GetAssociationTypes().Count());
+            Assert.Same(associationType.TargetEnd, inverseNavigationProperty.FromEndMember);
+            Assert.Equal(0, model.AssociationTypes.Count());
         }
 
         [Fact]
@@ -85,24 +104,33 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             var mockType = new MockType();
             var mockPropertyInfo = new MockPropertyInfo(typeof(int), "P");
             var navigationPropertyConfiguration = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                {
-                    Constraint = new ForeignKeyConstraintConfiguration(new[] { mockPropertyInfo.Object })
-                };
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.SourceEnd.EntityType = new EdmEntityType();
-            associationType.SourceEnd.EntityType.SetClrType(mockType);
-            associationType.SourceEnd.EndKind = EdmAssociationEndKind.Many;
-            var property = associationType.SourceEnd.EntityType.AddPrimitiveProperty("P");
-            property.PropertyType.EdmType = EdmPrimitiveType.Int32;
+                                                      {
+                                                          Constraint =
+                                                              new ForeignKeyConstraintConfiguration(new[] { mockPropertyInfo.Object })
+                                                      };
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
+
+            associationType.SourceEnd.GetEntityType().Annotations.SetClrType(mockType);
+            associationType.SourceEnd.RelationshipMultiplicity = RelationshipMultiplicity.Many;
+            var property1 = EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+
+            associationType.SourceEnd.GetEntityType().AddMember(property1);
+            var property = property1;
             property.SetClrPropertyInfo(mockPropertyInfo);
 
             navigationPropertyConfiguration.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)));
+                new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                    {
+                        RelationshipType = associationType
+                    },
+                new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)));
 
             Assert.NotNull(associationType.Constraint);
-            Assert.Same(associationType.SourceEnd, associationType.Constraint.DependentEnd);
-            Assert.True(associationType.Constraint.DependentProperties.Any());
+            Assert.Same(associationType.SourceEnd, associationType.Constraint.ToRole);
+            Assert.Same(associationType.TargetEnd, associationType.Constraint.FromRole);
+            Assert.True(associationType.Constraint.ToProperties.Any());
         }
 
         [Fact]
@@ -110,20 +138,25 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         {
             var mockType = new MockType();
             var navigationPropertyConfiguration = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                {
-                    DeleteAction = EdmOperationAction.Cascade,
-                };
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.SourceEnd.EntityType = new EdmEntityType();
-            associationType.SourceEnd.EntityType.SetClrType(mockType);
-            associationType.SourceEnd.EndKind = EdmAssociationEndKind.Many; // make this the principal
-            associationType.TargetEnd.EndKind = EdmAssociationEndKind.Optional;
+                                                      {
+                                                          DeleteAction = OperationAction.Cascade,
+                                                      };
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
+
+            associationType.SourceEnd.GetEntityType().Annotations.SetClrType(mockType);
+            associationType.SourceEnd.RelationshipMultiplicity = RelationshipMultiplicity.Many; // make this the principal
+            associationType.TargetEnd.RelationshipMultiplicity = RelationshipMultiplicity.ZeroOrOne;
 
             navigationPropertyConfiguration.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)));
+                new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                    {
+                        RelationshipType = associationType
+                    },
+                new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)));
 
-            Assert.Equal(EdmOperationAction.Cascade, associationType.TargetEnd.DeleteAction);
+            Assert.Equal(OperationAction.Cascade, associationType.TargetEnd.DeleteBehavior);
         }
 
         [Fact]
@@ -132,15 +165,28 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             var manyToManyAssociationMappingConfiguration = new ManyToManyAssociationMappingConfiguration();
             manyToManyAssociationMappingConfiguration.ToTable("Foo");
 
-            var navigationPropertyConfiguration = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                {
-                    AssociationMappingConfiguration = manyToManyAssociationMappingConfiguration
-                };
+            var mockPropertyInfo = new MockPropertyInfo();
 
-            var databaseMapping = new DbDatabaseMapping().Initialize(new EdmModel().Initialize(), new DbDatabaseMetadata());
-            var associationSetMapping = databaseMapping.AddAssociationSetMapping(new EdmAssociationSet { ElementType = new EdmAssociationType() });
-            associationSetMapping.Table = new DbTableMetadata();
+            var navigationPropertyConfiguration
+                = new NavigationPropertyConfiguration(mockPropertyInfo)
+                      {
+                          AssociationMappingConfiguration = manyToManyAssociationMappingConfiguration
+                      };
+
+            var databaseMapping
+                = new DbDatabaseMapping()
+                    .Initialize(new EdmModel(DataSpace.CSpace), new EdmModel(DataSpace.SSpace));
+
+            var associationSetMapping = databaseMapping.AddAssociationSetMapping(
+                new AssociationSet("AS", new AssociationType()), new EntitySet());
+
+            var dependentTable = databaseMapping.Database.AddTable("T");
+
+            associationSetMapping.StoreEntitySet = databaseMapping.Database.GetEntitySet(dependentTable);
             associationSetMapping.AssociationSet.ElementType.SetConfiguration(navigationPropertyConfiguration);
+
+            associationSetMapping.SourceEndMapping.EndMember = new AssociationEndMember("S", new EntityType());
+            associationSetMapping.SourceEndMapping.EndMember.SetClrPropertyInfo(mockPropertyInfo);
 
             navigationPropertyConfiguration.Configure(associationSetMapping, databaseMapping);
 
@@ -150,124 +196,168 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         [Fact]
         public void Configure_should_validate_consistency_of_end_kind_when_already_configured()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
             var navigationPropertyConfigurationA
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        InverseEndKind = EdmAssociationEndKind.Optional
-                    };
+                      {
+                          InverseEndKind = RelationshipMultiplicity.ZeroOrOne
+                      };
             associationType.SetConfiguration(navigationPropertyConfigurationA);
             var navigationPropertyConfigurationB
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        EndKind = EdmAssociationEndKind.Many
-                    };
+                      {
+                          RelationshipMultiplicity = RelationshipMultiplicity.Many
+                      };
 
-            Assert.Equal(Strings.ConflictingMultiplicities("P", typeof(object)), Assert.Throws<InvalidOperationException>(() => navigationPropertyConfigurationB.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)))).Message);
+            Assert.Equal(
+                Strings.ConflictingMultiplicities("P", typeof(object)),
+                Assert.Throws<InvalidOperationException>(
+                    () => navigationPropertyConfigurationB.Configure(
+                        new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                            {
+                                RelationshipType = associationType
+                            },
+                        new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)))).Message);
         }
 
         [Fact]
         public void Configure_should_validate_consistency_of_inverse_end_kind_when_already_configured()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
             var mockPropertyInfo = new MockPropertyInfo();
             var navigationPropertyConfigurationA
                 = new NavigationPropertyConfiguration(mockPropertyInfo)
-                    {
-                        EndKind = EdmAssociationEndKind.Optional
-                    };
+                      {
+                          RelationshipMultiplicity = RelationshipMultiplicity.ZeroOrOne
+                      };
             associationType.SetConfiguration(navigationPropertyConfigurationA);
             var navigationPropertyConfigurationB
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        InverseEndKind = EdmAssociationEndKind.Many,
-                        InverseNavigationProperty = mockPropertyInfo
-                    };
+                      {
+                          InverseEndKind = RelationshipMultiplicity.Many,
+                          InverseNavigationProperty = mockPropertyInfo
+                      };
 
-            Assert.Equal(Strings.ConflictingMultiplicities("P", typeof(object)), Assert.Throws<InvalidOperationException>(() => navigationPropertyConfigurationB.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)))).Message);
+            Assert.Equal(
+                Strings.ConflictingMultiplicities("P", typeof(object)),
+                Assert.Throws<InvalidOperationException>(
+                    () => navigationPropertyConfigurationB.Configure(
+                        new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                            {
+                                RelationshipType = associationType
+                            },
+                        new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)))).Message);
         }
 
         [Fact]
         public void Configure_should_validate_consistency_of_delete_action_when_already_configured()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
             var navigationPropertyConfigurationA
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        DeleteAction = EdmOperationAction.None
-                    };
+                      {
+                          DeleteAction = OperationAction.None
+                      };
             associationType.SetConfiguration(navigationPropertyConfigurationA);
             var navigationPropertyConfigurationB
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        DeleteAction = EdmOperationAction.Cascade
-                    };
+                      {
+                          DeleteAction = OperationAction.Cascade
+                      };
 
-            Assert.Equal(Strings.ConflictingCascadeDeleteOperation("P", typeof(object)), Assert.Throws<InvalidOperationException>(() => navigationPropertyConfigurationB.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)))).Message);
+            Assert.Equal(
+                Strings.ConflictingCascadeDeleteOperation("P", typeof(object)),
+                Assert.Throws<InvalidOperationException>(
+                    () => navigationPropertyConfigurationB.Configure(
+                        new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                            {
+                                RelationshipType = associationType
+                            },
+                        new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)))).Message);
         }
 
         [Fact]
         public void Configure_should_validate_consistency_of_constraint_when_already_configured()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
             var navigationPropertyConfigurationA
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        Constraint = new ForeignKeyConstraintConfiguration(new[]
-                            {
-                                new MockPropertyInfo(typeof(int), "P1").Object
-                            })
-                    };
+                      {
+                          Constraint = new ForeignKeyConstraintConfiguration(
+                              new[]
+                                  {
+                                      new MockPropertyInfo(typeof(int), "P1").Object
+                                  })
+                      };
             associationType.SetConfiguration(navigationPropertyConfigurationA);
             var navigationPropertyConfigurationB
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        Constraint = new ForeignKeyConstraintConfiguration(new[]
-                            {
-                                new MockPropertyInfo(typeof(int), "P2").Object
-                            })
-                    };
+                      {
+                          Constraint = new ForeignKeyConstraintConfiguration(
+                              new[]
+                                  {
+                                      new MockPropertyInfo(typeof(int), "P2").Object
+                                  })
+                      };
 
-            Assert.Equal(Strings.ConflictingConstraint("P", typeof(object)), Assert.Throws<InvalidOperationException>(() => navigationPropertyConfigurationB.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)))).Message);
+            Assert.Equal(
+                Strings.ConflictingConstraint("P", typeof(object)),
+                Assert.Throws<InvalidOperationException>(
+                    () => navigationPropertyConfigurationB.Configure(
+                        new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                            {
+                                RelationshipType = associationType
+                            },
+                        new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)))).Message);
         }
 
         [Fact]
         public void Configure_should_validate_consistency_of_mapping_when_already_configured()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
             var manyToManyAssociationMappingConfiguration1 = new ManyToManyAssociationMappingConfiguration();
             manyToManyAssociationMappingConfiguration1.ToTable("A");
             var navigationPropertyConfigurationA
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        AssociationMappingConfiguration = manyToManyAssociationMappingConfiguration1
-                    };
+                      {
+                          AssociationMappingConfiguration = manyToManyAssociationMappingConfiguration1
+                      };
             associationType.SetConfiguration(navigationPropertyConfigurationA);
             var manyToManyAssociationMappingConfiguration2 = new ManyToManyAssociationMappingConfiguration();
             manyToManyAssociationMappingConfiguration1.ToTable("B");
             var navigationPropertyConfigurationB
                 = new NavigationPropertyConfiguration(new MockPropertyInfo())
-                    {
-                        AssociationMappingConfiguration = manyToManyAssociationMappingConfiguration2
-                    };
+                      {
+                          AssociationMappingConfiguration = manyToManyAssociationMappingConfiguration2
+                      };
 
-            Assert.Equal(Strings.ConflictingMapping("P", typeof(object)), Assert.Throws<InvalidOperationException>(() => navigationPropertyConfigurationB.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)))).Message);
+            Assert.Equal(
+                Strings.ConflictingMapping("P", typeof(object)),
+                Assert.Throws<InvalidOperationException>(
+                    () => navigationPropertyConfigurationB.Configure(
+                        new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                            {
+                                RelationshipType = associationType
+                            },
+                        new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)))).Message);
         }
 
         [Fact]
         public void Configure_should_not_validate_consistency_of_dependent_end_when_both_false()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
             var navigationPropertyConfigurationA
                 = new NavigationPropertyConfiguration(new MockPropertyInfo());
             associationType.SetConfiguration(navigationPropertyConfigurationA);
@@ -275,8 +365,11 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
                 = new NavigationPropertyConfiguration(new MockPropertyInfo());
 
             navigationPropertyConfigurationB.Configure(
-                new EdmNavigationProperty { Association = associationType },
-                new EdmModel(), new EntityTypeConfiguration(typeof(object)));
+                new NavigationProperty("N", TypeUsage.Create(associationType.TargetEnd.GetEntityType()))
+                    {
+                        RelationshipType = associationType
+                    },
+                new EdmModel(DataSpace.CSpace), new EntityTypeConfiguration(typeof(object)));
         }
     }
 }

@@ -1,15 +1,124 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Design
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Migrations.Design;
     using System.Data.Entity.Migrations.Model;
     using System.Data.Entity.Spatial;
+    using System.Data.Entity.Utilities;
+    using System.Globalization;
     using System.IO;
+    using System.Threading;
     using Xunit;
 
     public class VisualBasicMigrationCodeGeneratorTests
     {
+        [Fact]
+        public void Generate_should_output_invariant_decimals_when_non_invariant_culture()
+        {
+            var lastCulture = Thread.CurrentThread.CurrentCulture;
+
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
+
+                var generatedMigration
+                    = new VisualBasicMigrationCodeGenerator().Generate(
+                        "Migration",
+                        new[]
+                            {
+                                new AddColumnOperation(
+                                    "T",
+                                    new ColumnModel(PrimitiveTypeKind.Decimal)
+                                        {
+                                            Name = "C",
+                                            DefaultValue = 123.45m
+                                        })
+                            },
+                        "Source",
+                        "Target",
+                        "Foo",
+                        "Bar");
+
+                Assert.Equal(
+                    @"Imports System
+Imports System.Data.Entity.Migrations
+
+Namespace Foo
+    Public Partial Class Bar
+        Inherits DbMigration
+    
+        Public Overrides Sub Up()
+            AddColumn(""T"", ""C"", Function(c) c.Decimal(defaultValue := 123.45D))
+        End Sub
+        
+        Public Overrides Sub Down()
+            DropColumn(""T"", ""C"")
+        End Sub
+    End Class
+End Namespace
+",
+                    generatedMigration.UserCode);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = lastCulture;
+            }
+        }
+
+        [Fact]
+        public void Generate_should_output_invariant_floats_when_non_invariant_culture()
+        {
+            var lastCulture = Thread.CurrentThread.CurrentCulture;
+
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("nl-NL");
+
+                var generatedMigration
+                    = new VisualBasicMigrationCodeGenerator().Generate(
+                        "Migration",
+                        new[]
+                            {
+                                new AddColumnOperation(
+                                    "T",
+                                    new ColumnModel(PrimitiveTypeKind.Single)
+                                        {
+                                            Name = "C",
+                                            DefaultValue = 123.45f
+                                        })
+                            },
+                        "Source",
+                        "Target",
+                        "Foo",
+                        "Bar");
+
+                Assert.Equal(
+                    @"Imports System
+Imports System.Data.Entity.Migrations
+
+Namespace Foo
+    Public Partial Class Bar
+        Inherits DbMigration
+    
+        Public Overrides Sub Up()
+            AddColumn(""T"", ""C"", Function(c) c.Single(defaultValue := 123.45F))
+        End Sub
+        
+        Public Overrides Sub Down()
+            DropColumn(""T"", ""C"")
+        End Sub
+    End Class
+End Namespace
+",
+                    generatedMigration.UserCode);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = lastCulture;
+            }
+        }
+
         [Fact]
         public void Generate_should_not_produce_lines_that_are_too_long_for_the_compiler()
         {
@@ -33,7 +142,6 @@ namespace System.Data.Entity.Migrations
                 }
             }
         }
-
 
         [Fact]
         public void Generate_can_output_drop_primary_key_with_explicit_name()
@@ -348,7 +456,11 @@ End Namespace
             var codeGenerator = new VisualBasicMigrationCodeGenerator();
 
             var createTableOperation = new CreateTableOperation("Customers");
-            var column = new ColumnModel(PrimitiveTypeKind.Binary) { Name = "Version", IsTimestamp = true };
+            var column = new ColumnModel(PrimitiveTypeKind.Binary)
+                             {
+                                 Name = "Version",
+                                 IsTimestamp = true
+                             };
             createTableOperation.Columns.Add(column);
 
             var generatedMigration
@@ -391,10 +503,23 @@ End Namespace
         public void Generate_can_output_create_table_statement()
         {
             var createTableOperation = new CreateTableOperation("Customers");
-            var idColumn = new ColumnModel(PrimitiveTypeKind.Int32) { Name = "Id", IsNullable = true, IsIdentity = true };
+            var idColumn = new ColumnModel(PrimitiveTypeKind.Int32)
+                               {
+                                   Name = "Id",
+                                   IsNullable = true,
+                                   IsIdentity = true
+                               };
             createTableOperation.Columns.Add(idColumn);
-            createTableOperation.Columns.Add(new ColumnModel(PrimitiveTypeKind.String) { Name = "Name", IsNullable = false });
-            createTableOperation.PrimaryKey = new AddPrimaryKeyOperation { Name = "MyPK" };
+            createTableOperation.Columns.Add(
+                new ColumnModel(PrimitiveTypeKind.String)
+                    {
+                        Name = "Name",
+                        IsNullable = false
+                    });
+            createTableOperation.PrimaryKey = new AddPrimaryKeyOperation
+                                                  {
+                                                      Name = "MyPK"
+                                                  };
             createTableOperation.PrimaryKey.Columns.Add(idColumn.Name);
 
             var codeGenerator = new VisualBasicMigrationCodeGenerator();
@@ -456,11 +581,13 @@ End Namespace
 
             Assert.Equal(
                 @"' <auto-generated />
+Imports System.CodeDom.Compiler
 Imports System.Data.Entity.Migrations
 Imports System.Data.Entity.Migrations.Infrastructure
 Imports System.Resources
 
 Namespace Foo
+    <GeneratedCode(""EntityFramework.Migrations"", """ + typeof(DbContext).Assembly.GetInformationalVersion() + @""")>
     Public NotInheritable Partial Class Bar
         Implements IMigrationMetadata
     
@@ -569,11 +696,13 @@ End Namespace
 
             Assert.Equal(
                 @"' <auto-generated />
+Imports System.CodeDom.Compiler
 Imports System.Data.Entity.Migrations
 Imports System.Data.Entity.Migrations.Infrastructure
 Imports System.Resources
 
 Namespace Foo
+    <GeneratedCode(""EntityFramework.Migrations"", """ + typeof(DbContext).Assembly.GetInformationalVersion() + @""")>
     Public NotInheritable Partial Class Bar
         Implements IMigrationMetadata
     
@@ -708,10 +837,12 @@ End Namespace
 
             Assert.Equal(
                 @"' <auto-generated />
+Imports System.CodeDom.Compiler
 Imports System.Data.Entity.Migrations
 Imports System.Data.Entity.Migrations.Infrastructure
 Imports System.Resources
 
+<GeneratedCode(""EntityFramework.Migrations"", """ + typeof(DbContext).Assembly.GetInformationalVersion() + @""")>
 Public NotInheritable Partial Class Bar
     Implements IMigrationMetadata
 

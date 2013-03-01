@@ -1,34 +1,24 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
     using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.Entity.ModelConfiguration.Configuration;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    ///     Convention to process instances of <see cref = "NotMappedAttribute" /> found on types in the model.
+    ///     Convention to process instances of <see cref="NotMappedAttribute" /> found on types in the model.
     /// </summary>
-    public sealed class NotMappedTypeAttributeConvention : IConfigurationConvention<Type, ModelConfiguration>
+    public class NotMappedTypeAttributeConvention :
+        AttributeConfigurationConvention<Type, ModelConfiguration, NotMappedAttribute>
     {
-        private readonly IConfigurationConvention<Type, ModelConfiguration> _impl =
-            new NotMappedTypeAttributeConventionImpl();
-
-        internal NotMappedTypeAttributeConvention()
+        public override void Apply(Type memberInfo, ModelConfiguration configuration, NotMappedAttribute attribute)
         {
-        }
+            Check.NotNull(memberInfo, "memberInfo");
+            Check.NotNull(configuration, "configuration");
+            Check.NotNull(attribute, "attribute");
 
-        void IConfigurationConvention<Type, ModelConfiguration>.Apply(
-            Type memberInfo, Func<ModelConfiguration> configuration)
-        {
-            _impl.Apply(memberInfo, configuration);
-        }
-
-        internal sealed class NotMappedTypeAttributeConventionImpl :
-            AttributeConfigurationConvention<Type, ModelConfiguration, NotMappedAttribute>
-        {
-            internal override void Apply(Type type, ModelConfiguration modelConfiguration, NotMappedAttribute _)
-            {
-                modelConfiguration.Ignore(type);
-            }
+            configuration.Ignore(memberInfo);
         }
     }
 }

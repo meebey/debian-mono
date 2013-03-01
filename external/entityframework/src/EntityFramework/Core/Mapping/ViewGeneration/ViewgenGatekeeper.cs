@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -8,8 +9,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     using System.Data.Entity.Core.Mapping.ViewGeneration.Validation;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Text;
     using CellGroup = System.Data.Entity.Core.Common.Utils.Set<Structures.Cell>;
@@ -17,24 +18,17 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     internal abstract class ViewgenGatekeeper : InternalBase
     {
         /// <summary>
-        /// Entry point for View Generation
+        ///     Entry point for View Generation
         /// </summary>
-        /// <param name="containerMapping"></param>
-        /// <param name="workSpace"></param>
-        /// <param name="config"></param>
-        /// <returns>Generated Views for EntitySets</returns>
+        /// <param name="containerMapping"> </param>
+        /// <param name="workSpace"> </param>
+        /// <param name="config"> </param>
+        /// <returns> Generated Views for EntitySets </returns>
         internal static ViewGenResults GenerateViewsFromMapping(StorageEntityContainerMapping containerMapping, ConfigViewGenerator config)
         {
-            Contract.Requires(containerMapping != null);
-            Contract.Requires(config != null);
+            DebugCheck.NotNull(containerMapping);
+            DebugCheck.NotNull(config);
             Debug.Assert(containerMapping.HasViews, "Precondition Violated: No mapping exists to generate views for!");
-
-#if DEBUG
-            if (config.IsNormalTracing)
-            {
-                containerMapping.Print(0);
-            }
-#endif
 
             //Create Cells from StorageEntityContainerMapping
             var cellCreator = new CellCreator(containerMapping);
@@ -45,7 +39,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Entry point for Type specific generation of Query Views
+        ///     Entry point for Type specific generation of Query Views
         /// </summary>
         internal static ViewGenResults GenerateTypeSpecificQueryView(
             StorageEntityContainerMapping containerMapping,
@@ -55,10 +49,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             bool includeSubtypes,
             out bool success)
         {
-            Contract.Requires(containerMapping != null);
-            Contract.Requires(config != null);
-            Contract.Requires(entity != null);
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(containerMapping);
+            DebugCheck.NotNull(config);
+            DebugCheck.NotNull(entity);
+            DebugCheck.NotNull(type);
             Debug.Assert(!type.Abstract, "Can not generate OfType/OfTypeOnly query view for and abstract type");
 
             if (config.IsNormalTracing)
@@ -154,8 +148,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             CqlIdentifiers identifiers,
             StorageEntityContainerMapping containerMapping)
         {
-            Contract.Requires(cells != null);
-            Contract.Requires(config != null);
+            DebugCheck.NotNull(cells);
+            DebugCheck.NotNull(config);
             Debug.Assert(cells.Count > 0, "There must be at least one cell in the container mapping");
 
             // Go through each table and determine their foreign key constraints
@@ -284,8 +278,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return errorLog;
         }
 
-        #region Static Helpers
-
         private static bool DoesCellGroupContainEntitySet(CellGroup group, EntitySetBase entity)
         {
             foreach (var cell in group)
@@ -298,8 +290,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
 
             return false;
         }
-
-        #endregion
 
         internal override void ToCompactString(StringBuilder builder)
         {

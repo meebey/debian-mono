@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// Represents the navigation of a (composition or association) relationship given the 'from' role, the 'to' role and an instance of the from role
+    ///     Represents the navigation of a (composition or association) relationship given the 'from' role, the 'to' role and an instance of the from role
     /// </summary>
     public sealed class DbRelationshipNavigationExpression : DbExpression
     {
@@ -22,10 +23,10 @@ namespace System.Data.Entity.Core.Common.CommandTrees
             DbExpression navigateFrom)
             : base(DbExpressionKind.RelationshipNavigation, resultType)
         {
-            Debug.Assert(relType != null, "DbRelationshipNavigationExpression relationship type cannot be null");
-            Debug.Assert(fromEnd != null, "DbRelationshipNavigationExpression 'from' end cannot be null");
-            Debug.Assert(toEnd != null, "DbRelationshipNavigationExpression 'to' end cannot be null");
-            Debug.Assert(navigateFrom != null, "DbRelationshipNavigationExpression navigation source cannot be null");
+            DebugCheck.NotNull(relType);
+            DebugCheck.NotNull(fromEnd);
+            DebugCheck.NotNull(toEnd);
+            DebugCheck.NotNull(navigateFrom);
 
             _relation = relType;
             _fromRole = fromEnd;
@@ -34,7 +35,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the metadata for the relationship over which navigation occurs
+        ///     Gets the metadata for the relationship over which navigation occurs
         /// </summary>
         public RelationshipType Relationship
         {
@@ -42,7 +43,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the metadata for the relationship end to navigate from
+        ///     Gets the metadata for the relationship end to navigate from
         /// </summary>
         public RelationshipEndMember NavigateFrom
         {
@@ -50,7 +51,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the metadata for the relationship end to navigate to
+        ///     Gets the metadata for the relationship end to navigate to
         /// </summary>
         public RelationshipEndMember NavigateTo
         {
@@ -58,7 +59,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the <see cref="DbExpression"/> that specifies the instance of the 'from' relationship end from which navigation should occur.
+        ///     Gets the <see cref="DbExpression" /> that specifies the instance of the 'from' relationship end from which navigation should occur.
         /// </summary>
         public DbExpression NavigationSource
         {
@@ -66,39 +67,39 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that do not produce a result value.
+        ///     The visitor pattern method for expression visitors that do not produce a result value.
         /// </summary>
-        /// <param name="visitor">An instance of DbExpressionVisitor.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
+        /// <param name="visitor"> An instance of DbExpressionVisitor. </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
         public override void Accept(DbExpressionVisitor visitor)
         {
-            if (visitor != null)
-            {
-                visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            visitor.Visit(this);
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that produce a result value of a specific type.
+        ///     The visitor pattern method for expression visitors that produce a result value of a specific type.
         /// </summary>
-        /// <param name="visitor">An instance of a typed DbExpressionVisitor that produces a result value of type TResultType.</param>
-        /// <typeparam name="TResultType">The type of the result produced by <paramref name="visitor"/></typeparam>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
-        /// <returns>An instance of <typeparamref name="TResultType"/>.</returns>
+        /// <param name="visitor"> An instance of a typed DbExpressionVisitor that produces a result value of type TResultType. </param>
+        /// <typeparam name="TResultType">
+        ///     The type of the result produced by <paramref name="visitor" />
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
+        /// <returns>
+        ///     An instance of <typeparamref name="TResultType" /> .
+        /// </returns>
         public override TResultType Accept<TResultType>(DbExpressionVisitor<TResultType> visitor)
         {
-            if (visitor != null)
-            {
-                return visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            return visitor.Visit(this);
         }
     }
 }

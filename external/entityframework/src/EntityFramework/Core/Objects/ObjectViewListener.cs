@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Collections;
     using System.ComponentModel;
     using System.Data.Entity.Core.Objects.DataClasses;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     internal sealed class ObjectViewListener
     {
@@ -56,7 +57,7 @@ namespace System.Data.Entity.Core.Objects
 
         internal void RegisterEntityEvents(object entity)
         {
-            Debug.Assert(entity != null, "Entity should not be null");
+            DebugCheck.NotNull(entity);
             var propChanged = entity as INotifyPropertyChanged;
             if (propChanged != null)
             {
@@ -81,7 +82,7 @@ namespace System.Data.Entity.Core.Objects
 
         internal void UnregisterEntityEvents(object entity)
         {
-            Debug.Assert(entity != null, "entity should not be null");
+            DebugCheck.NotNull(entity);
             var propChanged = entity as INotifyPropertyChanged;
             if (propChanged != null)
             {

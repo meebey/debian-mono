@@ -1,15 +1,17 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Query.InternalTrees
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Globalization;
     using System.Text;
 
     /// <summary>
-    /// Represents a function import column map.
+    ///     Represents a function import column map.
     /// </summary>
     internal class MultipleDiscriminatorPolymorphicColumnMap : TypedColumnMap
     {
@@ -18,7 +20,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         private readonly Func<object[], EntityType> m_discriminate;
 
         /// <summary>
-        /// Internal constructor
+        ///     Internal constructor
         /// </summary>
         internal MultipleDiscriminatorPolymorphicColumnMap(
             TypeUsage type,
@@ -29,9 +31,9 @@ namespace System.Data.Entity.Core.Query.InternalTrees
             Func<object[], EntityType> discriminate)
             : base(type, name, baseTypeColumns)
         {
-            Debug.Assert(typeDiscriminators != null, "Must specify type discriminator columns");
-            Debug.Assert(typeChoices != null, "No type choices for polymorphic column");
-            Debug.Assert(discriminate != null, "Must specify discriminate");
+            DebugCheck.NotNull(typeDiscriminators);
+            DebugCheck.NotNull(typeChoices);
+            DebugCheck.NotNull(discriminate);
 
             m_typeDiscriminators = typeDiscriminators;
             m_typeChoices = typeChoices;
@@ -39,7 +41,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Get the type discriminator column
+        ///     Get the type discriminator column
         /// </summary>
         internal SimpleColumnMap[] TypeDiscriminators
         {
@@ -47,7 +49,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Get the type mapping
+        ///     Get the type mapping
         /// </summary>
         internal Dictionary<EntityType, TypedColumnMap> TypeChoices
         {
@@ -55,7 +57,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Gets discriminator delegate
+        ///     Gets discriminator delegate
         /// </summary>
         internal Func<object[], EntityType> Discriminate
         {
@@ -63,7 +65,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Visitor Design Pattern
+        ///     Visitor Design Pattern
         /// </summary>
         [DebuggerNonUserCode]
         internal override void Accept<TArgType>(ColumnMapVisitor<TArgType> visitor, TArgType arg)
@@ -72,7 +74,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Visitor Design Pattern
+        ///     Visitor Design Pattern
         /// </summary>
         [DebuggerNonUserCode]
         internal override TResultType Accept<TResultType, TArgType>(
@@ -82,7 +84,7 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         }
 
         /// <summary>
-        /// Debugging support
+        ///     Debugging support
         /// </summary>
         public override string ToString()
         {

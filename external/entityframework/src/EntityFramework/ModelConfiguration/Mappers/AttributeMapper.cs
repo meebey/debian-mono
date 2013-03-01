@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm.Common;
-    using System.Data.Entity.ModelConfiguration.Edm.Common;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.ModelConfiguration.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
     using System.Reflection;
 
@@ -15,23 +16,23 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
         public AttributeMapper(AttributeProvider attributeProvider)
         {
-            Contract.Requires(attributeProvider != null);
+            DebugCheck.NotNull(attributeProvider);
 
             _attributeProvider = attributeProvider;
         }
 
         public void Map(PropertyInfo propertyInfo, ICollection<DataModelAnnotation> annotations)
         {
-            Contract.Requires(propertyInfo != null);
-            Contract.Requires(annotations != null);
+            DebugCheck.NotNull(propertyInfo);
+            DebugCheck.NotNull(annotations);
 
             annotations.SetClrAttributes(_attributeProvider.GetAttributes(propertyInfo).ToList());
         }
 
         public void Map(Type type, ICollection<DataModelAnnotation> annotations)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(annotations != null);
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(annotations);
 
             annotations.SetClrAttributes(_attributeProvider.GetAttributes(type).ToList());
         }

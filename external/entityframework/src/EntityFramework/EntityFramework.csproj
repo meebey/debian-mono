@@ -10,9 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>System.Data.Entity</RootNamespace>
     <AssemblyName>EntityFramework</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <CodeContractsAssemblyMode>1</CodeContractsAssemblyMode>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>..\EcmaPublicKey.snk</AssemblyOriginatorKeyFile>
     <DelaySign>true</DelaySign>
@@ -20,98 +18,63 @@
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;CONTRACTS_FULL</DefineConstants>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeContractsEnableRuntimeChecking>True</CodeContractsEnableRuntimeChecking>
-    <CodeContractsRuntimeOnlyPublicSurface>False</CodeContractsRuntimeOnlyPublicSurface>
-    <CodeContractsRuntimeThrowOnFailure>True</CodeContractsRuntimeThrowOnFailure>
-    <CodeContractsRuntimeCallSiteRequires>False</CodeContractsRuntimeCallSiteRequires>
-    <CodeContractsRuntimeSkipQuantifiers>False</CodeContractsRuntimeSkipQuantifiers>
-    <CodeContractsRunCodeAnalysis>False</CodeContractsRunCodeAnalysis>
-    <CodeContractsNonNullObligations>False</CodeContractsNonNullObligations>
-    <CodeContractsBoundsObligations>False</CodeContractsBoundsObligations>
-    <CodeContractsArithmeticObligations>False</CodeContractsArithmeticObligations>
-    <CodeContractsEnumObligations>False</CodeContractsEnumObligations>
-    <CodeContractsRedundantAssumptions>False</CodeContractsRedundantAssumptions>
-    <CodeContractsRunInBackground>True</CodeContractsRunInBackground>
-    <CodeContractsShowSquigglies>False</CodeContractsShowSquigglies>
-    <CodeContractsUseBaseLine>False</CodeContractsUseBaseLine>
-    <CodeContractsEmitXMLDocs>False</CodeContractsEmitXMLDocs>
-    <CodeContractsCustomRewriterAssembly>EntityFramework</CodeContractsCustomRewriterAssembly>
-    <CodeContractsCustomRewriterClass>System.Data.Entity.Utilities.RuntimeFailureMethods</CodeContractsCustomRewriterClass>
-    <CodeContractsLibPaths />
-    <CodeContractsExtraRewriteOptions />
-    <CodeContractsExtraAnalysisOptions />
-    <CodeContractsBaseLineFile />
-    <CodeContractsCacheAnalysisResults>False</CodeContractsCacheAnalysisResults>
-    <CodeContractsRuntimeCheckingLevel>Full</CodeContractsRuntimeCheckingLevel>
-    <CodeContractsReferenceAssembly>Build</CodeContractsReferenceAssembly>
-    <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
     <DocumentationFile>bin\Debug\EntityFramework.xml</DocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>1591;1573;1572;1570</NoWarn>
-    <CodeContractsPointerObligations>False</CodeContractsPointerObligations>
-    <CodeContractsInferRequires>False</CodeContractsInferRequires>
-    <CodeContractsInferEnsures>False</CodeContractsInferEnsures>
-    <CodeContractsInferObjectInvariants>False</CodeContractsInferObjectInvariants>
-    <CodeContractsSuggestAssumptions>False</CodeContractsSuggestAssumptions>
-    <CodeContractsSuggestRequires>True</CodeContractsSuggestRequires>
-    <CodeContractsSuggestEnsures>False</CodeContractsSuggestEnsures>
-    <CodeContractsSuggestObjectInvariants>False</CodeContractsSuggestObjectInvariants>
-    <CodeContractsDisjunctiveRequires>False</CodeContractsDisjunctiveRequires>
     <CodeAnalysisRuleSet>..\Strict.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;CODE_ANALYSIS;CONTRACTS_FULL</DefineConstants>
+    <DefineConstants>TRACE;CODE_ANALYSIS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <CodeContractsEnableRuntimeChecking>True</CodeContractsEnableRuntimeChecking>
-    <CodeContractsRuntimeOnlyPublicSurface>True</CodeContractsRuntimeOnlyPublicSurface>
-    <CodeContractsRuntimeThrowOnFailure>True</CodeContractsRuntimeThrowOnFailure>
-    <CodeContractsRuntimeCallSiteRequires>False</CodeContractsRuntimeCallSiteRequires>
-    <CodeContractsRuntimeSkipQuantifiers>False</CodeContractsRuntimeSkipQuantifiers>
-    <CodeContractsRunCodeAnalysis>False</CodeContractsRunCodeAnalysis>
-    <CodeContractsNonNullObligations>False</CodeContractsNonNullObligations>
-    <CodeContractsBoundsObligations>False</CodeContractsBoundsObligations>
-    <CodeContractsArithmeticObligations>False</CodeContractsArithmeticObligations>
-    <CodeContractsEnumObligations>False</CodeContractsEnumObligations>
-    <CodeContractsRedundantAssumptions>False</CodeContractsRedundantAssumptions>
-    <CodeContractsRunInBackground>True</CodeContractsRunInBackground>
-    <CodeContractsShowSquigglies>False</CodeContractsShowSquigglies>
-    <CodeContractsUseBaseLine>False</CodeContractsUseBaseLine>
-    <CodeContractsEmitXMLDocs>False</CodeContractsEmitXMLDocs>
-    <CodeContractsCustomRewriterAssembly>EntityFramework</CodeContractsCustomRewriterAssembly>
-    <CodeContractsCustomRewriterClass>System.Data.Entity.Utilities.RuntimeFailureMethods</CodeContractsCustomRewriterClass>
-    <CodeContractsLibPaths />
-    <CodeContractsExtraRewriteOptions />
-    <CodeContractsExtraAnalysisOptions />
-    <CodeContractsBaseLineFile />
-    <CodeContractsCacheAnalysisResults>False</CodeContractsCacheAnalysisResults>
-    <CodeContractsRuntimeCheckingLevel>Preconditions</CodeContractsRuntimeCheckingLevel>
-    <CodeContractsReferenceAssembly>Build</CodeContractsReferenceAssembly>
-    <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
     <DocumentationFile>bin\Release\EntityFramework.xml</DocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <NoWarn>1591;1573;1572;1570</NoWarn>
-    <CodeContractsPointerObligations>False</CodeContractsPointerObligations>
-    <CodeContractsInferRequires>False</CodeContractsInferRequires>
-    <CodeContractsInferEnsures>False</CodeContractsInferEnsures>
-    <CodeContractsInferObjectInvariants>False</CodeContractsInferObjectInvariants>
-    <CodeContractsSuggestAssumptions>False</CodeContractsSuggestAssumptions>
-    <CodeContractsSuggestRequires>True</CodeContractsSuggestRequires>
-    <CodeContractsSuggestEnsures>False</CodeContractsSuggestEnsures>
-    <CodeContractsSuggestObjectInvariants>False</CodeContractsSuggestObjectInvariants>
-    <CodeContractsDisjunctiveRequires>False</CodeContractsDisjunctiveRequires>
     <RunCodeAnalysis>true</RunCodeAnalysis>
     <CodeAnalysisRuleSet>..\Strict.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'DebugNet40|AnyCPU' ">
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\DebugNet40\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;NET40</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\DebugNet40\EntityFramework.xml</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591;1573;1572;1570</NoWarn>
+    <CodeAnalysisRuleSet>..\Strict.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseNet40|AnyCPU' ">
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\ReleaseNet40\</OutputPath>
+    <DefineConstants>TRACE;CODE_ANALYSIS;NET40</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\ReleaseNet40\EntityFramework.xml</DocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>1591;1573;1572;1570</NoWarn>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <CodeAnalysisRuleSet>..\Strict.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(InternalsInvisble)'=='true'">
+    <DefineConstants>$(DefineConstants);INTERNALS_INVISIBLE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
@@ -130,23 +93,34 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="..\SharedAssemblyVersionInfo.cs">
+      <Link>Properties\SharedAssemblyVersionInfo.cs</Link>
+    </Compile>
     <Compile Include="Config\AppConfigDependencyResolver.cs" />
     <Compile Include="Config\CachingDependencyResolver.cs" />
     <Compile Include="Config\CompositeResolver`.cs" />
+    <Compile Include="Config\DbConfigurationEventArgs.cs" />
+    <Compile Include="Config\DefaultInvariantNameResolver.cs" />
+    <Compile Include="Config\DefaultProviderFactoryResolver.cs" />
+    <Compile Include="Config\ExecutionStrategyResolver.cs" />
+    <Compile Include="Config\InvariantNameResolver.cs" />
+    <Compile Include="Config\TransientDependencyResolver.cs" />
+    <Compile Include="Config\ThreadLocalDependencyResolver.cs" />
+    <Compile Include="Config\DatabaseInitializerResolver.cs" />
     <Compile Include="Config\DbConfiguration.cs" />
     <Compile Include="Config\DbConfigurationFinder.cs" />
     <Compile Include="Config\DbConfigurationLoader.cs" />
     <Compile Include="Config\DbConfigurationManager.cs" />
-    <Compile Include="Config\DbNullConfiguration.cs" />
-    <Compile Include="Config\DbConfigurationProxy.cs" />
+    <Compile Include="Config\DbConfigurationTypeAttribute.cs" />
     <Compile Include="Config\DefaultProviderServicesResolver.cs" />
     <Compile Include="Config\IDbDependencyResolver.cs" />
     <Compile Include="Config\IDbDependencyResolverExtensions.cs" />
-    <Compile Include="Config\MigrationsConfigurationResolver.cs" />
+    <Compile Include="Config\InternalConfiguration.cs" />
     <Compile Include="Config\ProviderServicesFactory.cs" />
     <Compile Include="Config\ResolverChain.cs" />
     <Compile Include="Config\RootDependencyResolver.cs" />
     <Compile Include="Config\SingletonDependencyResolver.cs" />
+    <Compile Include="Config\WrappingDependencyResolver`.cs" />
     <Compile Include="Core\Common\CommandTrees\DbAggregate.cs" />
     <Compile Include="Core\Common\CommandTrees\DbAndExpression.cs" />
     <Compile Include="Core\Common\CommandTrees\DbApplyExpression.cs" />
@@ -222,6 +196,7 @@
     <Compile Include="Core\Common\CommandTrees\ExpressionRebinder.cs" />
     <Compile Include="Core\Common\CommandTrees\Internal\DbExpressionRule.cs" />
     <Compile Include="Core\Common\CommandTrees\Internal\DbExpressionRuleProcessingVisitor.cs" />
+    <Compile Include="Core\Common\CommandTrees\DbInExpression.cs" />
     <Compile Include="Core\Common\CommandTrees\Internal\ExpressionDumper.cs" />
     <Compile Include="Core\Common\CommandTrees\Internal\ExpressionKeyGen.cs" />
     <Compile Include="Core\Common\CommandTrees\Internal\ExpressionList.cs" />
@@ -239,6 +214,15 @@
     <Compile Include="Core\Common\internal\materialization\CodeGenEmitter.cs" />
     <Compile Include="Core\Common\internal\materialization\CoordinatorFactory`.cs" />
     <Compile Include="Core\Common\internal\materialization\Coordinator`.cs" />
+    <Compile Include="Core\Mapping\IStructuralTypeMapping.cs" />
+    <Compile Include="Core\Mapping\ViewGeneration\QueryRewriting\FragmentQueryKBChaseSupport.cs" />
+    <Compile Include="Core\Metadata\Edm\DbDatabaseMapping.cs" />
+    <Compile Include="Core\Metadata\Edm\ForeignKeyBuilder.cs" />
+    <Compile Include="Core\Metadata\Edm\IMetadataItem.cs" />
+    <Compile Include="Core\Metadata\Edm\INamedDataModelItem.cs" />
+    <Compile Include="Core\Objects\ExecutionOptions.cs" />
+    <Compile Include="Core\Objects\Internal\BufferedDataReader.cs" />
+    <Compile Include="Core\Objects\Internal\BufferedDataRecord.cs" />
     <Compile Include="Core\Objects\Internal\ObjectQueryExecutionPlanFactory.cs" />
     <Compile Include="Core\Objects\MaterializedDataRecord.cs" />
     <Compile Include="Core\Common\DataRecordInfo.cs" />
@@ -341,28 +325,101 @@
     <Compile Include="Core\Common\EntityUtil.cs" />
     <Compile Include="Core\Objects\ObjectReferenceEqualityComparer.cs" />
     <Compile Include="Core\Query\ResultAssembly\BridgeDataReaderFactory.cs" />
+    <Compile Include="DataAnnotations\MaxLengthAttribute.cs" />
+    <Compile Include="DataAnnotations\MinLengthAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\ColumnAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\ComplexTypeAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\DatabaseGeneratedAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\DatabaseGeneratedOption.cs" />
+    <Compile Include="DataAnnotations\Schema\ForeignKeyAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\InversePropertyAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\NotMappedAttribute.cs" />
+    <Compile Include="DataAnnotations\Schema\TableAttribute.cs" />
+    <Compile Include="Edm\Serialization\MslXmlSchemaWriter.cs" />
+    <Compile Include="Infrastructure\DefaultDbProviderFactoryService.cs" />
+    <Compile Include="Infrastructure\DefaultManifestTokenService.cs" />
+    <Compile Include="Infrastructure\IExecutionStrategy.cs" />
+    <Compile Include="Infrastructure\ExecutionStrategy.cs" />
+    <Compile Include="Infrastructure\ExecutionStrategyKey.cs" />
+    <Compile Include="Infrastructure\ExponentialRetryDelayStrategy.cs" />
+    <Compile Include="Infrastructure\IDbModelCacheKeyProvider.cs" />
+    <Compile Include="Infrastructure\IDbProviderFactoryService.cs" />
+    <Compile Include="Infrastructure\IManifestTokenService.cs" />
+    <Compile Include="Infrastructure\IProviderInvariantName.cs" />
+    <Compile Include="Infrastructure\IRetriableExceptionDetector.cs" />
+    <Compile Include="Infrastructure\IRetryDelayStrategy.cs" />
+    <Compile Include="Infrastructure\Pluralization\CustomPluralizationEntry.cs" />
+    <Compile Include="Infrastructure\Pluralization\EnglishPluralizationService.cs" />
+    <Compile Include="Infrastructure\Pluralization\IPluralizationService.cs" />
+    <Compile Include="Infrastructure\Pluralization\PluralizationServiceUtil.cs" />
+    <Compile Include="Infrastructure\ProviderInvariantName.cs" />
+    <Compile Include="Infrastructure\RetryLimitExceededException.cs" />
+    <Compile Include="Infrastructure\NonRetryingExecutionStrategy.cs" />
+    <Compile Include="Internal\CommandTracer.cs" />
     <Compile Include="Internal\ConfigFile\MigrationSqlGeneratorElement.cs" />
     <Compile Include="Infrastructure\IDbAsyncEnumerable.cs" />
     <Compile Include="Infrastructure\IDbAsyncEnumerableExtensions.cs" />
-    <Compile Include="Infrastructure\DbSqlSetQuery.cs" />
-    <Compile Include="Infrastructure\DbSqlSetQuery`.cs" />
+    <Compile Include="Infrastructure\DbSqlQuery.cs" />
+    <Compile Include="Infrastructure\DbSqlQuery`.cs" />
     <Compile Include="Infrastructure\IDbAsyncEnumerator.cs" />
     <Compile Include="Infrastructure\IDbAsyncQueryProvider.cs" />
     <Compile Include="Infrastructure\IDbAsyncQueryProviderExtensions.cs" />
     <Compile Include="Internal\ConfigFile\ProviderCollection.cs" />
     <Compile Include="Internal\ConfigFile\ProviderElement.cs" />
+    <Compile Include="Internal\DefaultCommandInterceptor.cs" />
+    <Compile Include="Internal\IDbCommandInterceptor.cs" />
     <Compile Include="Internal\IDbEnumerator.cs" />
     <Compile Include="Internal\DefaultModelCacheKey.cs" />
     <Compile Include="Internal\DefaultModelCacheKeyFactory.cs" />
     <Compile Include="Infrastructure\IDbModelCacheKey.cs" />
     <Compile Include="Infrastructure\IDbModelCacheKeyFactory.cs" />
+    <Compile Include="Internal\InitializerConfig.cs" />
+    <Compile Include="Internal\InterceptedCommand.cs" />
     <Compile Include="Internal\LazyAsyncEnumerator.cs" />
     <Compile Include="Internal\LazyEnumerator`.cs" />
+    <Compile Include="Migrations\History\DefaultHistoryContextFactory.cs" />
+    <Compile Include="Migrations\History\IHistoryContextFactory.cs" />
+    <Compile Include="Migrations\Infrastructure\MigrationsPendingException.cs" />
+    <Compile Include="ModelConfiguration\Configuration\ConfigurationTypeActivator.cs" />
+    <Compile Include="ModelConfiguration\Configuration\ConfigurationTypeFilter.cs" />
+    <Compile Include="ModelConfiguration\Configuration\ConfigurationTypesFinder.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Conventions\EntityConventionConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Conventions\EntityConventionOfTypeConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Conventions\EntityConventionOfTypeWithHavingConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Conventions\EntityConventionWithHavingConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Conventions\PropertyConventionConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Conventions\PropertyConventionWithHavingConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\DeleteModificationFunctionConfiguration`.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\InsertModificationFunctionConfiguration`.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\UpdateModificationFunctionConfiguration`.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\FunctionParameterConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\ModificationFunctionConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\ModificationFunctionConfiguration`.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\ModificationFunctionsConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Functions\ModificationFunctionsConfiguration`.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Properties\Primitive\MissingPropertyConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Properties\Primitive\LightweightPropertyConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Types\LightweightEntityConfiguration.cs" />
+    <Compile Include="ModelConfiguration\Configuration\Types\LightweightEntityConfiguration`.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\EntityConvention.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\EntityConventionBase.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\EntityConventionOfType.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\EntityConventionOfTypeWithHaving.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\EntityConventionWithHaving.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\EntityConventionWithHavingBase.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\PropertyConvention.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\PropertyConventionBase.cs" />
+    <Compile Include="ModelConfiguration\Conventions\Configuration\Lightweight\PropertyConventionWithHaving.cs" />
+    <Compile Include="ModelConfiguration\Edm\Services\ModificationFunctionMappingGenerator.cs" />
+    <Compile Include="ModelConfiguration\Edm\Services\FunctionParameterMappingGenerator.cs" />
+    <Compile Include="NullDatabaseInitializer.cs" />
     <Compile Include="Internal\ProviderConfig.cs" />
     <Compile Include="Spatial\SpatialServicesLoader.cs" />
     <Compile Include="Utilities\BoolExtensions.cs" />
+    <Compile Include="Utilities\Check.cs" />
     <Compile Include="Utilities\DbModelExtensions.cs" />
     <Compile Include="Utilities\DbProviderFactoryExtensions.cs" />
+    <Compile Include="Utilities\DebugCheck.cs" />
     <Compile Include="Utilities\ExceptionExtensions.cs" />
     <Compile Include="Core\Common\FieldMetadata.cs" />
     <Compile Include="Core\Common\FieldNameLookup.cs" />
@@ -472,79 +529,78 @@
     <Compile Include="Core\EntityException.cs" />
     <Compile Include="Core\EntityKey.cs" />
     <Compile Include="Core\EntityKeyMember.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Action.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\AddErrorKind.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\BooleanFacetDescriptionElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ByteFacetDescriptionElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\CollectionKind.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\CollectionTypeElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ConcurrencyMode.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\DocumentationElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainer.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainerAssociationSet.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainerAssociationSetEnd.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainerEntitySet.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainerEntitySetDefiningQuery.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainerRelationshipSet.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityContainerRelationshipSetEnd.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\EntityKeyElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ErrorCode.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\FacetDescriptionElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\FacetEnabledSchemaElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\FilteredSchemaElementLookUpTable.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Function.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\FunctionCommandText.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\FunctionImportElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\IntegerFacetDescriptionElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\IRelationship.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\IRelationshipEnd.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ISchemaElementLookUpTable.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ItemType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\PropertyRefElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ModelFunction.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ModelFunctionTypeElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Multiplicity.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\NavigationProperty.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\OnOperation.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Operation.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Parameter.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\PrimitiveSchema.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Property.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ReferenceSchema.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ReferenceTypeElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ReferentialConstraint.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ReferentialConstraintRoleElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Relationship.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\RelationshipEnd.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\RelationshipEndCollection.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ReturnType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ReturnValue.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\RowTypeElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\RowTypePropertyElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ScalarType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Schema.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaComplexType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaDataModelOption.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaElementLookUpTable.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaElementLookUpTableEnumerator.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaEnumMember.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaEnumType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaLookupTable.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaManager.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SchemaType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\SridFacetDescriptionElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\StoreGeneratedPattern.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\StructuredProperty.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\StructuredType.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\TextElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\TypeElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\TypeModifier.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\TypeRefElement.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\TypeUsageBuilder.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\Utils.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\ValidationHelper.cs" />
-    <Compile Include="Core\EntityModel\SchemaObjectModel\XmlSchemaResource.cs" />
+    <Compile Include="Core\SchemaObjectModel\Action.cs" />
+    <Compile Include="Core\SchemaObjectModel\AddErrorKind.cs" />
+    <Compile Include="Core\SchemaObjectModel\BooleanFacetDescriptionElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\ByteFacetDescriptionElement.cs" />
+    <Compile Include="Core\Metadata\Edm\CollectionKind.cs" />
+    <Compile Include="Core\SchemaObjectModel\CollectionTypeElement.cs" />
+    <Compile Include="Core\Metadata\Edm\ConcurrencyMode.cs" />
+    <Compile Include="Core\SchemaObjectModel\DocumentationElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainer.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainerAssociationSet.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainerAssociationSetEnd.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainerEntitySet.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainerEntitySetDefiningQuery.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainerRelationshipSet.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityContainerRelationshipSetEnd.cs" />
+    <Compile Include="Core\SchemaObjectModel\EntityKeyElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\ErrorCode.cs" />
+    <Compile Include="Core\SchemaObjectModel\FacetDescriptionElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\FacetEnabledSchemaElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\FilteredSchemaElementLookUpTable.cs" />
+    <Compile Include="Core\SchemaObjectModel\Function.cs" />
+    <Compile Include="Core\SchemaObjectModel\FunctionCommandText.cs" />
+    <Compile Include="Core\SchemaObjectModel\FunctionImportElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\IntegerFacetDescriptionElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\IRelationship.cs" />
+    <Compile Include="Core\SchemaObjectModel\IRelationshipEnd.cs" />
+    <Compile Include="Core\SchemaObjectModel\ISchemaElementLookUpTable.cs" />
+    <Compile Include="Core\SchemaObjectModel\ItemType.cs" />
+    <Compile Include="Core\SchemaObjectModel\PropertyRefElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\ModelFunction.cs" />
+    <Compile Include="Core\SchemaObjectModel\ModelFunctionTypeElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\NavigationProperty.cs" />
+    <Compile Include="Core\SchemaObjectModel\OnOperation.cs" />
+    <Compile Include="Core\SchemaObjectModel\Operation.cs" />
+    <Compile Include="Core\SchemaObjectModel\Parameter.cs" />
+    <Compile Include="Core\SchemaObjectModel\PrimitiveSchema.cs" />
+    <Compile Include="Core\SchemaObjectModel\Property.cs" />
+    <Compile Include="Core\SchemaObjectModel\ReferenceSchema.cs" />
+    <Compile Include="Core\SchemaObjectModel\ReferenceTypeElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\ReferentialConstraint.cs" />
+    <Compile Include="Core\SchemaObjectModel\ReferentialConstraintRoleElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\Relationship.cs" />
+    <Compile Include="Core\SchemaObjectModel\RelationshipEnd.cs" />
+    <Compile Include="Core\SchemaObjectModel\RelationshipEndCollection.cs" />
+    <Compile Include="Core\SchemaObjectModel\ReturnType.cs" />
+    <Compile Include="Core\SchemaObjectModel\ReturnValue.cs" />
+    <Compile Include="Core\SchemaObjectModel\RowTypeElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\RowTypePropertyElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\ScalarType.cs" />
+    <Compile Include="Core\SchemaObjectModel\Schema.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaComplexType.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaDataModelOption.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaElementLookUpTable.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaElementLookUpTableEnumerator.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaEnumMember.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaEnumType.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaLookupTable.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaManager.cs" />
+    <Compile Include="Core\SchemaObjectModel\SchemaType.cs" />
+    <Compile Include="Core\SchemaObjectModel\SridFacetDescriptionElement.cs" />
+    <Compile Include="Core\Metadata\Edm\StoreGeneratedPattern.cs" />
+    <Compile Include="Core\SchemaObjectModel\StructuredProperty.cs" />
+    <Compile Include="Core\SchemaObjectModel\StructuredType.cs" />
+    <Compile Include="Core\SchemaObjectModel\TextElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\TypeElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\TypeModifier.cs" />
+    <Compile Include="Core\SchemaObjectModel\TypeRefElement.cs" />
+    <Compile Include="Core\SchemaObjectModel\TypeUsageBuilder.cs" />
+    <Compile Include="Core\SchemaObjectModel\Utils.cs" />
+    <Compile Include="Core\SchemaObjectModel\ValidationHelper.cs" />
+    <Compile Include="Core\SchemaObjectModel\XmlSchemaResource.cs" />
     <Compile Include="Core\EntityResCategoryAttribute.cs" />
     <Compile Include="Core\EntityResDescriptionAttribute.cs" />
     <Compile Include="Core\EntitySqlException.cs" />
@@ -739,20 +795,20 @@
     <Compile Include="Core\Mapping\ViewGeneration\ViewGenTraceLevel.cs" />
     <Compile Include="Core\Mapping\ViewValidator.cs" />
     <Compile Include="Core\MetadataException.cs" />
-    <Compile Include="Core\Metadata\AspProxy.cs" />
-    <Compile Include="Core\Metadata\CacheForPrimitiveTypes.cs" />
-    <Compile Include="Core\Metadata\ClrPerspective.cs" />
-    <Compile Include="Core\Metadata\Converter.cs" />
-    <Compile Include="Core\Metadata\CustomAssemblyResolver.cs" />
-    <Compile Include="Core\Metadata\DataSpace.cs" />
-    <Compile Include="Core\Metadata\DefaultAssemblyResolver.cs" />
-    <Compile Include="Core\Metadata\EdmError.cs" />
-    <Compile Include="Core\Metadata\EdmItemCollection.cs" />
-    <Compile Include="Core\Metadata\EdmItemCollection.OcAssemblyCache.cs" />
-    <Compile Include="Core\Metadata\EdmItemError.cs" />
-    <Compile Include="Core\Metadata\EdmSchemaError.cs" />
-    <Compile Include="Core\Metadata\EdmSchemaErrorSeverity.cs" />
-    <Compile Include="Core\Metadata\EdmValidator.cs" />
+    <Compile Include="Core\Metadata\Edm\AspProxy.cs" />
+    <Compile Include="Core\Metadata\Edm\CacheForPrimitiveTypes.cs" />
+    <Compile Include="Core\Metadata\Edm\ClrPerspective.cs" />
+    <Compile Include="Core\Metadata\Edm\Converter.cs" />
+    <Compile Include="Core\Metadata\Edm\CustomAssemblyResolver.cs" />
+    <Compile Include="Core\Metadata\Edm\DataSpace.cs" />
+    <Compile Include="Core\Metadata\Edm\DefaultAssemblyResolver.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmError.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmItemCollection.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmItemCollection.OcAssemblyCache.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmItemError.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmSchemaError.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmSchemaErrorSeverity.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmValidator.cs" />
     <Compile Include="Core\Metadata\Edm\AssociationEndMember.cs" />
     <Compile Include="Core\Metadata\Edm\AssociationSet.cs" />
     <Compile Include="Core\Metadata\Edm\AssociationSetEnd.cs" />
@@ -760,10 +816,10 @@
     <Compile Include="Core\Metadata\Edm\ClrEntityType.cs" />
     <Compile Include="Core\Metadata\Edm\ClrEnumType.cs" />
     <Compile Include="Core\Metadata\Edm\PropertyKind.cs" />
-    <Compile Include="Core\Metadata\Edm\BuiltInKind.cs" />
+    <Compile Include="Core\Metadata\Edm\BuiltInTypeKind.cs" />
     <Compile Include="Core\Metadata\Edm\CollectionType.cs" />
     <Compile Include="Core\Metadata\Edm\ComplexType.cs" />
-    <Compile Include="Core\Metadata\Edm\documentation.cs" />
+    <Compile Include="Core\Metadata\Edm\Documentation.cs" />
     <Compile Include="Core\Metadata\Edm\EdmConstants.cs" />
     <Compile Include="Core\Metadata\Edm\EdmFunction.cs" />
     <Compile Include="Core\Metadata\Edm\EdmMember.cs" />
@@ -785,7 +841,7 @@
     <Compile Include="Core\Metadata\Edm\FunctionParameter.cs" />
     <Compile Include="Core\Metadata\Edm\GlobalItem.cs" />
     <Compile Include="Core\Metadata\Edm\ItemCollection.cs" />
-    <Compile Include="Core\Metadata\Edm\LightweightCodeGenerator.cs" />
+    <Compile Include="Core\Objects\DelegateFactory.cs" />
     <Compile Include="Core\Metadata\Edm\MemberCollection.cs" />
     <Compile Include="Core\Metadata\Edm\MetadataCollection.cs" />
     <Compile Include="Core\Metadata\Edm\MetadataItem.cs" />
@@ -812,27 +868,27 @@
     <Compile Include="Core\Metadata\Edm\RelationshipSet.cs" />
     <Compile Include="Core\Metadata\Edm\RelationshipType.cs" />
     <Compile Include="Core\Metadata\Edm\RowType.cs" />
-    <Compile Include="Core\Metadata\Edm\safelink.cs" />
-    <Compile Include="Core\Metadata\Edm\safelinkcollection.cs" />
+    <Compile Include="Core\Metadata\Edm\SafeLink.cs" />
+    <Compile Include="Core\Metadata\Edm\SafeLinkCollection.cs" />
     <Compile Include="Core\Metadata\Edm\SimpleType.cs" />
     <Compile Include="Core\Metadata\Edm\StructuralType.cs" />
     <Compile Include="Core\Metadata\Edm\TypeUsage.cs" />
-    <Compile Include="Core\Metadata\Edm\util.cs" />
-    <Compile Include="Core\Metadata\Helper.cs" />
-    <Compile Include="Core\Metadata\MappingMetadataHelper.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactAssemblyResolver.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoader.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoaderComposite.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoaderCompositeFile.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoaderCompositeResource.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoaderFile.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoaderResource.cs" />
-    <Compile Include="Core\Metadata\MetadataArtifactLoaderXmlReaderWrapper.cs" />
-    <Compile Include="Core\Metadata\MetadataCache.cs" />
-    <Compile Include="Core\Metadata\MetadataWorkspace.cs" />
-    <Compile Include="Core\Metadata\ModelPerspective.cs" />
-    <Compile Include="Core\Metadata\ObjectHelper.cs" />
-    <Compile Include="Core\Metadata\ObjectItemCollection.cs" />
+    <Compile Include="Core\Metadata\Edm\Util.cs" />
+    <Compile Include="Core\Metadata\Edm\Helper.cs" />
+    <Compile Include="Core\Metadata\Edm\MappingMetadataHelper.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactAssemblyResolver.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoader.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoaderComposite.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoaderCompositeFile.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoaderCompositeResource.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoaderFile.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoaderResource.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataArtifactLoaderXmlReaderWrapper.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataCache.cs" />
+    <Compile Include="Core\Metadata\Edm\MetadataWorkspace.cs" />
+    <Compile Include="Core\Metadata\Edm\ModelPerspective.cs" />
+    <Compile Include="Core\Metadata\Edm\ObjectHelper.cs" />
+    <Compile Include="Core\Metadata\Edm\ObjectItemCollection.cs" />
     <Compile Include="Core\Metadata\ObjectLayer\AssemblyCache.cs" />
     <Compile Include="Core\Metadata\ObjectLayer\AssemblyCacheEntry.cs" />
     <Compile Include="Core\Metadata\ObjectLayer\ImmutableAssemblyCacheEntry.cs" />
@@ -848,16 +904,16 @@
     <Compile Include="Core\Metadata\ObjectLayer\ObjectItemConventionAssemblyLoader.cs" />
     <Compile Include="Core\Metadata\ObjectLayer\ObjectItemLoadingSessionData.cs" />
     <Compile Include="Core\Metadata\ObjectLayer\ObjectItemNoOpAssemblyLoader.cs" />
-    <Compile Include="Core\Metadata\ParameterTypeSemantics.cs" />
-    <Compile Include="Core\Metadata\Perspective.cs" />
-    <Compile Include="Core\Metadata\StoreItemCollection.cs" />
-    <Compile Include="Core\Metadata\StoreItemCollection.Loader.cs" />
-    <Compile Include="Core\Metadata\TargetPerspective.cs" />
-    <Compile Include="Core\Metadata\TypeHelpers.cs" />
-    <Compile Include="Core\Metadata\TypeSemantics.cs" />
-    <Compile Include="Core\Metadata\ValidationErrorEventArgs.cs" />
-    <Compile Include="Core\Metadata\ValidationSeverity.cs" />
-    <Compile Include="Core\Metadata\XmlConstants.cs" />
+    <Compile Include="Core\Metadata\Edm\ParameterTypeSemantics.cs" />
+    <Compile Include="Core\Metadata\Edm\Perspective.cs" />
+    <Compile Include="Core\Metadata\Edm\StoreItemCollection.cs" />
+    <Compile Include="Core\Metadata\Edm\StoreItemCollection.Loader.cs" />
+    <Compile Include="Core\Metadata\Edm\TargetPerspective.cs" />
+    <Compile Include="Core\Common\TypeHelpers.cs" />
+    <Compile Include="Core\Metadata\Edm\TypeSemantics.cs" />
+    <Compile Include="Core\Metadata\Edm\ValidationErrorEventArgs.cs" />
+    <Compile Include="Core\Metadata\Edm\ValidationSeverity.cs" />
+    <Compile Include="Core\Metadata\Edm\XmlConstants.cs" />
     <Compile Include="Core\ObjectNotFoundException.cs" />
     <Compile Include="Core\Objects\CompiledQuery.cs" />
     <Compile Include="Core\Objects\CurrentValueRecord.cs" />
@@ -1212,12 +1268,8 @@
     <Compile Include="Core\UpdateException.cs" />
     <Compile Include="DbFunctionAttribute.cs" />
     <Compile Include="DbFunctions.cs" />
-    <Compile Include="Edm\Common\INamedDataModelItemExtensions.cs" />
-    <Compile Include="Edm\Db\DbConstraintMetadata.cs" />
     <Compile Include="DbSetExtensions.cs" />
-    <Compile Include="Edm\EdmEnumType.cs" />
-    <Compile Include="Edm\EdmEnumTypeMember.cs" />
-    <Compile Include="Edm\Validation\Internal\DataModelValidationRule`.cs" />
+    <Compile Include="Edm\Validation\DataModelValidationRule`.cs" />
     <Compile Include="EntityState.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Infrastructure\IDbAsyncEnumerable`.cs" />
@@ -1241,7 +1293,6 @@
     <Compile Include="Internal\EdmMetadataRepository.cs" />
     <Compile Include="Internal\AppConfig.cs" />
     <Compile Include="Internal\MockingProxies\EntityConnectionProxy.cs" />
-    <Compile Include="Internal\LegacyDatabaseInitializerConfig.cs" />
     <Compile Include="Internal\ModelCompatibilityChecker.cs" />
     <Compile Include="Internal\ModelHashCalculator.cs" />
     <Compile Include="Internal\MockingProxies\ObjectContextProxy.cs" />
@@ -1274,14 +1325,14 @@
     <Compile Include="Utilities\ExpressionExtensions.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Migrations\Extensions\IEnumerableExtensions.cs" />
+    <Compile Include="Utilities\IEnumerableExtensions.cs" />
     <Compile Include="Utilities\MemberInfoExtensions.cs" />
+    <Compile Include="Utilities\ProviderRowFinder.cs" />
     <Compile Include="Utilities\StringExtensions.cs" />
     <Compile Include="Utilities\TaskHelper.cs" />
     <Compile Include="Utilities\XContainerExtensions.cs" />
     <Compile Include="Utilities\XDocumentExtensions.cs" />
     <Compile Include="Migrations\History\HistoryContext.cs" />
-    <Compile Include="Migrations\History\HistoryContextBase`.cs" />
     <Compile Include="Migrations\History\HistoryRepository.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -1306,7 +1357,6 @@
     <Compile Include="Migrations\Model\ColumnModel.cs" />
     <Compile Include="Migrations\Model\CreateIndexOperation.cs" />
     <Compile Include="Migrations\Model\CreateTableOperation.cs" />
-    <Compile Include="Migrations\Model\DeleteHistoryOperation.cs" />
     <Compile Include="Migrations\Model\DropColumnOperation.cs" />
     <Compile Include="Migrations\Model\DropForeignKeyOperation.cs" />
     <Compile Include="Migrations\Model\DropIndexOperation.cs" />
@@ -1315,7 +1365,6 @@
     <Compile Include="Migrations\Model\ForeignKeyOperation.cs" />
     <Compile Include="Migrations\Model\HistoryOperation.cs" />
     <Compile Include="Migrations\Model\IndexOperation.cs" />
-    <Compile Include="Migrations\Model\InsertHistoryOperation.cs" />
     <Compile Include="Migrations\Model\MigrationOperation.cs" />
     <Compile Include="Migrations\Model\MoveTableOperation.cs" />
     <Compile Include="Migrations\Model\PrimaryKeyOperation.cs" />
@@ -1338,7 +1387,6 @@
     <Compile Include="Spatial\DbSpatialDataReader.cs" />
     <Compile Include="Spatial\DbSpatialServices.cs" />
     <Compile Include="Spatial\DefaultSpatialServices.cs" />
-    <Compile Include="Spatial\ExtensionMethods.cs" />
     <Compile Include="Spatial\SpatialHelpers.cs" />
     <None Include="Properties\Resources.Migrate.cs">
       <DependentUpon>Resources.Migrate.tt</DependentUpon>
@@ -1357,7 +1405,7 @@
     <Compile Include="Migrations\Utilities\UtcNowGenerator.cs" />
     <Compile Include="ModelConfiguration\Conventions\Edm\Db\ColumnOrderingConventionStrict.cs" />
     <Compile Include="ModelConfiguration\Conventions\Sets\V2ConventionSet.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmEnumTypeExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\EnumTypeExtensions.cs" />
     <Compile Include="Utilities\DbModelBuilderVersionExtensions.cs" />
     <Compile Include="Utilities\DbProviderServicesExtensions.cs" />
     <Compile Include="Properties\AssemblyVersion.cs" />
@@ -1367,111 +1415,27 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.tt</DependentUpon>
     </Compile>
-    <Compile Include="Edm\Common\DataModelAnnotation.cs" />
-    <Compile Include="Edm\Common\DataModelErrorEventArgs.cs" />
-    <Compile Include="Edm\Common\DataModelEventArgs.cs" />
-    <Compile Include="Edm\Common\DataModelItem.cs" />
-    <Compile Include="Edm\Common\DataModelVersions.cs" />
-    <Compile Include="Edm\Common\IAnnotatedDataModelItem.cs" />
-    <Compile Include="Edm\Common\INamedDataModelItem.cs" />
-    <Compile Include="Edm\Db\DbAliasedMetadataItem.cs" />
-    <Compile Include="Edm\Db\DbColumnMetadata.cs" />
-    <Compile Include="Edm\Db\DbDatabaseMetadata.cs" />
-    <Compile Include="Edm\Db\DbDataModelItem.cs" />
-    <Compile Include="Edm\Db\DbForeignKeyConstraintMetadata.cs" />
-    <Compile Include="Edm\Db\DbItemKind.cs" />
-    <Compile Include="Edm\Db\DbMetadataItem.cs" />
-    <Compile Include="Edm\Db\DbNamedMetadataItem.cs" />
-    <Compile Include="Edm\Db\DbOperationAction.cs" />
-    <Compile Include="Edm\Db\DbParameterMode.cs" />
-    <Compile Include="Edm\Db\DbParameterTypeSemantics.cs" />
-    <Compile Include="Edm\Db\DbPrimitiveTypeFacets.cs" />
-    <Compile Include="Edm\Db\DbSchemaMetadata.cs" />
-    <Compile Include="Edm\Db\DbSchemaMetadataItem.cs" />
-    <Compile Include="Edm\Db\DbStoreGeneratedPattern.cs" />
-    <Compile Include="Edm\Db\DbTableColumnMetadata.cs" />
-    <Compile Include="Edm\Db\DbTableMetadata.cs" />
-    <Compile Include="Edm\Db\DbTypeMetadata.cs" />
-    <Compile Include="Edm\Db\Mapping\DbAssociationEndMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbAssociationSetMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbColumnCondition.cs" />
-    <Compile Include="Edm\Db\Mapping\DbDatabaseMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbEdmPropertyMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbEntityContainerMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbEntitySetMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbEntityTypeMapping.cs" />
-    <Compile Include="Edm\Db\Mapping\DbEntityTypeMappingFragment.cs" />
-    <Compile Include="Edm\Db\Mapping\DbMappingItemKind.cs" />
-    <Compile Include="Edm\Db\Mapping\DbMappingMetadataItem.cs" />
-    <Compile Include="Edm\Db\Mapping\DbMappingModelItem.cs" />
-    <Compile Include="Edm\EdmAssociationConstraint.cs" />
-    <Compile Include="Edm\EdmAssociationEnd.cs" />
-    <Compile Include="Edm\EdmAssociationEndKind.cs" />
-    <Compile Include="Edm\EdmAssociationSet.cs" />
-    <Compile Include="Edm\EdmAssociationType.cs" />
-    <Compile Include="Edm\EdmCollectionKind.cs" />
-    <Compile Include="Edm\EdmComplexType.cs" />
-    <Compile Include="Edm\EdmConcurrencyMode.cs" />
-    <Compile Include="Edm\EdmDataModelItem.cs" />
-    <Compile Include="Edm\EdmDataModelType.cs" />
-    <Compile Include="Edm\EdmEntityContainer.cs" />
-    <Compile Include="Edm\EdmEntityContainerItem.cs" />
-    <Compile Include="Edm\EdmEntitySet.cs" />
-    <Compile Include="Edm\EdmEntityType.cs" />
-    <Compile Include="Edm\EdmItemKind.cs" />
-    <Compile Include="Edm\EdmMetadataItem.cs" />
-    <Compile Include="Edm\EdmModel.cs" />
-    <Compile Include="Edm\EdmNamedMetadataItem.cs" />
-    <Compile Include="Edm\EdmNamespace.cs" />
-    <Compile Include="Edm\EdmNamespaceItem.cs" />
-    <Compile Include="Edm\EdmNavigationProperty.cs" />
-    <Compile Include="Edm\EdmOperationAction.cs" />
-    <Compile Include="Edm\EdmParameterMode.cs" />
-    <Compile Include="Edm\EdmPrimitiveType.cs" />
-    <Compile Include="Edm\EdmPrimitiveTypeFacets.cs" />
-    <Compile Include="Edm\EdmPrimitiveTypeKind.cs" />
-    <Compile Include="Edm\EdmProperty.cs" />
-    <Compile Include="Edm\EdmQualifiedNameMetadataItem.cs" />
-    <Compile Include="Edm\EdmScalarType.cs" />
-    <Compile Include="Edm\EdmStructuralMember.cs" />
-    <Compile Include="Edm\EdmStructuralMembersCollection.cs" />
-    <Compile Include="Edm\EdmStructuralType.cs" />
-    <Compile Include="Edm\EdmTypeReference.cs" />
-    <Compile Include="Edm\Internal\BackingList.cs" />
-    <Compile Include="Edm\Internal\DataModelItemVisitor.cs" />
-    <Compile Include="Edm\Internal\DbDatabaseVisitor.cs" />
-    <Compile Include="Edm\Internal\EdmConstants.cs" />
-    <Compile Include="Edm\Internal\EdmExtensions.cs" />
-    <Compile Include="Edm\Internal\EdmModelParentMap.cs" />
-    <Compile Include="Edm\Internal\EdmModelVisitor.cs" />
-    <Compile Include="Edm\Internal\EdmUtil.cs" />
-    <Compile Include="Edm\Parsing\Xml\Internal\Csdl\CsdlConstants.cs" />
-    <Compile Include="Edm\Parsing\Xml\Internal\Msl\MslConstants.cs" />
-    <Compile Include="Edm\Parsing\Xml\Internal\Ssdl\SsdlConstants.cs" />
-    <Compile Include="Edm\Parsing\Xml\Internal\XmlErrorCode.cs" />
+    <Compile Include="Core\Metadata\Edm\DataModelAnnotation.cs" />
+    <Compile Include="Edm\Validation\DataModelErrorEventArgs.cs" />
+    <Compile Include="Core\Mapping\ColumnMappingBuilder.cs" />
+    <Compile Include="Core\Metadata\Edm\EdmModel.cs" />
+    <Compile Include="Core\Metadata\Edm\IQualifiedNameMetadataItem.cs" />
+    <Compile Include="Edm\EdmModelVisitor.cs" />
     <Compile Include="Edm\Serialization\CsdlSerializer.cs" />
     <Compile Include="Edm\Serialization\MslSerializer.cs" />
     <Compile Include="Edm\Serialization\SsdlSerializer.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Csdl\EdmModelCsdlSchemaWriter.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Csdl\EdmModelCsdlSerializationVisitor.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Msl\DbDatabaseMappingMslSchemaWriter.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Ssdl\DbModelEntityContainerSsdlSchemaWriter.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Ssdl\DbModelSsdlHelper.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Ssdl\DbModelSsdlSchemaWriter.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\Ssdl\DbModelSsdlSerializationVisitor.cs" />
-    <Compile Include="Edm\Serialization\Xml\Internal\XmlSchemaWriter.cs" />
-    <Compile Include="Edm\Validation\Internal\DataModelValidationContext.cs" />
-    <Compile Include="Edm\Validation\Internal\DataModelValidationHelper.cs" />
-    <Compile Include="Edm\Validation\Internal\DataModelValidationRule.cs" />
-    <Compile Include="Edm\Validation\Internal\DataModelValidationRuleSet.cs" />
-    <Compile Include="Edm\Validation\Internal\DataModelValidator.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelRuleSet.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelSemanticValidationRules.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelSyntacticValidationRules.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelValidationContext.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelValidationRule.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelValidationVisitor.cs" />
-    <Compile Include="Edm\Validation\Internal\EdmModel\EdmModelValidator.cs" />
+    <Compile Include="Edm\Serialization\EdmXmlSchemaWriter.cs" />
+    <Compile Include="Edm\Serialization\EdmSerializationVisitor.cs" />
+    <Compile Include="Edm\Serialization\XmlSchemaWriter.cs" />
+    <Compile Include="Edm\Validation\DataModelValidationRule.cs" />
+    <Compile Include="Edm\Validation\DataModelValidationRuleSet.cs" />
+    <Compile Include="Edm\Validation\DataModelValidator.cs" />
+    <Compile Include="Edm\Validation\EdmModelRuleSet.cs" />
+    <Compile Include="Edm\Validation\EdmModelSemanticValidationRules.cs" />
+    <Compile Include="Edm\Validation\EdmModelSyntacticValidationRules.cs" />
+    <Compile Include="Edm\Validation\EdmModelValidationContext.cs" />
+    <Compile Include="Edm\Validation\EdmModelValidationRule.cs" />
+    <Compile Include="Edm\Validation\EdmModelValidationVisitor.cs" />
     <Compile Include="CreateDatabaseIfNotExists`.cs" />
     <Compile Include="Database.cs" />
     <Compile Include="DbContext.cs" />
@@ -1506,8 +1470,8 @@
     <Compile Include="Infrastructure\DbQuery`.cs" />
     <Compile Include="Infrastructure\DbReferenceEntry.cs" />
     <Compile Include="Infrastructure\DbReferenceEntry`.cs" />
-    <Compile Include="Infrastructure\DbSqlQuery.cs" />
-    <Compile Include="Infrastructure\DbSqlQuery`.cs" />
+    <Compile Include="Infrastructure\DbRawSqlQuery.cs" />
+    <Compile Include="Infrastructure\DbRawSqlQuery`.cs" />
     <Compile Include="Infrastructure\DbUpdateConcurrencyException.cs" />
     <Compile Include="Infrastructure\DbUpdateException.cs" />
     <Compile Include="Infrastructure\EdmMetadata.cs" />
@@ -1597,7 +1561,6 @@
     <Compile Include="ModelConfiguration\Configuration\ConfigurationBase.cs" />
     <Compile Include="ModelConfiguration\Configuration\ConfigurationRegistrar.cs" />
     <Compile Include="ModelConfiguration\Configuration\ConventionsConfiguration.cs" />
-    <Compile Include="ModelConfiguration\Configuration\Conventions\DatabaseConventionDispatcher.cs" />
     <Compile Include="ModelConfiguration\Configuration\Conventions\EdmConventionDispatcher.cs" />
     <Compile Include="ModelConfiguration\Configuration\Conventions\PropertyConfigurationConventionDispatcher.cs" />
     <Compile Include="ModelConfiguration\Configuration\Mapping\EdmPropertyPath.cs" />
@@ -1668,7 +1631,6 @@
     <Compile Include="ModelConfiguration\Conventions\Edm\AssociationInverseDiscoveryConvention.cs" />
     <Compile Include="ModelConfiguration\Conventions\Edm\ComplexTypeDiscoveryConvention.cs" />
     <Compile Include="ModelConfiguration\Conventions\Edm\Db\ColumnOrderingConvention.cs" />
-    <Compile Include="ModelConfiguration\Conventions\Edm\Db\ColumnTypeCasingConvention.cs" />
     <Compile Include="ModelConfiguration\Conventions\Edm\Db\IDbConvention.cs" />
     <Compile Include="ModelConfiguration\Conventions\Edm\Db\IDbConvention`.cs" />
     <Compile Include="ModelConfiguration\Conventions\Edm\Db\Mapping\IDbMappingConvention.cs" />
@@ -1695,39 +1657,30 @@
     <Compile Include="ModelConfiguration\Conventions\Edm\TypeNameForeignKeyDiscoveryConvention.cs" />
     <Compile Include="ModelConfiguration\Conventions\IConvention.cs" />
     <Compile Include="ModelConfiguration\Conventions\Sets\V1ConventionSet.cs" />
-    <Compile Include="ModelConfiguration\Design\BidirectionalDictionary.cs" />
-    <Compile Include="ModelConfiguration\Design\EnglishPluralizationService.cs" />
-    <Compile Include="ModelConfiguration\Design\ICustomPluralizationMapping.cs" />
-    <Compile Include="ModelConfiguration\Design\PluralizationService.cs" />
-    <Compile Include="ModelConfiguration\Design\PluralizationServiceUtil.cs" />
-    <Compile Include="ModelConfiguration\Edm\Common\DataModelAnnotationExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Common\DataModelErrorEventArgsExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Common\INamedDataModelItemExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\DbAliasedMetadataItemExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\DbDatabaseMetadataExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\DbForeignKeyConstraintMetadataExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\DbPrimitiveTypeFacetsExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\DbTableColumnMetadataExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\DbTableMetadataExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\Mapping\DbAssociationSetMappingExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\Mapping\DbDatabaseMappingExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\Mapping\DbEdmPropertyMappingExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\Mapping\DbEntityTypeMappingExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\Db\Mapping\DbEntityTypeMappingFragmentExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmAssociationEndExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmAssociationEndKindExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmAssociationTypeExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmComplexTypeExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmEntitySetExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmEntityTypeExtensions.cs" />
+    <Compile Include="Infrastructure\Pluralization\BidirectionalDictionary.cs" />
+    <Compile Include="ModelConfiguration\Edm\DataModelAnnotationExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\DataModelErrorEventArgsExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\INamedDataModelItemExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\ForeignKeyBuilderExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\StorageAssociationSetMappingExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\DbDatabaseMappingExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\ColumnMappingBuilderExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\StorageEntityTypeMappingExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\StorageMappingFragmentExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\RelationshipEndMemberExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\RelationshipMultiplicityExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\AssociationTypeExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\ComplexTypeExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\EntitySetExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\EntityTypeExtensions.cs" />
     <Compile Include="ModelConfiguration\Edm\EdmModelExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmNavigationPropertyExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\NavigationPropertyExtensions.cs" />
     <Compile Include="ModelConfiguration\Edm\EdmPropertyExtensions.cs" />
-    <Compile Include="ModelConfiguration\Edm\EdmStructuralMemberExtensions.cs" />
+    <Compile Include="ModelConfiguration\Edm\EdmMemberExtensions.cs" />
     <Compile Include="ModelConfiguration\Edm\Serialization\EdmxSerializer.cs" />
     <Compile Include="ModelConfiguration\Edm\Services\AssociationTypeMappingGenerator.cs" />
     <Compile Include="ModelConfiguration\Edm\Services\DatabaseMappingGenerator.cs" />
-    <Compile Include="ModelConfiguration\Edm\Services\EntityTypeMappingGenerator.cs" />
+    <Compile Include="ModelConfiguration\Edm\Services\TableMappingGenerator.cs" />
     <Compile Include="ModelConfiguration\Edm\Services\PropertyMappingGenerator.cs" />
     <Compile Include="ModelConfiguration\Edm\Services\StructuralTypeMappingGenerator.cs" />
     <Compile Include="ModelConfiguration\EntityTypeConfiguration.cs" />
@@ -1739,15 +1692,13 @@
     <Compile Include="ModelConfiguration\Mappers\TypeMapper.cs" />
     <Compile Include="ModelConfiguration\ModelValidationException.cs" />
     <Compile Include="ModelConfiguration\Utilities\AttributeProvider.cs" />
-    <Compile Include="ModelConfiguration\Utilities\DatabaseName.cs" />
+    <Compile Include="Utilities\DatabaseName.cs" />
     <Compile Include="Utilities\DbConnectionExtensions.cs" />
     <Compile Include="Utilities\DbProviderInfoExtensions.cs" />
     <Compile Include="Utilities\DbProviderManifestExtensions.cs" />
     <Compile Include="Utilities\HashSetExtensions.cs" />
-    <Compile Include="ModelConfiguration\Utilities\IEnumerableExtensions.cs" />
     <Compile Include="Utilities\PropertyInfoExtensions.cs" />
     <Compile Include="ModelConfiguration\Utilities\PropertyPath.cs" />
-    <Compile Include="Utilities\RuntimeFailureMethods.cs" />
     <Compile Include="Utilities\TypeExtensions.cs" />
     <Compile Include="Utilities\ValidationContextExtensions.cs" />
     <Compile Include="Validation\DbEntityValidationException.cs" />
@@ -1789,6 +1740,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.PowerShell.resx">
       <CustomToolNamespace>System.Data.Entity.Migrations.Properties</CustomToolNamespace>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\System\Data\EntityModel\System.Data.Resources.AnnotationSchema.xsd">
       <LogicalName>System.Data.Resources.AnnotationSchema.xsd</LogicalName>

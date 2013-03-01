@@ -1,28 +1,28 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Mapping
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Linq;
 
     [DebuggerDisplay("{Column.Name}")]
     internal class ColumnMapping
     {
-        private readonly DbTableColumnMetadata _column;
+        private readonly EdmProperty _column;
         private readonly List<PropertyMappingSpecification> _propertyMappings;
 
-        public ColumnMapping(DbTableColumnMetadata column)
+        public ColumnMapping(EdmProperty column)
         {
-            Contract.Requires(column != null);
+            DebugCheck.NotNull(column);
             _column = column;
             _propertyMappings = new List<PropertyMappingSpecification>();
         }
 
-        public DbTableColumnMetadata Column
+        public EdmProperty Column
         {
             get { return _column; }
         }
@@ -33,9 +33,9 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Mapping
         }
 
         public void AddMapping(
-            EdmEntityType entityType,
+            EntityType entityType,
             IList<EdmProperty> propertyPath,
-            IEnumerable<DbColumnCondition> conditions,
+            IEnumerable<StorageConditionPropertyMapping> conditions,
             bool isDefaultDiscriminatorCondition)
         {
             _propertyMappings.Add(

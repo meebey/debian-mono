@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Diagnostics;
@@ -8,16 +9,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     // member paths, etc
     internal class MemberMaps
     {
-        #region Fields
-
         private readonly MemberProjectionIndex m_projectedSlotMap;
         private readonly MemberDomainMap m_queryDomainMap;
         private readonly MemberDomainMap m_updateDomainMap;
         private readonly ViewTarget m_viewTarget;
-
-        #endregion
-
-        #region Constructors
 
         internal MemberMaps(
             ViewTarget viewTarget, MemberProjectionIndex projectedSlotMap,
@@ -32,10 +27,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             Debug.Assert(m_projectedSlotMap != null);
             m_viewTarget = viewTarget;
         }
-
-        #endregion
-
-        #region Properties
 
         internal MemberProjectionIndex ProjectedSlotMap
         {
@@ -61,7 +52,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             get { return m_viewTarget == ViewTarget.QueryView ? m_queryDomainMap : m_updateDomainMap; }
         }
-
-        #endregion
     }
 }

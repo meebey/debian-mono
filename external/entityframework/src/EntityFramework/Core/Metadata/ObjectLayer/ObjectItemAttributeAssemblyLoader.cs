@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections;
     using System.Collections.Generic;
+    using System.Data.Entity.Core.Metadata.Edm.Provider;
     using System.Data.Entity.Core.Objects.DataClasses;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
@@ -11,14 +13,12 @@ namespace System.Data.Entity.Core.Metadata.Edm
     using System.Reflection;
 
     /// <summary>
-    /// Class for representing a collection of items for the object layer.
-    /// Most of the implementation for actual maintenance of the collection is
-    /// done by ItemCollection
+    ///     Class for representing a collection of items for the object layer.
+    ///     Most of the implementation for actual maintenance of the collection is
+    ///     done by ItemCollection
     /// </summary>
     internal sealed class ObjectItemAttributeAssemblyLoader : ObjectItemAssemblyLoader
     {
-        #region Fields
-
         // list of unresolved navigation properties
         private readonly List<Action> _unresolvedNavigationProperties = new List<Action>();
 
@@ -29,19 +29,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
         private readonly List<Action> _referenceResolutions = new List<Action>();
 
-        #endregion
-
-        #region Constructor
-
         internal ObjectItemAttributeAssemblyLoader(Assembly assembly, ObjectItemLoadingSessionData sessionData)
             : base(assembly, new MutableAssemblyCacheEntry(), sessionData)
         {
             Debug.Assert(Create == sessionData.ObjectItemAssemblyLoaderFactory, "Why is there a different factory creating this class");
         }
-
-        #endregion
-
-        #region Methods
 
         internal override void OnLevel1SessionProcessing()
         {
@@ -60,11 +52,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Loads the given assembly and all the other referencd assemblies in the cache. If the assembly was already present
-        /// then it loads from the cache
+        ///     Loads the given assembly and all the other referencd assemblies in the cache. If the assembly was already present
+        ///     then it loads from the cache
         /// </summary>
-        /// <param name="context"></param>
-        /// <returns>true if the assembly was already loaded in the cache</returns>
+        /// <param name="context"> </param>
+        /// <returns> true if the assembly was already loaded in the cache </returns>
         internal override void Load()
         {
             Debug.Assert(
@@ -83,12 +75,12 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Check to see if the type is already loaded - either in the typesInLoading, or ObjectItemCollection or
-        /// in the global cache
+        ///     Check to see if the type is already loaded - either in the typesInLoading, or ObjectItemCollection or
+        ///     in the global cache
         /// </summary>
-        /// <param name="clrType"></param>
-        /// <param name="edmType"></param>
-        /// <returns></returns>
+        /// <param name="clrType"> </param>
+        /// <param name="edmType"> </param>
+        /// <returns> </returns>
         private bool TryGetLoadedType(Type clrType, out EdmType edmType)
         {
             if (SessionData.TypesInLoading.TryGetValue(clrType.FullName, out edmType)
@@ -166,12 +158,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
             return false;
         }
 
-        #endregion
-
         /// <summary>
-        /// Loads the set of types from the given assembly and adds it to the given list of types
+        ///     Loads the set of types from the given assembly and adds it to the given list of types
         /// </summary>
-        /// <param name="context">context containing information for loading</param>
+        /// <param name="context"> context containing information for loading </param>
         protected override void LoadTypesFromAssembly()
         {
             Debug.Assert(CacheEntry.TypesInAssembly.Count == 0);
@@ -213,10 +203,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// This method loads all the relationship type that this entity takes part in
+        ///     This method loads all the relationship type that this entity takes part in
         /// </summary>
-        /// <param name="entityType"></param>
-        /// <param name="context"></param>
+        /// <param name="entityType"> </param>
+        /// <param name="context"> </param>
         private void LoadRelationshipTypes()
         {
             foreach (
@@ -289,12 +279,12 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Load metadata of the given type - when you call this method, you should check and make sure that the type has
-        /// edm attribute. If it doesn't,we won't load the type and it will be returned as null
+        ///     Load metadata of the given type - when you call this method, you should check and make sure that the type has
+        ///     edm attribute. If it doesn't,we won't load the type and it will be returned as null
         /// </summary>
-        /// <param name="clrType"></param>
-        /// <param name="context"></param>
-        /// <returns></returns>
+        /// <param name="clrType"> </param>
+        /// <param name="context"> </param>
+        /// <returns> </returns>
         private void LoadType(Type clrType)
         {
             Debug.Assert(clrType.Assembly == SourceAssembly, "Why are we loading a type that is not in our assembly?");
@@ -485,11 +475,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Load all the property metadata of the given type
+        ///     Load all the property metadata of the given type
         /// </summary>
-        /// <param name="type">The CLR entity type</param>
-        /// <param name="structuralType">The type where properties are loaded</param>
-        /// <param name="context"></param>
+        /// <param name="type"> The CLR entity type </param>
+        /// <param name="structuralType"> The type where properties are loaded </param>
+        /// <param name="context"> </param>
         private void LoadPropertiesFromType(StructuralType structuralType)
         {
             // Look at both public, internal, and private instanced properties declared at this type, inherited members
@@ -608,7 +598,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
                 if (relationshipType != null)
                 {
                     // The return value of this property has been verified, so create the property now
-                    var navigationProperty = new NavigationProperty(propertyInfo.Name, TypeUsage.Create(propertyType), propertyInfo);
+                    var navigationProperty = new NavigationProperty(propertyInfo.Name, TypeUsage.Create(propertyType));
                     navigationProperty.RelationshipType = relationshipType;
                     member = navigationProperty;
 
@@ -665,14 +655,14 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Load the property with scalar property attribute.
-        /// Note that we pass the CLR type in because in the case where the property is declared on a generic
-        /// base class the DeclaringType of propert won't work for us and we need the real entity type instead.
+        ///     Load the property with scalar property attribute.
+        ///     Note that we pass the CLR type in because in the case where the property is declared on a generic
+        ///     base class the DeclaringType of propert won't work for us and we need the real entity type instead.
         /// </summary>
-        /// <param name="type">The CLR type of the entity</param>
-        /// <param name="property">Metadata representing the property</param>
-        /// <param name="isEntityKeyProperty">True if the property forms part of the entity's key</param>
-        /// <returns></returns>
+        /// <param name="type"> The CLR type of the entity </param>
+        /// <param name="property"> Metadata representing the property </param>
+        /// <param name="isEntityKeyProperty"> True if the property forms part of the entity's key </param>
+        /// <returns> </returns>
         private EdmMember LoadScalarProperty(Type clrType, PropertyInfo property, out bool isEntityKeyProperty)
         {
             Debug.Assert(property.IsDefined(typeof(EdmScalarPropertyAttribute), false), "The property must have a scalar attribute");
@@ -706,23 +696,23 @@ namespace System.Data.Entity.Core.Metadata.Edm
                     property.Name,
                     TypeUsage.Create(
                         primitiveType, new FacetValues
-                            {
-                                Nullable = isNullable
-                            }),
-                    property, clrType.TypeHandle);
+                                           {
+                                               Nullable = isNullable
+                                           }),
+                    property, clrType);
             }
             return member;
         }
 
         /// <summary>
-        /// Resolves enum type property.
+        ///     Resolves enum type property.
         /// </summary>
-        /// <param name="declaringType">The type to add the declared property to.</param>
-        /// <param name="clrProperty">Property to resolve.</param>
+        /// <param name="declaringType"> The type to add the declared property to. </param>
+        /// <param name="clrProperty"> Property to resolve. </param>
         private void ResolveEnumTypeProperty(StructuralType declaringType, PropertyInfo clrProperty)
         {
-            Debug.Assert(declaringType != null, "type != null");
-            Debug.Assert(clrProperty != null, "clrProperty != null");
+            DebugCheck.NotNull(declaringType);
+            DebugCheck.NotNull(clrProperty);
             Debug.Assert(
                 (Nullable.GetUnderlyingType(clrProperty.PropertyType) ?? clrProperty.PropertyType).IsEnum,
                 "This method should be called for enums only");
@@ -748,11 +738,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
                     clrProperty.Name,
                     TypeUsage.Create(
                         propertyType, new FacetValues
-                            {
-                                Nullable = edmScalarPropertyAttribute.IsNullable
-                            }),
+                                          {
+                                              Nullable = edmScalarPropertyAttribute.IsNullable
+                                          }),
                     clrProperty,
-                    declaringType.ClrType.TypeHandle);
+                    declaringType.ClrType);
 
                 declaringType.AddMember(enumProperty);
 
@@ -786,10 +776,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
                     clrProperty.Name,
                     TypeUsage.Create(
                         propertyType, new FacetValues
-                            {
-                                Nullable = false
-                            }),
-                    clrProperty, type.ClrType.TypeHandle);
+                                          {
+                                              Nullable = false
+                                          }),
+                    clrProperty, type.ClrType);
 
                 type.AddMember(newProperty);
             }
@@ -797,8 +787,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
         private void TrackClosure(Type type)
         {
-            if (SourceAssembly != type.Assembly &&
-                !CacheEntry.ClosureAssemblies.Contains(type.Assembly) &&
+            if (SourceAssembly != type.Assembly
+                &&
+                !CacheEntry.ClosureAssemblies.Contains(type.Assembly)
+                &&
                 IsSchemaAttributePresent(type.Assembly)
                 &&
                 !(type.IsGenericType &&

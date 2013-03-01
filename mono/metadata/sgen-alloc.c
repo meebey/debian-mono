@@ -8,25 +8,20 @@
  * Copyright 2005-2011 Novell, Inc (http://www.novell.com)
  * Copyright 2011 Xamarin Inc (http://www.xamarin.com)
  * Copyright 2011 Xamarin, Inc.
+ * Copyright (C) 2012 Xamarin Inc
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Library General Public
+ * License 2.0 as published by the Free Software Foundation;
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Library General Public License for more details.
+ *
+ * You should have received a copy of the GNU Library General Public
+ * License 2.0 along with this library; if not, write to the Free
+ * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -134,7 +129,7 @@ alloc_degraded (MonoVTable *vtable, size_t size, gboolean for_mature)
 		sgen_ensure_free_space (size);
 	} else {
 		if (sgen_need_major_collection (size))
-			sgen_perform_collection (size, GENERATION_OLD, "mature allocation failure");
+			sgen_perform_collection (size, GENERATION_OLD, "mature allocation failure", !for_mature);
 	}
 
 
@@ -182,7 +177,7 @@ mono_gc_alloc_obj_nolock (MonoVTable *vtable, size_t size)
 
 		if (collect_before_allocs) {
 			if (((current_alloc % collect_before_allocs) == 0) && nursery_section) {
-				sgen_perform_collection (0, GENERATION_NURSERY, "collect-before-alloc-triggered");
+				sgen_perform_collection (0, GENERATION_NURSERY, "collect-before-alloc-triggered", TRUE);
 				if (!degraded_mode && sgen_can_alloc_size (size) && size <= SGEN_MAX_SMALL_OBJ_SIZE) {
 					// FIXME:
 					g_assert_not_reached ();
@@ -223,7 +218,7 @@ mono_gc_alloc_obj_nolock (MonoVTable *vtable, size_t size)
 			 * visible before the vtable store.
 			 */
 
-			DEBUG (6, fprintf (gc_debug_file, "Allocated object %p, vtable: %p (%s), size: %zd\n", p, vtable, vtable->klass->name, size));
+			SGEN_LOG (6, "Allocated object %p, vtable: %p (%s), size: %zd", p, vtable, vtable->klass->name, size);
 			binary_protocol_alloc (p , vtable, size);
 			if (G_UNLIKELY (MONO_GC_NURSERY_OBJ_ALLOC_ENABLED ()))
 				MONO_GC_NURSERY_OBJ_ALLOC ((mword)p, size, vtable->klass->name_space, vtable->klass->name);
@@ -284,7 +279,7 @@ mono_gc_alloc_obj_nolock (MonoVTable *vtable, size_t size)
 			} else {
 				size_t alloc_size = 0;
 				if (TLAB_START)
-					DEBUG (3, fprintf (gc_debug_file, "Retire TLAB: %p-%p [%ld]\n", TLAB_START, TLAB_REAL_END, (long)(TLAB_REAL_END - TLAB_NEXT - size)));
+					SGEN_LOG (3, "Retire TLAB: %p-%p [%ld]", TLAB_START, TLAB_REAL_END, (long)(TLAB_REAL_END - TLAB_NEXT - size));
 				sgen_nursery_retire_region (p, available_in_tlab);
 
 				do {
@@ -325,12 +320,12 @@ mono_gc_alloc_obj_nolock (MonoVTable *vtable, size_t size)
 			sgen_set_nursery_scan_start ((char*)p);
 			/* we just bump tlab_temp_end as well */
 			TLAB_TEMP_END = MIN (TLAB_REAL_END, TLAB_NEXT + SGEN_SCAN_START_SIZE);
-			DEBUG (5, fprintf (gc_debug_file, "Expanding local alloc: %p-%p\n", TLAB_NEXT, TLAB_TEMP_END));
+			SGEN_LOG (5, "Expanding local alloc: %p-%p", TLAB_NEXT, TLAB_TEMP_END);
 		}
 	}
 
 	if (G_LIKELY (p)) {
-		DEBUG (6, fprintf (gc_debug_file, "Allocated object %p, vtable: %p (%s), size: %zd\n", p, vtable, vtable->klass->name, size));
+		SGEN_LOG (6, "Allocated object %p, vtable: %p (%s), size: %zd", p, vtable, vtable->klass->name, size);
 		binary_protocol_alloc (p, vtable, size);
 		if (G_UNLIKELY (MONO_GC_MAJOR_OBJ_ALLOC_LARGE_ENABLED ()|| MONO_GC_NURSERY_OBJ_ALLOC_ENABLED ())) {
 			if (size > SGEN_MAX_SMALL_OBJ_SIZE)
@@ -387,7 +382,7 @@ mono_gc_try_alloc_obj_nolock (MonoVTable *vtable, size_t size)
 				sgen_set_nursery_scan_start (new_next);
 				/* we just bump tlab_temp_end as well */
 				TLAB_TEMP_END = MIN (TLAB_REAL_END, TLAB_NEXT + SGEN_SCAN_START_SIZE);
-				DEBUG (5, fprintf (gc_debug_file, "Expanding local alloc: %p-%p\n", TLAB_NEXT, TLAB_TEMP_END));		
+				SGEN_LOG (5, "Expanding local alloc: %p-%p", TLAB_NEXT, TLAB_TEMP_END);
 			}
 		} else if (available_in_tlab > SGEN_MAX_NURSERY_WASTE) {
 			/* Allocate directly from the nursery */
@@ -422,7 +417,7 @@ mono_gc_try_alloc_obj_nolock (MonoVTable *vtable, size_t size)
 	HEAVY_STAT (++stat_objects_alloced);
 	HEAVY_STAT (stat_bytes_alloced += size);
 
-	DEBUG (6, fprintf (gc_debug_file, "Allocated object %p, vtable: %p (%s), size: %zd\n", p, vtable, vtable->klass->name, size));
+	SGEN_LOG (6, "Allocated object %p, vtable: %p (%s), size: %zd", p, vtable, vtable->klass->name, size);
 	binary_protocol_alloc (p, vtable, size);
 	if (G_UNLIKELY (MONO_GC_NURSERY_OBJ_ALLOC_ENABLED ()))
 		MONO_GC_NURSERY_OBJ_ALLOC ((mword)p, size, vtable->klass->name_space, vtable->klass->name);
@@ -574,17 +569,16 @@ mono_gc_alloc_pinned_obj (MonoVTable *vtable, size_t size)
 		/* large objects are always pinned anyway */
 		p = sgen_los_alloc_large_inner (vtable, size);
 	} else {
-		DEBUG (9, g_assert (vtable->klass->inited));
-		p = major_collector.alloc_small_pinned_obj (size, SGEN_VTABLE_HAS_REFERENCES (vtable));
+		SGEN_ASSERT (9, vtable->klass->inited, "class %s:%s is not initialized", vtable->klass->name_space, vtable->klass->name);
+		p = major_collector.alloc_small_pinned_obj (vtable, size, SGEN_VTABLE_HAS_REFERENCES (vtable));
 	}
 	if (G_LIKELY (p)) {
-		DEBUG (6, fprintf (gc_debug_file, "Allocated pinned object %p, vtable: %p (%s), size: %zd\n", p, vtable, vtable->klass->name, size));
+		SGEN_LOG (6, "Allocated pinned object %p, vtable: %p (%s), size: %zd", p, vtable, vtable->klass->name, size);
 		if (size > SGEN_MAX_SMALL_OBJ_SIZE)
 			MONO_GC_MAJOR_OBJ_ALLOC_LARGE ((mword)p, size, vtable->klass->name_space, vtable->klass->name);
 		else
 			MONO_GC_MAJOR_OBJ_ALLOC_PINNED ((mword)p, size, vtable->klass->name_space, vtable->klass->name);
 		binary_protocol_alloc_pinned (p, vtable, size);
-		mono_atomic_store_seq (p, vtable);
 	}
 	UNLOCK_GC;
 	return p;
@@ -597,7 +591,6 @@ mono_gc_alloc_mature (MonoVTable *vtable)
 	size_t size = ALIGN_UP (vtable->klass->instance_size);
 	LOCK_GC;
 	res = alloc_degraded (vtable, size, TRUE);
-	mono_atomic_store_seq (res, vtable);
 	UNLOCK_GC;
 	if (G_UNLIKELY (vtable->klass->has_finalize))
 		mono_object_register_finalizer ((MonoObject*)res);
@@ -721,6 +714,8 @@ create_allocator (int atype)
 		csig->params [i] = &mono_defaults.int_class->byval_arg;
 
 	mb = mono_mb_new (mono_defaults.object_class, name, MONO_WRAPPER_ALLOC);
+
+#ifndef DISABLE_JIT
 	size_var = mono_mb_add_local (mb, &mono_defaults.int32_class->byval_arg);
 	if (atype == ATYPE_NORMAL || atype == ATYPE_SMALL) {
 		/* size = vtable->klass->instance_size; */
@@ -899,6 +894,7 @@ create_allocator (int atype)
 	/* return p */
 	mono_mb_emit_ldloc (mb, p_var);
 	mono_mb_emit_byte (mb, CEE_RET);
+#endif
 
 	res = mono_mb_create_method (mb, csig, 8);
 	mono_mb_free (mb);

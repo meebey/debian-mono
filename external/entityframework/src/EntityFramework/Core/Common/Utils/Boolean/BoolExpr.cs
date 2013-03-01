@@ -1,43 +1,44 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils.Boolean
 {
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
 
     /// <summary>
-    /// Base type for Boolean expressions. Boolean expressions are immutable,
-    /// and value-comparable using Equals. Services include local simplification
-    /// and normalization to Conjunctive and Disjunctive Normal Forms.
+    ///     Base type for Boolean expressions. Boolean expressions are immutable,
+    ///     and value-comparable using Equals. Services include local simplification
+    ///     and normalization to Conjunctive and Disjunctive Normal Forms.
     /// </summary>
     /// <remarks>
-    /// Comments use the following notation convention:
-    /// 
+    ///     Comments use the following notation convention:
     ///     "A . B" means "A and B"
     ///     "A + B" means "A or B"
     ///     "!A" means "not A"
     /// </remarks>
-    /// <typeparam name="T_Identifier">The type of leaf term identifiers in this expression.</typeparam>
+    /// <typeparam name="T_Identifier"> The type of leaf term identifiers in this expression. </typeparam>
     internal abstract class BoolExpr<T_Identifier> : IEquatable<BoolExpr<T_Identifier>>
     {
         /// <summary>
-        /// Gets an enumeration value indicating the type of the expression node.
+        ///     Gets an enumeration value indicating the type of the expression node.
         /// </summary>
         internal abstract ExprType ExprType { get; }
 
         /// <summary>
-        /// Standard accept method invoking the appropriate method overload
-        /// in the given visitor.
+        ///     Standard accept method invoking the appropriate method overload
+        ///     in the given visitor.
         /// </summary>
-        /// <typeparam name="T_Return">T_Return is the return type for the visitor.</typeparam>
-        /// <param name="visitor">Visitor implementation.</param>
-        /// <returns>Value computed for this node.</returns>
+        /// <typeparam name="T_Return"> T_Return is the return type for the visitor. </typeparam>
+        /// <param name="visitor"> Visitor implementation. </param>
+        /// <returns> Value computed for this node. </returns>
         internal abstract T_Return Accept<T_Return>(Visitor<T_Identifier, T_Return> visitor);
 
         /// <summary>
-        /// Invokes the Simplifier visitor on this expression tree.
-        /// Simplifications are purely local (see Simplifier class
-        /// for details).
+        ///     Invokes the Simplifier visitor on this expression tree.
+        ///     Simplifications are purely local (see Simplifier class
+        ///     for details).
         /// </summary>
         internal BoolExpr<T_Identifier> Simplify()
         {
@@ -45,8 +46,8 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
         }
 
         /// <summary>
-        /// Expensive simplification that considers various permutations of the
-        /// expression (including Decision Diagram, DNF, and CNF translations)
+        ///     Expensive simplification that considers various permutations of the
+        ///     expression (including Decision Diagram, DNF, and CNF translations)
         /// </summary>
         internal BoolExpr<T_Identifier> ExpensiveSimplify(out Converter<T_Identifier> converter)
         {
@@ -69,7 +70,8 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
 
         private static BoolExpr<T_Identifier> ChooseCandidate(params BoolExpr<T_Identifier>[] candidates)
         {
-            Debug.Assert(null != candidates && 1 < candidates.Length, "must be at least one to pick");
+            DebugCheck.NotNull(candidates);
+            Debug.Assert(1 < candidates.Length, "must be at least one to pick");
 
             var resultUniqueTermCount = default(int);
             var resultTermCount = default(int);
@@ -85,7 +87,8 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
                 var candidateTermCount = simplifiedCandidate.CountTerms();
 
                 // see if it's better than the current result best result
-                if (null == result || // bootstrap
+                if (null == result
+                    || // bootstrap
                     candidateUniqueTermCount < resultUniqueTermCount
                     || // check if the candidate improves on # of terms
                     (candidateUniqueTermCount == resultUniqueTermCount && // in case of tie, choose based on total
@@ -101,7 +104,7 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
         }
 
         /// <summary>
-        /// Returns all term expressions below this node.
+        ///     Returns all term expressions below this node.
         /// </summary>
         internal List<TermExpr<T_Identifier>> GetTerms()
         {
@@ -109,7 +112,7 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
         }
 
         /// <summary>
-        /// Counts terms in this expression.
+        ///     Counts terms in this expression.
         /// </summary>
         internal int CountTerms()
         {
@@ -117,18 +120,18 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
         }
 
         /// <summary>
-        /// Implicit cast from a value of type T to a TermExpr where
-        /// TermExpr.Value is set to the given value.
+        ///     Implicit cast from a value of type T to a TermExpr where
+        ///     TermExpr.Value is set to the given value.
         /// </summary>
-        /// <param name="value">Value to wrap in term expression</param>
-        /// <returns>Term expression</returns>
+        /// <param name="value"> Value to wrap in term expression </param>
+        /// <returns> Term expression </returns>
         public static implicit operator BoolExpr<T_Identifier>(T_Identifier value)
         {
             return new TermExpr<T_Identifier>(value);
         }
 
         /// <summary>
-        /// Creates the negation of the current element. 
+        ///     Creates the negation of the current element.
         /// </summary>
         internal virtual BoolExpr<T_Identifier> MakeNegated()
         {

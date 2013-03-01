@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -9,22 +10,16 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Text;
 
     /// <summary>
-    /// Manages <see cref="MemberPath"/>s of the members of the types stored in an extent.
-    /// This is a bi-directional dictionary of <see cref="MemberPath"/>s to integer indexes and back.
+    ///     Manages <see cref="MemberPath" />s of the members of the types stored in an extent.
+    ///     This is a bi-directional dictionary of <see cref="MemberPath" />s to integer indexes and back.
     /// </summary>
     internal sealed class MemberProjectionIndex : InternalBase
     {
-        #region Fields
-
         private readonly Dictionary<MemberPath, int> m_indexMap;
         private readonly List<MemberPath> m_members;
 
-        #endregion
-
-        #region Constructor/Factory
-
         /// <summary>
-        /// Recursively generates <see cref="MemberPath"/>s for the members of the types stored in the <paramref name="extent"/>.
+        ///     Recursively generates <see cref="MemberPath" />s for the members of the types stored in the <paramref name="extent" />.
         /// </summary>
         internal static MemberProjectionIndex Create(EntitySetBase extent, EdmItemCollection edmItemCollection)
         {
@@ -35,17 +30,13 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Creates an empty index.
+        ///     Creates an empty index.
         /// </summary>
         private MemberProjectionIndex()
         {
             m_indexMap = new Dictionary<MemberPath, int>(MemberPath.EqualityComparer);
             m_members = new List<MemberPath>();
         }
-
-        #endregion
-
-        #region Properties
 
         internal int Count
         {
@@ -58,7 +49,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Returns the indexes of the key slots corresponding to fields in this for which IsPartOfKey is true.
+        ///     Returns the indexes of the key slots corresponding to fields in this for which IsPartOfKey is true.
         /// </summary>
         internal IEnumerable<int> KeySlots
         {
@@ -79,19 +70,15 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Returns an enumeration of all members
+        ///     Returns an enumeration of all members
         /// </summary>
         internal IEnumerable<MemberPath> Members
         {
             get { return m_members; }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Returns a non-negative index of the <paramref name="member"/> if found, otherwise -1.
+        ///     Returns a non-negative index of the <paramref name="member" /> if found, otherwise -1.
         /// </summary>
         internal int IndexOf(MemberPath member)
         {
@@ -107,7 +94,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// If an index already exists for member, this is a no-op. Else creates the next index available for member and returns it.
+        ///     If an index already exists for member, this is a no-op. Else creates the next index available for member and returns it.
         /// </summary>
         internal int CreateIndex(MemberPath member)
         {
@@ -122,8 +109,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Given the <paramref name="slotNum"/>, returns the output member path that this slot contributes/corresponds to in the extent view.
-        /// If the slot corresponds to one of the boolean variables, returns null.
+        ///     Given the <paramref name="slotNum" />, returns the output member path that this slot contributes/corresponds to in the extent view.
+        ///     If the slot corresponds to one of the boolean variables, returns null.
         /// </summary>
         internal MemberPath GetMemberPath(int slotNum, int numBoolSlots)
         {
@@ -132,7 +119,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Given the index of a boolean variable (e.g., of from1), returns the slot number for that boolean in this.
+        ///     Given the index of a boolean variable (e.g., of from1), returns the slot number for that boolean in this.
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "numBoolSlots")]
         internal int BoolIndexToSlot(int boolIndex, int numBoolSlots)
@@ -143,7 +130,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Given the <paramref name="slotNum"/> corresponding to a boolean slot, returns the cell number that the cell corresponds to.
+        ///     Given the <paramref name="slotNum" /> corresponding to a boolean slot, returns the cell number that the cell corresponds to.
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "numBoolSlots")]
         internal int SlotToBoolIndex(int slotNum, int numBoolSlots)
@@ -153,7 +140,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Returns true if <paramref name="slotNum"/> corresponds to a key slot in the output extent view.
+        ///     Returns true if <paramref name="slotNum" /> corresponds to a key slot in the output extent view.
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "numBoolSlots")]
         internal bool IsKeySlot(int slotNum, int numBoolSlots)
@@ -163,7 +150,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Returns true if <paramref name="slotNum"/> corresponds to a bool slot and not a regular field.
+        ///     Returns true if <paramref name="slotNum" /> corresponds to a bool slot and not a regular field.
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "numBoolSlots")]
         internal bool IsBoolSlot(int slotNum, int numBoolSlots)
@@ -179,15 +166,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             builder.Append('>');
         }
 
-        #endregion
-
-        #region Signature construction
-
         /// <summary>
-        /// Starting at the <paramref name="member"/>, recursively generates <see cref="MemberPath"/>s for the fields embedded in it.
+        ///     Starting at the <paramref name="member" />, recursively generates <see cref="MemberPath" />s for the fields embedded in it.
         /// </summary>
-        /// <param name="member">corresponds to a value of an Entity or Complex or Association type</param>
-        /// <param name="needKeysOnly">indicates whether we need to only collect members that are keys</param>
+        /// <param name="member"> corresponds to a value of an Entity or Complex or Association type </param>
+        /// <param name="needKeysOnly"> indicates whether we need to only collect members that are keys </param>
         private static void GatherPartialSignature(
             MemberProjectionIndex index, EdmItemCollection edmItemCollection, MemberPath member, bool needKeysOnly)
         {
@@ -223,11 +206,16 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Given the <paramref name="member"/> and one of its <paramref name="possibleType"/>s, determine the attributes that are relevant
-        /// for this <paramref name="possibleType"/> and return a <see cref="MemberPath"/> signature corresponding to the <paramref name="possibleType"/> and the attributes.
-        /// If <paramref name="needKeysOnly"/>=true, collect the key fields only.
+        ///     Given the <paramref name="member" /> and one of its <paramref name="possibleType" />s, determine the attributes that are relevant
+        ///     for this <paramref name="possibleType" /> and return a <see cref="MemberPath" /> signature corresponding to the
+        ///     <paramref
+        ///         name="possibleType" />
+        ///     and the attributes.
+        ///     If <paramref name="needKeysOnly" />=true, collect the key fields only.
         /// </summary>
-        /// <param name="possibleType">the <paramref name="member"/>'s type or one of its subtypes</param>
+        /// <param name="possibleType">
+        ///     the <paramref name="member" /> 's type or one of its subtypes
+        /// </param>
         private static void GatherSignatureFromTypeStructuralMembers(
             MemberProjectionIndex index,
             EdmItemCollection edmItemCollection,
@@ -265,7 +253,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 }
             }
         }
-
-        #endregion
     }
 }

@@ -1,31 +1,30 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
     using System.Data.Common;
-    using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Text;
 
     /// <summary>
-    /// Provides Entity-SQL query building services for <see cref="EntitySqlQueryState"/>. 
-    /// Knowledge of how to compose Entity-SQL fragments using query builder operators resides entirely in this class.
+    ///     Provides Entity-SQL query building services for <see cref="EntitySqlQueryState" />.
+    ///     Knowledge of how to compose Entity-SQL fragments using query builder operators resides entirely in this class.
     /// </summary>
     internal static class EntitySqlQueryBuilder
     {
         /// <summary>
-        /// Helper method to extract the Entity-SQL command text from an <see cref="ObjectQueryState"/> instance if that
-        /// instance models an Entity-SQL-backed ObjectQuery, or to throw an exception indicating that query builder methods
-        /// are not supported on this query.
+        ///     Helper method to extract the Entity-SQL command text from an <see cref="ObjectQueryState" /> instance if that
+        ///     instance models an Entity-SQL-backed ObjectQuery, or to throw an exception indicating that query builder methods
+        ///     are not supported on this query.
         /// </summary>
-        /// <param name="query">The instance from which the Entity-SQL command text should be retrieved</param>
-        /// <returns>The Entity-SQL command text, if the specified query state instance is based on Entity-SQL</returns>
-        /// <exception cref="NotSupportedException">
-        ///     If the specified instance is not based on Entity-SQL command text, and so does not support Entity-SQL query builder methods
-        /// </exception>
+        /// <param name="query"> The instance from which the Entity-SQL command text should be retrieved </param>
+        /// <returns> The Entity-SQL command text, if the specified query state instance is based on Entity-SQL </returns>
+        /// <exception cref="NotSupportedException">If the specified instance is not based on Entity-SQL command text, and so does not support Entity-SQL query builder methods</exception>
         private static string GetCommandText(ObjectQueryState query)
         {
             string commandText = null;
@@ -38,17 +37,22 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Merges <see cref="ObjectParameter"/>s from a source ObjectQuery with ObjectParameters specified as an argument to a builder method.
-        /// A new <see cref="ObjectParameterCollection"/> is returned that contains copies of parameters from both <paramref name="sourceQueryParams"/> and <paramref name="builderMethodParams"/>.
+        ///     Merges <see cref="ObjectParameter" />s from a source ObjectQuery with ObjectParameters specified as an argument to a builder method.
+        ///     A new <see cref="ObjectParameterCollection" /> is returned that contains copies of parameters from both
+        ///     <paramref
+        ///         name="sourceQueryParams" />
+        ///     and <paramref name="builderMethodParams" />.
         /// </summary>
-        /// <param name="context">The <see cref="ObjectContext"/> to use when constructing the new parameter collection</param>
-        /// <param name="sourceQueryParams">ObjectParameters from the ObjectQuery on which the query builder method was called</param>
-        /// <param name="builderMethodParams">ObjectParameters that were specified as an argument to the builder method</param>
-        /// <returns>A new ObjectParameterCollection containing copies of all parameters</returns>
+        /// <param name="context">
+        ///     The <see cref="ObjectContext" /> to use when constructing the new parameter collection
+        /// </param>
+        /// <param name="sourceQueryParams"> ObjectParameters from the ObjectQuery on which the query builder method was called </param>
+        /// <param name="builderMethodParams"> ObjectParameters that were specified as an argument to the builder method </param>
+        /// <returns> A new ObjectParameterCollection containing copies of all parameters </returns>
         private static ObjectParameterCollection MergeParameters(
             ObjectContext context, ObjectParameterCollection sourceQueryParams, ObjectParameter[] builderMethodParams)
         {
-            Debug.Assert(builderMethodParams != null, "params array argument should not be null");
+            DebugCheck.NotNull(builderMethodParams);
             if (sourceQueryParams == null
                 && builderMethodParams.Length == 0)
             {
@@ -70,12 +74,15 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Merges <see cref="ObjectParameter"/>s from two ObjectQuery arguments to SetOp builder methods (Except, Intersect, Union, UnionAll).
-        /// A new <see cref="ObjectParameterCollection"/> is returned that contains copies of parameters from both <paramref name="query1Params"/> and <paramref name="query2Params"/>.
+        ///     Merges <see cref="ObjectParameter" />s from two ObjectQuery arguments to SetOp builder methods (Except, Intersect, Union, UnionAll).
+        ///     A new <see cref="ObjectParameterCollection" /> is returned that contains copies of parameters from both
+        ///     <paramref
+        ///         name="query1Params" />
+        ///     and <paramref name="query2Params" />.
         /// </summary>
-        /// <param name="query1Params">ObjectParameters from the first ObjectQuery argument (on which the query builder method was called)</param>
-        /// <param name="query2Params">ObjectParameters from the second ObjectQuery argument (specified as an argument to the builder method)</param>
-        /// <returns>A new ObjectParameterCollection containing copies of all parameters</returns>
+        /// <param name="query1Params"> ObjectParameters from the first ObjectQuery argument (on which the query builder method was called) </param>
+        /// <param name="query2Params"> ObjectParameters from the second ObjectQuery argument (specified as an argument to the builder method) </param>
+        /// <returns> A new ObjectParameterCollection containing copies of all parameters </returns>
         private static ObjectParameterCollection MergeParameters(
             ObjectParameterCollection query1Params, ObjectParameterCollection query2Params)
         {
@@ -159,8 +166,8 @@ namespace System.Data.Entity.Core.Objects.Internal
         private static ObjectQueryState BuildSetOp(ObjectQueryState leftQuery, ObjectQueryState rightQuery, Span newSpan, string setOp)
         {
             // Assert that the arguments aren't null (should have been verified by ObjectQuery)
-            Debug.Assert(leftQuery != null, "Left query is null?");
-            Debug.Assert(rightQuery != null, "Right query is null?");
+            DebugCheck.NotNull(leftQuery);
+            DebugCheck.NotNull(rightQuery);
             Debug.Assert(
                 leftQuery.ElementType.Equals(rightQuery.ElementType),
                 "Incompatible element types in arguments to Except<T>/Intersect<T>/Union<T>/UnionAll<T>?");
@@ -210,8 +217,8 @@ FROM (
         private static ObjectQueryState BuildSelectOrSelectValue(
             ObjectQueryState query, string alias, string projection, ObjectParameter[] parameters, string projectOp, Type elementType)
         {
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(alias), "Invalid alias");
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(projection), "Invalid projection");
+            DebugCheck.NotEmpty(alias);
+            DebugCheck.NotEmpty(projection);
 
             var queryText = GetCommandText(query);
 
@@ -244,8 +251,8 @@ FROM (
             ObjectQueryState query, string alias, string predicateOrKeys, ObjectParameter[] parameters, string op, string skipCount,
             bool allowsLimit)
         {
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(alias), "Invalid alias");
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(predicateOrKeys), "Invalid predicate/keys");
+            DebugCheck.NotEmpty(alias);
+            DebugCheck.NotEmpty(predicateOrKeys);
             Debug.Assert(null == skipCount || op == _orderByOp, "Skip clause used with WHERE operator?");
 
             var queryText = GetCommandText(query);
@@ -345,9 +352,9 @@ GROUP BY
         internal static ObjectQueryState GroupBy(
             ObjectQueryState query, string alias, string keys, string projection, ObjectParameter[] parameters)
         {
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(alias), "Invalid alias");
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(alias), "Invalid keys");
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(projection), "Invalid projection");
+            DebugCheck.NotEmpty(alias);
+            DebugCheck.NotEmpty(keys);
+            DebugCheck.NotEmpty(projection);
 
             var queryText = GetCommandText(query);
 
@@ -496,7 +503,8 @@ SKIP
 
         internal static ObjectQueryState Skip(ObjectQueryState query, string alias, string keys, string count, ObjectParameter[] parameters)
         {
-            Debug.Assert(!StringUtil.IsNullOrEmptyOrWhiteSpace(count), "Invalid skip count");
+            DebugCheck.NotEmpty(count);
+
             return BuildOrderByOrWhere(query, alias, keys, parameters, _orderByOp, count, true);
         }
 

@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration
 {
     using System.ComponentModel;
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Configures a relationship that can support cascade on delete functionality.
@@ -15,10 +16,10 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
     {
         private readonly NavigationPropertyConfiguration _navigationPropertyConfiguration;
 
-        internal CascadableNavigationPropertyConfiguration(
+        protected CascadableNavigationPropertyConfiguration(
             NavigationPropertyConfiguration navigationPropertyConfiguration)
         {
-            Contract.Requires(navigationPropertyConfiguration != null);
+            Check.NotNull(navigationPropertyConfiguration, "navigationPropertyConfiguration");
 
             _navigationPropertyConfiguration = navigationPropertyConfiguration;
         }
@@ -34,13 +35,13 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
         /// <summary>
         ///     Configures whether or not cascade delete is on for the relationship.
         /// </summary>
-        /// <param name = "value">Value indicating if cascade delete is on or not.</param>
+        /// <param name="value"> Value indicating if cascade delete is on or not. </param>
         public void WillCascadeOnDelete(bool value)
         {
             _navigationPropertyConfiguration.DeleteAction
                 = value
-                      ? EdmOperationAction.Cascade
-                      : EdmOperationAction.None;
+                      ? OperationAction.Cascade
+                      : OperationAction.None;
         }
 
         internal NavigationPropertyConfiguration NavigationPropertyConfiguration

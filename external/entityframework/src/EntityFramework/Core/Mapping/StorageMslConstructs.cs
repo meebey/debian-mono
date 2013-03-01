@@ -1,12 +1,30 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
+    using System.Diagnostics;
+
     /// <summary>
-    /// Defines all the string constrcuts defined in CS MSL specification
+    ///     Defines all the string constrcuts defined in CS MSL specification
     /// </summary>
     internal static class StorageMslConstructs
     {
-        #region Fields
+        public static string GetMslNamespace(double version)
+        {
+            if (Equals(version, MappingVersionV1))
+            {
+                return NamespaceUriV1;
+            }
+
+            if (Equals(version, MappingVersionV2))
+            {
+                return NamespaceUriV2;
+            }
+
+            Debug.Assert(Equals(version, MappingVersionV3), "added new version?");
+
+            return NamespaceUriV3;
+        }
 
         internal const string NamespaceUriV1 = "urn:schemas-microsoft-com:windows:storage:mapping:CS";
         internal const string NamespaceUriV2 = "http://schemas.microsoft.com/ado/2008/09/mapping/cs";
@@ -82,6 +100,7 @@ namespace System.Data.Entity.Core.Mapping
         internal const string ParameterNameAttribute = "ParameterName";
         internal const string ParameterVersionAttribute = "Version";
         internal const string ParameterVersionAttributeCurrentValue = "Current";
+        internal const string ParameterVersionAttributeOriginalValue = "Original";
         internal const string AssociationSetAttribute = "AssociationSet";
         internal const string FromAttribute = "From";
         internal const string ToAttribute = "To";
@@ -92,7 +111,5 @@ namespace System.Data.Entity.Core.Mapping
         internal const char IdentitySeperator = ':';
         internal const string EntityViewGenerationTypeName = "Edm_EntityMappingGeneratedViews.ViewsForBaseEntitySets";
         internal const string FunctionImportMappingResultMapping = "ResultMapping";
-
-        #endregion
     }
 }

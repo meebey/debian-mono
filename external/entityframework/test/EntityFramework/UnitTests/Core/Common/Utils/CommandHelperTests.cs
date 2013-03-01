@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils
 {
     using System.Data.Common;
@@ -23,6 +24,8 @@ namespace System.Data.Entity.Core.Common.Utils
             Assert.Equal(expectedNumberOfResults, currentResult - 1);
         }
 
+#if !NET40
+
         [Fact]
         public void ConsumeReaderAsync()
         {
@@ -36,5 +39,7 @@ namespace System.Data.Entity.Core.Common.Utils
 
             Assert.Equal(expectedNumberOfResults, currentResult - 1);
         }
+
+#endif
     }
 }

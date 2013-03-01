@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Core.Metadata.Edm
+
+namespace System.Data.Entity.Core.Metadata.Edm.Provider
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
 
@@ -65,9 +67,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         internal void AddAggregate(
             PrimitiveTypeKind returnTypeKind, string aggregateFunctionName, PrimitiveTypeKind collectionArgumentElementTypeKind)
         {
-            Debug.Assert(
-                !string.IsNullOrEmpty(aggregateFunctionName) && !string.IsNullOrWhiteSpace(aggregateFunctionName),
-                "Aggregate function name should be valid");
+            DebugCheck.NotEmpty(aggregateFunctionName);
 
             var returnParameter = CreateReturnParameter(returnTypeKind);
             var collectionParameter = CreateAggregateParameter(collectionArgumentElementTypeKind);

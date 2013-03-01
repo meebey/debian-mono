@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Model
 {
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Represents renaming an existing column.
@@ -16,20 +17,17 @@ namespace System.Data.Entity.Migrations.Model
         /// <summary>
         ///     Initializes a new instance of the RenameColumnOperation class.
         /// </summary>
-        /// <param name = "table">Name of the table the column belongs to.</param>
-        /// <param name = "name">Name of the column to be renamed.</param>
-        /// <param name = "newName">New name for the column.</param>
-        /// <param name = "anonymousArguments">
-        ///     Additional arguments that may be processed by providers. 
-        ///     Use anonymous type syntax to specify arguments e.g. 'new { SampleArgument = "MyValue" }'.
-        /// </param>
+        /// <param name="table"> Name of the table the column belongs to. </param>
+        /// <param name="name"> Name of the column to be renamed. </param>
+        /// <param name="newName"> New name for the column. </param>
+        /// <param name="anonymousArguments"> Additional arguments that may be processed by providers. Use anonymous type syntax to specify arguments e.g. 'new { SampleArgument = "MyValue" }'. </param>
         [SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed")]
         public RenameColumnOperation(string table, string name, string newName, object anonymousArguments = null)
             : base(anonymousArguments)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(table));
-            Contract.Requires(!string.IsNullOrWhiteSpace(name));
-            Contract.Requires(!string.IsNullOrWhiteSpace(newName));
+            Check.NotEmpty(table, "table");
+            Check.NotEmpty(name, "name");
+            Check.NotEmpty(newName, "newName");
 
             _table = table;
             _name = name;
@@ -65,7 +63,13 @@ namespace System.Data.Entity.Migrations.Model
         /// </summary>
         public override MigrationOperation Inverse
         {
-            get { return new RenameColumnOperation(Table, NewName, Name); }
+            get
+            {
+                return new RenameColumnOperation(Table, NewName, Name)
+                           {
+                               IsSystem = IsSystem
+                           };
+            }
         }
 
         /// <inheritdoc />

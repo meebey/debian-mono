@@ -1,58 +1,58 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Common;
+    using System.Data.Entity.Utilities;
     using System.Linq;
     using System.Reflection;
 
     /// <summary>
     ///     Convention to distinguish between optional and required relationships based on CLR nullability of the foreign key property.
     /// </summary>
-    public sealed class ForeignKeyAssociationMultiplicityConvention : IEdmConvention<EdmAssociationType>
+    public class ForeignKeyAssociationMultiplicityConvention : IEdmConvention<AssociationType>
     {
-        internal ForeignKeyAssociationMultiplicityConvention()
+        public void Apply(AssociationType edmDataModelItem, EdmModel model)
         {
-        }
+            Check.NotNull(edmDataModelItem, "edmDataModelItem");
+            Check.NotNull(model, "model");
 
-        void IEdmConvention<EdmAssociationType>.Apply(EdmAssociationType associationType, EdmModel model)
-        {
-            var constraint = associationType.Constraint;
+            var constraint = edmDataModelItem.Constraint;
 
             if (constraint == null)
             {
                 return;
             }
 
-            var navPropConfig = associationType.Annotations.GetConfiguration() as NavigationPropertyConfiguration;
+            var navigationPropertyConfiguration
+                = edmDataModelItem.Annotations.GetConfiguration() as NavigationPropertyConfiguration;
 
-            if (constraint.DependentProperties
-                .All(
-                    p => (p.PropertyType.IsNullable != null)
-                         && !p.PropertyType.IsNullable.Value))
+            if (constraint.ToProperties.All(p => !p.Nullable))
             {
-                var principalEnd = associationType.GetOtherEnd(constraint.DependentEnd);
+                var principalEnd = edmDataModelItem.GetOtherEnd(constraint.DependentEnd);
 
                 // find the navigation property with this end
-                var navProp = model.Namespaces.SelectMany(ns => ns.EntityTypes)
-                    .SelectMany(et => et.DeclaredNavigationProperties)
-                    .Where(np => np.ResultEnd == principalEnd)
-                    .SingleOrDefault();
+                var navigationProperty
+                    = model.EntityTypes
+                           .SelectMany(et => et.DeclaredNavigationProperties)
+                           .SingleOrDefault(np => np.ResultEnd == principalEnd);
 
-                PropertyInfo navPropInfo;
-                if (navPropConfig != null &&
-                    navProp != null &&
-                    ((navPropInfo = navProp.Annotations.GetClrPropertyInfo()) != null)
-                    &&
-                    ((navPropInfo == navPropConfig.NavigationProperty && navPropConfig.EndKind.HasValue) ||
-                     (navPropInfo == navPropConfig.InverseNavigationProperty && navPropConfig.InverseEndKind.HasValue)))
+                PropertyInfo propertyInfo;
+
+                if (navigationPropertyConfiguration != null
+                    && navigationProperty != null
+                    && ((propertyInfo = navigationProperty.Annotations.GetClrPropertyInfo()) != null)
+                    && ((propertyInfo == navigationPropertyConfiguration.NavigationProperty
+                         && navigationPropertyConfiguration.RelationshipMultiplicity.HasValue)
+                        || (propertyInfo == navigationPropertyConfiguration.InverseNavigationProperty
+                            && navigationPropertyConfiguration.InverseEndKind.HasValue)))
                 {
                     return;
                 }
 
-                principalEnd.EndKind = EdmAssociationEndKind.Required;
+                principalEnd.RelationshipMultiplicity = RelationshipMultiplicity.One;
             }
         }
     }

@@ -1,14 +1,17 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.EntityClient.Internal
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Common;
+    using System.Data.Entity.Config;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Common.CommandTrees;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Mapping;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Core.Metadata.Edm.Provider;
     using System.Data.Entity.Core.Query.InternalTrees;
     using System.Data.Entity.Core.Query.PlanCompiler;
     using System.Data.Entity.Core.Query.ResultAssembly;
@@ -16,58 +19,66 @@ namespace System.Data.Entity.Core.EntityClient.Internal
     using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Text;
+#if !NET40
     using System.Threading;
     using System.Threading.Tasks;
+#endif
 
     internal class EntityCommandDefinition : DbCommandDefinition
     {
         #region internal state
 
         /// <summary>
-        /// nested store command definitions
+        ///     nested store command definitions
         /// </summary>
         private readonly List<DbCommandDefinition> _mappedCommandDefinitions;
 
         /// <summary>
-        /// generates column map for the store result reader
+        ///     generates column map for the store result reader
         /// </summary>
         private readonly IColumnMapGenerator[] _columnMapGenerators;
 
         /// <summary>
-        /// list of the parameters that the resulting command should have
+        ///     list of the parameters that the resulting command should have
         /// </summary>
         private readonly ReadOnlyCollection<EntityParameter> _parameters;
 
         /// <summary>
-        /// Set of entity sets exposed in the command.
+        ///     Set of entity sets exposed in the command.
         /// </summary>
         private readonly Set<EntitySet> _entitySets;
 
         private readonly BridgeDataReaderFactory _bridgeDataReaderFactory;
+
+        private readonly ColumnMapFactory _columnMapFactory;
 
         #endregion
 
         #region constructors
 
         /// <summary>
-        /// Creates a new instance of <see cref="EntityCommandDefinition"/>.
+        ///     Creates a new instance of <see cref="EntityCommandDefinition" />.
         /// </summary>
         /// <exception cref="EntityCommandCompilationException">Cannot prepare the command definition for execution; consult the InnerException for more information.</exception>
         /// <exception cref="NotSupportedException">The ADO.NET Data Provider you are using does not support CommandTrees.</exception>
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         internal EntityCommandDefinition(
-            DbProviderFactory storeProviderFactory, DbCommandTree commandTree,
-            BridgeDataReaderFactory bridgeDataReaderFactory = null)
+            DbProviderFactory storeProviderFactory, DbCommandTree commandTree, IDbDependencyResolver resolver = null,
+            BridgeDataReaderFactory bridgeDataReaderFactory = null, ColumnMapFactory columnMapFactory = null)
         {
-            Contract.Requires(storeProviderFactory != null);
-            Contract.Requires(commandTree != null);
+            DebugCheck.NotNull(storeProviderFactory);
+            DebugCheck.NotNull(commandTree);
 
             _bridgeDataReaderFactory = bridgeDataReaderFactory ?? new BridgeDataReaderFactory();
+            _columnMapFactory = columnMapFactory ?? new ColumnMapFactory();
 
-            var storeProviderServices = storeProviderFactory.GetProviderServices();
+            var storeProviderServices =
+                (resolver != null
+                     ? resolver.GetService<DbProviderServices>(storeProviderFactory.GetProviderInvariantName())
+                     : null) ??
+                storeProviderFactory.GetProviderServices();
 
             try
             {
@@ -101,7 +112,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                 }
                 else
                 {
-                    Contract.Assert(
+                    Debug.Assert(
                         DbCommandTreeKind.Function == commandTree.CommandTreeKind, "only query and function command trees are supported");
                     var entityCommandTree = (DbFunctionCommandTree)commandTree;
 
@@ -131,9 +142,9 @@ namespace System.Data.Entity.Core.EntityClient.Internal
 
                     var storeCommandDefinition = storeProviderServices.CreateCommandDefinition(providerCommandTree);
                     _mappedCommandDefinitions = new List<DbCommandDefinition>(1)
-                        {
-                            storeCommandDefinition
-                        };
+                                                    {
+                                                        storeCommandDefinition
+                                                    };
 
                     var firstResultEntitySet = mapping.FunctionImport.EntitySets.FirstOrDefault();
                     if (firstResultEntitySet != null)
@@ -176,18 +187,22 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Constructor for testing/mocking purposes.
+        ///     Constructor for testing/mocking purposes.
         /// </summary>
-        protected EntityCommandDefinition(BridgeDataReaderFactory factory = null, List<DbCommandDefinition> mappedCommandDefinitions = null)
+        protected EntityCommandDefinition(
+            BridgeDataReaderFactory factory = null,
+            ColumnMapFactory columnMapFactory = null,
+            List<DbCommandDefinition> mappedCommandDefinitions = null)
         {
             _bridgeDataReaderFactory = factory ?? new BridgeDataReaderFactory();
+            _columnMapFactory = columnMapFactory ?? new ColumnMapFactory();
             _mappedCommandDefinitions = mappedCommandDefinitions;
         }
 
         /// <summary>
-        /// Determines the store type for a function import.
+        ///     Determines the store type for a function import.
         /// </summary>
-        private static TypeUsage DetermineStoreResultType(
+        private TypeUsage DetermineStoreResultType(
             FunctionImportMappingNonComposable mapping, int resultSetIndex, out IColumnMapGenerator columnMapGenerator)
         {
             // Determine column maps and infer result types for the mapped function. There are four varieties:
@@ -208,7 +223,8 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                     //Note: Defensive check for historic reasons, we expect functionImport.EntitySets.Count > resultSetIndex 
                     var entitySet = functionImport.EntitySets.Count > resultSetIndex ? functionImport.EntitySets[resultSetIndex] : null;
 
-                    columnMapGenerator = new FunctionColumnMapGenerator(mapping, resultSetIndex, entitySet, baseStructuralType);
+                    columnMapGenerator = new FunctionColumnMapGenerator(
+                        mapping, resultSetIndex, entitySet, baseStructuralType, _columnMapFactory);
 
                     // We don't actually know the return type for the stored procedure, but we can infer
                     // one based on the mapping (i.e.: a column for every property of the mapped types
@@ -254,10 +270,10 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Handles the following negative scenarios
-        /// Nested ComplexType Property in ComplexType
+        ///     Handles the following negative scenarios
+        ///     Nested ComplexType Property in ComplexType
         /// </summary>
-        /// <param name="resultType"></param>
+        /// <param name="resultType"> </param>
         private static void ValidateEdmResultType(EdmType resultType, EdmFunction functionImport)
         {
             if (Helper.IsComplexType(resultType))
@@ -279,12 +295,12 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Retrieves mapping for the given C-Space functionCommandTree
+        ///     Retrieves mapping for the given C-Space functionCommandTree
         /// </summary>
         private static FunctionImportMappingNonComposable GetTargetFunctionMapping(DbFunctionCommandTree functionCommandTree)
         {
             Debug.Assert(functionCommandTree.DataSpace == DataSpace.CSpace, "map from CSpace->SSpace function");
-            Debug.Assert(functionCommandTree != null, "null functionCommandTree");
+            DebugCheck.NotNull(functionCommandTree);
             Debug.Assert(!functionCommandTree.EdmFunction.IsComposableAttribute, "functionCommandTree.EdmFunction must be non-composable.");
 
             // Find mapped store function.
@@ -303,8 +319,8 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         #region properties
 
         /// <summary>
-        /// Property to expose the known parameters for the query, so the Command objects 
-        /// constructor can poplulate it's parameter collection from.
+        ///     Property to expose the known parameters for the query, so the Command objects
+        ///     constructor can poplulate it's parameter collection from.
         /// </summary>
         internal virtual IEnumerable<EntityParameter> Parameters
         {
@@ -312,7 +328,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Set of entity sets exposed in the command.
+        ///     Set of entity sets exposed in the command.
         /// </summary>
         internal virtual Set<EntitySet> EntitySets
         {
@@ -320,9 +336,9 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Create a DbCommand object from the definition, that can be executed
+        ///     Create a DbCommand object from the definition, that can be executed
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         public override DbCommand CreateCommand()
         {
             return new EntityCommand(this);
@@ -333,7 +349,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         #region internal methods
 
         /// <summary>
-        /// Creates ColumnMap for result assembly using the given reader.
+        ///     Creates ColumnMap for result assembly using the given reader.
         /// </summary>
         internal ColumnMap CreateColumnMap(DbDataReader storeDataReader)
         {
@@ -341,7 +357,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Creates ColumnMap for result assembly using the given reader's resultSetIndexth result set.
+        ///     Creates ColumnMap for result assembly using the given reader's resultSetIndexth result set.
         /// </summary>
         internal virtual ColumnMap CreateColumnMap(DbDataReader storeDataReader, int resultSetIndex)
         {
@@ -349,10 +365,10 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Constructs a EntityParameter from a CQT parameter.
+        ///     Constructs a EntityParameter from a CQT parameter.
         /// </summary>
-        /// <param name="queryParameter"></param>
-        /// <returns></returns>
+        /// <param name="queryParameter"> </param>
+        /// <returns> </returns>
         private static EntityParameter CreateEntityParameterFromQueryParameter(KeyValuePair<string, TypeUsage> queryParameter)
         {
             // We really can't have a parameter here that isn't a scalar type...
@@ -387,9 +403,9 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Internal execute method -- copies command information from the map command 
-        /// to the command objects, executes them, and builds the result assembly 
-        /// structures needed to return the data reader
+        ///     Internal execute method -- copies command information from the map command
+        ///     to the command objects, executes them, and builds the result assembly
+        ///     structures needed to return the data reader
         /// </summary>
         /// <exception cref="InvalidOperationException">behavior must specify CommandBehavior.SequentialAccess</exception>
         /// <exception cref="InvalidOperationException">input parameters in the entityCommand.Parameters collection must have non-null values.</exception>
@@ -406,7 +422,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
 
             // If we actually executed something, then go ahead and construct a bridge
             // data reader for it.
-            if (null != storeDataReader)
+            if (storeDataReader != null)
             {
                 try
                 {
@@ -437,10 +453,12 @@ namespace System.Data.Entity.Core.EntityClient.Internal
             return result;
         }
 
+#if !NET40
+
         /// <summary>
-        /// Internal execute method -- Asynchronously copies command information from the map command 
-        /// to the command objects, executes them, and builds the result assembly 
-        /// structures needed to return the data reader
+        ///     Internal execute method -- Asynchronously copies command information from the map command
+        ///     to the command objects, executes them, and builds the result assembly
+        ///     structures needed to return the data reader
         /// </summary>
         /// <exception cref="InvalidOperationException">behavior must specify CommandBehavior.SequentialAccess</exception>
         /// <exception cref="InvalidOperationException">input parameters in the entityCommand.Parameters collection must have non-null values.</exception>
@@ -453,7 +471,8 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                 throw new InvalidOperationException(Strings.ADP_MustUseSequentialAccess);
             }
 
-            var storeDataReader = await ExecuteStoreCommandsAsync(entityCommand, behavior, cancellationToken);
+            var storeDataReader =
+                await ExecuteStoreCommandsAsync(entityCommand, behavior, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             DbDataReader result = null;
 
             // If we actually executed something, then go ahead and construct a bridge
@@ -467,7 +486,9 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                     {
                         // For a query with no result type (and therefore no column map), consume the reader.
                         // When the user requests Metadata for this reader, we return nothing.
-                        await CommandHelper.ConsumeReaderAsync(storeDataReader, cancellationToken);
+                        await
+                            CommandHelper.ConsumeReaderAsync(storeDataReader, cancellationToken).ConfigureAwait(
+                                continueOnCapturedContext: false);
                         result = storeDataReader;
                     }
                     else
@@ -489,6 +510,8 @@ namespace System.Data.Entity.Core.EntityClient.Internal
             return result;
         }
 
+#endif
+
         private IEnumerable<ColumnMap> GetNextResultColumnMaps(DbDataReader storeDataReader)
         {
             for (var i = 1; i < _columnMapGenerators.Length; ++i)
@@ -498,7 +521,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Execute the store commands, and return IteratorSources for each one
+        ///     Execute the store commands, and return IteratorSources for each one
         /// </summary>
         internal virtual DbDataReader ExecuteStoreCommands(EntityCommand entityCommand, CommandBehavior behavior)
         {
@@ -526,8 +549,10 @@ namespace System.Data.Entity.Core.EntityClient.Internal
             return reader;
         }
 
+#if !NET40
+
         /// <summary>
-        /// Execute the store commands, and return IteratorSources for each one
+        ///     Execute the store commands, and return IteratorSources for each one
         /// </summary>
         internal virtual async Task<DbDataReader> ExecuteStoreCommandsAsync(
             EntityCommand entityCommand, CommandBehavior behavior, CancellationToken cancellationToken)
@@ -537,7 +562,9 @@ namespace System.Data.Entity.Core.EntityClient.Internal
             DbDataReader reader = null;
             try
             {
-                reader = await storeProviderCommand.ExecuteReaderAsync(behavior & ~CommandBehavior.SequentialAccess, cancellationToken);
+                reader = await
+                         storeProviderCommand.ExecuteReaderAsync(behavior & ~CommandBehavior.SequentialAccess, cancellationToken)
+                                             .ConfigureAwait(continueOnCapturedContext: false);
             }
             catch (Exception e)
             {
@@ -555,6 +582,8 @@ namespace System.Data.Entity.Core.EntityClient.Internal
 
             return reader;
         }
+
+#endif
 
         private DbCommand PrepareEntityCommandBeforeExecution(EntityCommand entityCommand)
         {
@@ -583,7 +612,8 @@ namespace System.Data.Entity.Core.EntityClient.Internal
             // we won't damage anything the store provider did.
 
             var hasOutputParameters = false;
-            if (storeProviderCommand.Parameters != null) // SQLBUDT 519066
+            // Could be null for some providers, don't remove this check
+            if (storeProviderCommand.Parameters != null)
             {
                 var storeProviderServices = entityCommand.Connection.StoreProviderFactory.GetProviderServices();
 
@@ -622,10 +652,10 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Updates storeParameter size, precision and scale properties from user provided parameter properties.
+        ///     Updates storeParameter size, precision and scale properties from user provided parameter properties.
         /// </summary>
-        /// <param name="entityParameter"></param>
-        /// <param name="storeParameter"></param>
+        /// <param name="entityParameter"> </param>
+        /// <param name="storeParameter"> </param>
         private static void SyncParameterProperties(
             EntityParameter entityParameter, DbParameter storeParameter, DbProviderServices storeProviderServices)
         {
@@ -671,9 +701,9 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Return the string used by EntityCommand and ObjectQuery<T> ToTraceString"/>
+        ///     Return the string used by EntityCommand and ObjectQuery<T>ToTraceString"/>
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         internal virtual string ToTraceString()
         {
             if (_mappedCommandDefinitions != null)
@@ -706,21 +736,21 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         #region nested types
 
         /// <summary>
-        /// Generates a column map given a data reader.
+        ///     Generates a column map given a data reader.
         /// </summary>
         private interface IColumnMapGenerator
         {
             /// <summary>
-            /// Given a data reader, returns column map.
+            ///     Given a data reader, returns column map.
             /// </summary>
-            /// <param name="reader">Data reader.</param>
-            /// <returns>Column map.</returns>
+            /// <param name="reader"> Data reader. </param>
+            /// <returns> Column map. </returns>
             ColumnMap CreateColumnMap(DbDataReader reader);
         }
 
         /// <summary>
-        /// IColumnMapGenerator wrapping a constant instance of a column map (invariant with respect
-        /// to the given DbDataReader)
+        ///     IColumnMapGenerator wrapping a constant instance of a column map (invariant with respect
+        ///     to the given DbDataReader)
         /// </summary>
         private sealed class ConstantColumnMapGenerator : IColumnMapGenerator
         {
@@ -746,7 +776,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
         }
 
         /// <summary>
-        /// Generates column maps for a non-composable function mapping.
+        ///     Generates column maps for a non-composable function mapping.
         /// </summary>
         private sealed class FunctionColumnMapGenerator : IColumnMapGenerator
         {
@@ -754,19 +784,25 @@ namespace System.Data.Entity.Core.EntityClient.Internal
             private readonly EntitySet _entitySet;
             private readonly StructuralType _baseStructuralType;
             private readonly int _resultSetIndex;
+            private readonly ColumnMapFactory _columnMapFactory;
 
             internal FunctionColumnMapGenerator(
-                FunctionImportMappingNonComposable mapping, int resultSetIndex, EntitySet entitySet, StructuralType baseStructuralType)
+                FunctionImportMappingNonComposable mapping,
+                int resultSetIndex,
+                EntitySet entitySet,
+                StructuralType baseStructuralType,
+                ColumnMapFactory columnMapFactory)
             {
                 _mapping = mapping;
                 _entitySet = entitySet;
                 _baseStructuralType = baseStructuralType;
                 _resultSetIndex = resultSetIndex;
+                _columnMapFactory = columnMapFactory;
             }
 
             ColumnMap IColumnMapGenerator.CreateColumnMap(DbDataReader reader)
             {
-                return ColumnMapFactory.CreateFunctionImportStructuralTypeColumnMap(
+                return _columnMapFactory.CreateFunctionImportStructuralTypeColumnMap(
                     reader, _mapping, _resultSetIndex, _entitySet, _baseStructuralType);
             }
         }

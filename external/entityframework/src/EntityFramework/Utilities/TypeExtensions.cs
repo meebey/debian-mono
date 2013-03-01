@@ -1,71 +1,96 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects.DataClasses;
-    using System.Data.Entity.Edm;
     using System.Data.Entity.Resources;
+    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
 
     internal static class TypeExtensions
     {
-        private static readonly Dictionary<Type, EdmPrimitiveType> _primitiveTypesMap
-            = new Dictionary<Type, EdmPrimitiveType>();
+        private static readonly Dictionary<Type, PrimitiveType> _primitiveTypesMap
+            = new Dictionary<Type, PrimitiveType>();
 
         [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
         static TypeExtensions()
         {
-            foreach (var efPrimitiveType in PrimitiveType.GetEdmPrimitiveTypes())
+            foreach (var primitiveType in PrimitiveType.GetEdmPrimitiveTypes())
             {
-                EdmPrimitiveType primitiveType;
-                if (EdmPrimitiveType.TryGetByName(efPrimitiveType.Name, out primitiveType))
+                if (!_primitiveTypesMap.ContainsKey(primitiveType.ClrEquivalentType))
                 {
-                    Contract.Assert(primitiveType != null);
-
-                    _primitiveTypesMap.Add(efPrimitiveType.ClrEquivalentType, primitiveType);
+                    _primitiveTypesMap.Add(primitiveType.ClrEquivalentType, primitiveType);
                 }
             }
         }
 
         public static bool IsCollection(this Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             return type.IsCollection(out type);
         }
 
         public static bool IsCollection(this Type type, out Type elementType)
         {
-            Contract.Requires(type != null);
-            Contract.Assert(!type.IsGenericTypeDefinition);
+            DebugCheck.NotNull(type);
+            Debug.Assert(!type.IsGenericTypeDefinition);
 
-            elementType = type;
+            elementType = TryGetElementType(type, typeof(ICollection<>));
 
-            var collectionInterface
-                = type.GetInterfaces()
+            if (elementType == null
+                || type.IsArray)
+            {
+                elementType = type;
+                return false;
+            }
+
+            return true;
+        }
+
+        public static Type TryGetElementType(this Type type, Type interfaceOrBaseType)
+        {
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(interfaceOrBaseType);
+
+            if (!type.IsGenericTypeDefinition)
+            {
+                var interfaceImpl = (interfaceOrBaseType.IsInterface ? type.GetInterfaces() : type.GetBaseTypes())
                     .Union(new[] { type })
                     .FirstOrDefault(
                         t => t.IsGenericType
-                             && t.GetGenericTypeDefinition() == typeof(ICollection<>));
+                             && t.GetGenericTypeDefinition() == interfaceOrBaseType);
 
-            if (!type.IsArray
-                && collectionInterface != null)
-            {
-                elementType = collectionInterface.GetGenericArguments().Single();
-
-                return true;
+                if (interfaceImpl != null)
+                {
+                    return interfaceImpl.GetGenericArguments().Single();
+                }
             }
 
-            return false;
+            return null;
+        }
+
+        public static IEnumerable<Type> GetBaseTypes(this Type type)
+        {
+            DebugCheck.NotNull(type);
+
+            type = type.BaseType;
+
+            while (type != null)
+            {
+                yield return type;
+
+                type = type.BaseType;
+            }
         }
 
         public static Type GetTargetType(this Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             Type elementType;
             if (!type.IsCollection(out elementType))
@@ -78,8 +103,8 @@ namespace System.Data.Entity.Utilities
 
         public static bool TryUnwrapNullableType(this Type type, out Type underlyingType)
         {
-            Contract.Requires(type != null);
-            Contract.Assert(!type.IsGenericTypeDefinition);
+            DebugCheck.NotNull(type);
+            Debug.Assert(!type.IsGenericTypeDefinition);
 
             underlyingType = Nullable.GetUnderlyingType(type) ?? type;
 
@@ -89,21 +114,18 @@ namespace System.Data.Entity.Utilities
         /// <summary>
         ///     Returns true if a variable of this type can be assigned a null value
         /// </summary>
-        /// <param name = "type"></param>
-        /// <returns>
-        ///     True if a reference type or a nullable value type,
-        ///     false otherwise
-        /// </returns>
+        /// <param name="type"> </param>
+        /// <returns> True if a reference type or a nullable value type, false otherwise </returns>
         public static bool IsNullable(this Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             return !type.IsValueType || Nullable.GetUnderlyingType(type) != null;
         }
 
         public static bool IsValidStructuralType(this Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             return !(type.IsGenericType
                      || type.IsValueType
@@ -116,7 +138,7 @@ namespace System.Data.Entity.Utilities
 
         public static bool IsValidStructuralPropertyType(this Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             return !(type.IsGenericTypeDefinition
                      || type.IsNested
@@ -129,18 +151,18 @@ namespace System.Data.Entity.Utilities
                      || typeof(EntityReference).IsAssignableFrom(type));
         }
 
-        public static bool IsPrimitiveType(this Type type, out EdmPrimitiveType primitiveType)
+        public static bool IsPrimitiveType(this Type type, out PrimitiveType primitiveType)
         {
             return _primitiveTypesMap.TryGetValue(type, out primitiveType);
         }
 
         public static T CreateInstance<T>(
-            this Type type, 
+            this Type type,
             Func<string, string, string> typeMessageFactory,
             Func<string, Exception> exceptionFactory = null)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(typeMessageFactory != null);
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(typeMessageFactory);
 
             exceptionFactory = exceptionFactory ?? (s => new InvalidOperationException(s));
 
@@ -154,8 +176,8 @@ namespace System.Data.Entity.Utilities
 
         public static T CreateInstance<T>(this Type type, Func<string, Exception> exceptionFactory = null)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(typeof(T).IsAssignableFrom(type));
+            DebugCheck.NotNull(type);
+            Debug.Assert(typeof(T).IsAssignableFrom(type));
 
             exceptionFactory = exceptionFactory ?? (s => new InvalidOperationException(s));
 
@@ -175,6 +197,16 @@ namespace System.Data.Entity.Utilities
             }
 
             return (T)Activator.CreateInstance(type);
+        }
+
+        public static bool IsValidEdmScalarType(this Type type)
+        {
+            DebugCheck.NotNull(type);
+
+            type.TryUnwrapNullableType(out type);
+
+            PrimitiveType _;
+            return type.IsPrimitiveType(out _) || type.IsEnum;
         }
     }
 }

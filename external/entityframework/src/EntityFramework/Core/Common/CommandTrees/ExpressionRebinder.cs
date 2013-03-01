@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Collections.Generic;
@@ -6,13 +7,14 @@ namespace System.Data.Entity.Core.Common.CommandTrees
     using System.Data.Entity.Core.Common.EntitySql;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
 
     /// <summary>
-    /// Ensures that all metadata in a given expression tree is from the specified metadata workspace,
-    /// potentially rebinding and rebuilding the expressions to appropriate replacement metadata where necessary.
+    ///     Ensures that all metadata in a given expression tree is from the specified metadata workspace,
+    ///     potentially rebinding and rebuilding the expressions to appropriate replacement metadata where necessary.
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Rebinder")]
     public class DbExpressionRebinder : DefaultExpressionVisitor
@@ -26,7 +28,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
 
         protected DbExpressionRebinder(MetadataWorkspace targetWorkspace)
         {
-            Debug.Assert(targetWorkspace != null, "Metadata workspace is null");
+            DebugCheck.NotNull(targetWorkspace);
             _metadata = targetWorkspace;
             _perspective = new ModelPerspective(targetWorkspace);
         }
@@ -37,7 +39,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees
             if (_metadata.TryGetEntityContainer(entitySet.EntityContainer.Name, entitySet.EntityContainer.DataSpace, out container))
             {
                 EntitySetBase extent = null;
-                if (container.BaseEntitySets.TryGetValue(entitySet.Name, false, out extent) &&
+                if (container.BaseEntitySets.TryGetValue(entitySet.Name, false, out extent)
+                    &&
                     extent != null
                     &&
                     entitySet.BuiltInTypeKind == extent.BuiltInTypeKind) // EntitySet -> EntitySet, AssociationSet -> AssociationSet, etc
@@ -158,8 +161,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
             else
             {
                 if (!_metadata.TryGetType(type.Name, type.NamespaceName, type.DataSpace, out retType)
-                    ||
-                    null == retType)
+                    || null == retType)
                 {
                     throw new ArgumentException(Strings.Cqt_Copier_TypeNotFound(TypeHelpers.GetFullName(type.NamespaceName, type.Name)));
                 }
@@ -215,6 +217,8 @@ namespace System.Data.Entity.Core.Common.CommandTrees
 
         public override DbExpression Visit(DbPropertyExpression expression)
         {
+            Check.NotNull(expression, "expression");
+
             DbExpression result = expression;
             var newInstance = VisitExpression(expression.Instance);
             if (!ReferenceEquals(expression.Instance, newInstance))

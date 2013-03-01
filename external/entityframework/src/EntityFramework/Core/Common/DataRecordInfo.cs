@@ -1,15 +1,16 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
-    /// DataRecordInfo class providing a simple way to access both the type information and the column information.
+    ///     DataRecordInfo class providing a simple way to access both the type information and the column information.
     /// </summary>
     public class DataRecordInfo
     {
@@ -21,14 +22,14 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Construct DataRecordInfo with list of EdmMembers.
-        /// Each memberInfo must be a member of metadata.
+        ///     Construct DataRecordInfo with list of EdmMembers.
+        ///     Each memberInfo must be a member of metadata.
         /// </summary>
-        /// <param name="metadata"></param>
-        /// <param name="memberInfo"></param>
+        /// <param name="metadata"> </param>
+        /// <param name="memberInfo"> </param>
         public DataRecordInfo(TypeUsage metadata, IEnumerable<EdmMember> memberInfo)
         {
-            Contract.Requires(metadata != null);
+            Check.NotNull(metadata, "metadata");
             var members = TypeHelpers.GetAllStructuralMembers(metadata.EdmType);
 
             var fieldList = new List<FieldMetadata>(members.Count);
@@ -37,18 +38,16 @@ namespace System.Data.Entity.Core.Common
             {
                 foreach (var member in memberInfo)
                 {
-                    if ((null != member) &&
-                        (0 <= members.IndexOf(member))
-                        &&
-                        ((BuiltInTypeKind.EdmProperty == member.BuiltInTypeKind)
-                         || // for ComplexType, EntityType; BuiltTypeKind.NaviationProperty not allowed
-                         (BuiltInTypeKind.AssociationEndMember == member.BuiltInTypeKind))) // for AssociationType
+                    if ((null != member)
+                        && (0 <= members.IndexOf(member))
+                        && ((BuiltInTypeKind.EdmProperty == member.BuiltInTypeKind)
+                            || // for ComplexType, EntityType; BuiltTypeKind.NaviationProperty not allowed
+                            (BuiltInTypeKind.AssociationEndMember == member.BuiltInTypeKind))) // for AssociationType
                     {
                         // each memberInfo must be non-null and be part of Properties or AssociationEndMembers
                         //validate that EdmMembers are from the same type or base type of the passed in metadata.
                         if ((member.DeclaringType != metadata.EdmType)
-                            &&
-                            !member.DeclaringType.IsBaseTypeOf(metadata.EdmType))
+                            && !member.DeclaringType.IsBaseTypeOf(metadata.EdmType))
                         {
                             throw new ArgumentException(Strings.EdmMembersDefiningTypeDoNotAgreeWithMetadataType);
                         }
@@ -64,8 +63,7 @@ namespace System.Data.Entity.Core.Common
 
             // expecting structural types to have something at least 1 property
             // (((null == structural) && (0 == fieldList.Count)) || ((null != structural) && (0 < fieldList.Count)))
-            if (Helper.IsStructuralType(metadata.EdmType)
-                == (0 < fieldList.Count))
+            if (Helper.IsStructuralType(metadata.EdmType) == (0 < fieldList.Count))
             {
                 _fieldMetadata = new ReadOnlyCollection<FieldMetadata>(fieldList);
                 _metadata = metadata;
@@ -77,11 +75,11 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Construct FieldMetadata for structuralType.Members from TypeUsage
+        ///     Construct FieldMetadata for structuralType.Members from TypeUsage
         /// </summary>
         internal DataRecordInfo(TypeUsage metadata)
         {
-            Debug.Assert(null != metadata, "invalid attempt to instantiate DataRecordInfo with null metadata information");
+            DebugCheck.NotNull(metadata);
 
             var structuralMembers = TypeHelpers.GetAllStructuralMembers(metadata);
             var fieldList = new FieldMetadata[structuralMembers.Count];
@@ -99,8 +97,8 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Reusing TypeUsage and FieldMetadata from another EntityRecordInfo which has all the same info
-        /// but with a different EntityKey instance.
+        ///     Reusing TypeUsage and FieldMetadata from another EntityRecordInfo which has all the same info
+        ///     but with a different EntityKey instance.
         /// </summary>
         internal DataRecordInfo(DataRecordInfo recordInfo)
         {
@@ -109,7 +107,7 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Column information.
+        ///     Column information.
         /// </summary>
         public ReadOnlyCollection<FieldMetadata> FieldMetadata
         {
@@ -117,7 +115,7 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Type information.
+        ///     Type information.
         /// </summary>
         public virtual TypeUsage RecordType
         {

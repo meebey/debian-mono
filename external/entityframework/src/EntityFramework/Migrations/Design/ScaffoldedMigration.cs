@@ -1,8 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Design
 {
     using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
+    using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
     ///     Represents a code-based migration that has been scaffolded and is ready to be written to a file.
@@ -26,7 +28,7 @@ namespace System.Data.Entity.Migrations.Design
             get { return _migrationId; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _migrationId = value;
             }
@@ -40,7 +42,7 @@ namespace System.Data.Entity.Migrations.Design
             get { return _userCode; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _userCode = value;
             }
@@ -54,7 +56,7 @@ namespace System.Data.Entity.Migrations.Design
             get { return _designerCode; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _designerCode = value;
             }
@@ -69,7 +71,7 @@ namespace System.Data.Entity.Migrations.Design
             get { return _language; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _language = value;
             }
@@ -83,18 +85,24 @@ namespace System.Data.Entity.Migrations.Design
             get { return _directory; }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(value));
+                Check.NotEmpty(value, "value");
 
                 _directory = value;
             }
         }
 
         /// <summary>
-        /// Gets a dictionary of string resources to add to the migration resource file.
+        ///     Gets a dictionary of string resources to add to the migration resource file.
         /// </summary>
         public IDictionary<string, object> Resources
         {
             get { return _resources; }
         }
+
+        /// <summary>
+        ///     Gets or sets whether the migration was re-scaffolded.
+        /// </summary>
+        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Rescaffold")]
+        public bool IsRescaffold { get; set; }
     }
 }

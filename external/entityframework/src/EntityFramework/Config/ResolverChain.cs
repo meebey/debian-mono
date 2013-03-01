@@ -1,13 +1,14 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Config
 {
     using System.Collections.Concurrent;
-    using System.Data.Entity.Migrations.Extensions;
-    using System.Diagnostics.Contracts;
+    using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// Chain-of-Responsibility implementation for <see cref="IDbDependencyResolver"/> instances.
+    ///     Chain-of-Responsibility implementation for <see cref="IDbDependencyResolver" /> instances.
     /// </summary>
     internal class ResolverChain : IDbDependencyResolver
     {
@@ -17,9 +18,9 @@ namespace System.Data.Entity.Config
 
         public virtual void Add(IDbDependencyResolver resolver)
         {
-            Contract.Requires(resolver != null);
+            DebugCheck.NotNull(resolver);
 
-            // The idea here is that Add, GetService, and Release must all be thread-safe, but
+            // The idea here is that Add and GetService must all be thread-safe, but
             // Add is only called infrequently. Therefore each time Add is called a snapshot is taken
             // of the stack that can then be enumerated without needing to make a snapshot
             // every time the enumeration is asked for, which is the normal behavior for the concurrent
@@ -28,16 +29,16 @@ namespace System.Data.Entity.Config
             _resolversSnapshot = _resolvers.ToArray();
         }
 
-        public virtual object GetService(Type type, string name)
+        public virtual IEnumerable<IDbDependencyResolver> Resolvers
         {
-            return _resolversSnapshot
-                .Select(r => r.GetService(type, name))
-                .FirstOrDefault(s => s != null);
+            get { return _resolversSnapshot.Reverse(); }
         }
 
-        public virtual void Release(object service)
+        public virtual object GetService(Type type, object key)
         {
-            _resolversSnapshot.Each(r => r.Release(service));
+            return _resolversSnapshot
+                .Select(r => r.GetService(type, key))
+                .FirstOrDefault(s => s != null);
         }
     }
 }
