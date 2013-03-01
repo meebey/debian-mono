@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Model
 {
-    using System.Data.Entity.Migrations.Model;
     using System.Linq;
     using Xunit;
 
@@ -11,11 +11,11 @@ namespace System.Data.Entity.Migrations
         public void Can_get_and_set_properties()
         {
             var dropForeignKeyOperation = new DropForeignKeyOperation
-                {
-                    PrincipalTable = "P",
-                    DependentTable = "D",
-                    Name = "Foo"
-                };
+                                              {
+                                                  PrincipalTable = "P",
+                                                  DependentTable = "D",
+                                                  Name = "Foo"
+                                              };
 
             dropForeignKeyOperation.DependentColumns.Add("fk");
 
@@ -32,16 +32,16 @@ namespace System.Data.Entity.Migrations
         {
             var addForeignKeyOperation
                 = new AddForeignKeyOperation
-                    {
-                        DependentTable = "D"
-                    };
+                      {
+                          DependentTable = "D"
+                      };
             addForeignKeyOperation.DependentColumns.Add("fk");
 
             var dropForeignKeyOperation
                 = new DropForeignKeyOperation(addForeignKeyOperation)
-                    {
-                        DependentTable = "D"
-                    };
+                      {
+                          DependentTable = "D"
+                      };
 
             dropForeignKeyOperation.DependentColumns.Add("fk");
 

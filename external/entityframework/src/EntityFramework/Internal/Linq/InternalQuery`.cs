@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.Linq
 {
     using System.Collections;
@@ -6,7 +7,8 @@ namespace System.Data.Entity.Internal.Linq
     using System.Data.Entity.Core.Objects;
     using System.Data.Entity.Core.Objects.ELinq;
     using System.Data.Entity.Infrastructure;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
+    using System.Diagnostics;
     using System.Linq;
     using System.Linq.Expressions;
 
@@ -16,7 +18,7 @@ namespace System.Data.Entity.Internal.Linq
     ///     information to other parts of the design in a controlled manner without adding a lot of internal methods and
     ///     properties to the DbSet and DbQuery classes themselves.
     /// </summary>
-    /// <typeparam name = "TElement">The type of entity to query for.</typeparam>
+    /// <typeparam name="TElement"> The type of entity to query for. </typeparam>
     internal class InternalQuery<TElement> : IInternalQuery<TElement>
     {
         #region Fields and constructors and initalization
@@ -27,12 +29,12 @@ namespace System.Data.Entity.Internal.Linq
         /// <summary>
         ///     Creates a new query that will be backed by the given InternalContext.
         /// </summary>
-        /// <param name = "internalContext">The backing context.</param>
-        public InternalQuery(InternalContext context)
+        /// <param name="internalContext"> The backing context. </param>
+        public InternalQuery(InternalContext internalContext)
         {
-            Contract.Requires(context != null);
+            DebugCheck.NotNull(internalContext);
 
-            _internalContext = context;
+            _internalContext = internalContext;
         }
 
         /// <summary>
@@ -41,6 +43,8 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         public InternalQuery(InternalContext internalContext, ObjectQuery objectQuery)
         {
+            DebugCheck.NotNull(internalContext);
+
             _internalContext = internalContext;
             _objectQuery = (ObjectQuery<TElement>)objectQuery;
         }
@@ -73,10 +77,12 @@ namespace System.Data.Entity.Internal.Linq
         /// <summary>
         ///     Updates the underlying ObjectQuery with the given include path.
         /// </summary>
-        /// <param name = "path">The include path.</param>
-        /// <returns>A new query containing the defined include path.</returns>
+        /// <param name="path"> The include path. </param>
+        /// <returns> A new query containing the defined include path. </returns>
         public virtual IInternalQuery<TElement> Include(string path)
         {
+            DebugCheck.NotEmpty(path);
+
             return new InternalQuery<TElement>(_internalContext, _objectQuery.Include(path));
         }
 
@@ -85,13 +91,27 @@ namespace System.Data.Entity.Internal.Linq
         #region AsNoTracking
 
         /// <summary>
-        ///     Returns a new query where the entities returned will not be cached in the <see cref = "DbContext" />.
+        ///     Returns a new query where the entities returned will not be cached in the <see cref="DbContext" />.
         /// </summary>
-        /// <returns> A new query with NoTracking applied.</returns>
+        /// <returns> A new query with NoTracking applied. </returns>
         public virtual IInternalQuery<TElement> AsNoTracking()
         {
             return new InternalQuery<TElement>(
                 _internalContext, (ObjectQuery)DbHelpers.CreateNoTrackingQuery(_objectQuery));
+        }
+
+        #endregion
+
+        #region AsStreaming
+
+        /// <summary>
+        ///     Returns a new query that will stream the results instead of buffering.
+        /// </summary>
+        /// <returns> A new query with AsStreaming applied. </returns>
+        public virtual IInternalQuery<TElement> AsStreaming()
+        {
+            return new InternalQuery<TElement>(
+                _internalContext, (ObjectQuery)DbHelpers.CreateStreamingQuery(_objectQuery));
         }
 
         #endregion
@@ -105,7 +125,7 @@ namespace System.Data.Entity.Internal.Linq
         {
             get
             {
-                Contract.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
+                Debug.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
 
                 return _objectQuery;
             }
@@ -129,7 +149,7 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         protected void InitializeQuery(ObjectQuery<TElement> objectQuery)
         {
-            Contract.Assert(_objectQuery == null, "InternalQuery should not be initialized twice.");
+            Debug.Assert(_objectQuery == null, "InternalQuery should not be initialized twice.");
 
             _objectQuery = objectQuery;
         }
@@ -139,15 +159,13 @@ namespace System.Data.Entity.Internal.Linq
         #region ToString
 
         /// <summary>
-        ///     Returns a <see cref = "System.String" /> representation of the underlying query, equivalent
+        ///     Returns a <see cref="System.String" /> representation of the underlying query, equivalent
         ///     to ToTraceString on ObjectQuery.
         /// </summary>
-        /// <returns>
-        ///     The query string.
-        /// </returns>
+        /// <returns> The query string. </returns>
         public override string ToString()
         {
-            Contract.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
+            Debug.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
 
             return _objectQuery.ToTraceString();
         }
@@ -163,22 +181,22 @@ namespace System.Data.Entity.Internal.Linq
         {
             get
             {
-                Contract.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
+                Debug.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
 
                 return ((IQueryable)_objectQuery).Expression;
             }
         }
 
         /// <summary>
-        ///     The LINQ query provider for the underlying <see cref = "ObjectQuery" />.
+        ///     The LINQ query provider for the underlying <see cref="ObjectQuery" />.
         /// </summary>
         public virtual ObjectQueryProvider ObjectQueryProvider
         {
             get
             {
-                Contract.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
+                Debug.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
 
-                return _objectQuery.Provider;
+                return _objectQuery.ObjectQueryProvider;
             }
         }
 
@@ -195,12 +213,12 @@ namespace System.Data.Entity.Internal.Linq
         #region IEnumerable
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator{TElement}"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IEnumerator{TElement}" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         public virtual IEnumerator<TElement> GetEnumerator()
         {
-            Contract.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
+            Debug.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
 
             InternalContext.Initialize();
 
@@ -208,9 +226,9 @@ namespace System.Data.Entity.Internal.Linq
         }
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator{TElement}"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IEnumerator{TElement}" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         IEnumerator IInternalQuery.GetEnumerator()
         {
             return GetEnumerator();
@@ -220,13 +238,15 @@ namespace System.Data.Entity.Internal.Linq
 
         #region IDbAsyncEnumerable
 
+#if !NET40
+
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator{TElement}"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IDbAsyncEnumerator{TElement}" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         public virtual IDbAsyncEnumerator<TElement> GetAsyncEnumerator()
         {
-            Contract.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
+            Debug.Assert(_objectQuery != null, "InternalQuery should have been initialized.");
 
             InternalContext.Initialize();
 
@@ -234,13 +254,15 @@ namespace System.Data.Entity.Internal.Linq
         }
 
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IDbAsyncEnumerator" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         IDbAsyncEnumerator IInternalQuery.GetAsyncEnumerator()
         {
             return GetAsyncEnumerator();
         }
+
+#endif
 
         #endregion
     }

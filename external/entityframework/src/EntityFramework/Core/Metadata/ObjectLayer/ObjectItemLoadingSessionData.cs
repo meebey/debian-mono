@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.Generic;
@@ -12,9 +13,6 @@ namespace System.Data.Entity.Core.Metadata.Edm
 
         // all the types that we encountered while loading - this may contain types from various assemblies
         private readonly Dictionary<string, EdmType> _typesInLoading;
-
-        // TODO_REFACTOR: consider moving all the Convetion based specific stuff to a specific class derived from 
-        // ObjectItemLoadingSessionData
 
         private readonly LoadMessageLogger _loadMessageLogger;
 
@@ -187,6 +185,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
                         else if (Helper.IsEnumType(type))
                         {
                             var enumType = (ClrEnumType)type;
+                            _cspaceToOspace.Add(_edmItemCollection.GetItem<EnumType>(enumType.CSpaceTypeName), enumType);
                         }
                         else
                         {

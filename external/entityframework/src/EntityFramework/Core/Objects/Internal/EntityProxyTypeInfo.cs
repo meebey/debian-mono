@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
@@ -12,7 +14,7 @@ namespace System.Data.Entity.Core.Objects.Internal
     using System.Reflection.Emit;
 
     /// <summary>
-    /// Contains the Type of a proxy class, along with any behaviors associated with that proxy Type.
+    ///     Contains the Type of a proxy class, along with any behaviors associated with that proxy Type.
     /// </summary>
     internal sealed class EntityProxyTypeInfo
     {
@@ -41,7 +43,7 @@ namespace System.Data.Entity.Core.Objects.Internal
             Type proxyType, ClrEntityType ospaceEntityType, DynamicMethod initializeCollections, List<PropertyInfo> baseGetters,
             List<PropertyInfo> baseSetters)
         {
-            Debug.Assert(proxyType != null, "proxyType must be non-null");
+            DebugCheck.NotNull(proxyType);
 
             _proxyType = proxyType;
             _entityType = ospaceEntityType;
@@ -85,18 +87,18 @@ namespace System.Data.Entity.Core.Objects.Internal
                 Object_Parameter);
             var getEntityWrapperDelegate = lambda.Compile();
             Proxy_GetEntityWrapper = (object proxy) =>
-                {
-                    // This code validates that the wrapper points to the proxy that holds the wrapper.
-                    // This guards against mischief by switching this wrapper out for another one obtained
-                    // from a different object.
-                    var wrapper = ((IEntityWrapper)getEntityWrapperDelegate(proxy));
-                    if (wrapper != null
-                        && !ReferenceEquals(wrapper.Entity, proxy))
-                    {
-                        throw new InvalidOperationException(Strings.EntityProxyTypeInfo_ProxyHasWrongWrapper);
-                    }
-                    return wrapper;
-                };
+                                         {
+                                             // This code validates that the wrapper points to the proxy that holds the wrapper.
+                                             // This guards against mischief by switching this wrapper out for another one obtained
+                                             // from a different object.
+                                             var wrapper = ((IEntityWrapper)getEntityWrapperDelegate(proxy));
+                                             if (wrapper != null
+                                                 && !ReferenceEquals(wrapper.Entity, proxy))
+                                             {
+                                                 throw new InvalidOperationException(Strings.EntityProxyTypeInfo_ProxyHasWrongWrapper);
+                                             }
+                                             return wrapper;
+                                         };
 
             // Create the Wrapper setter
             Proxy_SetEntityWrapper = Expression.Lambda<Func<object, object, object>>(
@@ -131,7 +133,7 @@ namespace System.Data.Entity.Core.Objects.Internal
             _propertiesWithBaseGetter = new HashSet<string>(baseGetters.Select(p => p.Name));
             _propertiesWithBaseSetter = new HashSet<string>(baseSetters.Select(p => p.Name));
 
-            _createObject = LightweightCodeGenerator.CreateConstructor(proxyType) as Func<object>;
+            _createObject = DelegateFactory.CreateConstructor(proxyType);
         }
 
         internal object CreateProxyObject()
@@ -189,26 +191,23 @@ namespace System.Data.Entity.Core.Objects.Internal
         #region Wrapper on the Proxy
 
         /// <summary>
-        /// Set the proxy object's private entity wrapper field value to the specified entity wrapper object.
-        /// The proxy object (representing the wrapped entity) is retrieved from the wrapper itself.
+        ///     Set the proxy object's private entity wrapper field value to the specified entity wrapper object.
+        ///     The proxy object (representing the wrapped entity) is retrieved from the wrapper itself.
         /// </summary>
-        /// <param name="wrapper">Wrapper object to be referenced by the proxy.</param>
-        /// <returns>
-        /// The supplied entity wrapper.
-        /// This is done so that this method can be more easily composed within lambda expressions (such as in the materializer).
-        /// </returns>
+        /// <param name="wrapper"> Wrapper object to be referenced by the proxy. </param>
+        /// <returns> The supplied entity wrapper. This is done so that this method can be more easily composed within lambda expressions (such as in the materializer). </returns>
         internal IEntityWrapper SetEntityWrapper(IEntityWrapper wrapper)
         {
-            Debug.Assert(wrapper != null, "wrapper must be non-null");
-            Debug.Assert(wrapper.Entity != null, "proxy must be non-null");
+            DebugCheck.NotNull(wrapper);
+            DebugCheck.NotNull(wrapper.Entity);
             return Proxy_SetEntityWrapper(wrapper.Entity, wrapper) as IEntityWrapper;
         }
 
         /// <summary>
-        /// Gets the proxy object's entity wrapper field value
+        ///     Gets the proxy object's entity wrapper field value
         /// </summary>
-        /// <param name="entity"></param>
-        /// <returns></returns>
+        /// <param name="entity"> </param>
+        /// <returns> </returns>
         internal IEntityWrapper GetEntityWrapper(object entity)
         {
             return Proxy_GetEntityWrapper(entity) as IEntityWrapper;

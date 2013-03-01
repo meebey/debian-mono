@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Linq.Expressions
 {
     using System.Collections.Generic;
@@ -6,7 +7,7 @@ namespace System.Linq.Expressions
     using System.Linq.Expressions.Internal;
 
     /// <summary>
-    /// Visitor for LINQ expression trees.
+    ///     Visitor for LINQ expression trees.
     /// </summary>
     internal abstract class EntityExpressionVisitor
     {
@@ -127,7 +128,8 @@ namespace System.Linq.Expressions
             var left = Visit(b.Left);
             var right = Visit(b.Right);
             var conversion = Visit(b.Conversion);
-            if (left != b.Left || right != b.Right
+            if (left != b.Left
+                || right != b.Right
                 || conversion != b.Conversion)
             {
                 if (b.NodeType == ExpressionType.Coalesce
@@ -163,7 +165,8 @@ namespace System.Linq.Expressions
             var test = Visit(c.Test);
             var ifTrue = Visit(c.IfTrue);
             var ifFalse = Visit(c.IfFalse);
-            if (test != c.Test || ifTrue != c.IfTrue
+            if (test != c.Test
+                || ifTrue != c.IfTrue
                 || ifFalse != c.IfFalse)
             {
                 return Expression.Condition(test, ifTrue, ifFalse);

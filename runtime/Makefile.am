@@ -1,6 +1,3 @@
-# hack to prevent 'check' from depending on 'all'
-AUTOMAKE_OPTIONS = cygnus
-
 tmpinst = _tmpinst
 
 noinst_SCRIPTS = mono-wrapper monodis-wrapper
@@ -34,6 +31,9 @@ moon-do-basic-clean:
 	cd $(mcs_topdir)/ && $(MAKE) NO_DIR_CHECK=1 PROFILE=moonlight_raw clean
 endif
 
+if ONLY_MONOTOUCH
+build_profiles = monotouch
+else
 if ONLY_MOONLIGHT
 build_profiles = moonlight_raw
 test_profiles = moonlight_raw
@@ -80,6 +80,7 @@ endif
 
 test_profiles = $(build_profiles)
 
+endif
 endif
 
 if BUILD_MCS
@@ -161,7 +162,7 @@ mcs-compileall: mono-wrapper etc/mono/config
 		if [ ! -f $$i ] ; then \
 			continue ; \
 		fi ;  \
-	    if ./mono-wrapper --compile-all --verify-all --security=validil $$i; then \
+	    if ./mono-wrapper --compile-all --verify-all --security=verifiable $$i; then \
 	      echo $$i verified OK; \
 	    else \
 	      echo $$i verification failed; ok=false; \

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration
 {
     using System.Collections.Generic;
@@ -17,15 +18,13 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
     using System.Text;
 
     /// <summary>
-    /// Holds the view generated for a given OFTYPE(Extent, Type) combination.
+    ///     Holds the view generated for a given OFTYPE(Extent, Type) combination.
     /// </summary>
     internal sealed class GeneratedView : InternalBase
     {
-        #region Factory
-
         /// <summary>
-        /// Creates generated view object for the combination of the <paramref name="extent"/> and the <paramref name="type"/>. 
-        /// This constructor is used for regular cell-based view generation.
+        ///     Creates generated view object for the combination of the <paramref name="extent" /> and the <paramref name="type" />.
+        ///     This constructor is used for regular cell-based view generation.
         /// </summary>
         internal static GeneratedView CreateGeneratedView(
             EntitySetBase extent,
@@ -59,8 +58,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Creates generated view object for the combination of the <paramref name="extent"/> and the <paramref name="type"/>. 
-        /// This constructor is used for FK association sets only.
+        ///     Creates generated view object for the combination of the <paramref name="extent" /> and the <paramref name="type" />.
+        ///     This constructor is used for FK association sets only.
         /// </summary>
         internal static GeneratedView CreateGeneratedViewForFKAssociationSet(
             EntitySetBase extent,
@@ -73,8 +72,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Creates generated view object for the combination of the <paramref name="setMapping"/>.Set and the <paramref name="type"/>. 
-        /// This constructor is used for user-defined query views only.
+        ///     Creates generated view object for the combination of the <paramref name="setMapping" />.Set and the
+        ///     <paramref
+        ///         name="type" />
+        ///     .
+        ///     This constructor is used for user-defined query views only.
         /// </summary>
         internal static bool TryParseUserSpecifiedView(
             StorageSetMapping setMapping,
@@ -169,10 +171,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             }
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly EntitySetBase m_extent;
         private readonly EdmType m_type;
         private DbQueryCommandTree m_commandTree; //We cache CQTs for Update Views sicne that is the one update stack works of.
@@ -182,18 +180,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         private readonly StorageMappingItemCollection m_mappingItemCollection;
         private readonly ConfigViewGenerator m_config;
 
-        #endregion
-
-        #region Properties
-
         internal string eSQL
         {
             get { return m_eSQL; }
         }
-
-        #endregion
-
-        #region Methods
 
         internal DbQueryCommandTree GetCommandTree()
         {
@@ -241,10 +231,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
         }
 
         /// <summary>
-        /// Given an extent and its corresponding view, invokes the parser to check if the view definition is syntactically correct.
-        /// Iff parsing succeeds: <paramref name="commandTree"/> and <paramref name="discriminatorMap"/> are set to the parse result and method returns true,
-        /// otherwise if parser has thrown a catchable exception, it is returned via <paramref name="parserException"/> parameter, 
-        /// otherwise exception is re-thrown.
+        ///     Given an extent and its corresponding view, invokes the parser to check if the view definition is syntactically correct.
+        ///     Iff parsing succeeds: <paramref name="commandTree" /> and <paramref name="discriminatorMap" /> are set to the parse result and method returns true,
+        ///     otherwise if parser has thrown a catchable exception, it is returned via <paramref name="parserException" /> parameter,
+        ///     otherwise exception is re-thrown.
         /// </summary>
         private static bool TryParseView(
             string eSQL,
@@ -316,10 +306,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
             return parserException == null;
         }
 
-        #endregion
-
-        #region String Methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             var ofTypeView = m_type != m_extent.ElementType;
@@ -344,7 +330,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration
                 builder.Append(m_commandTree.Print());
             }
         }
-
-        #endregion
     }
 }

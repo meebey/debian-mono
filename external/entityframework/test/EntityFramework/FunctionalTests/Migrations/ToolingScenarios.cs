@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.CodeDom.Compiler;
     using System.Data.Entity.Migrations.Design;
-    using System.Data.Entity.Resources;
     using System.Data.Entity.SqlServer;
     using System.IO;
     using System.Linq;
@@ -77,8 +77,6 @@ namespace System.Data.Entity.Migrations
         {
             ResetDatabase();
 
-            var logBuilder = new StringBuilder();
-
             using (var facade = new ToolingFacade(
                 "ClassLibrary1",
                 configurationTypeName: null,
@@ -89,8 +87,8 @@ namespace System.Data.Entity.Migrations
             {
                 var result = facade.GetContextTypes();
 
-                Assert.Equal(1, result.Count());
-                Assert.Equal("ClassLibrary1.Context", result.Single());
+                Assert.Equal(2, result.Count());
+                Assert.Equal("ClassLibrary1.Context", result.First());
             }
         }
 
@@ -98,8 +96,6 @@ namespace System.Data.Entity.Migrations
         public void Can_get_context_type()
         {
             ResetDatabase();
-
-            var logBuilder = new StringBuilder();
 
             using (var facade = new ToolingFacade(
                 "ClassLibrary1",
@@ -120,8 +116,6 @@ namespace System.Data.Entity.Migrations
         {
             ResetDatabase();
 
-            var logBuilder = new StringBuilder();
-
             using (var facade = new ToolingFacade(
                 "ClassLibrary1",
                 configurationTypeName: null,
@@ -140,8 +134,6 @@ namespace System.Data.Entity.Migrations
         public void Can_get_context_type_by_qualified_name()
         {
             ResetDatabase();
-
-            var logBuilder = new StringBuilder();
 
             using (var facade = new ToolingFacade(
                 "ClassLibrary1",
@@ -162,8 +154,6 @@ namespace System.Data.Entity.Migrations
         {
             ResetDatabase();
 
-            var logBuilder = new StringBuilder();
-
             using (var facade = new ToolingFacade(
                 "ClassLibrary1",
                 configurationTypeName: null,
@@ -172,8 +162,7 @@ namespace System.Data.Entity.Migrations
                 dataDirectory: null,
                 connectionStringInfo: null))
             {
-                var ex = Assert.Throws<ToolingException>(
-                    () => facade.GetContextType("MissingContext"));
+                Assert.Throws<ToolingException>(() => facade.GetContextType("MissingContext"));
             }
         }
 
@@ -186,7 +175,7 @@ namespace System.Data.Entity.Migrations
 
             var initialCreate = new MigrationScaffolder(migrator.Configuration).Scaffold("InitialCreate");
 
-            migrator = CreateMigrator<ShopContext_v1>(scaffoldedMigrations: initialCreate);
+            migrator = CreateMigrator<ShopContext_v1>(scaffoldedMigrations: initialCreate, contextKey: "ClassLibrary1.Context");
 
             migrator.Update();
 
@@ -277,15 +266,15 @@ namespace System.Data.Entity.Migrations
             const string unknownAssemblyName = "UnknownAssembly";
 
             using (var facade = new ToolingFacade(
-                    unknownAssemblyName,
-                    "ClassLibrary1.Configuration",
-                    _projectDir,
-                    Path.Combine(_projectDir, "App.config"),
-                    null,
-                    null))
+                unknownAssemblyName,
+                "ClassLibrary1.Configuration",
+                _projectDir,
+                Path.Combine(_projectDir, "App.config"),
+                null,
+                null))
             {
-                var ex = Assert.Throws<ToolingException>(() => facade.GetDatabaseMigrations());
-                Assert.Equal(Strings.ToolingFacade_AssemblyNotFound(unknownAssemblyName), ex.Message);
+                Assert.Throws<ToolingException>(() => facade.GetDatabaseMigrations())
+                    .ValidateMessage("ToolingFacade_AssemblyNotFound", unknownAssemblyName);
             }
         }
 
@@ -302,8 +291,8 @@ namespace System.Data.Entity.Migrations
         public ToolingFixture()
         {
             var targetDir = IOHelpers.GetTempDirName();
-            var targetName = "ClassLibrary1";
-            var targetFileName = targetName + ".dll";
+            const string targetName = "ClassLibrary1";
+            const string targetFileName = targetName + ".dll";
             var targetPath = Path.Combine(targetDir, targetFileName);
 
             var entityFrameworkPath = new Uri(typeof(DbContext).Assembly.CodeBase).LocalPath;
@@ -318,17 +307,20 @@ namespace System.Data.Entity.Migrations
                     = compiler.CompileAssemblyFromSource(
                         new CompilerParameters(
                             new[]
-                                    {
-                                        "System.dll",
-                                        "System.Core.dll",
-                                        "System.Data.Entity.dll",
-                                        entityFrameworkPath
-                                    },
+                                {
+                                    "System.dll",
+                                    "System.Data.dll",
+                                    "System.Core.dll",
+                                    "System.Data.Entity.dll",
+                                    entityFrameworkPath
+                                },
                             targetPath),
                         @"namespace ClassLibrary1
 {
+    using System.Data.Common;
     using System.Data.Entity;
     using System.Data.Entity.Migrations;
+    using System.Data.Entity.Migrations.History;
 
     public class Configuration : DbMigrationsConfiguration<Context>
     {
@@ -346,6 +338,14 @@ namespace System.Data.Entity.Migrations
         }
 
         public DbSet<Entity> Entities { get; set; }
+    }
+
+    public class CustomHistoryContext : HistoryContext
+    {
+        public CustomHistoryContext(DbConnection existingConnection, bool contextOwnsConnection, string defaultSchema)
+            : base(existingConnection, contextOwnsConnection, defaultSchema)
+        {
+        }
     }
 
     public class Entity
@@ -369,8 +369,9 @@ namespace System.Data.Entity.Migrations
 <configuration>
   <connectionStrings>
     <add name='ClassLibrary1' connectionString='" +
-        DatabaseProviderFixture.InitializeTestDatabase(DatabaseProvider.SqlClient, DatabaseProviderFixture.DefaultDatabaseName).ConnectionString +
-                                                  @"' providerName='System.Data.SqlClient' />
+                DatabaseProviderFixture.InitializeTestDatabase(DatabaseProvider.SqlClient, DatabaseProviderFixture.DefaultDatabaseName).
+                    ConnectionString +
+                @"' providerName='System.Data.SqlClient' />
   </connectionStrings>
 </configuration>");
 

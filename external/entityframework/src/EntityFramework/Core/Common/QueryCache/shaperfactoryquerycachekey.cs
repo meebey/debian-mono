@@ -1,8 +1,9 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.QueryCache
 {
     using System.Data.Entity.Core.Objects;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     internal class ShaperFactoryQueryCacheKey<T> : QueryCacheKey
     {
@@ -12,7 +13,7 @@ namespace System.Data.Entity.Core.Common.QueryCache
 
         internal ShaperFactoryQueryCacheKey(string columnMapKey, MergeOption mergeOption, bool isValueLayer)
         {
-            Debug.Assert(null != columnMapKey, "null columnMapKey");
+            DebugCheck.NotNull(columnMapKey);
             _columnMapKey = columnMapKey;
             _mergeOption = mergeOption;
             _isValueLayer = isValueLayer;

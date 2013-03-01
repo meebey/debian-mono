@@ -1,33 +1,38 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Design.PluralizationServices;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Globalization;
+    using System.Data.Entity.Config;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Infrastructure.Pluralization;
+    using System.Data.Entity.ModelConfiguration.Edm;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
     ///     Convention to set the table name to be a pluralized version of the entity type name.
     /// </summary>
-    public sealed class PluralizingTableNameConvention : IDbConvention<DbTableMetadata>
+    public class PluralizingTableNameConvention : IDbConvention<EntityType>
     {
-        private static readonly PluralizationService _pluralizationService
-            = PluralizationService.CreateService(CultureInfo.GetCultureInfo("en"));
+        private IPluralizationService _pluralizationService
+            = DbConfiguration.GetService<IPluralizationService>();
 
-        internal PluralizingTableNameConvention()
+        public void Apply(EntityType dbDataModelItem, EdmModel model)
         {
-        }
+            Check.NotNull(dbDataModelItem, "dbDataModelItem");
+            Check.NotNull(model, "model");
 
-        void IDbConvention<DbTableMetadata>.Apply(DbTableMetadata table, DbDatabaseMetadata database)
-        {
-            if (table.GetTableName() == null)
+            _pluralizationService = DbConfiguration.GetService<IPluralizationService>();
+
+            if (dbDataModelItem.GetTableName() == null)
             {
-                var schema = database.Schemas.Where(s => s.Tables.Contains(table)).Single();
+                var entitySet = model.GetEntitySet(dbDataModelItem);
 
-                table.DatabaseIdentifier
-                    = schema.Tables.Except(new[] { table })
-                        .UniquifyIdentifier(_pluralizationService.Pluralize(table.DatabaseIdentifier));
+                entitySet.Table
+                    = model.GetEntitySets()
+                           .Where(es => es.Schema == entitySet.Schema)
+                           .Except(new[] { entitySet })
+                           .UniquifyIdentifier(_pluralizationService.Pluralize(entitySet.Table));
             }
         }
     }

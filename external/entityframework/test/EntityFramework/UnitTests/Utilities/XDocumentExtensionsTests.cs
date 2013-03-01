@@ -19,13 +19,13 @@ namespace System.Data.Entity.Utilities
             Assert.NotNull(storeItemCollection);
             Assert.NotNull(providerInfo);
             Assert.Equal("System.Data.SqlClient", providerInfo.ProviderInvariantName);
-            Assert.Equal("2008", providerInfo.ProviderManifestToken);
+            Assert.True(providerInfo.ProviderManifestToken == "2008");
         }
 
         [Fact]
         public void HasSystemOperations_should_return_true_when_any_element_has_is_system_attribute()
         {
-            var xdocument = new XDocument(new XElement("foo", new XAttribute(EdmXNames.IsSystem, "true")));
+            var xdocument = new XDocument(new XElement("foo", new XAttribute(EdmXNames.IsSystemName, "true")));
 
             Assert.True(xdocument.HasSystemOperations());
         }

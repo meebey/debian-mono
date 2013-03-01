@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     internal static class BoolExtensions
@@ -41,7 +42,7 @@ namespace System.Data.Entity.Utilities
                 result = left.Value
                              ? (bool?)null
                              : // unknown
-                         false;
+                             false;
             }
             else
             {

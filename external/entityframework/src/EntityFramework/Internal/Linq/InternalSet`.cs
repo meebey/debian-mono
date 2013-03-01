@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.Linq
 {
     using System.Collections;
@@ -10,7 +11,7 @@ namespace System.Data.Entity.Internal.Linq
     using System.Data.Entity.Core.Objects.ELinq;
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Globalization;
     using System.Linq;
     using System.Linq.Expressions;
@@ -32,7 +33,7 @@ namespace System.Data.Entity.Internal.Linq
         /// <summary>
         ///     Creates a new set that will be backed by the given InternalContext.
         /// </summary>
-        /// <param name = "internalContext">The backing context.</param>
+        /// <param name="internalContext"> The backing context. </param>
         public InternalSet(InternalContext internalContext)
             : base(internalContext)
         {
@@ -65,12 +66,12 @@ namespace System.Data.Entity.Internal.Linq
         ///     The ordering of composite key values is as defined in the EDM, which is in turn as defined in
         ///     the designer, by the Code First fluent API, or by the DataMember attribute.
         /// </remarks>
-        /// <param name = "keyValues">The values of the primary key for the entity to be found.</param>
-        /// <returns>The entity found, or null.</returns>
-        /// <exception cref = "InvalidOperationException">Thrown if multiple entities exist in the context with the primary key values given.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the type of entity is not part of the data model for this context.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the types of the key values do not match the types of the key values for the entity type to be found.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the context has been disposed.</exception>
+        /// <param name="keyValues"> The values of the primary key for the entity to be found. </param>
+        /// <returns> The entity found, or null. </returns>
+        /// <exception cref="InvalidOperationException">Thrown if multiple entities exist in the context with the primary key values given.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the type of entity is not part of the data model for this context.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the types of the key values do not match the types of the key values for the entity type to be found.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the context has been disposed.</exception>
         public TEntity Find(params object[] keyValues)
         {
             // This DetectChanges is useful in the case where objects are added to the graph and then the user
@@ -95,6 +96,8 @@ namespace System.Data.Entity.Internal.Linq
             return (TEntity)entity;
         }
 
+#if !NET40
+
         /// <summary>
         ///     An asynchronous version of Find, which
         ///     finds an entity with the given primary key values.
@@ -108,13 +111,13 @@ namespace System.Data.Entity.Internal.Linq
         ///     The ordering of composite key values is as defined in the EDM, which is in turn as defined in
         ///     the designer, by the Code First fluent API, or by the DataMember attribute.
         /// </remarks>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <param name = "keyValues">The values of the primary key for the entity to be found.</param>
-        /// <returns>A Task containing the entity found, or null.</returns>
-        /// <exception cref = "InvalidOperationException">Thrown if multiple entities exist in the context with the primary key values given.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the type of entity is not part of the data model for this context.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the types of the key values do not match the types of the key values for the entity type to be found.</exception>
-        /// <exception cref = "InvalidOperationException">Thrown if the context has been disposed.</exception>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests. </param>
+        /// <param name="keyValues"> The values of the primary key for the entity to be found. </param>
+        /// <returns> A Task containing the entity found, or null. </returns>
+        /// <exception cref="InvalidOperationException">Thrown if multiple entities exist in the context with the primary key values given.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the type of entity is not part of the data model for this context.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the types of the key values do not match the types of the key values for the entity type to be found.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if the context has been disposed.</exception>
         public async Task<TEntity> FindAsync(CancellationToken cancellationToken, params object[] keyValues)
         {
             // This DetectChanges is useful in the case where objects are added to the graph and then the user
@@ -129,7 +132,8 @@ namespace System.Data.Entity.Internal.Linq
             // because it would go to the store before checking for Added objects, and also
             // because if the object found was of the wrong type then it would still get into
             // the state manager.
-            var entity = FindInStateManager(key) ?? await FindInStoreAsync(key, "keyValues", cancellationToken);
+            var entity = FindInStateManager(key)
+                         ?? await FindInStoreAsync(key, "keyValues", cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
 
             if (entity != null
                 && !(entity is TEntity))
@@ -139,6 +143,8 @@ namespace System.Data.Entity.Internal.Linq
             return (TEntity)entity;
         }
 
+#endif
+
         /// <summary>
         ///     Finds an entity in the state manager with the given primary key values, or returns null
         ///     if no such entity can be found.  This includes looking for Added entities with the given
@@ -146,7 +152,7 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         private object FindInStateManager(WrappedEntityKey key)
         {
-            Contract.Requires(key != null);
+            DebugCheck.NotNull(key);
 
             // If the key has null values, then it cannot be in the state manager in anything other
             // than the Added state and we cannot create an EntityKey for it, so skip the first check.
@@ -207,7 +213,7 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         private object FindInStore(WrappedEntityKey key, string keyValuesParamName)
         {
-            Contract.Requires(key != null);
+            DebugCheck.NotNull(key);
 
             // If the key has null values, then we cannot query it from the store, so it cannot
             // be found, so just return null.
@@ -226,6 +232,8 @@ namespace System.Data.Entity.Internal.Linq
             }
         }
 
+#if !NET40
+
         /// <summary>
         ///     An asynchronous version of FindInStore, which
         ///     finds an entity in the store with the given primary key values, or returns null
@@ -234,7 +242,7 @@ namespace System.Data.Entity.Internal.Linq
         /// </summary>
         private async Task<object> FindInStoreAsync(WrappedEntityKey key, string keyValuesParamName, CancellationToken cancellationToken)
         {
-            Contract.Requires(key != null);
+            DebugCheck.NotNull(key);
 
             // If the key has null values, then we cannot query it from the store, so it cannot
             // be found, so just return null.
@@ -245,13 +253,15 @@ namespace System.Data.Entity.Internal.Linq
 
             try
             {
-                return await BuildFindQuery(key).SingleOrDefaultAsync(cancellationToken);
+                return await BuildFindQuery(key).SingleOrDefaultAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
             catch (EntitySqlException ex)
             {
                 throw new ArgumentException(Strings.DbSet_WrongKeyValueType, keyValuesParamName, ex);
             }
         }
+
+#endif
 
         private ObjectQuery<TEntity> BuildFindQuery(WrappedEntityKey key)
         {
@@ -309,9 +319,11 @@ namespace System.Data.Entity.Internal.Linq
         ///     to Unchanged.  Attach is a no-op if the entity is already in the context in the Unchanged state.
         ///     This method is virtual so that it can be mocked.
         /// </remarks>
-        /// <param name = "entity">The entity to attach.</param>
+        /// <param name="entity"> The entity to attach. </param>
         public virtual void Attach(object entity)
         {
+            DebugCheck.NotNull(entity);
+
             ActOnSet(
                 () => InternalContext.ObjectContext.AttachTo(EntitySetName, entity), EntityState.Unchanged, entity,
                 "Attach");
@@ -326,9 +338,11 @@ namespace System.Data.Entity.Internal.Linq
         ///     to Added.  Add is a no-op if the entity is already in the context in the Added state.
         ///     This method is virtual so that it can be mocked.
         /// </remarks>
-        /// <param name = "entity">The entity to add.</param>
+        /// <param name="entity"> The entity to add. </param>
         public virtual void Add(object entity)
         {
+            DebugCheck.NotNull(entity);
+
             ActOnSet(
                 () => InternalContext.ObjectContext.AddObject(EntitySetName, entity), EntityState.Added, entity, "Add");
         }
@@ -344,9 +358,11 @@ namespace System.Data.Entity.Internal.Linq
         ///     exist in the database such that trying to delete it does not make sense.
         ///     This method is virtual so that it can be mocked.
         /// </remarks>
-        /// <param name = "entity">The entity to remove.</param>
+        /// <param name="entity"> The entity to remove. </param>
         public virtual void Remove(object entity)
         {
+            DebugCheck.NotNull(entity);
+
             if (!(entity is TEntity))
             {
                 throw Error.DbSet_BadTypeForAddAttachRemove("Remove", entity.GetType().Name, typeof(TEntity).Name);
@@ -362,13 +378,13 @@ namespace System.Data.Entity.Internal.Linq
         ///     is changed to the new state given.  If it isn't, then the action delegate is executed to
         ///     either Add or Attach the entity.
         /// </summary>
-        /// <param name = "action">A delegate to Add or Attach the entity.</param>
-        /// <param name = "newState">The new state to give the entity if it is already in the context.</param>
-        /// <param name = "entity">The entity.</param>
-        /// <param name = "methodName">Name of the method.</param>
+        /// <param name="action"> A delegate to Add or Attach the entity. </param>
+        /// <param name="newState"> The new state to give the entity if it is already in the context. </param>
+        /// <param name="entity"> The entity. </param>
+        /// <param name="methodName"> Name of the method. </param>
         private void ActOnSet(Action action, EntityState newState, object entity, string methodName)
         {
-            Contract.Requires(entity != null);
+            DebugCheck.NotNull(entity);
 
             if (!(entity is TEntity))
             {
@@ -399,7 +415,7 @@ namespace System.Data.Entity.Internal.Linq
         ///     The instance returned will be a proxy if the underlying context is configured to create
         ///     proxies and the entity type meets the requirements for creating a proxy.
         /// </summary>
-        /// <returns>The entity instance, which may be a proxy.</returns>
+        /// <returns> The entity instance, which may be a proxy. </returns>
         public TEntity Create()
         {
             return InternalContext.CreateObject<TEntity>();
@@ -412,10 +428,12 @@ namespace System.Data.Entity.Internal.Linq
         ///     The instance returned will be a proxy if the underlying context is configured to create
         ///     proxies and the entity type meets the requirements for creating a proxy.
         /// </summary>
-        /// <param name = "derivedEntityType">The type of entity to create.</param>
+        /// <param name="derivedEntityType"> The type of entity to create. </param>
         /// <returns> The entity instance, which may be a proxy. </returns>
         public TEntity Create(Type derivedEntityType)
         {
+            DebugCheck.NotNull(derivedEntityType);
+
             if (!typeof(TEntity).IsAssignableFrom(derivedEntityType))
             {
                 throw Error.DbSet_BadTypeForCreate(derivedEntityType.Name, typeof(TEntity).Name);
@@ -529,7 +547,7 @@ namespace System.Data.Entity.Internal.Linq
 
         private void InitializeUnderlyingTypes(EntitySetTypePair pair)
         {
-            Contract.Assert(pair != null);
+            DebugCheck.NotNull(pair);
 
             _entitySet = pair.EntitySet;
             _baseType = pair.BaseType;
@@ -542,15 +560,17 @@ namespace System.Data.Entity.Internal.Linq
                 DbHelpers.QuoteIdentifier(_entitySet.EntityContainer.Name),
                 DbHelpers.QuoteIdentifier(_entitySet.Name));
 
-            InitializeQuery(CreateObjectQuery(asNoTracking: false));
+            InitializeQuery(CreateObjectQuery(asNoTracking: false, streaming: false));
         }
 
         /// <summary>
-        ///     Creates an underlying <see cref = "System.Data.Entity.Core.Objects.ObjectQuery{T}" /> for this set.
+        ///     Creates an underlying <see cref="System.Data.Entity.Core.Objects.ObjectQuery{T}" /> for this set.
         /// </summary>
-        /// <param name = "asNoTracking">if set to <c>true</c> then the query is set to be no-tracking.</param>
-        /// <returns>The query.</returns>
-        private ObjectQuery<TEntity> CreateObjectQuery(bool asNoTracking)
+        /// <param name="asNoTracking">
+        ///     if set to <c>true</c> then the query is set to be no-tracking.
+        /// </param>
+        /// <returns> The query. </returns>
+        private ObjectQuery<TEntity> CreateObjectQuery(bool asNoTracking, bool streaming)
         {
             var objectQuery = InternalContext.ObjectContext.CreateQuery<TEntity>(_quotedEntitySetName);
             if (_baseType != typeof(TEntity))
@@ -563,6 +583,8 @@ namespace System.Data.Entity.Internal.Linq
                 objectQuery.MergeOption = MergeOption.NoTracking;
             }
 
+            objectQuery.Streaming = streaming;
+
             return objectQuery;
         }
 
@@ -571,12 +593,10 @@ namespace System.Data.Entity.Internal.Linq
         #region ToString
 
         /// <summary>
-        ///     Returns a <see cref = "System.String" /> representation of the underlying query, equivalent
+        ///     Returns a <see cref="System.String" /> representation of the underlying query, equivalent
         ///     to ToTraceString on ObjectQuery.
         /// </summary>
-        /// <returns>
-        ///     The query string.
-        /// </returns>
+        /// <returns> The query string. </returns>
         public override string ToString()
         {
             Initialize();
@@ -607,10 +627,12 @@ namespace System.Data.Entity.Internal.Linq
         /// <summary>
         ///     Updates the underlying ObjectQuery with the given include path.
         /// </summary>
-        /// <param name = "path">The include path.</param>
-        /// <returns>A new query containing the defined include path.</returns>
+        /// <param name="path"> The include path. </param>
+        /// <returns> A new query containing the defined include path. </returns>
         public override IInternalQuery<TEntity> Include(string path)
         {
+            DebugCheck.NotEmpty(path);
+
             Initialize();
             return base.Include(path);
         }
@@ -620,9 +642,9 @@ namespace System.Data.Entity.Internal.Linq
         #region AsNoTracking
 
         /// <summary>
-        ///     Returns a new query where the entities returned will not be cached in the <see cref = "DbContext" />.
+        ///     Returns a new query where the entities returned will not be cached in the <see cref="DbContext" />.
         /// </summary>
-        /// <returns> A new query with NoTracking applied.</returns>
+        /// <returns> A new query with NoTracking applied. </returns>
         public override IInternalQuery<TEntity> AsNoTracking()
         {
             Initialize();
@@ -630,7 +652,25 @@ namespace System.Data.Entity.Internal.Linq
             // AsNoTracking called directly on the DbSet (as opposed to a DbQuery) is special-cased so that
             // it doesn't result in a LINQ query being created where one is not needed. This adds a perf boost
             // for simple no-tracking queries such as context.Products.AsNoTracking().
-            return new InternalQuery<TEntity>(InternalContext, CreateObjectQuery(asNoTracking: true));
+            return new InternalQuery<TEntity>(InternalContext, CreateObjectQuery(asNoTracking: true, streaming: false));
+        }
+
+        #endregion
+
+        #region AsStreaming
+
+        /// <summary>
+        ///     Returns a new query that will stream the results instead of buffering.
+        /// </summary>
+        /// <returns> A new query with AsStreaming applied. </returns>
+        public override IInternalQuery<TEntity> AsStreaming()
+        {
+            Initialize();
+
+            // AsStreaming called directly on the DbSet (as opposed to a DbQuery) is special-cased so that
+            // it doesn't result in a LINQ query being created where one is not needed. This adds a perf boost
+            // for simple streaming queries such as context.Products.AsStreaming().
+            return new InternalQuery<TEntity>(InternalContext, CreateObjectQuery(asNoTracking: false, streaming: true));
         }
 
         #endregion
@@ -638,73 +678,85 @@ namespace System.Data.Entity.Internal.Linq
         #region Raw SQL query
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator"/> which when enumerated will execute the given SQL query against the database
+        ///     Returns an <see cref="IEnumerator" /> which when enumerated will execute the given SQL query against the database
         ///     materializing entities into the entity set that backs this set.
         /// </summary>
-        /// <param name = "sql">The SQL quey.</param>
-        /// <param name = "asNoTracking">if <c>true</c> then the entities are not tracked, otherwise they are.</param>
-        /// <param name = "parameters">The parameters.</param>
-        /// <returns>The query results.</returns>
-        public IEnumerator ExecuteSqlQuery(string sql, bool asNoTracking, object[] parameters)
+        /// <param name="sql"> The SQL query. </param>
+        /// <param name="asNoTracking"> If <c>true</c> then the entities are not tracked, otherwise they are. </param>
+        /// <param name="streaming"> Whether the query is streaming or buffering. </param>
+        /// <param name="parameters"> The parameters. </param>
+        /// <returns> The query results. </returns>
+        public IEnumerator ExecuteSqlQuery(string sql, bool asNoTracking, bool streaming, object[] parameters)
         {
+            DebugCheck.NotNull(sql);
+            DebugCheck.NotNull(parameters);
+
             Initialize();
             var mergeOption = asNoTracking ? MergeOption.NoTracking : MergeOption.AppendOnly;
 
-            return new LazyEnumerator<TEntity>(() =>
-            {
-                Initialize();
-
-                var disposableEnumerable = InternalContext.ObjectContext.ExecuteStoreQuery<TEntity>(
-                    sql, EntitySetName, mergeOption, parameters);
-                try
-                {
-                    var result = disposableEnumerable.GetEnumerator();
-                    return result;
-                }
-                catch
-                {
-                    // if there is a problem creating the enumerator, we should dispose
-                    // the enumerable (if there is no problem, the enumerator will take 
-                    // care of the dispose)
-                    disposableEnumerable.Dispose();
-                    throw;
-                }
-
-            });
+            return new LazyEnumerator<TEntity>(
+                () =>
+                    {
+                        var disposableEnumerable = InternalContext.ObjectContext.ExecuteStoreQuery<TEntity>(
+                            sql, EntitySetName, new ExecutionOptions(mergeOption, streaming), parameters);
+                        try
+                        {
+                            var result = disposableEnumerable.GetEnumerator();
+                            return result;
+                        }
+                        catch
+                        {
+                            // if there is a problem creating the enumerator, we should dispose
+                            // the enumerable (if there is no problem, the enumerator will take 
+                            // care of the dispose)
+                            disposableEnumerable.Dispose();
+                            throw;
+                        }
+                    });
         }
+
+#if !NET40
 
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator"/> which when enumerated will execute the given SQL query against the database
+        ///     Returns an <see cref="IDbAsyncEnumerator" /> which when enumerated will execute the given SQL query against the database
         ///     materializing entities into the entity set that backs this set.
         /// </summary>
-        /// <param name = "sql">The SQL quey.</param>
-        /// <param name = "asNoTracking">if <c>true</c> then the entities are not tracked, otherwise they are.</param>
-        /// <param name = "parameters">The parameters.</param>
-        /// <returns>The query results.</returns>
-        public IDbAsyncEnumerator ExecuteSqlQueryAsync(string sql, bool asNoTracking, object[] parameters)
+        /// <param name="sql"> The SQL query. </param>
+        /// <param name="asNoTracking"> If <c>true</c> then the entities are not tracked, otherwise they are. </param>
+        /// <param name="streaming"> Whether the query is streaming or buffering. </param>
+        /// <param name="parameters"> The parameters. </param>
+        /// <returns> The query results. </returns>
+        public IDbAsyncEnumerator ExecuteSqlQueryAsync(string sql, bool asNoTracking, bool streaming, object[] parameters)
         {
+            DebugCheck.NotNull(sql);
+            DebugCheck.NotNull(parameters);
+
             Initialize();
             var mergeOption = asNoTracking ? MergeOption.NoTracking : MergeOption.AppendOnly;
 
-            return new LazyAsyncEnumerator<object>(async () =>
-                {
-                    var disposableEnumerable = await InternalContext.ObjectContext.ExecuteStoreQueryAsync<TEntity>(
-                        sql, EntitySetName, mergeOption, CancellationToken.None, parameters);
+            return new LazyAsyncEnumerator<TEntity>(
+                async cancellationToken =>
+                          {
+                              var disposableEnumerable = await InternalContext.ObjectContext.ExecuteStoreQueryAsync<TEntity>(
+                                  sql, EntitySetName, new ExecutionOptions(mergeOption, streaming), cancellationToken, parameters).ConfigureAwait(
+                                      continueOnCapturedContext: false);
 
-                    try
-                    {
-                        return ((IDbAsyncEnumerable<TEntity>)disposableEnumerable).GetAsyncEnumerator();
-                    }
-                    catch
-                    {
-                        // if there is a problem creating the enumerator, we should dispose
-                        // the enumerable (if there is no problem, the enumerator will take 
-                        // care of the dispose)
-                        disposableEnumerable.Dispose();
-                        throw;
-                    }
-                });
+                              try
+                              {
+                                  return ((IDbAsyncEnumerable<TEntity>)disposableEnumerable).GetAsyncEnumerator();
+                              }
+                              catch
+                              {
+                                  // if there is a problem creating the enumerator, we should dispose
+                                  // the enumerable (if there is no problem, the enumerator will take 
+                                  // care of the dispose)
+                                  disposableEnumerable.Dispose();
+                                  throw;
+                              }
+                          });
         }
+
+#endif
 
         #endregion
 
@@ -723,7 +775,7 @@ namespace System.Data.Entity.Internal.Linq
         }
 
         /// <summary>
-        ///     The LINQ query provider for the underlying <see cref = "ObjectQuery" />.
+        ///     The LINQ query provider for the underlying <see cref="ObjectQuery" />.
         /// </summary>
         public override ObjectQueryProvider ObjectQueryProvider
         {
@@ -739,9 +791,9 @@ namespace System.Data.Entity.Internal.Linq
         #region IEnumerable
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator{TEntity}"/> which when enumerated will execute the backing query against the database.
+        ///     Returns an <see cref="IEnumerator{TEntity}" /> which when enumerated will execute the backing query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         public override IEnumerator<TEntity> GetEnumerator()
         {
             Initialize();
@@ -752,15 +804,19 @@ namespace System.Data.Entity.Internal.Linq
 
         #region IDbAsyncEnumerable
 
+#if !NET40
+
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator{TEntity}"/> which when enumerated will execute the backing query against the database.
+        ///     Returns an <see cref="IDbAsyncEnumerator{TEntity}" /> which when enumerated will execute the backing query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         public override IDbAsyncEnumerator<TEntity> GetAsyncEnumerator()
         {
             Initialize();
             return base.GetAsyncEnumerator();
         }
+
+#endif
 
         #endregion
     }

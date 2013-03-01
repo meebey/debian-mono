@@ -1,10 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.Validation
 {
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Data.Entity.Validation;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Validates a property of a given EDM property type.
@@ -25,15 +26,15 @@ namespace System.Data.Entity.Internal.Validation
         private readonly string _propertyName;
 
         /// <summary>
-        ///     Creates an instance of <see cref = "PropertyValidator" /> for a given EDM property.
+        ///     Creates an instance of <see cref="PropertyValidator" /> for a given EDM property.
         /// </summary>
-        /// <param name = "propertyName">The EDM property name.</param>
-        /// <param name = "propertyValidators">Validators used to validate the given property.</param>
+        /// <param name="propertyName"> The EDM property name. </param>
+        /// <param name="propertyValidators"> Validators used to validate the given property. </param>
         public PropertyValidator(string propertyName, IEnumerable<IValidator> propertyValidators)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+            DebugCheck.NotEmpty(propertyName);
 
-            Contract.Requires(propertyValidators != null);
+            DebugCheck.NotNull(propertyValidators);
 
             _propertyValidators = propertyValidators;
             _propertyName = propertyName;
@@ -60,15 +61,16 @@ namespace System.Data.Entity.Internal.Validation
         /// <summary>
         ///     Validates a property.
         /// </summary>
-        /// <param name = "entityValidationContext">Validation context. Never null.</param>
-        /// <param name = "property">Property to validate. Never null.</param>
-        /// <returns>Validation errors as <see cref = "IEnumerable{DbValidationError}" />. Empty if no errors. Never null.
+        /// <param name="entityValidationContext"> Validation context. Never null. </param>
+        /// <param name="property"> Property to validate. Never null. </param>
+        /// <returns>
+        ///     Validation errors as <see cref="IEnumerable{DbValidationError}" /> . Empty if no errors. Never null.
         /// </returns>
         public virtual IEnumerable<DbValidationError> Validate(
             EntityValidationContext entityValidationContext, InternalMemberEntry property)
         {
-            Contract.Requires(entityValidationContext != null);
-            Contract.Requires(property != null);
+            DebugCheck.NotNull(entityValidationContext);
+            DebugCheck.NotNull(property);
 
             var validationErrors = new List<DbValidationError>();
 

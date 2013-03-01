@@ -1,15 +1,17 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.EntityClient.Internal
 {
     using System.Collections;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Text;
     using System.Text.RegularExpressions;
 
     /// <summary>
-    /// Copied from System.Data.dll
+    ///     Copied from System.Data.dll
     /// </summary>
     internal class DbConnectionOptions
     {
@@ -167,7 +169,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                         {
                             parserState = ParserState.NullTermination;
                             continue;
-                        } // MDAC 83540
+                        }
                         if (Char.IsControl(currentChar))
                         {
                             throw new ArgumentException(Strings.ADP_ConnectionStringSyntax(startposition));
@@ -175,7 +177,6 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                         startposition = currentPosition;
                         if ('=' != currentChar)
                         {
-                            // MDAC 86902
                             parserState = ParserState.Key;
                             break;
                         }
@@ -316,7 +317,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                         {
                             parserState = ParserState.NullTermination;
                             continue;
-                        } // MDAC 83540
+                        }
                         throw new ArgumentException(Strings.ADP_ConnectionStringSyntax(startposition)); // unbalanced single quote
 
                     case ParserState.NullTermination: // [\\s;\u0000]*
@@ -327,7 +328,7 @@ namespace System.Data.Entity.Core.EntityClient.Internal
                         if (Char.IsWhiteSpace(currentChar))
                         {
                             continue;
-                        } // MDAC 83540
+                        }
                         throw new ArgumentException(Strings.ADP_ConnectionStringSyntax(currentPosition));
 
                     default:
@@ -520,48 +521,48 @@ namespace System.Data.Entity.Core.EntityClient.Internal
 
         private static NameValuePair ParseInternal(Hashtable parsetable, string connectionString, Hashtable synonyms)
         {
-            Debug.Assert(null != connectionString, "null connectionstring");
+            DebugCheck.NotNull(connectionString);
             var buffer = new StringBuilder();
             NameValuePair localKeychain = null, keychain = null;
 #if DEBUG
             try
             {
 #endif
-            var nextStartPosition = 0;
-            var endPosition = connectionString.Length;
-            while (nextStartPosition < endPosition)
-            {
-                var startPosition = nextStartPosition;
-
-                string keyname, keyvalue;
-                nextStartPosition = GetKeyValuePair(connectionString, startPosition, buffer, out keyname, out keyvalue);
-                if (string.IsNullOrEmpty(keyname))
+                var nextStartPosition = 0;
+                var endPosition = connectionString.Length;
+                while (nextStartPosition < endPosition)
                 {
-                    // if (nextStartPosition != endPosition) { throw; }
-                    break;
-                }
+                    var startPosition = nextStartPosition;
+
+                    string keyname, keyvalue;
+                    nextStartPosition = GetKeyValuePair(connectionString, startPosition, buffer, out keyname, out keyvalue);
+                    if (string.IsNullOrEmpty(keyname))
+                    {
+                        // if (nextStartPosition != endPosition) { throw; }
+                        break;
+                    }
 
 #if DEBUG
                     Debug.Assert(IsKeyNameValid(keyname), "ParseFailure, invalid keyname");
                     Debug.Assert(IsValueValidInternal(keyvalue), "parse failure, invalid keyvalue");
 #endif
-                var realkeyname = ((null != synonyms) ? (string)synonyms[keyname] : keyname);
-                if (!IsKeyNameValid(realkeyname))
-                {
-                    throw new ArgumentException(Strings.ADP_KeywordNotSupported(keyname));
-                }
-                parsetable[realkeyname] = keyvalue; // last key-value pair wins (or first)
+                    var realkeyname = ((null != synonyms) ? (string)synonyms[keyname] : keyname);
+                    if (!IsKeyNameValid(realkeyname))
+                    {
+                        throw new ArgumentException(Strings.ADP_KeywordNotSupported(keyname));
+                    }
+                    parsetable[realkeyname] = keyvalue; // last key-value pair wins (or first)
 
-                if (null != localKeychain)
-                {
-                    localKeychain = localKeychain.Next = new NameValuePair();
+                    if (null != localKeychain)
+                    {
+                        localKeychain = localKeychain.Next = new NameValuePair();
+                    }
+                    else
+                    {
+                        // first time only - don't contain modified chain from UDL file
+                        keychain = localKeychain = new NameValuePair();
+                    }
                 }
-                else
-                {
-                    // first time only - don't contain modified chain from UDL file
-                    keychain = localKeychain = new NameValuePair();
-                }
-            }
 #if DEBUG
             }
             catch (ArgumentException e)

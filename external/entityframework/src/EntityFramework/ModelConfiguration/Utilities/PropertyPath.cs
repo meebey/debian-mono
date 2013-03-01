@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Utilities
 {
     using System.Collections;
     using System.Collections.Generic;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Linq;
     using System.Reflection;
     using System.Text;
@@ -19,15 +20,15 @@ namespace System.Data.Entity.ModelConfiguration.Utilities
 
         public PropertyPath(IEnumerable<PropertyInfo> components)
         {
-            Contract.Requires(components != null);
-            Contract.Assert(components.Any());
+            DebugCheck.NotNull(components);
+            Debug.Assert(components.Any());
 
             _components.AddRange(components);
         }
 
         public PropertyPath(PropertyInfo component)
         {
-            Contract.Requires(component != null);
+            DebugCheck.NotNull(component);
 
             _components.Add(component);
         }

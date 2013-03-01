@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace CmdLine.Tests
 {
     extern alias migrate;
     using System;
     using System.Collections.Generic;
-    using migrate::CmdLine;
 
-    public class TestCommandEnvironment : ICommandEnvironment
+    public class TestCommandEnvironment : migrate::CmdLine.ICommandEnvironment
     {
         private string[] args;
 
@@ -16,30 +16,27 @@ namespace CmdLine.Tests
 
         public TestCommandEnvironment(string cmdLine)
         {
-            this.CommandLine = cmdLine;
-            this.Args = cmdLine.Split(' ');
+            CommandLine = cmdLine;
+            Args = cmdLine.Split(' ');
         }
 
         public TestCommandEnvironment(string[] args)
         {
-            this.Args = args;
-            this.CommandLine = string.Join(" ", args);
+            Args = args;
+            CommandLine = string.Join(" ", args);
         }
 
         public string[] Args
         {
             get
             {
-                if (this.args == null)
+                if (args == null)
                 {
-                    this.SetArgs(null);
+                    SetArgs(null);
                 }
-                return this.args;
+                return args;
             }
-            private set
-            {
-                this.SetArgs(value);
-            }
+            private set { SetArgs(value); }
         }
 
         #region ICommandEnvironment Members
@@ -48,29 +45,29 @@ namespace CmdLine.Tests
 
         public string[] GetCommandLineArgs()
         {
-            return this.Args;
+            return Args;
         }
 
         public string Program
         {
-            get
-            {
-                return Environment.GetCommandLineArgs()[0];
-            }
+            get { return Environment.GetCommandLineArgs()[0]; }
         }
 
         #endregion
 
         private void SetArgs(IEnumerable<string> values)
         {
-            var argList = new List<string> { this.Program };
+            var argList = new List<string>
+                              {
+                                  Program
+                              };
 
             if (values != null)
             {
-                argList.AddRange(values);                
+                argList.AddRange(values);
             }
 
-            this.args = argList.ToArray();
+            args = argList.ToArray();
         }
     }
 }

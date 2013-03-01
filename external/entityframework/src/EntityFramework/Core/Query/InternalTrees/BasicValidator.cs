@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Query.InternalTrees
 {
     using System.Data.Entity.Core.Metadata.Edm;
@@ -7,8 +8,8 @@ namespace System.Data.Entity.Core.Query.InternalTrees
 
 #if DEBUG
     /// <summary>
-    /// The BasicValidator validates the shape of the IQT. It ensures that the 
-    /// various Ops in the tree have the right kinds and number of arguments.
+    ///     The BasicValidator validates the shape of the IQT. It ensures that the
+    ///     various Ops in the tree have the right kinds and number of arguments.
     /// </summary>
     internal class BasicValidator : BasicOpVisitor
     {
@@ -74,6 +75,13 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         {
             Assert(
                 arity == n.Children.Count, "Op Arity mismatch for Op {0}: Expected {1} arguments; found {2} arguments", n.Op.OpType, arity,
+                n.Children.Count);
+        }
+
+        protected static void AssertMinimumArity(Node n, int minArity)
+        {
+            Assert(
+                minArity <= n.Children.Count, "Op Arity mismatch for Op {0}: Expected minimum {1} arguments; found {2} arguments", n.Op.OpType, minArity,
                 n.Children.Count);
         }
 
@@ -158,7 +166,8 @@ namespace System.Data.Entity.Core.Query.InternalTrees
         {
             VisitDefault(n);
             Assert(op.Type != null, "ScalarOp {0} with no datatype!", op.OpType);
-            if (op.OpType != OpType.Element &&
+            if (op.OpType != OpType.Element
+                &&
                 op.OpType != OpType.Exists
                 &&
                 op.OpType != OpType.Collect)
@@ -213,6 +222,9 @@ namespace System.Data.Entity.Core.Query.InternalTrees
                     AssertArity(n, 2);
                     AssertBooleanOp(n.Child0.Op);
                     AssertBooleanOp(n.Child1.Op);
+                    break;
+                case OpType.In:
+                    AssertMinimumArity(n, 2);
                     break;
                 case OpType.Not:
                     AssertArity(n, 1);

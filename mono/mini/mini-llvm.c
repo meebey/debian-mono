@@ -330,7 +330,10 @@ type_to_llvm_type (EmitContext *ctx, MonoType *t)
 	case MONO_TYPE_VAR:
 	case MONO_TYPE_MVAR:
 		/* Because of generic sharing */
-		return IntPtrType ();
+		if (mini_type_var_is_vt (ctx->cfg, t))
+			return type_to_llvm_type (ctx, mini_get_gsharedvt_alloc_type_for_type (ctx->cfg, t));
+		else
+			return IntPtrType ();
 	case MONO_TYPE_GENERICINST:
 		if (!mono_type_generic_inst_is_valuetype (t))
 			return IntPtrType ();
@@ -641,7 +644,7 @@ static const char*
 simd_op_to_intrins (int opcode)
 {
 	switch (opcode) {
-#ifdef MONO_ARCH_SIMD_INTRINSICS
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
 	case OP_MINPD:
 		return "llvm.x86.sse2.min.pd";
 	case OP_MINPS:
@@ -772,7 +775,7 @@ simd_op_to_intrins (int opcode)
 static LLVMTypeRef
 simd_op_to_llvm_type (int opcode)
 {
-#ifdef MONO_ARCH_SIMD_INTRINSICS
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
 	switch (opcode) {
 	case OP_EXTRACT_R8:
 	case OP_EXPAND_R8:
@@ -1044,7 +1047,7 @@ sig_to_llvm_sig_full (EmitContext *ctx, MonoMethodSignature *sig, LLVMCallInfo *
 		} else {
 			g_assert_not_reached ();
 		}
-	} else if (cinfo && MONO_TYPE_ISSTRUCT (sig->ret)) {
+	} else if (cinfo && mini_type_is_vtype (ctx->cfg, sig->ret)) {
 		g_assert (cinfo->ret.storage == LLVMArgVtypeRetAddr);
 		vretaddr = TRUE;
 		ret_type = LLVMVoidType ();
@@ -1680,7 +1683,7 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 		MonoInst *var = cfg->varinfo [i];
 		LLVMTypeRef vtype;
 
-		if (var->flags & (MONO_INST_VOLATILE|MONO_INST_INDIRECT) || MONO_TYPE_ISSTRUCT (var->inst_vtype)) {
+		if (var->flags & (MONO_INST_VOLATILE|MONO_INST_INDIRECT) || mini_type_is_vtype (cfg, var->inst_vtype)) {
 			vtype = type_to_llvm_type (ctx, var->inst_vtype);
 			CHECK_FAILURE (ctx);
 			/* Could be already created by an OP_VPHI */
@@ -1733,7 +1736,7 @@ emit_entry_bb (EmitContext *ctx, LLVMBuilderRef builder)
 	if (sig->hasthis)
 		emit_volatile_store (ctx, cfg->args [0]->dreg);
 	for (i = 0; i < sig->param_count; ++i)
-		if (!MONO_TYPE_ISSTRUCT (sig->params [i]))
+		if (!mini_type_is_vtype (cfg, sig->params [i]))
 			emit_volatile_store (ctx, cfg->args [i + sig->hasthis]->dreg);
 
 	if (sig->hasthis && !cfg->rgctx_var && cfg->generic_sharing_context) {
@@ -1821,7 +1824,7 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	LLVMValueRef *args;
 	LLVMCallInfo *cinfo;
 	GSList *l;
-	int i, len;
+	int i, len, nargs;
 	gboolean vretaddr;
 	LLVMTypeRef llvm_sig;
 	gpointer target;
@@ -1943,23 +1946,27 @@ process_call (EmitContext *ctx, MonoBasicBlock *bb, LLVMBuilderRef *builder_ref,
 	/* 
 	 * Collect and convert arguments
 	 */
-	len = sizeof (LLVMValueRef) * ((sig->param_count * 2) + sig->hasthis + vretaddr + call->rgctx_reg);
+	nargs = (sig->param_count * 2) + sig->hasthis + vretaddr + call->rgctx_reg + call->imt_arg_reg;
+	len = sizeof (LLVMValueRef) * nargs;
 	args = alloca (len);
 	memset (args, 0, len);
 	l = call->out_ireg_args;
 
 	if (call->rgctx_arg_reg) {
 		g_assert (values [call->rgctx_arg_reg]);
+		g_assert (sinfo.rgctx_arg_pindex < nargs);
 		args [sinfo.rgctx_arg_pindex] = values [call->rgctx_arg_reg];
 	}
 	if (call->imt_arg_reg) {
 		g_assert (values [call->imt_arg_reg]);
+		g_assert (sinfo.imt_arg_pindex < nargs);
 		args [sinfo.imt_arg_pindex] = values [call->imt_arg_reg];
 	}
 
 	if (vretaddr) {
 		if (!addresses [call->inst.dreg])
 			addresses [call->inst.dreg] = build_alloca (ctx, sig->ret);
+		g_assert (sinfo.vret_arg_pindex < nargs);
 		args [sinfo.vret_arg_pindex] = LLVMBuildPtrToInt (builder, addresses [call->inst.dreg], IntPtrType (), "");
 	}
 
@@ -3366,6 +3373,12 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 				break;
 			}
 
+			if (mini_is_gsharedvt_klass (cfg, klass)) {
+				// FIXME:
+				LLVM_FAILURE (ctx, "gsharedvt");
+				break;
+			}
+
 			switch (ins->opcode) {
 			case OP_STOREV_MEMBASE:
 				if (cfg->gen_write_barriers && klass->has_references && ins->inst_destbasereg != cfg->frame_reg) {
@@ -3428,7 +3441,7 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 			/* 
 			 * SIMD
 			 */
-#ifdef MONO_ARCH_SIMD_INTRINSICS
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
 		case OP_XZERO: {
 			values [ins->dreg] = LLVMConstNull (type_to_llvm_type (ctx, &ins->klass->byval_arg));
 			break;
@@ -4112,18 +4125,16 @@ process_bb (EmitContext *ctx, MonoBasicBlock *bb)
 void
 mono_llvm_check_method_supported (MonoCompile *cfg)
 {
-	/*
 	MonoMethodHeader *header = cfg->header;
 	MonoExceptionClause *clause;
 	int i;
-	*/
 
 	if (cfg->method->save_lmf) {
 		cfg->exception_message = g_strdup ("lmf");
 		cfg->disable_llvm = TRUE;
 	}
 
-#if 0
+#if 1
 	for (i = 0; i < header->num_clauses; ++i) {
 		clause = &header->clauses [i];
 		
@@ -4744,11 +4755,21 @@ static char*
 dlsym_cb (const char *name, void **symbol)
 {
 	MonoDl *current;
+	char *err;
 
-	current = mono_dl_open (NULL, 0, NULL);
-	g_assert (current);
+	err = NULL;
+	if (!strcmp (name, "__bzero")) {
+		*symbol = (void*)bzero;
+	} else {
+		current = mono_dl_open (NULL, 0, NULL);
+		g_assert (current);
 
-	return mono_dl_symbol (current, name, symbol);
+		err = mono_dl_symbol (current, name, symbol);
+	}
+#ifdef MONO_ARCH_HAVE_CREATE_LLVM_NATIVE_THUNK
+	*symbol = (char*)mono_arch_create_llvm_native_thunk (mono_domain_get (), (guint8*)(*symbol));
+#endif
+	return err;
 }
 
 static inline void

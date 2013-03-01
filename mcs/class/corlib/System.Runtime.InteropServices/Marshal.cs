@@ -39,11 +39,8 @@ using System.Reflection;
 using System.Threading;
 
 using System.Runtime.ConstrainedExecution;
-#if !MOONLIGHT
+#if !FULL_AOT_RUNTIME
 using System.Runtime.InteropServices.ComTypes;
-#endif
-
-#if !MOONLIGHT
 using Mono.Interop;
 #endif
 
@@ -55,14 +52,20 @@ namespace System.Runtime.InteropServices
 		public static readonly int SystemMaxDBCSCharSize = 2; // don't know what this is
 		public static readonly int SystemDefaultCharSize = Environment.OSVersion.Platform == PlatformID.Win32NT ? 2 : 1;
 
+#if !MOBILE
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int AddRefInternal (IntPtr pUnk);
+#endif
 
 		public static int AddRef (IntPtr pUnk)
 		{
+#if !MOBILE
 			if (pUnk == IntPtr.Zero)
 				throw new ArgumentException ("Value cannot be null.", "pUnk");
 			return AddRefInternal (pUnk);
+#else
+			throw new NotImplementedException ();
+#endif
 		}
 
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -184,7 +187,7 @@ namespace System.Runtime.InteropServices
 			throw new NotImplementedException ();
 		}
 
-#if !MOONLIGHT
+#if !FULL_AOT_RUNTIME
 		public static object CreateWrapperOfType (object o, Type t)
 		{
 			__ComObject co = o as __ComObject;
@@ -267,7 +270,7 @@ namespace System.Runtime.InteropServices
 			FreeHGlobal (s);
 		}
 
-#if !MOONLIGHT
+#if !FULL_AOT_RUNTIME
 		public static Guid GenerateGuidForType (Type type)
 		{
 			return type.GUID;
@@ -302,6 +305,7 @@ namespace System.Runtime.InteropServices
 			throw new NotImplementedException ();
 		}
 
+#if !MOBILE
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static IntPtr GetCCW (object o, Type T);
 
@@ -312,12 +316,17 @@ namespace System.Runtime.InteropServices
 			else
 				return GetCCW (o, T);
 		}
+#endif
 
 		public static IntPtr GetComInterfaceForObject (object o, Type T)
 		{
+#if !MOBILE
 			IntPtr pItf = GetComInterfaceForObjectInternal (o, T);
 			AddRef (pItf);
 			return pItf;
+#else
+			throw new NotImplementedException ();
+#endif
 		}
 
 		[MonoTODO]
@@ -332,11 +341,14 @@ namespace System.Runtime.InteropServices
 			throw new NotSupportedException ("MSDN states user code should never need to call this method.");
 		}
 
+#if !MOBILE
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		private extern static int GetComSlotForMethodInfoInternal (MemberInfo m);
+#endif
 
 		public static int GetComSlotForMethodInfo (MemberInfo m)
 		{
+#if !MOBILE
 			if (m == null)
 				throw new ArgumentNullException ("m");
 			if (!(m is MethodInfo))
@@ -344,6 +356,9 @@ namespace System.Runtime.InteropServices
 			if (!m.DeclaringType.IsInterface)
 				throw new ArgumentException ("The MemberInfo must be an interface method.", "m");
 			return GetComSlotForMethodInfoInternal (m);
+#else
+			throw new NotImplementedException ();
+#endif
 		}
 
 		[MonoTODO]
@@ -372,8 +387,9 @@ namespace System.Runtime.InteropServices
 
 			return m.GetHINSTANCE ();
 		}
-#endif // !NET_2_1
+#endif // !FULL_AOT_RUNTIME
 
+#if !FULL_AOT_RUNTIME
 		[MonoTODO ("SetErrorInfo")]
 		public static int GetHRForException (Exception e)
 		{
@@ -386,7 +402,7 @@ namespace System.Runtime.InteropServices
 		{
 			throw new NotImplementedException ();
 		}
-#if !MOONLIGHT
+
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static IntPtr GetIDispatchForObjectInternal (object o);
 
@@ -447,11 +463,14 @@ namespace System.Runtime.InteropServices
 			Marshal.StructureToPtr(vt, pDstNativeVariant, false);
 		}
 
+#if !MOBILE
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private static extern object GetObjectForCCW (IntPtr pUnk);
+#endif
 
 		public static object GetObjectForIUnknown (IntPtr pUnk)
 		{
+#if !MOBILE
 			object obj = GetObjectForCCW (pUnk);
 			// was not a CCW
 			if (obj == null) {
@@ -459,6 +478,9 @@ namespace System.Runtime.InteropServices
 				obj = proxy.GetTransparentProxy ();
 			}
 			return obj;
+#else
+			throw new NotImplementedException ();
+#endif
 		}
 
 		public static object GetObjectForNativeVariant (IntPtr pSrcNativeVariant)
@@ -510,6 +532,7 @@ namespace System.Runtime.InteropServices
 			throw new NotImplementedException ();
 		}
 
+#if !FULL_AOT_RUNTIME
 		[Obsolete]
 		[MonoTODO]
 		public static string GetTypeInfoName (UCOMITypeInfo pTI)
@@ -577,6 +600,7 @@ namespace System.Runtime.InteropServices
 		{
 			throw new NotImplementedException ();
 		}
+#endif
 
 		[MonoTODO]
 		[Obsolete ("This method has been deprecated")]
@@ -585,8 +609,15 @@ namespace System.Runtime.InteropServices
 			throw new NotImplementedException ();
 		}
 
+#if !MOBILE
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		public extern static bool IsComObject (object o);
+#else
+		public static bool IsComObject (object o)
+		{
+			throw new NotImplementedException ();
+		}
+#endif		
 
 		[MonoTODO]
 		public static bool IsTypeVisibleFromCom (Type t)
@@ -599,7 +630,7 @@ namespace System.Runtime.InteropServices
 		{
 			throw new NotImplementedException ();
 		}
-#endif // !NET_2_1
+#endif
 
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		[ReliabilityContractAttribute (Consistency.WillNotCorruptState, Cer.Success)]
@@ -638,8 +669,15 @@ namespace System.Runtime.InteropServices
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		public extern static string PtrToStringUni (IntPtr ptr, int len);
 
+#if !MOBILE
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		public extern static string PtrToStringBSTR (IntPtr ptr);
+#else
+		public static string PtrToStringBSTR (IntPtr ptr)
+		{
+			throw new NotImplementedException ();
+		}
+#endif
 		
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		[ComVisible (true)]
@@ -649,14 +687,20 @@ namespace System.Runtime.InteropServices
 		[ComVisible (true)]
 		public extern static object PtrToStructure (IntPtr ptr, Type structureType);
 
+#if !MOBILE
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int QueryInterfaceInternal (IntPtr pUnk, ref Guid iid, out IntPtr ppv);
+#endif
 
 		public static int QueryInterface (IntPtr pUnk, ref Guid iid, out IntPtr ppv)
 		{
+#if !MOBILE
 			if (pUnk == IntPtr.Zero)
 				throw new ArgumentException ("Value cannot be null.", "pUnk");
 			return QueryInterfaceInternal (pUnk, ref iid, out ppv);
+#else
+			throw new NotImplementedException ();
+#endif
 		}
 
 		public static byte ReadByte (IntPtr ptr)
@@ -747,19 +791,26 @@ namespace System.Runtime.InteropServices
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		public extern static IntPtr ReAllocHGlobal (IntPtr pv, IntPtr cb);
 
+#if !MOBILE
 		[ReliabilityContractAttribute (Consistency.WillNotCorruptState, Cer.Success)]
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int ReleaseInternal (IntPtr pUnk);
+#endif
 
 		[ReliabilityContract (Consistency.WillNotCorruptState, Cer.Success)]
 		public static int Release (IntPtr pUnk)
 		{
+#if !MOBILE
 			if (pUnk == IntPtr.Zero)
 				throw new ArgumentException ("Value cannot be null.", "pUnk");
+
 			return ReleaseInternal (pUnk);
+#else
+			throw new NotImplementedException ();
+#endif
 		}
 
-#if !MOONLIGHT
+#if !FULL_AOT_RUNTIME
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		private extern static int ReleaseComObjectInternal (object co);
 
@@ -784,7 +835,7 @@ namespace System.Runtime.InteropServices
 		{
 			throw new NotSupportedException ("MSDN states user code should never need to call this method.");
 		}
-#endif // !NET_2_1
+#endif
 
 		[ComVisible (true)]
 		public static int SizeOf (object structure)
@@ -848,7 +899,6 @@ namespace System.Runtime.InteropServices
 		[MethodImplAttribute(MethodImplOptions.InternalCall)]
 		public extern static IntPtr StringToHGlobalUni (string s);
 
-#if !MOONLIGHT
 		public static IntPtr SecureStringToBSTR (SecureString s)
 		{
 			if (s == null)
@@ -936,7 +986,6 @@ namespace System.Runtime.InteropServices
 				throw new ArgumentNullException ("s");
 			return SecureStringToCoTaskMemUnicode (s);
 		}
-#endif
 
 		[ReliabilityContractAttribute (Consistency.WillNotCorruptState, Cer.MayFail)]
 		[ComVisible (true)]
@@ -1068,7 +1117,7 @@ namespace System.Runtime.InteropServices
 			return null;
 		}
 
-#if !MOONLIGHT
+#if !FULL_AOT_RUNTIME
 		public static int FinalReleaseComObject (object o)
 		{
 			while (ReleaseComObject (o) != 0);

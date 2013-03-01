@@ -1,20 +1,16 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Internal.UnitTests
 {
-    using System;
     using System.Data.Common;
 
     /// <summary>
-    /// Used with the FakeSqlConnection class to fake provider info so that Code First can create SSDL
-    /// without having to hit a real store.
+    ///     Used with the FakeSqlConnection class to fake provider info so that Code First can create SSDL
+    ///     without having to hit a real store.
     /// </summary>
     public class FakeSqlProviderFactory : DbProviderFactory, IServiceProvider
     {
         public static readonly FakeSqlProviderFactory Instance = new FakeSqlProviderFactory();
-
-        private FakeSqlProviderFactory()
-        {
-        }
 
         public static void Initialize()
         {
@@ -33,7 +29,7 @@ namespace System.Data.Entity.ModelConfiguration.Internal.UnitTests
 
         public object GetService(Type serviceType)
         {
-            return new FakeSqlProviderServices();
+            return FakeSqlProviderServices.Instance;
         }
 
         public override DbConnection CreateConnection()

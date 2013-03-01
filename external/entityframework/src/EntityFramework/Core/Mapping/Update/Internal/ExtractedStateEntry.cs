@@ -1,11 +1,13 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
+    using System.Diagnostics;
 
     /// <summary>
-    /// Represents the data contained in a StateEntry using internal data structures
-    /// of the UpdatePipeline.
+    ///     Represents the data contained in a StateEntry using internal data structures
+    ///     of the UpdatePipeline.
     /// </summary>
     internal struct ExtractedStateEntry
     {
@@ -24,8 +26,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
         internal ExtractedStateEntry(UpdateTranslator translator, IEntityStateEntry stateEntry)
         {
-            Contract.Requires(translator != null);
-            Contract.Requires(stateEntry != null);
+            DebugCheck.NotNull(translator);
+            DebugCheck.NotNull(stateEntry);
 
             State = stateEntry.State;
             Source = stateEntry;
@@ -55,7 +57,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                         stateEntry, ModifiedPropertiesBehavior.AllModified);
                     break;
                 default:
-                    Contract.Assert(false, "Unexpected IEntityStateEntry.State for entity " + stateEntry.State);
+                    Debug.Assert(false, "Unexpected IEntityStateEntry.State for entity " + stateEntry.State);
                     Original = null;
                     Current = null;
                     break;

@@ -1,82 +1,84 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common
 {
     using System.Data.Common;
     using System.Data.Entity.Config;
     using System.Data.Entity.Core.Common.CommandTrees;
+    using System.Data.Entity.Core.EntityClient;
     using System.Data.Entity.Core.EntityClient.Internal;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Spatial;
     using System.Data.Entity.Utilities;
+    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Reflection;
     using System.Xml;
 
     /// <summary>
-    /// The factory for building command definitions; use the type of this object
-    /// as the argument to the IServiceProvider.GetService method on the provider
-    /// factory;
+    ///     The factory for building command definitions; use the type of this object
+    ///     as the argument to the IServiceProvider.GetService method on the provider
+    ///     factory;
     /// </summary>
     [CLSCompliant(false)]
-    [ContractClass(typeof(DbProviderServicesContracts))]
     public abstract class DbProviderServices
     {
         private readonly Lazy<IDbDependencyResolver> _resolver;
 
         /// <summary>
-        /// Constructs an EF provider that will use the <see cref="IDbDependencyResolver"/> obtained from
-        /// the app domain <see cref="DbConfiguration"/> Singleton for resolving EF dependencies such
-        /// as the <see cref="DbSpatialServices"/> instance to use.
+        ///     Constructs an EF provider that will use the <see cref="IDbDependencyResolver" /> obtained from
+        ///     the app domain <see cref="DbConfiguration" /> Singleton for resolving EF dependencies such
+        ///     as the <see cref="DbSpatialServices" /> instance to use.
         /// </summary>
         protected DbProviderServices()
         {
-            _resolver = new Lazy<IDbDependencyResolver>(() => DbConfiguration.Instance.DependencyResolver);
+            _resolver = new Lazy<IDbDependencyResolver>(() => DbConfiguration.DependencyResolver);
         }
 
         /// <summary>
-        /// Constructs an EF provider that will use the given <see cref="IDbDependencyResolver"/> for
-        /// resolving EF dependencies such as the <see cref="DbSpatialServices"/> instance to use.
+        ///     Constructs an EF provider that will use the given <see cref="IDbDependencyResolver" /> for
+        ///     resolving EF dependencies such as the <see cref="DbSpatialServices" /> instance to use.
         /// </summary>
-        /// <param name="resolver">The resolver to use.</param>
+        /// <param name="resolver"> The resolver to use. </param>
         protected DbProviderServices(IDbDependencyResolver resolver)
         {
-            Contract.Requires(resolver != null);
+            Check.NotNull(resolver, "resolver");
 
             _resolver = new Lazy<IDbDependencyResolver>(() => resolver);
         }
 
         /// <summary>
-        /// Create a Command Definition object given a command tree.
+        ///     Create a Command Definition object given a command tree.
         /// </summary>
-        /// <param name="commandTree">command tree for the statement</param>
-        /// <returns>an executable command definition object</returns>
+        /// <param name="commandTree"> command tree for the statement </param>
+        /// <returns> an executable command definition object </returns>
         /// <remarks>
-        /// This method simply delegates to the provider's implementation of CreateDbCommandDefinition.
+        ///     This method simply delegates to the provider's implementation of CreateDbCommandDefinition.
         /// </remarks>
         public DbCommandDefinition CreateCommandDefinition(DbCommandTree commandTree)
         {
-            Contract.Requires(commandTree != null);
+            Check.NotNull(commandTree, "commandTree");
             ValidateDataSpace(commandTree);
             var storeMetadata = (StoreItemCollection)commandTree.MetadataWorkspace.GetItemCollection(DataSpace.SSpace);
-            Contract.Assert(storeMetadata.StoreProviderManifest != null, "StoreItemCollection has null StoreProviderManifest?");
+            Debug.Assert(storeMetadata.StoreProviderManifest != null, "StoreItemCollection has null StoreProviderManifest?");
 
             return CreateDbCommandDefinition(storeMetadata.StoreProviderManifest, commandTree);
         }
 
         /// <summary>
-        /// Create a Command Definition object given a command tree.
+        ///     Create a Command Definition object given a command tree.
         /// </summary>
-        /// <param name="commandTree">command tree for the statement</param>
-        /// <returns>an executable command definition object</returns>
+        /// <param name="commandTree"> command tree for the statement </param>
+        /// <returns> an executable command definition object </returns>
         /// <remarks>
-        /// This method simply delegates to the provider's implementation of CreateDbCommandDefinition.
+        ///     This method simply delegates to the provider's implementation of CreateDbCommandDefinition.
         /// </remarks>
         public DbCommandDefinition CreateCommandDefinition(DbProviderManifest providerManifest, DbCommandTree commandTree)
         {
-            Contract.Requires(providerManifest != null);
-            Contract.Requires(commandTree != null);
+            Check.NotNull(providerManifest, "providerManifest");
+            Check.NotNull(commandTree, "commandTree");
 
             try
             {
@@ -97,20 +99,20 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Create a Command Definition object, given the provider manifest and command tree
+        ///     Create a Command Definition object, given the provider manifest and command tree
         /// </summary>
-        /// <param name="connection">provider manifest previously retrieved from the store provider</param>
-        /// <param name="commandTree">command tree for the statement</param>
-        /// <returns>an executable command definition object</returns>
+        /// <param name="connection"> provider manifest previously retrieved from the store provider </param>
+        /// <param name="commandTree"> command tree for the statement </param>
+        /// <returns> an executable command definition object </returns>
         protected abstract DbCommandDefinition CreateDbCommandDefinition(DbProviderManifest providerManifest, DbCommandTree commandTree);
 
         /// <summary>
-        /// Ensures that the data space of the specified command tree is the target (S-) space
+        ///     Ensures that the data space of the specified command tree is the target (S-) space
         /// </summary>
-        /// <param name="commandTree">The command tree for which the data space should be validated</param>
+        /// <param name="commandTree"> The command tree for which the data space should be validated </param>
         internal virtual void ValidateDataSpace(DbCommandTree commandTree)
         {
-            Contract.Requires(commandTree != null);
+            DebugCheck.NotNull(commandTree);
 
             if (commandTree.DataSpace
                 != DataSpace.SSpace)
@@ -120,10 +122,10 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Create a DbCommand object given a command tree.
+        ///     Create a DbCommand object given a command tree.
         /// </summary>
-        /// <param name="commandTree">command tree for the statement</param>
-        /// <returns>a command object</returns>
+        /// <param name="commandTree"> command tree for the statement </param>
+        /// <returns> a command object </returns>
         internal virtual DbCommand CreateCommand(DbCommandTree commandTree)
         {
             var commandDefinition = CreateCommandDefinition(commandTree);
@@ -132,31 +134,29 @@ namespace System.Data.Entity.Core.Common
         }
 
         /// <summary>
-        /// Create the default DbCommandDefinition object based on the prototype command
-        /// This method is intended for provider writers to build a default command definition
-        /// from a command. 
-        /// Note: This will clone the prototype
+        ///     Create the default DbCommandDefinition object based on the prototype command
+        ///     This method is intended for provider writers to build a default command definition
+        ///     from a command.
+        ///     Note: This will clone the prototype
         /// </summary>
-        /// <param name="prototype">the prototype command</param>
-        /// <returns>an executable command definition object</returns>
+        /// <param name="prototype"> the prototype command </param>
+        /// <returns> an executable command definition object </returns>
         public virtual DbCommandDefinition CreateCommandDefinition(DbCommand prototype)
         {
             return DbCommandDefinition.CreateCommandDefinition(prototype);
         }
 
         /// <summary>
-        /// Retrieve the provider manifest token based on the specified connection.
+        ///     Retrieve the provider manifest token based on the specified connection.
         /// </summary>
-        /// <param name="connection">The connection for which the provider manifest token should be retrieved.</param>
-        /// <returns>
-        /// The provider manifest token that describes the specified connection, as determined by the provider.
-        /// </returns>
+        /// <param name="connection"> The connection for which the provider manifest token should be retrieved. </param>
+        /// <returns> The provider manifest token that describes the specified connection, as determined by the provider. </returns>
         /// <remarks>
-        /// This method simply delegates to the provider's implementation of GetDbProviderManifestToken.
+        ///     This method simply delegates to the provider's implementation of GetDbProviderManifestToken.
         /// </remarks>
         public string GetProviderManifestToken(DbConnection connection)
         {
-            Contract.Requires(connection != null);
+            Check.NotNull(connection, "connection");
 
             try
             {
@@ -185,7 +185,7 @@ namespace System.Data.Entity.Core.Common
 
         public DbProviderManifest GetProviderManifest(string manifestToken)
         {
-            Contract.Requires(manifestToken != null);
+            Check.NotNull(manifestToken, "manifestToken");
 
             try
             {
@@ -212,6 +212,35 @@ namespace System.Data.Entity.Core.Common
         }
 
         protected abstract DbProviderManifest GetDbProviderManifest(string manifestToken);
+
+        /// <summary>
+        ///     Returns the provider-specific execution strategy. This method will only be invoked if there's no 
+        ///     <see cref="IDbDependencyResolver"/> registered for <see cref="ExecutionStrategy"/> that handles this provider.
+        /// </summary>
+        /// <returns>A new instance of <see cref="ExecutionStrategy"/></returns>
+        public virtual IExecutionStrategy GetExecutionStrategy()
+        {
+            return new NonRetryingExecutionStrategy();
+        }
+
+        /// <summary>
+        ///     Gets the <see cref="IExecutionStrategy"/> that will be used to execute methods that use the specified connection.
+        /// </summary>
+        /// <param name="connection">The database connection</param>
+        /// <returns>A new instance of <see cref="ExecutionStrategy"/></returns>
+        public static IExecutionStrategy GetExecutionStrategy(DbConnection connection)
+        {
+            var entityConnection = connection as EntityConnection;
+            if (entityConnection != null)
+            {
+                connection = entityConnection.StoreConnection;
+            }
+            
+            var providerInvariantName = connection.GetProviderInvariantName();
+
+            return DbConfiguration.GetService<IExecutionStrategy>(
+                new ExecutionStrategyKey(providerInvariantName, connection.DataSource));
+        }
 
         public DbSpatialDataReader GetSpatialDataReader(DbDataReader fromReader, string manifestToken)
         {
@@ -241,11 +270,14 @@ namespace System.Data.Entity.Core.Common
 
         public DbSpatialServices GetSpatialServices(string manifestToken)
         {
-            Contract.Ensures(Contract.Result<DbSpatialServices>() != null);
+            return GetSpatialServicesInternal(_resolver, manifestToken);
+        }
 
+        internal DbSpatialServices GetSpatialServicesInternal(Lazy<IDbDependencyResolver> resolver, string manifestToken)
+        {
             // First check if spatial services can be resolved and only if this fails
             // go on to ask the provider for spatial services.
-            var spatialProvider = _resolver.Value.GetService<DbSpatialServices>();
+            var spatialProvider = resolver.Value.GetService<DbSpatialServices>();
             if (spatialProvider != null)
             {
                 return spatialProvider;
@@ -274,7 +306,7 @@ namespace System.Data.Entity.Core.Common
 
         protected virtual DbSpatialDataReader GetDbSpatialDataReader(DbDataReader fromReader, string manifestToken)
         {
-            Contract.Requires(fromReader != null);
+            Check.NotNull(fromReader, "fromReader");
 
             // Must be a virtual method; abstract would break previous implementors of DbProviderServices
             throw new ProviderIncompatibleException(Strings.ProviderDidNotReturnSpatialServices);
@@ -288,54 +320,39 @@ namespace System.Data.Entity.Core.Common
 
         internal void SetParameterValue(DbParameter parameter, TypeUsage parameterType, object value)
         {
-            Contract.Requires(parameter != null, "Validate parameter before calling SetParameterValue");
-            Contract.Requires(parameterType != null, "Validate parameterType before calling SetParameterValue");
+            DebugCheck.NotNull(parameter);
+            DebugCheck.NotNull(parameterType);
 
             SetDbParameterValue(parameter, parameterType, value);
         }
 
         protected virtual void SetDbParameterValue(DbParameter parameter, TypeUsage parameterType, object value)
         {
-            Contract.Requires(parameter != null);
-            Contract.Requires(parameterType != null);
+            Check.NotNull(parameter, "parameter");
+            Check.NotNull(parameterType, "parameterType");
 
             parameter.Value = value;
         }
 
         /// <summary>
-        /// Create an instance of DbProviderServices based on the supplied DbConnection
+        ///     Create an instance of DbProviderServices based on the supplied DbConnection
         /// </summary>
-        /// <param name="connection">The DbConnection to use</param>
-        /// <returns>An instance of DbProviderServices</returns>
+        /// <param name="connection"> The DbConnection to use </param>
+        /// <returns> An instance of DbProviderServices </returns>
         public static DbProviderServices GetProviderServices(DbConnection connection)
         {
             return GetProviderFactory(connection).GetProviderServices();
         }
 
-        internal static DbProviderFactory GetProviderFactory(string providerInvariantName)
-        {
-            Contract.Requires(providerInvariantName != null);
-            DbProviderFactory factory;
-            try
-            {
-                factory = DbProviderFactories.GetFactory(providerInvariantName);
-            }
-            catch (ArgumentException e)
-            {
-                throw new ArgumentException(Strings.EntityClient_InvalidStoreProvider, e);
-            }
-            return factory;
-        }
-
         /// <summary>
-        /// Retrieve the DbProviderFactory based on the specified DbConnection
+        ///     Retrieve the DbProviderFactory based on the specified DbConnection
         /// </summary>
-        /// <param name="connection">The DbConnection to use</param>
-        /// <returns>An instance of DbProviderFactory</returns>
+        /// <param name="connection"> The DbConnection to use </param>
+        /// <returns> An instance of DbProviderFactory </returns>
         public static DbProviderFactory GetProviderFactory(DbConnection connection)
         {
-            Contract.Requires(connection != null);
-            var factory = DbProviderFactories.GetFactory(connection);
+            Check.NotNull(connection, "connection");
+            var factory = connection.GetProviderFactory();
             if (factory == null)
             {
                 throw new ProviderIncompatibleException(
@@ -343,136 +360,143 @@ namespace System.Data.Entity.Core.Common
                         "get_ProviderFactory",
                         connection.GetType().ToString()));
             }
-            Contract.Assert(factory != null, "Should have thrown on null");
             return factory;
         }
 
         /// <summary>
-        /// Return an XML reader which represents the CSDL description
+        ///     Return an XML reader which represents the CSDL description
         /// </summary>
-        /// <returns>An XmlReader that represents the CSDL description</returns>
-        internal static XmlReader GetConceptualSchemaDefinition(string csdlName)
+        /// <returns> An XmlReader that represents the CSDL description </returns>
+        public static XmlReader GetConceptualSchemaDefinition(string csdlName)
         {
+            Check.NotEmpty(csdlName, "csdlName");
+
             return GetXmlResource("System.Data.Resources.DbProviderServices." + csdlName + ".csdl");
         }
 
         internal static XmlReader GetXmlResource(string resourceName)
         {
+            DebugCheck.NotEmpty(resourceName);
+
             var executingAssembly = Assembly.GetExecutingAssembly();
             var stream = executingAssembly.GetManifestResourceStream(resourceName);
+
+            if (stream == null)
+            {
+                throw Error.InvalidResourceName(resourceName);
+            }
+
             return XmlReader.Create(stream, null, resourceName);
         }
 
         /// <summary>
-        /// Generates a DDL script which creates schema objects (tables, primary keys, foreign keys) 
-        /// based on the contents of the storeItemCollection and targeted for the version of the backend corresponding to 
-        /// the providerManifestToken.
-        /// Individual statements should be separated using database-specific DDL command separator. 
-        /// It is expected that the generated script would be executed in the context of existing database with 
-        /// sufficient permissions, and it should not include commands to create the database, but it may include 
-        /// commands to create schemas and other auxiliary objects such as sequences, etc.
+        ///     Generates a DDL script which creates schema objects (tables, primary keys, foreign keys)
+        ///     based on the contents of the storeItemCollection and targeted for the version of the backend corresponding to
+        ///     the providerManifestToken.
+        ///     Individual statements should be separated using database-specific DDL command separator.
+        ///     It is expected that the generated script would be executed in the context of existing database with
+        ///     sufficient permissions, and it should not include commands to create the database, but it may include
+        ///     commands to create schemas and other auxiliary objects such as sequences, etc.
         /// </summary>
-        /// <param name="providerManifestToken">The provider manifest token identifying the target version</param>
-        /// <param name="storeItemCollection">The collection of all store items based on which the script should be created</param>
-        /// <returns>
-        /// A DDL script which creates schema objects based on contents of storeItemCollection 
-        /// and targeted for the version of the backend corresponding to the providerManifestToken.
-        /// </returns>
+        /// <param name="providerManifestToken"> The provider manifest token identifying the target version </param>
+        /// <param name="storeItemCollection"> The collection of all store items based on which the script should be created </param>
+        /// <returns> A DDL script which creates schema objects based on contents of storeItemCollection and targeted for the version of the backend corresponding to the providerManifestToken. </returns>
         public string CreateDatabaseScript(string providerManifestToken, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(providerManifestToken != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(providerManifestToken, "providerManifestToken");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             return DbCreateDatabaseScript(providerManifestToken, storeItemCollection);
         }
 
         protected virtual string DbCreateDatabaseScript(string providerManifestToken, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(providerManifestToken != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(providerManifestToken, "providerManifestToken");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             throw new ProviderIncompatibleException(Strings.ProviderDoesNotSupportCreateDatabaseScript);
         }
 
         /// <summary>
-        /// Creates a database indicated by connection and creates schema objects 
-        /// (tables, primary keys, foreign keys) based on the contents of storeItemCollection. 
+        ///     Creates a database indicated by connection and creates schema objects
+        ///     (tables, primary keys, foreign keys) based on the contents of storeItemCollection.
         /// </summary>
-        /// <param name="connection">Connection to a non-existent database that needs to be created 
-        /// and be populated with the store objects indicated by the storeItemCollection</param>
-        /// <param name="commandTimeout">Execution timeout for any commands needed to create the database.</param>
-        /// <param name="storeItemCollection">The collection of all store items based on which the script should be created<</param>
+        /// <param name="connection"> Connection to a non-existent database that needs to be created and be populated with the store objects indicated by the storeItemCollection </param>
+        /// <param name="commandTimeout"> Execution timeout for any commands needed to create the database. </param>
+        /// <param name="storeItemCollection">
+        ///     The collection of all store items based on which the script should be created < </param>
         public void CreateDatabase(DbConnection connection, int? commandTimeout, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(connection != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(connection, "connection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             DbCreateDatabase(connection, commandTimeout, storeItemCollection);
         }
 
         protected virtual void DbCreateDatabase(DbConnection connection, int? commandTimeout, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(connection != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(connection, "connection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             throw new ProviderIncompatibleException(Strings.ProviderDoesNotSupportCreateDatabase);
         }
 
         /// <summary>
-        /// Returns a value indicating whether given database exists on the server 
-        /// and/or whether schema objects contained in teh storeItemCollection have been created.
-        /// If the provider can deduct the database only based on the connection, they do not need
-        /// to additionally verify all elements of the storeItemCollection.
+        ///     Returns a value indicating whether given database exists on the server
+        ///     and/or whether schema objects contained in teh storeItemCollection have been created.
+        ///     If the provider can deduct the database only based on the connection, they do not need
+        ///     to additionally verify all elements of the storeItemCollection.
         /// </summary>
-        /// <param name="connection">Connection to a database whose existence is checked by this method</param>
-        /// <param name="commandTimeout">Execution timeout for any commands needed to determine the existence of the database</param>
-        /// <param name="storeItemCollection">The collection of all store items contained in the database 
-        /// whose existence is determined by this method<</param>
-        /// <returns>Whether the database indicated by the connection and the storeItemCollection exist</returns>
+        /// <param name="connection"> Connection to a database whose existence is checked by this method </param>
+        /// <param name="commandTimeout"> Execution timeout for any commands needed to determine the existence of the database </param>
+        /// <param name="storeItemCollection">
+        ///     The collection of all store items contained in the database whose existence is determined by this method < </param>
+        /// <returns> Whether the database indicated by the connection and the storeItemCollection exist </returns>
         public bool DatabaseExists(DbConnection connection, int? commandTimeout, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(connection != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(connection, "connection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             return DbDatabaseExists(connection, commandTimeout, storeItemCollection);
         }
 
         protected virtual bool DbDatabaseExists(DbConnection connection, int? commandTimeout, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(connection != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(connection, "connection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             throw new ProviderIncompatibleException(Strings.ProviderDoesNotSupportDatabaseExists);
         }
 
         /// <summary>
-        /// Deletes all store objects specified in the store item collection from the database and the database itself.
+        ///     Deletes all store objects specified in the store item collection from the database and the database itself.
         /// </summary>
-        /// <param name="connection">Connection to an existing database that needs to be deleted</param>
-        /// <param name="commandTimeout">Execution timeout for any commands needed to delete the database</param>
-        /// <param name="storeItemCollection">The collection of all store items contained in the database that should be deleted<</param>
+        /// <param name="connection"> Connection to an existing database that needs to be deleted </param>
+        /// <param name="commandTimeout"> Execution timeout for any commands needed to delete the database </param>
+        /// <param name="storeItemCollection">
+        ///     The collection of all store items contained in the database that should be deleted < </param>
         public void DeleteDatabase(DbConnection connection, int? commandTimeout, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(connection != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(connection, "connection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             DbDeleteDatabase(connection, commandTimeout, storeItemCollection);
         }
 
         protected virtual void DbDeleteDatabase(DbConnection connection, int? commandTimeout, StoreItemCollection storeItemCollection)
         {
-            Contract.Requires(connection != null);
-            Contract.Requires(storeItemCollection != null);
+            Check.NotNull(connection, "connection");
+            Check.NotNull(storeItemCollection, "storeItemCollection");
 
             throw new ProviderIncompatibleException(Strings.ProviderDoesNotSupportDeleteDatabase);
         }
 
         /// <summary>
-        /// Expands |DataDirectory| in the given path if it begins with |DataDirectory| and returns the expanded path,
-        /// or returns the given string if it does not start with |DataDirectory|.
+        ///     Expands |DataDirectory| in the given path if it begins with |DataDirectory| and returns the expanded path,
+        ///     or returns the given string if it does not start with |DataDirectory|.
         /// </summary>
-        /// <param name="path">The path to expand.</param>
-        /// <returns>The expanded path.</returns>
+        /// <param name="path"> The path to expand. </param>
+        /// <returns> The expanded path. </returns>
         [SuppressMessage("Microsoft.Performance", "CA1820:TestForEmptyStringsUsingStringLength")]
         public static string ExpandDataDirectory(string path)
         {
@@ -515,42 +539,12 @@ namespace System.Data.Entity.Core.Common
             path = fixedRoot + path;
 
             // Verify root folder path is a real path without unexpected "..\"
-            if (!EntityUtil.GetFullPath(path).StartsWith(rootFolderPath, StringComparison.Ordinal))
+            if (rootFolderPath.Contains(".."))
             {
                 throw new ArgumentException(Strings.ExpandingDataDirectoryFailed);
             }
 
             return path;
         }
-
-        #region Base Member Contracts
-
-        [ContractClassFor(typeof(DbProviderServices))]
-        private abstract class DbProviderServicesContracts : DbProviderServices
-        {
-            protected override DbCommandDefinition CreateDbCommandDefinition(DbProviderManifest providerManifest, DbCommandTree commandTree)
-            {
-                Contract.Requires(providerManifest != null);
-                Contract.Requires(commandTree != null);
-
-                throw new NotImplementedException();
-            }
-
-            protected override string GetDbProviderManifestToken(DbConnection connection)
-            {
-                Contract.Requires(connection != null);
-
-                throw new NotImplementedException();
-            }
-
-            protected override DbProviderManifest GetDbProviderManifest(string manifestToken)
-            {
-                Contract.Requires(manifestToken != null);
-
-                throw new NotImplementedException();
-            }
-        }
-
-        #endregion
     }
 }

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
 {
     using System.Collections.Generic;
@@ -10,23 +11,20 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
     using System.Text;
 
     /// <summary>
-    /// Represents Union nodes in the <see cref="CqlBlock"/> tree.
+    ///     Represents Union nodes in the <see cref="CqlBlock" /> tree.
     /// </summary>
     internal sealed class UnionCqlBlock : CqlBlock
     {
-        #region Constructor
-
         /// <summary>
-        /// Creates a union block with SELECT (<paramref name="slotInfos"/>), FROM (<paramref name="children"/>), WHERE (true), AS (<paramref name="blockAliasNum"/>).
+        ///     Creates a union block with SELECT (<paramref name="slotInfos" />), FROM (<paramref name="children" />), WHERE (true), AS (
+        ///     <paramref
+        ///         name="blockAliasNum" />
+        ///     ).
         /// </summary>
         internal UnionCqlBlock(SlotInfo[] slotInfos, List<CqlBlock> children, CqlIdentifiers identifiers, int blockAliasNum)
             : base(slotInfos, children, BoolExpression.True, identifiers, blockAliasNum)
         {
         }
-
-        #endregion
-
-        #region Methods
 
         internal override StringBuilder AsEsql(StringBuilder builder, bool isTopLevel, int indentLevel)
         {
@@ -60,7 +58,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
             }
             return cqt;
         }
-
-        #endregion
     }
 }

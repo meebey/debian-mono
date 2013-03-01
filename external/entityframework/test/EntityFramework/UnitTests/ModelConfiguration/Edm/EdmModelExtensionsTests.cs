@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 {
-    using System.Data.Entity;
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Linq;
     using Xunit;
 
@@ -11,24 +11,27 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void Can_get_and_set_provider_info_annotation()
         {
-            var model = new EdmModel();
+            var model = new EdmModel(DataSpace.SSpace);
             var providerInfo = ProviderRegistry.Sql2008_ProviderInfo;
 
-            model.SetProviderInfo(providerInfo);
+            model.ProviderInfo = providerInfo;
 
-            Assert.Same(providerInfo, model.GetProviderInfo());
+            Assert.Same(providerInfo, model.ProviderInfo);
         }
 
         [Fact]
         public void HasCascadeDeletePath_should_return_true_for_simple_cascade()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityTypeA = model.AddEntityType("A");
             var entityTypeB = model.AddEntityType("B");
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.SourceEnd.EntityType = entityTypeA;
-            associationType.TargetEnd.EntityType = entityTypeB;
-            associationType.SourceEnd.DeleteAction = EdmOperationAction.Cascade;
+            var associationType
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", entityTypeA),
+                          TargetEnd = new AssociationEndMember("T", entityTypeB)
+                      };
+            associationType.SourceEnd.DeleteBehavior = OperationAction.Cascade;
             model.AddAssociationType(associationType);
 
             Assert.True(model.HasCascadeDeletePath(entityTypeA, entityTypeB));
@@ -38,19 +41,27 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void HasCascadeDeletePath_should_return_true_for_transitive_cascade()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityTypeA = model.AddEntityType("A");
             var entityTypeB = model.AddEntityType("B");
             var entityTypeC = model.AddEntityType("B");
-            var associationTypeA = new EdmAssociationType().Initialize();
-            associationTypeA.SourceEnd.EntityType = entityTypeA;
-            associationTypeA.TargetEnd.EntityType = entityTypeB;
-            associationTypeA.SourceEnd.DeleteAction = EdmOperationAction.Cascade;
+            var associationTypeA
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", entityTypeA),
+                          TargetEnd = new AssociationEndMember("T", entityTypeB)
+                      };
+
+            associationTypeA.SourceEnd.DeleteBehavior = OperationAction.Cascade;
             model.AddAssociationType(associationTypeA);
-            var associationTypeB = new EdmAssociationType().Initialize();
-            associationTypeB.SourceEnd.EntityType = entityTypeB;
-            associationTypeB.TargetEnd.EntityType = entityTypeC;
-            associationTypeB.SourceEnd.DeleteAction = EdmOperationAction.Cascade;
+            var associationTypeB
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", entityTypeB),
+                          TargetEnd = new AssociationEndMember("T", entityTypeC)
+                      };
+
+            associationTypeB.SourceEnd.DeleteBehavior = OperationAction.Cascade;
             model.AddAssociationType(associationTypeB);
 
             Assert.True(model.HasCascadeDeletePath(entityTypeA, entityTypeB));
@@ -64,13 +75,16 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void HasCascadeDeletePath_should_return_true_for_self_ref_cascade()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("A");
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.SourceEnd.EntityType
-                = associationType.TargetEnd.EntityType
-                    = entityType;
-            associationType.SourceEnd.DeleteAction = EdmOperationAction.Cascade;
+            var associationType
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", entityType)
+                      };
+            associationType.TargetEnd = new AssociationEndMember("T", associationType.SourceEnd.GetEntityType());
+
+            associationType.SourceEnd.DeleteBehavior = OperationAction.Cascade;
             model.AddAssociationType(associationType);
 
             Assert.True(model.HasCascadeDeletePath(entityType, entityType));
@@ -79,39 +93,33 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetClrTypes_should_return_ospace_types()
         {
-            var model = new EdmModel().Initialize();
-            model.AddEntityType("A").SetClrType(typeof(object));
-            model.AddEntityType("B").SetClrType(typeof(string));
+            var model = new EdmModel(DataSpace.CSpace);
+            var type1 = typeof(object);
+            var tempQualifier1 = model.AddEntityType("A");
+
+            tempQualifier1.Annotations.SetClrType(type1);
+            var type = typeof(string);
+
+            model.AddEntityType("B").Annotations.SetClrType(type);
 
             Assert.Equal(2, model.GetClrTypes().Count());
         }
 
         [Fact]
-        public void GetValidationErrors_should_return_validation_errors()
-        {
-            var model = new EdmModel().Initialize();
-            model.AddEntitySet("S", new EdmEntityType());
-
-            var validationErrors = model.GetCsdlErrors();
-
-            Assert.Equal(1, validationErrors.Count());
-        }
-
-        [Fact]
         public void Validate_should_throw()
         {
-            var model = new EdmModel().Initialize();
-            model.AddEntitySet("S", new EdmEntityType());
+            var model = new EdmModel(DataSpace.CSpace);
+            model.AddEntitySet("S", new EntityType());
 
-            Assert.Throws<ModelValidationException>(() => model.ValidateCsdl());
+            Assert.Throws<ModelValidationException>(() => model.Validate());
         }
 
         [Fact]
         public void GetEntitySets_should_return_all_sets()
         {
-            var model = new EdmModel().Initialize();
-            model.AddEntitySet("S", new EdmEntityType());
-            model.AddEntitySet("T", new EdmEntityType());
+            var model = new EdmModel(DataSpace.CSpace);
+            model.AddEntitySet("S", new EntityType());
+            model.AddEntitySet("T", new EntityType());
 
             Assert.Equal(2, model.GetEntitySets().Count());
         }
@@ -119,7 +127,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GenerateDatabaseMapping_should_return_mapping()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
             Assert.NotNull(model.GenerateDatabaseMapping(ProviderRegistry.Sql2008_ProviderManifest));
         }
@@ -127,7 +135,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetEntitySet_should_return_entity_set()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("Foo");
             model.AddEntitySet("FooSet", entityType);
 
@@ -140,12 +148,16 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetAssociationSet_should_return_association_set()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("Foo");
-            model.AddEntitySet("FooSet", entityType);
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.SourceEnd.EntityType = entityType;
-            associationType.TargetEnd.EntityType = entityType;
+            model.AddEntitySet("FooESet", entityType);
+            var associationType
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", entityType),
+                          TargetEnd = new AssociationEndMember("T", entityType)
+                      };
+
             model.AddAssociationSet("FooSet", associationType);
 
             var associationSet = model.GetAssociationSet(associationType);
@@ -157,7 +169,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetStructuralType_should_return_entity_or_complex_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("E");
             var complexType = model.AddComplexType("C");
 
@@ -168,45 +180,44 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void ReplaceEntitySet_should_remove_set_with_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("Foo");
             model.AddEntitySet("FooSet", entityType);
 
             model.ReplaceEntitySet(entityType, null);
 
-            Assert.Equal(1, model.GetEntityTypes().Count());
+            Assert.Equal(1, model.EntityTypes.Count());
             Assert.Equal(0, model.Containers.First().EntitySets.Count());
         }
 
         [Fact]
         public void Initialize_should_create_default_container_and_namespace()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
-            Assert.NotNull(model.Name);
-            Assert.Equal(1, model.Containers.Count);
+            Assert.Equal(1, model.Containers.Count());
             Assert.NotNull(model.Containers.Single().Name);
-            Assert.Equal(1, model.Namespaces.Count);
-            Assert.NotNull(model.Namespaces.Single().Name);
         }
 
         [Fact]
         public void GetAssociationsBetween_should_return_matching_associations()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
             var entityTypeA = model.AddEntityType("Foo");
             var entityTypeB = model.AddEntityType("Bar");
 
             Assert.Equal(0, model.GetAssociationTypesBetween(entityTypeA, entityTypeB).Count());
 
-            model.AddAssociationType("Foo_Bar",
-                entityTypeA, EdmAssociationEndKind.Optional,
-                entityTypeB, EdmAssociationEndKind.Many);
+            model.AddAssociationType(
+                "Foo_Bar",
+                entityTypeA, RelationshipMultiplicity.ZeroOrOne,
+                entityTypeB, RelationshipMultiplicity.Many);
 
-            model.AddAssociationType("Bar_Foo",
-                entityTypeB, EdmAssociationEndKind.Optional,
-                entityTypeA, EdmAssociationEndKind.Many);
+            model.AddAssociationType(
+                "Bar_Foo",
+                entityTypeB, RelationshipMultiplicity.ZeroOrOne,
+                entityTypeA, RelationshipMultiplicity.Many);
 
             Assert.Equal(2, model.GetAssociationTypesBetween(entityTypeA, entityTypeB).Count());
             Assert.Equal(2, model.GetAssociationTypesBetween(entityTypeB, entityTypeA).Count());
@@ -214,53 +225,112 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         }
 
         [Fact]
-        public void AddEntityType_should_create_and_add_to_default_namespace()
+        public void AddEntityType_should_create_and_add_with_default_namespace()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
             var entityType = model.AddEntityType("Foo");
 
             Assert.NotNull(entityType);
             Assert.Equal("Foo", entityType.Name);
-            Assert.True(model.Namespaces.Single().EntityTypes.Contains(entityType));
+            Assert.Equal(EdmModelExtensions.DefaultModelNamespace, entityType.NamespaceName);
+            Assert.True(model.EntityTypes.Contains(entityType));
         }
 
         [Fact]
-        public void AddComplexType_should_create_and_add_to_default_namespace()
+        public void AddEntityType_should_create_and_add_when_custom_namespace()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
+
+            var entityType = model.AddEntityType("Foo", "Bar");
+
+            Assert.NotNull(entityType);
+            Assert.Equal("Foo", entityType.Name);
+            Assert.Equal("Bar", entityType.NamespaceName);
+            Assert.True(model.EntityTypes.Contains(entityType));
+        }
+
+        [Fact]
+        public void AddEnumType_should_create_and_add_with_default_namespace()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+
+            var enumType = model.AddEnumType("Foo");
+
+            Assert.NotNull(enumType);
+            Assert.Equal("Foo", enumType.Name);
+            Assert.Equal(EdmModelExtensions.DefaultModelNamespace, enumType.NamespaceName);
+            Assert.True(model.EnumTypes.Contains(enumType));
+        }
+
+        [Fact]
+        public void AddEnumType_should_create_and_add_when_custom_namespace()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+
+            var enumType = model.AddEnumType("Foo", "Bar");
+
+            Assert.NotNull(enumType);
+            Assert.Equal("Foo", enumType.Name);
+            Assert.Equal("Bar", enumType.NamespaceName);
+            Assert.True(model.EnumTypes.Contains(enumType));
+        }
+
+        [Fact]
+        public void AddComplexType_should_create_and_add_with_default_namespace()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
 
             var complexType = model.AddComplexType("Foo");
 
             Assert.NotNull(complexType);
             Assert.Equal("Foo", complexType.Name);
-            Assert.True(model.Namespaces.Single().ComplexTypes.Contains(complexType));
+            Assert.Equal(EdmModelExtensions.DefaultModelNamespace, complexType.NamespaceName);
+            Assert.True(model.ComplexTypes.Contains(complexType));
+        }
+
+        [Fact]
+        public void AddComplexType_should_create_and_add_when_custom_namespace()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+
+            var complexType = model.AddComplexType("Foo", "Bar");
+
+            Assert.NotNull(complexType);
+            Assert.Equal("Foo", complexType.Name);
+            Assert.Equal("Bar", complexType.NamespaceName);
+            Assert.True(model.ComplexTypes.Contains(complexType));
         }
 
         [Fact]
         public void GetEntityTypes_should_return_correct_types()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
-            Assert.Same(model.Namespaces.First().EntityTypes, model.GetEntityTypes());
+            Assert.Same(model.EntityTypes, model.EntityTypes);
         }
 
         [Fact]
         public void GetComplexTypes_should_return_correct_types()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
-            Assert.Same(model.Namespaces.First().ComplexTypes, model.GetComplexTypes());
+            Assert.Same(model.ComplexTypes, model.ComplexTypes);
         }
 
         [Fact]
         public void GetAssociationType_should_return_correct_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.Name = "Foo";
-            model.Namespaces.Single().AssociationTypes.Add(associationType);
+            var associationType
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", new EntityType()),
+                          TargetEnd = new AssociationEndMember("T", new EntityType()),
+                          Name = "Foo"
+                      };
+            model.AddItem(associationType);
 
             Assert.Same(associationType, model.GetAssociationType("Foo"));
         }
@@ -268,15 +338,15 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetAssociationTypes_should_return_correct_types()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
-            Assert.Same(model.Namespaces.First().AssociationTypes, model.GetAssociationTypes());
+            Assert.Same(model.AssociationTypes, model.AssociationTypes);
         }
 
         [Fact]
         public void GetEntityType_should_return_correct_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("Foo");
 
             var foundEntityType = model.GetEntityType("Foo");
@@ -288,7 +358,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetComplexType_should_return_correct_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var complexType = model.AddComplexType("Foo");
 
             var foundComplexType = model.GetComplexType("Foo");
@@ -300,7 +370,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void AddEntitySet_should_create_and_add_to_default_container()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("Foo");
 
             var entitySet = model.AddEntitySet("FooSet", entityType);
@@ -312,65 +382,116 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         }
 
         [Fact]
+        public void AddAssociationSet_should_create_and_add_to_default_container_explicit_overload()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+            var associationSet = new AssociationSet("AS", new AssociationType());
+
+            model.AddAssociationSet(associationSet);
+
+            Assert.True(model.Containers.Single().AssociationSets.Contains(associationSet));
+        }
+
+        [Fact]
         public void RemoveEntityType_should_remove_type_and_set()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entityType = model.AddEntityType("Foo");
             model.AddEntitySet("FooSet", entityType);
 
             model.RemoveEntityType(entityType);
 
-            Assert.Equal(0, model.GetEntityTypes().Count());
+            Assert.Equal(0, model.EntityTypes.Count());
             Assert.Equal(0, model.Containers.First().EntitySets.Count());
         }
 
         [Fact]
         public void RemoveAssociationType_should_remove_type_and_set()
         {
-            var model = new EdmModel().Initialize();
-            var associationType = model.AddAssociationType(
-                "A",
-                new EdmEntityType(), EdmAssociationEndKind.Optional,
-                new EdmEntityType(), EdmAssociationEndKind.Many);
+            var model = new EdmModel(DataSpace.CSpace);
+
+            var sourceEntityType = new EntityType();
+            var targetEntityType = new EntityType();
+
+            model.AddEntitySet("S", sourceEntityType);
+            model.AddEntitySet("T", targetEntityType);
+
+            var associationType
+                = model.AddAssociationType(
+                    "A",
+                    sourceEntityType, RelationshipMultiplicity.ZeroOrOne,
+                    targetEntityType, RelationshipMultiplicity.Many);
+
             model.AddAssociationSet("FooSet", associationType);
 
             model.RemoveAssociationType(associationType);
 
-            Assert.Equal(0, model.GetAssociationTypes().Count());
+            Assert.Equal(0, model.AssociationTypes.Count());
             Assert.Equal(0, model.Containers.First().AssociationSets.Count());
         }
 
         [Fact]
-        public void AddAssociationType_should_create_and_add_to_default_namespace()
+        public void AddAssociationType_should_create_and_add_with_default_namespace()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
+
             var sourceEntityType = model.AddEntityType("Source");
             var targetEntityType = model.AddEntityType("Target");
 
             var associationType = model.AddAssociationType(
                 "Foo",
-                sourceEntityType, EdmAssociationEndKind.Required,
-                targetEntityType, EdmAssociationEndKind.Many);
+                sourceEntityType, RelationshipMultiplicity.One,
+                targetEntityType, RelationshipMultiplicity.Many);
 
             Assert.NotNull(associationType);
             Assert.Equal("Foo", associationType.Name);
-            Assert.Same(sourceEntityType, associationType.SourceEnd.EntityType);
-            Assert.Equal(EdmAssociationEndKind.Required, associationType.SourceEnd.EndKind);
-            Assert.Same(targetEntityType, associationType.TargetEnd.EntityType);
-            Assert.Equal(EdmAssociationEndKind.Many, associationType.TargetEnd.EndKind);
-            Assert.True(model.Namespaces.Single().AssociationTypes.Contains(associationType));
+            Assert.Equal(EdmModelExtensions.DefaultModelNamespace, associationType.NamespaceName);
+            Assert.Same(sourceEntityType, associationType.SourceEnd.GetEntityType());
+            Assert.Equal(RelationshipMultiplicity.One, associationType.SourceEnd.RelationshipMultiplicity);
+            Assert.Same(targetEntityType, associationType.TargetEnd.GetEntityType());
+            Assert.Equal(RelationshipMultiplicity.Many, associationType.TargetEnd.RelationshipMultiplicity);
+            Assert.True(model.AssociationTypes.Contains(associationType));
+        }
+
+        [Fact]
+        public void AddAssociationType_should_create_and_add_with_custom_namespace()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+
+            var sourceEntityType = model.AddEntityType("Source");
+            var targetEntityType = model.AddEntityType("Target");
+
+            var associationType = model.AddAssociationType(
+                "Foo",
+                sourceEntityType, RelationshipMultiplicity.One,
+                targetEntityType, RelationshipMultiplicity.Many,
+                "Bar");
+
+            Assert.NotNull(associationType);
+            Assert.Equal("Foo", associationType.Name);
+            Assert.Equal("Bar", associationType.NamespaceName);
+            Assert.Same(sourceEntityType, associationType.SourceEnd.GetEntityType());
+            Assert.Equal(RelationshipMultiplicity.One, associationType.SourceEnd.RelationshipMultiplicity);
+            Assert.Same(targetEntityType, associationType.TargetEnd.GetEntityType());
+            Assert.Equal(RelationshipMultiplicity.Many, associationType.TargetEnd.RelationshipMultiplicity);
+            Assert.True(model.AssociationTypes.Contains(associationType));
         }
 
         [Fact]
         public void AddAssociationSet_should_create_and_add_to_default_container()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
+
             var sourceEntityType = model.AddEntityType("Source");
             var targetEntityType = model.AddEntityType("Target");
+
+            model.AddEntitySet("S", sourceEntityType);
+            model.AddEntitySet("T", targetEntityType);
+
             var associationType = model.AddAssociationType(
                 "Foo",
-                sourceEntityType, EdmAssociationEndKind.Required,
-                targetEntityType, EdmAssociationEndKind.Many);
+                sourceEntityType, RelationshipMultiplicity.One,
+                targetEntityType, RelationshipMultiplicity.Many);
 
             var associationSet = model.AddAssociationSet("FooSet", associationType);
 
@@ -384,7 +505,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void GetDerivedTypes_must_return_list_of_direct_descendants()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var entity1 = model.AddEntityType("E1");
             var entity2 = model.AddEntityType("E2");
             var entity3 = model.AddEntityType("E3");

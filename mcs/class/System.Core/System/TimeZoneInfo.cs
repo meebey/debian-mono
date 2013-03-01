@@ -29,11 +29,11 @@
 using System;
 using System.Runtime.CompilerServices;
 
-#if !INSIDE_CORLIB && (NET_4_0 || MOONLIGHT || MOBILE)
+#if !INSIDE_CORLIB && NET_4_0
 
 [assembly:TypeForwardedTo (typeof(TimeZoneInfo))]
 
-#elif (INSIDE_CORLIB && (NET_4_0 || MOONLIGHT || MOBILE)) || (!INSIDE_CORLIB && (NET_3_5 && !NET_4_0 && !MOBILE))
+#elif (INSIDE_CORLIB && NET_4_0) || (!INSIDE_CORLIB && (NET_3_5 && !NET_4_0 && !MOBILE))
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -49,10 +49,10 @@ using Microsoft.Win32;
 
 namespace System
 {
-#if NET_4_0
-	[TypeForwardedFrom (Consts.AssemblySystemCore_3_5)]
-#elif MOONLIGHT || MOBILE
+#if MOBILE
 	[TypeForwardedFrom (Consts.AssemblySystem_Core)]
+#elif NET_4_0
+	[TypeForwardedFrom (Consts.AssemblySystemCore_3_5)]
 #endif
 	[SerializableAttribute]
 	public sealed partial class TimeZoneInfo : IEquatable<TimeZoneInfo>, ISerializable, IDeserializationCallback
@@ -246,9 +246,21 @@ namespace System
 
 		}
 
-		public static DateTimeOffset ConvertTime (DateTimeOffset dateTimeOffset, TimeZoneInfo destinationTimeZone)
+		public static DateTimeOffset ConvertTime(DateTimeOffset dateTimeOffset, TimeZoneInfo destinationTimeZone) 
 		{
-			throw new NotImplementedException ();
+			if (destinationTimeZone == null) 
+				throw new ArgumentNullException("destinationTimeZone");
+		
+			var utcDateTime = dateTimeOffset.UtcDateTime;
+			AdjustmentRule rule = destinationTimeZone.GetApplicableRule (utcDateTime);
+		
+			if (rule != null && destinationTimeZone.IsDaylightSavingTime(utcDateTime)) {
+				var offset = destinationTimeZone.BaseUtcOffset + rule.DaylightDelta;
+				return new DateTimeOffset(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Unspecified) + offset, offset);
+			}
+			else {
+				return new DateTimeOffset(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Unspecified) + destinationTimeZone.BaseUtcOffset, destinationTimeZone.BaseUtcOffset);
+			}
 		}
 
 		public static DateTime ConvertTimeBySystemTimeZoneId (DateTime dateTime, string destinationTimeZoneId)
@@ -382,7 +394,10 @@ namespace System
 			}
 #endif
 #if MONODROID
-			return ZoneInfoDB.GetTimeZone (id);
+			var timeZoneInfo = ZoneInfoDB.GetTimeZone (id);
+			if (timeZoneInfo == null)
+				throw new TimeZoneNotFoundException ();
+			return timeZoneInfo;
 #else
 			// Local requires special logic that already exists in the Local property (bug #326)
 			if (id == "Local")

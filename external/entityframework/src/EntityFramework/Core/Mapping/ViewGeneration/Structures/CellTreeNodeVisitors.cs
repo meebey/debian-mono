@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -14,8 +15,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
     internal partial class CellTreeNode
     {
-        #region Abstract Visitors
-
         // Abstract visitor implementation for Cell trees
         // TOutput is the return type of the visitor and TInput is a single
         // parameter that can be passed in
@@ -36,10 +35,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             internal abstract TOutput VisitLeaf(LeafCellTreeNode node, TInput param);
             internal abstract TOutput VisitOpNode(OpCellTreeNode node, TInput param);
         }
-
-        #endregion
-
-        #region Default CellTree Visitor
 
         // Default visitor implementation for CellTreeVisitor
         // TInput is the type of the parameter that can be passed in to each visit 
@@ -87,15 +82,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region Flattening Visitor
-
         // Flattens the tree, i.e., pushes up nodes that just have just one child
         private class FlatteningVisitor : SimpleCellTreeVisitor<bool, CellTreeNode>
         {
-            #region Constructor/Fields/Invocation
-
             protected FlatteningVisitor()
             {
             }
@@ -106,10 +95,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var visitor = new FlatteningVisitor();
                 return node.Accept(visitor, true);
             }
-
-            #endregion
-
-            #region Visitors
 
             internal override CellTreeNode VisitLeaf(LeafCellTreeNode node, bool dummy)
             {
@@ -140,13 +125,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var result = new OpCellTreeNode(node.ViewgenContext, node.OpType, flattenedChildren);
                 return result;
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region AssociativeOpFlatteningVisitor
 
         // Flattens associative ops and single children nodes. Like the
         // FlatteningVisitor, it gets rid of the single children
@@ -154,8 +133,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         // i.e., A IJ (B IJ C) is changed to A IJ B IJ C
         private class AssociativeOpFlatteningVisitor : SimpleCellTreeVisitor<bool, CellTreeNode>
         {
-            #region Constructor/Fields/Invocation
-
             private AssociativeOpFlatteningVisitor()
             {
             }
@@ -167,10 +144,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var visitor = new AssociativeOpFlatteningVisitor();
                 return newNode.Accept(visitor, true);
             }
-
-            #endregion
-
-            #region Visitors
 
             internal override CellTreeNode VisitLeaf(LeafCellTreeNode node, bool dummy)
             {
@@ -212,13 +185,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 var result = new OpCellTreeNode(node.ViewgenContext, node.OpType, finalChildren);
                 return result;
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region LeafVisitor
 
         // This visitor returns all the leaf tree nodes in this
         private class LeafVisitor : SimpleCellTreeVisitor<bool, IEnumerable<LeafCellTreeNode>>
@@ -250,7 +217,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 }
             }
         }
-
-        #endregion
     }
 }

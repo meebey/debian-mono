@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServerCompact
 {
     using System.Data.Common;
@@ -109,7 +110,7 @@ namespace System.Data.Entity.SqlServerCompact
             get { return commandTexts; }
             set
             {
-                Debug.Assert(value == null || value.Length <= 2, "Atmost 2 queries are expected at any point of time!!!");
+                Debug.Assert(value == null || value.Length <= 2, "At most 2 queries are expected at any point of time.");
                 commandTexts = value ?? new string[1];
             }
         }

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
 {
     using System.Collections.Generic;
@@ -12,8 +13,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
     // Class representing a key constraint on the view cell relations
     internal class ViewKeyConstraint : KeyConstraint<ViewCellRelation, ViewCellSlot>
     {
-        #region Constructor
-
         //  effects: Constructs a key constraint for the given relation and keyslots
         internal ViewKeyConstraint(ViewCellRelation relation, IEnumerable<ViewCellSlot> keySlots)
             :
@@ -21,19 +20,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         {
         }
 
-        #endregion
-
-        #region Properties
-
         // effects: Returns the cell corresponding to this constraint
         internal Cell Cell
         {
             get { return CellRelation.Cell; }
         }
-
-        #endregion
-
-        #region Methods
 
         internal bool Implies(ViewKeyConstraint second)
         {
@@ -186,7 +177,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             return new ErrorLog.Record(
                 ViewGenErrorCode.KeyConstraintUpdateViolation, message, rightKeyConstraint.CellRelation.Cell, debugMessage);
         }
-
-        #endregion
     }
 }

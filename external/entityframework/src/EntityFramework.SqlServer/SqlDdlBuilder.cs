@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServer
 {
     using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace System.Data.Entity.SqlServer
         private readonly StringBuilder unencodedStringBuilder = new StringBuilder();
         private readonly HashSet<EntitySet> ignoredEntitySets = new HashSet<EntitySet>();
 
-        #region Pulblic Surface
+        #region Public Surface
 
         internal static string CreateObjectsScript(StoreItemCollection itemCollection, bool createSchemas)
         {
@@ -67,6 +68,42 @@ namespace System.Data.Entity.SqlServer
                 builder.AppendSql(" log on ");
                 builder.AppendFileName(logFileName);
             }
+
+            return builder.unencodedStringBuilder.ToString();
+        }
+
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "EngineEdition")]
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "serverproperty")]
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "spexecutesql")]
+        [SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters",
+            MessageId = "System.Data.Entity.SqlServer.SqlDdlBuilder.AppendSql(System.String)")]
+        internal static string SetDatabaseOptionsScript(SqlVersion sqlVersion, string databaseName)
+        {
+            if (sqlVersion < SqlVersion.Sql9)
+            {
+                return String.Empty;
+            }
+
+            var builder = new SqlDdlBuilder();
+
+            // Set READ_COMMITTED_SNAPSHOT ON, if SQL Server 2005 and up, and not SQLAzure.
+            builder.AppendSql("if serverproperty('EngineEdition') <> 5 execute sp_executesql ");
+            builder.AppendStringLiteral(SetReadCommittedSnapshotScript(databaseName));
+
+            return builder.unencodedStringBuilder.ToString();
+        }
+
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "readcommittedsnapshot")]
+        [SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters",
+            MessageId = "System.Data.Entity.SqlServer.SqlDdlBuilder.AppendSql(System.String)")]
+        private static string SetReadCommittedSnapshotScript(string databaseName)
+        {
+            var builder = new SqlDdlBuilder();
+
+            builder.AppendSql("alter database ");
+            builder.AppendIdentifier(databaseName);
+            builder.AppendSql(" set read_committed_snapshot on");
+
             return builder.unencodedStringBuilder.ToString();
         }
 
@@ -163,8 +200,10 @@ namespace System.Data.Entity.SqlServer
         internal static string DropDatabaseScript(string databaseName)
         {
             var builder = new SqlDdlBuilder();
+
             builder.AppendSql("drop database ");
             builder.AppendIdentifier(databaseName);
+
             return builder.unencodedStringBuilder.ToString();
         }
 
@@ -363,9 +402,12 @@ namespace System.Data.Entity.SqlServer
             // check for rowversion-like configurations
             Facet storeGenFacet;
             var isTimestamp = false;
-            if (type.EdmType.Name == "binary" &&
-                8 == type.GetMaxLength() &&
-                column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet) &&
+            if (type.EdmType.Name == "binary"
+                &&
+                8 == type.GetMaxLength()
+                &&
+                column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet)
+                &&
                 storeGenFacet.Value != null
                 &&
                 StoreGeneratedPattern.Computed == (StoreGeneratedPattern)storeGenFacet.Value)
@@ -418,7 +460,8 @@ namespace System.Data.Entity.SqlServer
             }
             AppendSql(column.Nullable ? " null" : " not null");
 
-            if (!isTimestamp && column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet)
+            if (!isTimestamp
+                && column.TypeUsage.Facets.TryGetValue("StoreGeneratedPattern", false, out storeGenFacet)
                 &&
                 storeGenFacet.Value != null)
             {
@@ -440,16 +483,16 @@ namespace System.Data.Entity.SqlServer
         #region Access to underlying string builder
 
         /// <summary>
-        /// Appends raw SQL into the string builder.
+        ///     Appends raw SQL into the string builder.
         /// </summary>
-        /// <param name="text">Raw SQL string to append into the string builder.</param>
+        /// <param name="text"> Raw SQL string to append into the string builder. </param>
         private void AppendSql(string text)
         {
             unencodedStringBuilder.Append(text);
         }
 
         /// <summary>
-        /// Appends new line for visual formatting or for ending a comment.
+        ///     Appends new line for visual formatting or for ending a comment.
         /// </summary>
         private void AppendNewLine()
         {
@@ -457,10 +500,10 @@ namespace System.Data.Entity.SqlServer
         }
 
         /// <summary>
-        /// Append raw SQL into the string builder with formatting options and invariant culture formatting.
+        ///     Append raw SQL into the string builder with formatting options and invariant culture formatting.
         /// </summary>
-        /// <param name="format">A composite format string.</param>
-        /// <param name="args">An array of objects to format.</param>
+        /// <param name="format"> A composite format string. </param>
+        /// <param name="args"> An array of objects to format. </param>
         private void AppendSqlInvariantFormat(string format, params object[] args)
         {
             unencodedStringBuilder.AppendFormat(CultureInfo.InvariantCulture, format, args);

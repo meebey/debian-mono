@@ -1,18 +1,19 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils
 {
     using System.Collections.Generic;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// An implementation of IEqualityComparer&lt;object&gt; that compares byte[] instances by value, and
-    /// delegates all other equality comparisons to a specified IEqualityComparer. In the default case,
-    /// this provides by-value comparison for instances of the CLR equivalents of all EDM primitive types.
+    ///     An implementation of IEqualityComparer&lt;object&gt; that compares byte[] instances by value, and
+    ///     delegates all other equality comparisons to a specified IEqualityComparer. In the default case,
+    ///     this provides by-value comparison for instances of the CLR equivalents of all EDM primitive types.
     /// </summary>
     internal sealed class ByValueEqualityComparer : IEqualityComparer<object>
     {
         /// <summary>
-        /// Provides by-value comparison for instances of the CLR equivalents of all EDM primitive types.
+        ///     Provides by-value comparison for instances of the CLR equivalents of all EDM primitive types.
         /// </summary>
         internal static readonly ByValueEqualityComparer Default = new ByValueEqualityComparer();
 
@@ -61,7 +62,7 @@ namespace System.Data.Entity.Core.Common.Utils
 
         internal static int ComputeBinaryHashCode(byte[] bytes)
         {
-            Debug.Assert(bytes != null, "Byte array cannot be null");
+            DebugCheck.NotNull(bytes);
             var hashCode = 0;
             for (int i = 0, n = Math.Min(bytes.Length, 7); i < n; i++)
             {
@@ -72,7 +73,8 @@ namespace System.Data.Entity.Core.Common.Utils
 
         internal static bool CompareBinaryValues(byte[] first, byte[] second)
         {
-            Debug.Assert(first != null && second != null, "Arguments cannot be null");
+            DebugCheck.NotNull(first);
+            DebugCheck.NotNull(second);
 
             if (first.Length
                 != second.Length)

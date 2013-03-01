@@ -1,10 +1,12 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
@@ -25,11 +27,9 @@ namespace System.Data.Entity.Core.Mapping
             m_hashSourceBuilder = new CompressingHashBuilder(MetadataHelper.CreateMetadataHashAlgorithm(m_MappingVersion));
         }
 
-        #region visitor method
-
         protected override void Visit(StorageEntityContainerMapping storageEntityContainerMapping)
         {
-            Debug.Assert(storageEntityContainerMapping != null, "storageEntityContainerMapping cannot be null!");
+            DebugCheck.NotNull(storageEntityContainerMapping);
 
             // at the entry point of visitor, we setup the versions
             Debug.Assert(
@@ -720,10 +720,6 @@ namespace System.Data.Entity.Core.Mapping
             // no need to store more info.
         }
 
-        #endregion
-
-        #region hasher helper method
-
         internal string HashValue
         {
             get { return m_hashSourceBuilder.ComputeHash(); }
@@ -738,12 +734,12 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// if already seen, then out the object instance index, return false;
-        /// if haven't seen, then add it to the m_itemAlreadySeen, out the current index, return true
+        ///     if already seen, then out the object instance index, return false;
+        ///     if haven't seen, then add it to the m_itemAlreadySeen, out the current index, return true
         /// </summary>
-        /// <param name="o"></param>
-        /// <param name="indexSeen"></param>
-        /// <returns></returns>
+        /// <param name="o"> </param>
+        /// <param name="indexSeen"> </param>
+        /// <returns> </returns>
         private bool TryAddSeenItem(Object o, out int indexSeen)
         {
             if (!m_itemsAlreadySeen.TryGetValue(o, out indexSeen))
@@ -759,11 +755,11 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// if the object has seen, then add the seen object style to the hash source, return false;
-        /// if not, then add it to the seen list, and append the object start dump to the hash source, return true
+        ///     if the object has seen, then add the seen object style to the hash source, return false;
+        ///     if not, then add it to the seen list, and append the object start dump to the hash source, return true
         /// </summary>
-        /// <param name="o"></param>
-        /// <returns></returns>
+        /// <param name="o"> </param>
+        /// <returns> </returns>
         private bool AddObjectToSeenListAndHashBuilder(object o, out int instanceIndex)
         {
             if (o == null)
@@ -821,10 +817,10 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Add V2 schema properties and attributes to the hash builder
+        ///     Add V2 schema properties and attributes to the hash builder
         /// </summary>
-        /// <param name="content"></param>
-        /// <param name="defaultValue"></param>
+        /// <param name="content"> </param>
+        /// <param name="defaultValue"> </param>
         private void AddV2ObjectContentToHashBuilder(object content, double version)
         {
             // if the version number is greater than or equal to V2, then we add the value
@@ -836,13 +832,11 @@ namespace System.Data.Entity.Core.Mapping
 
         internal static string GetMappingClosureHash(double mappingVersion, StorageEntityContainerMapping storageEntityContainerMapping)
         {
-            Debug.Assert(storageEntityContainerMapping != null, "storageEntityContainerMapping is null!");
+            DebugCheck.NotNull(storageEntityContainerMapping);
 
             var visitor = new MetadataMappingHasherVisitor(mappingVersion);
             visitor.Visit(storageEntityContainerMapping);
             return visitor.HashValue;
         }
-
-        #endregion
     }
 }

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections;
@@ -8,9 +9,9 @@ namespace System.Data.Entity.Core.Mapping
     using System.Data.Entity.Core.Common.Utils.Boolean;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
 
     internal sealed class FunctionImportStructuralTypeMappingKB
@@ -20,8 +21,8 @@ namespace System.Data.Entity.Core.Mapping
             IEnumerable<FunctionImportStructuralTypeMapping> structuralTypeMappings,
             ItemCollection itemCollection)
         {
-            Contract.Requires(structuralTypeMappings != null);
-            Contract.Requires(itemCollection != null);
+            DebugCheck.NotNull(structuralTypeMappings);
+            DebugCheck.NotNull(itemCollection);
 
             m_itemCollection = itemCollection;
 
@@ -191,24 +192,24 @@ namespace System.Data.Entity.Core.Mapping
         private readonly KeyToListMap<EntityType, LineInfo> m_isTypeOfLineInfos;
 
         /// <summary>
-        /// Gets all types in scope for this mapping.
+        ///     Gets all types in scope for this mapping.
         /// </summary>
         internal readonly ReadOnlyCollection<EntityType> MappedEntityTypes;
 
         /// <summary>
-        /// Gets a list of all discriminator columns used in this mapping.
+        ///     Gets a list of all discriminator columns used in this mapping.
         /// </summary>
         internal readonly ReadOnlyCollection<string> DiscriminatorColumns;
 
         /// <summary>
-        /// Gets normalized representation of all EntityTypeMapping fragments for this
-        /// function import mapping.
+        ///     Gets normalized representation of all EntityTypeMapping fragments for this
+        ///     function import mapping.
         /// </summary>
         internal readonly ReadOnlyCollection<FunctionImportNormalizedEntityTypeMapping> NormalizedEntityTypeMappings;
 
         /// <summary>
-        /// Get the columns rename mapping for return type, the first string is the member name
-        /// the second one is column names for different types that mentioned in the mapping.
+        ///     Get the columns rename mapping for return type, the first string is the member name
+        ///     the second one is column names for different types that mentioned in the mapping.
         /// </summary>
         internal readonly Dictionary<string, FunctionImportReturnTypeStructuralTypeColumnRenameMapping> ReturnTypeColumnsRenameMapping;
 
@@ -255,13 +256,11 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Determines which explicitly mapped types in the function import mapping cannot be generated.
-        /// For IsTypeOf declarations, reports if no type in hierarchy can be produced.
-        /// 
-        /// Works by:
-        /// 
-        /// - Converting type mapping conditions into vertices
-        /// - Checking that some assignment satisfies 
+        ///     Determines which explicitly mapped types in the function import mapping cannot be generated.
+        ///     For IsTypeOf declarations, reports if no type in hierarchy can be produced.
+        ///     Works by:
+        ///     - Converting type mapping conditions into vertices
+        ///     - Checking that some assignment satisfies
         /// </summary>
         private void GetUnreachableTypes(
             bool validateAmbiguity,
@@ -361,7 +360,7 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Determines which types are produced by this mapping.
+        ///     Determines which types are produced by this mapping.
         /// </summary>
         private Set<EntityType> FindReachableTypes(
             DomainConstraintConversionContext<string, ValueCondition> converter, Vertex[] mappingConditions)
@@ -414,7 +413,7 @@ namespace System.Data.Entity.Core.Mapping
         }
 
         /// <summary>
-        /// Determines which types are produced by this mapping.
+        ///     Determines which types are produced by this mapping.
         /// </summary>
         private Set<EntityType> FindUnambiguouslyReachableTypes(
             DomainConstraintConversionContext<string, ValueCondition> converter, Vertex[] mappingConditions)
@@ -492,9 +491,9 @@ namespace System.Data.Entity.Core.Mapping
             foreach (var isTypeOf in m_isTypeOfLineInfos.Keys)
             {
                 if (!MetadataHelper.GetTypeAndSubtypesOf(isTypeOf, m_itemCollection, false)
-                         .Cast<EntityType>()
-                         .Intersect(reachableTypes)
-                         .Any())
+                                   .Cast<EntityType>()
+                                   .Intersect(reachableTypes)
+                                   .Any())
                 {
                     // no type in the hierarchy is reachable...
                     isTypeOfEntityTypes.AddRange(isTypeOf, m_isTypeOfLineInfos.EnumerateValues(isTypeOf));

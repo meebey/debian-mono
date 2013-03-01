@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations.Schema;
@@ -14,7 +15,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
             var mockPropertyInfo = new MockPropertyInfo();
             var entityTypeConfiguration = new EntityTypeConfiguration(typeof(object));
 
-            new NotMappedPropertyAttributeConvention.NotMappedPropertyAttributeConventionImpl()
+            new NotMappedPropertyAttributeConvention()
                 .Apply(mockPropertyInfo, entityTypeConfiguration, new NotMappedAttribute());
 
             Assert.True(entityTypeConfiguration.IgnoredProperties.Contains(mockPropertyInfo));

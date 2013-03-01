@@ -1,12 +1,14 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Infrastructure
 {
     using System.Data.Common;
+    using System.Data.Entity.Config;
     using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Data.SqlClient;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Instances of this class are used to create DbConnection objects for
@@ -15,7 +17,7 @@ namespace System.Data.Entity.Infrastructure
     ///     string when constructing a factory instance.
     /// </summary>
     /// <remarks>
-    ///     An instance of this class can be set on the <see cref = "Database" /> class to
+    ///     An instance of this class can be set on the <see cref="Database" /> class to
     ///     cause all DbContexts created with no connection information or just a database
     ///     name or connection string to use SQL Server by default.
     ///     This class is immutable since multiple threads may access instances simultaneously
@@ -32,23 +34,20 @@ namespace System.Data.Entity.Infrastructure
 
         /// <summary>
         ///     Creates a new connection factory with a default BaseConnectionString property of
-        ///     'Data Source=.\SQLEXPRESS; Integrated Security=True; MultipleActiveResultSets=True'.
+        ///     'Data Source=.\SQLEXPRESS; Integrated Security=True;'.
         /// </summary>
         public SqlConnectionFactory()
         {
-            _baseConnectionString = @"Data Source=.\SQLEXPRESS; Integrated Security=True; MultipleActiveResultSets=True";
+            _baseConnectionString = @"Data Source=.\SQLEXPRESS; Integrated Security=True;";
         }
 
         /// <summary>
         ///     Creates a new connection factory with the given BaseConnectionString property.
         /// </summary>
-        /// <param name = "baseConnectionString">
-        ///     The connection string to use for options to the database other than the 'Initial Catalog'. The 'Initial Catalog' will
-        ///     be prepended to this string based on the database name when CreateConnection is called.
-        /// </param>
+        /// <param name="baseConnectionString"> The connection string to use for options to the database other than the 'Initial Catalog'. The 'Initial Catalog' will be prepended to this string based on the database name when CreateConnection is called. </param>
         public SqlConnectionFactory(string baseConnectionString)
         {
-            Contract.Requires(baseConnectionString != null);
+            Check.NotNull(baseConnectionString, "baseConnectionString");
 
             _baseConnectionString = baseConnectionString;
         }
@@ -63,10 +62,10 @@ namespace System.Data.Entity.Infrastructure
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal Func<string, DbProviderFactory> ProviderFactory
         {
-            get { return _providerFactoryCreator ?? (name => DbProviderFactories.GetFactory(name)); }
+            get { return _providerFactoryCreator ?? (DbConfiguration.GetService<DbProviderFactory>); }
             set
             {
-                Contract.Assert(value != null);
+                DebugCheck.NotNull(value);
                 _providerFactoryCreator = value;
             }
         }
@@ -75,7 +74,7 @@ namespace System.Data.Entity.Infrastructure
         ///     The connection string to use for options to the database other than the 'Initial Catalog'.
         ///     The 'Initial Catalog' will  be prepended to this string based on the database name when
         ///     CreateConnection is called.
-        ///     The default is 'Data Source=.\SQLEXPRESS; Integrated Security=True; MultipleActiveResultSets=True'.
+        ///     The default is 'Data Source=.\SQLEXPRESS; Integrated Security=True;'.
         /// </summary>
         public string BaseConnectionString
         {
@@ -91,11 +90,13 @@ namespace System.Data.Entity.Infrastructure
         ///     If the given string contains an '=' character then it is treated as a full connection string,
         ///     otherwise it is treated as a database name only.
         /// </summary>
-        /// <param name = "nameOrConnectionString">The database name or connection string.</param>
-        /// <returns>An initialized DbConnection.</returns>
+        /// <param name="nameOrConnectionString"> The database name or connection string. </param>
+        /// <returns> An initialized DbConnection. </returns>
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
         public DbConnection CreateConnection(string nameOrConnectionString)
         {
+            Check.NotEmpty(nameOrConnectionString, "nameOrConnectionString");
+
             // If the "name or connection string" contains an '=' character then it is treated as a connection string.
             var connectionString = nameOrConnectionString;
             if (!DbHelpers.TreatAsConnectionString(nameOrConnectionString))

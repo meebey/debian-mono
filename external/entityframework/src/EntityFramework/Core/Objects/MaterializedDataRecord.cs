@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Collections.Generic;
@@ -13,7 +14,7 @@ namespace System.Data.Entity.Core.Objects
     using System.Globalization;
 
     /// <summary>
-    /// Instances of this class would be returned to user via Query&lt;T&gt;
+    ///     Instances of this class would be returned to user via Query&lt;T&gt;
     /// </summary>
     internal sealed class MaterializedDataRecord : DbDataRecord, IExtendedDataRecord, ICustomTypeDescriptor
     {
@@ -24,11 +25,12 @@ namespace System.Data.Entity.Core.Objects
         private readonly object[] _values;
 
         /// <summary>
-        ///
         /// </summary>
         internal MaterializedDataRecord(MetadataWorkspace workspace, TypeUsage edmUsage, object[] values)
         {
-            Debug.Assert(null != edmUsage && null != values, "null recordType or values");
+            DebugCheck.NotNull(edmUsage);
+            DebugCheck.NotNull(values);
+
             _workspace = workspace;
             _edmUsage = edmUsage;
 #if DEBUG
@@ -41,7 +43,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public DataRecordInfo DataRecordInfo
         {
@@ -68,7 +69,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override int FieldCount
         {
@@ -76,7 +76,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override object this[int ordinal]
         {
@@ -84,7 +83,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override object this[string name]
         {
@@ -92,7 +90,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override bool GetBoolean(int ordinal)
         {
@@ -100,7 +97,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override byte GetByte(int ordinal)
         {
@@ -108,7 +104,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes")]
         public override long GetBytes(int ordinal, long fieldOffset, byte[] buffer, int bufferOffset, int length)
@@ -157,7 +152,6 @@ namespace System.Data.Entity.Core.Objects
             }
             catch (Exception e)
             {
-                // UNDONE - should not be catching all exceptions!!!
                 if (e.IsCatchableExceptionType())
                 {
                     cbytes = data.Length;
@@ -203,7 +197,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override char GetChar(int ordinal)
         {
@@ -211,7 +204,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         [SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes")]
         public override long GetChars(int ordinal, long fieldOffset, char[] buffer, int bufferOffset, int length)
@@ -258,7 +250,6 @@ namespace System.Data.Entity.Core.Objects
             }
             catch (Exception e)
             {
-                // UNDONE - should not be catching all exceptions!!!
                 if (e.IsCatchableExceptionType())
                 {
                     cchars = data.Length;
@@ -304,7 +295,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public DbDataRecord GetDataRecord(int ordinal)
         {
@@ -312,7 +302,7 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Used to return a nested result
+        ///     Used to return a nested result
         /// </summary>
         public DbDataReader GetDataReader(int i)
         {
@@ -320,7 +310,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override string GetDataTypeName(int ordinal)
         {
@@ -328,7 +317,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override DateTime GetDateTime(int ordinal)
         {
@@ -336,7 +324,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override Decimal GetDecimal(int ordinal)
         {
@@ -344,7 +331,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override double GetDouble(int ordinal)
         {
@@ -352,7 +338,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override Type GetFieldType(int ordinal)
         {
@@ -361,7 +346,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override float GetFloat(int ordinal)
         {
@@ -369,7 +353,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override Guid GetGuid(int ordinal)
         {
@@ -377,7 +360,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override Int16 GetInt16(int ordinal)
         {
@@ -385,7 +367,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override Int32 GetInt32(int ordinal)
         {
@@ -393,7 +374,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override Int64 GetInt64(int ordinal)
         {
@@ -401,7 +381,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override string GetName(int ordinal)
         {
@@ -409,7 +388,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override int GetOrdinal(string name)
         {
@@ -421,7 +399,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override string GetString(int ordinal)
         {
@@ -429,7 +406,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override object GetValue(int ordinal)
         {
@@ -437,14 +413,10 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override int GetValues(object[] values)
         {
-            if (null == values)
-            {
-                throw new ArgumentNullException("values");
-            }
+            Check.NotNull(values, "values");
 
             var copyLen = Math.Min(values.Length, FieldCount);
             for (var i = 0; i < copyLen; ++i)
@@ -460,7 +432,6 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        ///
         /// </summary>
         public override bool IsDBNull(int ordinal)
         {
@@ -524,10 +495,10 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Initialize the property descriptors for each PrimitiveType attribute.
-        /// See similar functionality in DataRecordObjectView's ITypedList implementation.
+        ///     Initialize the property descriptors for each PrimitiveType attribute.
+        ///     See similar functionality in DataRecordObjectView's ITypedList implementation.
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         private PropertyDescriptorCollection InitializePropertyDescriptors()
         {
             if (null == _values)
@@ -548,13 +519,13 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Creates a PropertyDescriptorCollection based on a StructuralType definition
-        /// Currently this includes a PropertyDescriptor for each primitive type property in the StructuralType
+        ///     Creates a PropertyDescriptorCollection based on a StructuralType definition
+        ///     Currently this includes a PropertyDescriptor for each primitive type property in the StructuralType
         /// </summary>
-        /// <param name="structuralType">The structural type definition</param>
-        /// <param name="componentType">The type to use as the component type</param>
-        /// <param name="isReadOnly">Whether the properties in the collection should be read only or not</param>
-        /// <returns></returns>
+        /// <param name="structuralType"> The structural type definition </param>
+        /// <param name="componentType"> The type to use as the component type </param>
+        /// <param name="isReadOnly"> Whether the properties in the collection should be read only or not </param>
+        /// <returns> </returns>
         internal static PropertyDescriptorCollection CreatePropertyDescriptorCollection(
             StructuralType structuralType, Type componentType, bool isReadOnly)
         {
@@ -594,7 +565,8 @@ namespace System.Data.Entity.Core.Objects
             var cache = _filterCache;
 
             // Use a cached version if possible
-            if (filtering && cache != null
+            if (filtering
+                && cache != null
                 && cache.IsValid(attributes))
             {
                 return cache.FilteredProperties;
@@ -607,7 +579,8 @@ namespace System.Data.Entity.Core.Objects
 
             //Build up the attribute cache, since our PropertyDescriptor doesn't store it internally.
             // _values is set only during construction.
-            if (null == _attrCache && null != attributes
+            if (null == _attrCache
+                && null != attributes
                 && 0 < attributes.Length)
             {
                 _attrCache = new Dictionary<object, AttributeCollection>();

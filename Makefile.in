@@ -317,11 +317,13 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 MOONLIGHT_SUBDIRS = $(libgc_dir) eglib/src mono
-@CROSS_COMPILING_FALSE@@ONLY_MOONLIGHT_FALSE@SUBDIRS = po $(libgc_dir) eglib mono $(ikvm_native_dir) support data runtime scripts man samples msvc $(docs_dir)
-@CROSS_COMPILING_FALSE@@ONLY_MOONLIGHT_TRUE@SUBDIRS = $(MOONLIGHT_SUBDIRS) runtime
+MONOTOUCH_SUBDIRS = $(libgc_dir) eglib/src mono
+@CROSS_COMPILING_FALSE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@SUBDIRS = po $(libgc_dir) eglib mono $(ikvm_native_dir) support data runtime scripts man samples msvc $(docs_dir)
+@CROSS_COMPILING_FALSE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_TRUE@SUBDIRS = $(MOONLIGHT_SUBDIRS) runtime
+@CROSS_COMPILING_FALSE@@ONLY_MONOTOUCH_TRUE@SUBDIRS = $(MONOTOUCH_SUBDIRS) runtime
 @CROSS_COMPILING_TRUE@SUBDIRS = po $(libgc_dir) eglib mono $(ikvm_native_dir) data runtime scripts man samples msvc $(docs_dir)
 # Keep in sync with SUBDIRS
-@CROSS_COMPILING_FALSE@@ONLY_MOONLIGHT_FALSE@DIST_SUBDIRS = m4 po libgc eglib mono ikvm-native support data runtime scripts man samples tools msvc docs
+@CROSS_COMPILING_FALSE@@ONLY_MONOTOUCH_FALSE@@ONLY_MOONLIGHT_FALSE@DIST_SUBDIRS = m4 po libgc eglib mono ikvm-native support data runtime scripts man samples tools msvc docs
 # Keep in sync with SUBDIRS
 @CROSS_COMPILING_TRUE@DIST_SUBDIRS = m4 po libgc eglib mono ikvm-native data runtime scripts man samples tools msvc docs
 SUBMODULE_ERROR = 'Could not recursively update all git submodules. You may experience compilation problems if some submodules are out of date'
@@ -914,6 +916,28 @@ bootstrap-world: compiler-tests
 @MOONLIGHT_TRUE@        done;
 @MOONLIGHT_TRUE@	(cd runtime && $(MAKE) $(AM_MAKEFLAGS) moon-do-clean)
 
+@INSTALL_MONOTOUCH_TRUE@monotouch-do-build: config.h
+@INSTALL_MONOTOUCH_TRUE@	@list='$(MONOTOUCH_SUBDIRS)'; for subdir in $$list; do \
+@INSTALL_MONOTOUCH_TRUE@	  case "x$$subdir" in \
+@INSTALL_MONOTOUCH_TRUE@		xmono ) target="monotouch-do-build";; \
+@INSTALL_MONOTOUCH_TRUE@		* ) target="all";; \
+@INSTALL_MONOTOUCH_TRUE@	  esac; \
+@INSTALL_MONOTOUCH_TRUE@	  echo "Making $$target in $$subdir"; \
+@INSTALL_MONOTOUCH_TRUE@	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$target); \
+@INSTALL_MONOTOUCH_TRUE@        done;
+@INSTALL_MONOTOUCH_TRUE@	(cd runtime && $(MAKE) $(AM_MAKEFLAGS) monotouch-do-build)
+
+@INSTALL_MONOTOUCH_TRUE@monotouch-do-clean:
+@INSTALL_MONOTOUCH_TRUE@	@list='$(MONOTOUCH_SUBDIRS)'; for subdir in $$list; do \
+@INSTALL_MONOTOUCH_TRUE@	  case "x$$subdir" in \
+@INSTALL_MONOTOUCH_TRUE@		xmono ) target="monotouch-do-clean";; \
+@INSTALL_MONOTOUCH_TRUE@		* ) target="clean";; \
+@INSTALL_MONOTOUCH_TRUE@	  esac; \
+@INSTALL_MONOTOUCH_TRUE@	  echo "Making $$target in $$subdir"; \
+@INSTALL_MONOTOUCH_TRUE@	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$target); \
+@INSTALL_MONOTOUCH_TRUE@        done;
+@INSTALL_MONOTOUCH_TRUE@	(cd runtime && $(MAKE) $(AM_MAKEFLAGS) monotouch-do-clean)
+
 win32getdeps:
 	wget http://www.go-mono.com/archive/pkgconfig-0.11-20020310.zip
 	wget http://www.go-mono.com/archive/glib-2.0.4-20020703.zip 
@@ -933,6 +957,8 @@ win32setup:
 
 update-csproj:
 	-rm msvc/scripts/order 
+	-rm msvc/scripts/order.xml
+	-rm -rf msvc/scripts/inputs
 	-mkdir msvc/scripts/inputs
 	(cd runtime; make V=1 extra_targets=csproj-local)
 
@@ -941,17 +967,17 @@ package-inputs:
 	echo '<root>' >> msvc/scripts/order.xml
 	for i in `cat msvc/scripts/order`; do \
 		set `echo $$i | sed -e 's/:/ /' -e 's/.input//'`; \
-		cat msvc/scripts/inputs/$$2.input | \
+		cat msvc/scripts/inputs/$$2.input | sed -e 's/\\\\/\\/g' -e 's/\\/\\\\/g' | \
 		(echo "    <project dir=\"$$1\" library=\"$$2\">"; \
 		 read boot;   echo "      <boot>$$boot</boot>"; \
-		 read mcs;    echo "      <mcs>$$mcs</mcs>"; \
 		 read flags;  echo "      <flags>$$flags</flags>"; \
 		 read output; echo "      <output>$$output</output>"; \
-		 read built;  echo "      <built_sources>$$built</built_sources>"; \
+		 read built;  echo "      <built_sources>`echo $$built | sed 's/\\\/\\\\/g'`</built_sources>"; \
 		 read libou;  echo "      <library_output>$$libou</library_output>"; \
 		 read fx_ver; echo "      <fx_version>$$fx_ver</fx_version>"; \
+		 read profile; echo "      <profile>$$profile</profile>"; \
 		 read resp;   echo "      <response>$$resp</response>"; \
-		echo "    </project>") >> msvc/scripts/order.xml; \
+		 echo "    </project>") >> msvc/scripts/order.xml; \
 	done
 	echo "</root>" >> msvc/scripts/order.xml
 

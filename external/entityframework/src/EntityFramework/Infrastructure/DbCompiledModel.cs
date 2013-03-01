@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Infrastructure
 {
     using System.Collections.Concurrent;
@@ -7,14 +8,14 @@ namespace System.Data.Entity.Infrastructure
     using System.Data.Entity.Core.Objects;
     using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq.Expressions;
     using System.Reflection;
 
     /// <summary>
-    ///     An immutable representation of an Entity Data Model (EDM) model that can be used to create an 
-    ///     <see cref = "ObjectContext" /> or can be passed to the constructor of a <see cref = "DbContext" />. 
+    ///     An immutable representation of an Entity Data Model (EDM) model that can be used to create an
+    ///     <see cref="ObjectContext" /> or can be passed to the constructor of a <see cref="DbContext" />.
     ///     For increased performance, instances of this type should be cached and re-used to construct contexts.
     /// </summary>
     public class DbCompiledModel
@@ -35,7 +36,7 @@ namespace System.Data.Entity.Infrastructure
         private readonly DbModelBuilder _cachedModelBuilder;
 
         /// <summary>
-        /// For mocking.
+        ///     For mocking.
         /// </summary>
         internal DbCompiledModel()
         {
@@ -44,10 +45,10 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Creates a model for the given EDM metadata model.
         /// </summary>
-        /// <param name = "modelaseMapping">The EDM metadata model.</param>
+        /// <param name="modelaseMapping"> The EDM metadata model. </param>
         internal DbCompiledModel(DbModel model)
         {
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(model);
 
             _workspace = new CodeFirstCachedMetadataWorkspace(model.DatabaseMapping);
             _cachedModelBuilder = model.CachedModelBuilder;
@@ -58,7 +59,7 @@ namespace System.Data.Entity.Infrastructure
         #region Model/database metadata
 
         /// <summary>
-        /// A snapshot of the <see cref="DbModelBuilder"/> that was used to create this compiled model.
+        ///     A snapshot of the <see cref="DbModelBuilder" /> that was used to create this compiled model.
         /// </summary>
         internal virtual DbModelBuilder CachedModelBuilder
         {
@@ -66,7 +67,7 @@ namespace System.Data.Entity.Infrastructure
         }
 
         /// <summary>
-        /// The provider info (provider name and manifest token) that was used to create this model.
+        ///     The provider info (provider name and manifest token) that was used to create this model.
         /// </summary>
         internal virtual DbProviderInfo ProviderInfo
         {
@@ -90,13 +91,13 @@ namespace System.Data.Entity.Infrastructure
         ///     The connection passed is used by the ObjectContext created, but is not owned by the context.  The caller
         ///     must dispose of the connection once the context has been disposed.
         /// </summary>
-        /// <typeparam name = "TContext">The type of context to create.</typeparam>
-        /// <param name = "existingConnection">An existing connection to a database for use by the context.</param>
-        /// <returns></returns>
+        /// <typeparam name="TContext"> The type of context to create. </typeparam>
+        /// <param name="existingConnection"> An existing connection to a database for use by the context. </param>
+        /// <returns> </returns>
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public TContext CreateObjectContext<TContext>(DbConnection existingConnection) where TContext : ObjectContext
         {
-            Contract.Requires(existingConnection != null);
+            Check.NotNull(existingConnection, "existingConnection");
 
             var metadataWorkspace = _workspace.GetMetadataWorkspace(existingConnection);
             var entityConnection = new EntityConnection(metadataWorkspace, existingConnection);
@@ -143,7 +144,7 @@ namespace System.Data.Entity.Infrastructure
                 constructorDelegate =
                     Expression.Lambda<Func<EntityConnection, ObjectContext>>(
                         Expression.New(constructor, connectionParam), connectionParam).
-                        Compile();
+                               Compile();
 
                 _contextConstructors.TryAdd(typeof(TContext), constructorDelegate);
             }

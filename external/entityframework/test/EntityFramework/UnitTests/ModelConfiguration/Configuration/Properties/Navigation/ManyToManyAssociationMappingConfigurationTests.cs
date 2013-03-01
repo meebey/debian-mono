@@ -1,8 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 {
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
+    
+    using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.ModelConfiguration.Edm.Db;
     using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
     using System.Data.Entity.Resources;
@@ -13,17 +16,26 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         [Fact]
         public void Configure_should_rename_table_when_table_configured()
         {
-            var database = new DbDatabaseMetadata().Initialize();
+            var database = new EdmModel(DataSpace.SSpace);
             var table = database.AddTable("OriginalName");
-            var associationSetMapping = new DbAssociationSetMapping().Initialize();
-            associationSetMapping.Table = table;
+
+            var associationSetMapping
+                = new StorageAssociationSetMapping(
+                    new AssociationSet("AS", new AssociationType()),
+                    database.GetEntitySet(table))
+                    .Initialize();
 
             var manyToManyAssociationMappingConfiguration
                 = new ManyToManyAssociationMappingConfiguration();
 
             manyToManyAssociationMappingConfiguration.ToTable("NewName");
 
-            manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database);
+            var mockPropertyInfo = new MockPropertyInfo();
+
+            associationSetMapping.SourceEndMapping.EndMember = new AssociationEndMember("S", new EntityType());
+            associationSetMapping.SourceEndMapping.EndMember.SetClrPropertyInfo(mockPropertyInfo);
+
+            manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database, mockPropertyInfo);
 
             Assert.Equal("NewName", table.GetTableName().Name);
             Assert.Same(manyToManyAssociationMappingConfiguration, table.GetConfiguration());
@@ -32,17 +44,25 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         [Fact]
         public void Configure_should_rename_columns_when_left_keys_configured()
         {
-            var database = new DbDatabaseMetadata().Initialize();
-            var associationSetMapping = new DbAssociationSetMapping().Initialize();
-            var column = new DbTableColumnMetadata();
-            associationSetMapping.SourceEndMapping.PropertyMappings.Add(new DbEdmPropertyMapping { Column = column });
+            var database = new EdmModel(DataSpace.CSpace);
+            var associationSetMapping
+                = new StorageAssociationSetMapping(
+                    new AssociationSet("AS", new AssociationType()), new EntitySet())
+                    .Initialize();
+            var column = new EdmProperty("C");
+            associationSetMapping.SourceEndMapping.AddProperty(new StorageScalarPropertyMapping(new EdmProperty("PK"), column));
 
             var manyToManyAssociationMappingConfiguration
                 = new ManyToManyAssociationMappingConfiguration();
 
             manyToManyAssociationMappingConfiguration.MapLeftKey("NewName");
 
-            manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database);
+            var mockPropertyInfo = new MockPropertyInfo();
+
+            associationSetMapping.SourceEndMapping.EndMember = new AssociationEndMember("S", new EntityType());
+            associationSetMapping.SourceEndMapping.EndMember.SetClrPropertyInfo(mockPropertyInfo);
+
+            manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database, mockPropertyInfo);
 
             Assert.Equal("NewName", column.Name);
         }
@@ -50,17 +70,29 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         [Fact]
         public void Configure_should_rename_columns_when_right_keys_configured()
         {
-            var database = new DbDatabaseMetadata().Initialize();
-            var associationSetMapping = new DbAssociationSetMapping().Initialize();
-            var column = new DbTableColumnMetadata();
-            associationSetMapping.TargetEndMapping.PropertyMappings.Add(new DbEdmPropertyMapping { Column = column });
+            var database = new EdmModel(DataSpace.CSpace);
+
+            var associationSetMapping
+                = new StorageAssociationSetMapping(
+                    new AssociationSet("AS", new AssociationType()),
+                    new EntitySet())
+                    .Initialize();
+
+            var column = new EdmProperty("C");
+
+            associationSetMapping.TargetEndMapping.AddProperty(new StorageScalarPropertyMapping(new EdmProperty("PK"), column));
 
             var manyToManyAssociationMappingConfiguration
                 = new ManyToManyAssociationMappingConfiguration();
 
             manyToManyAssociationMappingConfiguration.MapRightKey("NewName");
 
-            manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database);
+            var mockPropertyInfo = new MockPropertyInfo();
+
+            associationSetMapping.SourceEndMapping.EndMember = new AssociationEndMember("S", new EntityType());
+            associationSetMapping.SourceEndMapping.EndMember.SetClrPropertyInfo(mockPropertyInfo);
+
+            manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database, mockPropertyInfo);
 
             Assert.Equal("NewName", column.Name);
         }
@@ -68,15 +100,28 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
         [Fact]
         public void Configure_should_throw_when_incorrect_number_of_columns_configured()
         {
-            var database = new DbDatabaseMetadata().Initialize();
-            var associationSetMapping = new DbAssociationSetMapping().Initialize();
+            var database = new EdmModel(DataSpace.CSpace);
+
+            var associationSetMapping
+                = new StorageAssociationSetMapping(
+                    new AssociationSet("AS", new AssociationType()),
+                    new EntitySet())
+                    .Initialize();
 
             var manyToManyAssociationMappingConfiguration
                 = new ManyToManyAssociationMappingConfiguration();
 
             manyToManyAssociationMappingConfiguration.MapLeftKey("Id1", "Id2");
 
-            Assert.Equal(Strings.IncorrectColumnCount("Id1, Id2"), Assert.Throws<InvalidOperationException>(() => manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database)).Message);
+            var mockPropertyInfo = new MockPropertyInfo();
+
+            associationSetMapping.SourceEndMapping.EndMember = new AssociationEndMember("S", new EntityType());
+            associationSetMapping.SourceEndMapping.EndMember.SetClrPropertyInfo(mockPropertyInfo);
+
+            Assert.Equal(
+                Strings.IncorrectColumnCount("Id1, Id2"),
+                Assert.Throws<InvalidOperationException>(
+                    () => manyToManyAssociationMappingConfiguration.Configure(associationSetMapping, database, mockPropertyInfo)).Message);
         }
 
         [Fact]

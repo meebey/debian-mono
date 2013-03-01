@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Model
 {
-    using System.Data.Entity.Migrations.Model;
     using System.Linq;
     using Xunit;
 
@@ -10,7 +10,11 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Can_get_and_set_table_and_name_and_columns()
         {
-            var dropPrimaryKeyOperation = new DropPrimaryKeyOperation { Table = "T", Name = "Pk" };
+            var dropPrimaryKeyOperation = new DropPrimaryKeyOperation
+                                              {
+                                                  Table = "T",
+                                                  Name = "Pk"
+                                              };
 
             dropPrimaryKeyOperation.Columns.Add("pk2");
 
@@ -23,7 +27,10 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Can_get_default_for_name()
         {
-            var dropPrimaryKeyOperation = new DropPrimaryKeyOperation { Table = "T" };
+            var dropPrimaryKeyOperation = new DropPrimaryKeyOperation
+                                              {
+                                                  Table = "T"
+                                              };
 
             Assert.Equal("PK_T", dropPrimaryKeyOperation.Name);
             Assert.True(dropPrimaryKeyOperation.HasDefaultName);
@@ -32,7 +39,12 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Inverse_should_return_drop_operation()
         {
-            var dropPrimaryKeyOperation = new DropPrimaryKeyOperation { Table = "T", Name = "Pk" };
+            var dropPrimaryKeyOperation = new DropPrimaryKeyOperation
+                                              {
+                                                  Table = "T",
+                                                  Name = "Pk",
+                                                  IsSystem = true
+                                              };
 
             dropPrimaryKeyOperation.Columns.Add("pk2");
 
@@ -41,6 +53,7 @@ namespace System.Data.Entity.Migrations
             Assert.Equal("T", inverse.Table);
             Assert.Equal("Pk", inverse.Name);
             Assert.Equal("pk2", inverse.Columns.Single());
+            Assert.True(inverse.IsSystem);
         }
     }
 }

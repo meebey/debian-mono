@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Spatial;
     using System.IO;
     using System.Reflection;
@@ -62,6 +63,15 @@ namespace System.Data.Entity.Utilities
         }
 
         [Fact]
+        public void IsValidStructuralProperty_should_return_false_for_indexed_property()
+        {
+            var mockProperty = new MockPropertyInfo();
+            mockProperty.Setup(p => p.GetIndexParameters()).Returns(new ParameterInfo[1]);
+
+            Assert.False(mockProperty.Object.IsValidStructuralProperty());
+        }
+
+        [Fact]
         public void IsValidEdmScalarProperty_should_return_true_for_nullable_scalar()
         {
             var mockProperty = new MockPropertyInfo(typeof(int?), "P");
@@ -84,7 +94,6 @@ namespace System.Data.Entity.Utilities
 
             Assert.True(mockProperty.Object.IsValidEdmScalarProperty());
         }
-
 
         [Fact]
         public void IsValidEdmScalarProperty_should_return_true_for_geography()
@@ -141,17 +150,17 @@ namespace System.Data.Entity.Utilities
             var property = propertyInfo.AsEdmPrimitiveProperty();
 
             Assert.Equal("Key", property.Name);
-            Assert.Equal(false, property.PropertyType.IsNullable);
-            Assert.Equal(EdmPrimitiveType.Int32, property.PropertyType.PrimitiveType);
+            Assert.Equal(false, property.Nullable);
+            Assert.Equal(PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.Int32), property.PrimitiveType);
         }
 
         [Fact]
         public void AsEdmPrimitiveProperty_sets_is_nullable_for_nullable_type()
         {
-            PropertyInfo propertyInfo = new MockPropertyInfo(typeof(string), null);
+            PropertyInfo propertyInfo = new MockPropertyInfo(typeof(string), "P");
             var property = propertyInfo.AsEdmPrimitiveProperty();
 
-            Assert.Equal(true, property.PropertyType.IsNullable);
+            Assert.Equal(true, property.Nullable);
         }
 
         [Fact]
@@ -166,7 +175,7 @@ namespace System.Data.Entity.Utilities
         private class PropertyInfoExtensions_properties_fixture
         {
             public int Key { get; set; }
-            public EdmEntityType EdmProperty { get; set; }
+            public EntityType EdmProperty { get; set; }
         }
     }
 }

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.ELinq
 {
     using System.Collections;
@@ -8,6 +9,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
     using System.Data.Entity.Core.Objects.DataClasses;
     using System.Data.Entity.Core.Objects.Internal;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
@@ -17,15 +19,12 @@ namespace System.Data.Entity.Core.Objects.ELinq
     using System.Threading;
 
     /// <summary>
-    /// Facet encapsulating information necessary to initialize a LINQ projection
-    /// result.
+    ///     Facet encapsulating information necessary to initialize a LINQ projection
+    ///     result.
     /// </summary>
     internal abstract class InitializerMetadata : IEquatable<InitializerMetadata>
     {
         internal readonly Type ClrType;
-
-        internal static readonly MethodInfo UserExpressionMarker = typeof(InitializerMetadata).GetMethod(
-            "MarkAsUserExpression", BindingFlags.NonPublic | BindingFlags.Static);
 
         private static long s_identifier;
         internal readonly string Identity;
@@ -33,7 +32,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
         private InitializerMetadata(Type clrType)
         {
-            Debug.Assert(null != clrType);
+            DebugCheck.NotNull(clrType);
             ClrType = clrType;
             Identity = _identifierPrefix + Interlocked.Increment(ref s_identifier).ToString(CultureInfo.InvariantCulture);
         }
@@ -86,13 +85,6 @@ namespace System.Data.Entity.Core.Objects.ELinq
             return itemCollection.GetCanonicalInitializerMetadata(new EntityCollectionInitializerMetadata(type, navigationProperty));
         }
 
-        private static T MarkAsUserExpression<T>(T value)
-        {
-            // No op. This is used as a marker inside of an expression tree to indicate
-            // that the input expression is not trusted.
-            return value;
-        }
-
         internal virtual void AppendColumnMapKey(ColumnMapKeyBuilder builder)
         {
             // by default, the type is sufficient (more information is needed for EntityCollection and initializers)
@@ -107,7 +99,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
         public bool Equals(InitializerMetadata other)
         {
-            Debug.Assert(null != other, "must not use a null key");
+            DebugCheck.NotNull(other);
             if (ReferenceEquals(this, other))
             {
                 return true;
@@ -130,8 +122,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Requires: other has the same type as this and refers to the same CLR type
-        /// Determine whether this Metadata is compatible with the other based on record layout.
+        ///     Requires: other has the same type as this and refers to the same CLR type
+        ///     Determine whether this Metadata is compatible with the other based on record layout.
         /// </summary>
         protected virtual bool IsStructurallyEquivalent(InitializerMetadata other)
         {
@@ -139,22 +131,22 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Produces an expression initializing an instance of ClrType (given emitters for input
-        /// columns)
+        ///     Produces an expression initializing an instance of ClrType (given emitters for input
+        ///     columns)
         /// </summary>
         internal abstract Expression Emit(List<TranslatorResult> propertyTranslatorResults);
 
         /// <summary>
-        /// Yields expected types for input columns. Null values are returned for children
-        /// whose type is irrelevant to the initializer.
+        ///     Yields expected types for input columns. Null values are returned for children
+        ///     whose type is irrelevant to the initializer.
         /// </summary>
         internal abstract IEnumerable<Type> GetChildTypes();
 
         /// <summary>
-        /// return a list of propertyReader expressions from an array of translator results.
+        ///     return a list of propertyReader expressions from an array of translator results.
         /// </summary>
-        /// <param name="propertyTranslatorResults"></param>
-        /// <returns></returns>
+        /// <param name="propertyTranslatorResults"> </param>
+        /// <returns> </returns>
         protected static List<Expression> GetPropertyReaders(List<TranslatorResult> propertyTranslatorResults)
         {
             var propertyReaders = propertyTranslatorResults.Select(s => s.UnwrappedExpression).ToList();
@@ -162,11 +154,11 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Implementation of IGrouping that can be initialized using the standard
-        /// initializer pattern supported by ELinq
+        ///     Implementation of IGrouping that can be initialized using the standard
+        ///     initializer pattern supported by ELinq
         /// </summary>
-        /// <typeparam name="K">Type of key</typeparam>
-        /// <typeparam name="T">Type of record</typeparam>
+        /// <typeparam name="K"> Type of key </typeparam>
+        /// <typeparam name="T"> Type of record </typeparam>
         private class Grouping<K, T> : IGrouping<K, T>
         {
             public Grouping(K key, IEnumerable<T> group)
@@ -207,7 +199,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Metadata for grouping initializer.
+        ///     Metadata for grouping initializer.
         /// </summary>
         private class GroupingInitializerMetadata : InitializerMetadata
         {
@@ -260,14 +252,14 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Metadata for anonymous type materialization.
+        ///     Metadata for anonymous type materialization.
         /// </summary>
         private class ProjectionNewMetadata : InitializerMetadata
         {
             internal ProjectionNewMetadata(NewExpression newExpression)
                 : base(newExpression.Type)
             {
-                Debug.Assert(null != newExpression);
+                DebugCheck.NotNull(newExpression);
                 _newExpression = newExpression;
             }
 
@@ -322,10 +314,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 Expression nullProjection = Expression.Constant(null, ClrType);
 
                 // _newExpression with members rebound
-                Expression newProjection = Expression.New(_newExpression.Constructor, GetPropertyReaders(propertyTranslatorResults));
-
-                // Indicate that this expression is provided by the user and should not be trusted.
-                return Expression.Call(UserExpressionMarker.MakeGenericMethod(newProjection.Type), newProjection);
+                return Expression.New(_newExpression.Constructor, GetPropertyReaders(propertyTranslatorResults));
             }
 
             internal override IEnumerable<Type> GetChildTypes()
@@ -367,14 +356,14 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Metadata for standard projection initializers.
+        ///     Metadata for standard projection initializers.
         /// </summary>
         private class ProjectionInitializerMetadata : InitializerMetadata
         {
             internal ProjectionInitializerMetadata(MemberInitExpression initExpression)
                 : base(initExpression.Type)
             {
-                Debug.Assert(null != initExpression);
+                DebugCheck.NotNull(initExpression);
                 _initExpression = initExpression;
             }
 
@@ -428,10 +417,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     constantMemberBindings[i] = constantBinding;
                 }
 
-                Expression newProjection = Expression.MemberInit(_initExpression.NewExpression, memberBindings);
-
-                // Indicate that this expression is provided by the user and should not be trusted.
-                return Expression.Call(UserExpressionMarker.MakeGenericMethod(newProjection.Type), newProjection);
+                return Expression.MemberInit(_initExpression.NewExpression, memberBindings);
             }
 
             internal override IEnumerable<Type> GetChildTypes()
@@ -459,14 +445,14 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Metadata for entity collection initializer.
+        ///     Metadata for entity collection initializer.
         /// </summary>
         private class EntityCollectionInitializerMetadata : InitializerMetadata
         {
             internal EntityCollectionInitializerMetadata(Type type, NavigationProperty navigationProperty)
                 : base(type)
             {
-                Debug.Assert(null != navigationProperty);
+                DebugCheck.NotNull(navigationProperty);
                 _navigationProperty = navigationProperty;
             }
 
@@ -478,9 +464,9 @@ namespace System.Data.Entity.Core.Objects.ELinq
             }
 
             /// <summary>
-            /// Make sure the other metadata instance generates the same property
-            /// (otherwise, we get incorrect behavior where multiple nav props return
-            /// the same type)
+            ///     Make sure the other metadata instance generates the same property
+            ///     (otherwise, we get incorrect behavior where multiple nav props return
+            ///     the same type)
             /// </summary>
             protected override bool IsStructurallyEquivalent(InitializerMetadata other)
             {
@@ -509,10 +495,10 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 var coordinator = collectionResult.ExpressionToGetCoordinator;
 
-                // CreateEntityCollection(shaper, owner, elements, relationshipName, targetRoleName)
+                // CreateEntityCollection(owner, elements, relationshipName, targetRoleName)
                 Expression result = Expression.Call(
                     createEntityCollectionMethod,
-                    shaper, owner, coordinator, Expression.Constant(_navigationProperty.RelationshipType.FullName),
+                    owner, coordinator, Expression.Constant(_navigationProperty.RelationshipType.FullName),
                     Expression.Constant(_navigationProperty.ToEndMember.Name));
 
                 return result;

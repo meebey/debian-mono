@@ -12,7 +12,9 @@ using NUnit.Framework;
 using System;
 using System.IO;
 using System.Reflection;
+#if !MOBILE
 using System.Reflection.Emit;
+#endif
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
@@ -188,7 +190,7 @@ namespace MonoTests.System.Runtime.InteropServices
 				Assert.AreEqual ("fieldName", ex.ParamName, "#5");
 			}
 		}
-
+#if !MOBILE
 		[Test]
 		public void GetHINSTANCE ()
 		{
@@ -243,7 +245,7 @@ namespace MonoTests.System.Runtime.InteropServices
 				Assert.AreEqual ("m", ex.ParamName, "#5");
 			}
 		}
-
+#endif
 		[Test] // bug #319009
 		public void StringToHGlobalUni ()
 		{
@@ -277,6 +279,7 @@ namespace MonoTests.System.Runtime.InteropServices
 		}
 
 		[Test]
+		[Category ("MobileNotWorking")]
 		public void BSTR_Roundtrip ()
 		{
 			string s = "mono";
@@ -286,6 +289,7 @@ namespace MonoTests.System.Runtime.InteropServices
 		}
 
 		[Test]
+		[Category ("MobileNotWorking")]
 		public void StringToBSTRWithNullValues ()
 		{
 			int size = 128;
@@ -585,6 +589,7 @@ namespace MonoTests.System.Runtime.InteropServices
 		}
 #endif
 
+#if !NET_2_1
 		[Test]
 		public void TestGetComSlotForMethodInfo ()
 		{
@@ -607,11 +612,7 @@ namespace MonoTests.System.Runtime.InteropServices
 				Assert.AreEqual (typeof (ArgumentNullException), ex.GetType (), "#2");
 				Assert.IsNull (ex.InnerException, "#3");
 				Assert.IsNotNull (ex.Message, "#4");
-#if NET_2_0
 				Assert.AreEqual ("m", ex.ParamName, "#5");
-#else
-				Assert.IsNull (ex.ParamName, "#5");
-#endif
 			}
 		}
 
@@ -630,7 +631,7 @@ namespace MonoTests.System.Runtime.InteropServices
 				Assert.AreEqual ("m", ex.ParamName, "#5");
 			}
 		}
-
+#endif
 		[Test]
 		public void TestPtrToStringAuto ()
 		{
@@ -659,7 +660,7 @@ namespace MonoTests.System.Runtime.InteropServices
 				Marshal.FreeHGlobal (ptr);
 			}
 		}
-
+#if !MOBILE
 		[Test]
 		public void TestGenerateProgIdForType()
 		{
@@ -671,7 +672,7 @@ namespace MonoTests.System.Runtime.InteropServices
 			output = Marshal.GenerateProgIdForType(typeof(TestCoClassWithProgId));
 			Assert.AreEqual ("CoClassWithProgId", output, "#2");
 		}
-
+#endif
 		[Test]
 		public void TestGlobalAlloc ()
 		{
@@ -679,6 +680,18 @@ namespace MonoTests.System.Runtime.InteropServices
 			mem = Marshal.ReAllocHGlobal (mem, (IntPtr) 1000000);
 			Marshal.FreeHGlobal (mem);
 		}
+		
+		[Test]
+		public void FreeHGlobal ()
+		{
+			// clear user doubts on assistly #6749
+			for (int i = 0; i < 1024; i++) {
+				IntPtr p = Marshal.AllocHGlobal (1024 * 1024);
+				Assert.AreNotEqual (IntPtr.Zero, p, i.ToString ());
+				Marshal.FreeHGlobal (p);
+			}
+		}
+		
 #if NET_2_0
 		[Test]
 		public void TestGetExceptionForHR ()
@@ -712,7 +725,7 @@ namespace MonoTests.System.Runtime.InteropServices
 			int nSize
 		);
 	}
-
+#if !NET_2_1
 	[ComImport()]
 	[Guid("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")]
 	interface ITestDefault
@@ -774,5 +787,6 @@ namespace MonoTests.System.Runtime.InteropServices
 		{
 		}
 	}
+#endif
 }
 #endif

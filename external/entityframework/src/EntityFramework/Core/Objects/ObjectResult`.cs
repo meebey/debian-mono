@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Collections;
@@ -13,10 +14,13 @@ namespace System.Data.Entity.Core.Objects
     using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
-    /// This class represents the result of the <see cref="ObjectQuery{T}.Execute"/> method.
+    ///     This class represents the result of the <see cref="ObjectQuery{T}.Execute" /> method.
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
-    public class ObjectResult<T> : ObjectResult, IEnumerable<T>, IDbAsyncEnumerable<T>
+    public class ObjectResult<T> : ObjectResult, IEnumerable<T>
+#if !NET40
+                                   , IDbAsyncEnumerable<T>
+#endif
     {
         private Shaper<T> _shaper;
         private DbDataReader _reader;
@@ -28,12 +32,12 @@ namespace System.Data.Entity.Core.Objects
         private Action<object, EventArgs> _onReaderDispose;
 
         internal ObjectResult(Shaper<T> shaper, EntitySet singleEntitySet, TypeUsage resultItemType)
-            : this(shaper, singleEntitySet, resultItemType, true)
+            : this(shaper, singleEntitySet, resultItemType, readerOwned: true)
         {
         }
 
         internal ObjectResult(Shaper<T> shaper, EntitySet singleEntitySet, TypeUsage resultItemType, bool readerOwned)
-            : this(shaper, singleEntitySet, resultItemType, readerOwned, null, null)
+            : this(shaper, singleEntitySet, resultItemType, readerOwned, nextResultGenerator: null, onReaderDispose: null)
         {
         }
 
@@ -59,7 +63,7 @@ namespace System.Data.Entity.Core.Objects
             }
         }
 
-        /// <inheritdoc/>
+        /// <inheritdoc />
         public IEnumerator<T> GetEnumerator()
         {
             return GetDbEnumerator();
@@ -77,31 +81,26 @@ namespace System.Data.Entity.Core.Objects
 
         #region IDbAsyncEnumerable
 
-        /// <inheritdoc/>
+#if !NET40
+
+        /// <inheritdoc />
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IDbAsyncEnumerator<T> IDbAsyncEnumerable<T>.GetAsyncEnumerator()
         {
             return GetDbEnumerator();
         }
 
+#endif
+
         #endregion
 
-        /// <summary>
-        /// Performs tasks associated with freeing, releasing, or resetting resources. 
-        /// </summary>
-        [SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly")]
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            // Technically, calling GC.SuppressFinalize is not required because the class does not
-            // have a finalizer, but it does no harm, protects against the case where a finalizer is added
-            // in the future, and prevents an FxCop warning.
-            GC.SuppressFinalize(this);
-
             var reader = _reader;
             _reader = null;
             _nextResultGenerator = null;
 
-            if (null != reader && _readerOwned)
+            if (reader != null && _readerOwned)
             {
                 reader.Dispose();
                 if (_onReaderDispose != null)
@@ -122,10 +121,14 @@ namespace System.Data.Entity.Core.Objects
             }
         }
 
+#if !NET40
+
         internal override IDbAsyncEnumerator GetAsyncEnumeratorInternal()
         {
             return GetDbEnumerator();
         }
+
+#endif
 
         internal override IEnumerator GetEnumeratorInternal()
         {

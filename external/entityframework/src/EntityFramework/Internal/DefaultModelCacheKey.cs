@@ -1,24 +1,26 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Data.Entity.Infrastructure;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
+    using System.Diagnostics;
 
     internal sealed class DefaultModelCacheKey : IDbModelCacheKey
     {
         private readonly Type _contextType;
         private readonly string _providerName;
-        private readonly string _schema;
+        private readonly string _customKey;
 
-        public DefaultModelCacheKey(Type contextType, string providerName, string schema)
+        public DefaultModelCacheKey(Type contextType, string providerName, string customKey)
         {
-            Contract.Requires(contextType != null);
-            Contract.Requires(typeof(DbContext).IsAssignableFrom(contextType));
-            Contract.Requires(!string.IsNullOrWhiteSpace(providerName));
+            DebugCheck.NotNull(contextType);
+            Debug.Assert(typeof(DbContext).IsAssignableFrom(contextType));
+            DebugCheck.NotEmpty(providerName);
 
             _contextType = contextType;
             _providerName = providerName;
-            _schema = schema;
+            _customKey = customKey;
         }
 
         public override bool Equals(object obj)
@@ -44,17 +46,17 @@ namespace System.Data.Entity.Internal
             {
                 return (_contextType.GetHashCode() * 397)
                        ^ _providerName.GetHashCode()
-                       ^ (!string.IsNullOrWhiteSpace(_schema) ? _schema.GetHashCode() : 0);
+                       ^ (!string.IsNullOrWhiteSpace(_customKey) ? _customKey.GetHashCode() : 0);
             }
         }
 
         private bool Equals(DefaultModelCacheKey other)
         {
-            Contract.Requires(other != null);
+            DebugCheck.NotNull(other);
 
             return _contextType == other._contextType
                    && string.Equals(_providerName, other._providerName)
-                   && string.Equals(_schema, other._schema);
+                   && string.Equals(_customKey, other._customKey);
         }
     }
 }

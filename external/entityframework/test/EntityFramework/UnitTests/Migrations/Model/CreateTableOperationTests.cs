@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Model
 {
-    using System.Data.Entity.Migrations.Model;
-    using System.Data.Entity.Resources;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Resources;
     using System.Linq;
     using Xunit;
 
@@ -12,7 +12,9 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Ctor_should_validate_preconditions()
         {
-            Assert.Equal(new ArgumentException(Strings.ArgumentIsNullOrWhitespace("name")).Message, Assert.Throws<ArgumentException>(() => new CreateTableOperation(null)).Message);
+            Assert.Equal(
+                new ArgumentException(Strings.ArgumentIsNullOrWhitespace("name")).Message,
+                Assert.Throws<ArgumentException>(() => new CreateTableOperation(null)).Message);
         }
 
         [Fact]
@@ -38,18 +40,26 @@ namespace System.Data.Entity.Migrations
         [Fact]
         public void Inverse_should_produce_drop_table_operation()
         {
-            var createTableOperation = new CreateTableOperation("Foo");
+            var createTableOperation
+                = new CreateTableOperation("Foo")
+                      {
+                          IsSystem = true
+                      };
 
             var dropTableOperation = (DropTableOperation)createTableOperation.Inverse;
 
             Assert.Equal("Foo", dropTableOperation.Name);
+            Assert.True(dropTableOperation.IsSystem);
         }
 
         [Fact]
         public void Can_set_and_get_primary_key()
         {
             var addPrimaryKeyOperation = new AddPrimaryKeyOperation();
-            var table = new CreateTableOperation("T") { PrimaryKey = addPrimaryKeyOperation };
+            var table = new CreateTableOperation("T")
+                            {
+                                PrimaryKey = addPrimaryKeyOperation
+                            };
 
             Assert.Same(addPrimaryKeyOperation, table.PrimaryKey);
             Assert.Equal("T", addPrimaryKeyOperation.Table);

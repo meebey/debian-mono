@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations;
@@ -14,10 +15,10 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
             var mockPropertyInfo = new MockPropertyInfo(typeof(int), "Id");
             var mockEntityTypeConfiguration = new Mock<EntityTypeConfiguration>(typeof(object));
 
-            new KeyAttributeConvention.KeyAttributeConventionImpl()
+            new KeyAttributeConvention()
                 .Apply(mockPropertyInfo, mockEntityTypeConfiguration.Object, new KeyAttribute());
 
-            mockEntityTypeConfiguration.Verify(e => e.Key(mockPropertyInfo, null));
+            mockEntityTypeConfiguration.Verify(e => e.Key(mockPropertyInfo, null, true));
         }
     }
 }

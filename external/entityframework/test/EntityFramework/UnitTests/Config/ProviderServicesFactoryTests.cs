@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Config
 {
     using System.Data.Common;
@@ -20,7 +21,7 @@ namespace System.Data.Entity.Config
             {
                 Assert.Same(
                     SqlProviderServices.Instance,
-                    new ProviderServicesFactory().GetInstanceByConvention(SqlClientFactory.Instance.GetProviderInvariantName()));
+                    new ProviderServicesFactory().GetInstanceByConvention("System.Data.SqlClient"));
             }
 
             [Fact]

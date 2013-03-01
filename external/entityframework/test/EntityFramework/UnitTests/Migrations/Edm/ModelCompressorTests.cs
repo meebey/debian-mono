@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
-namespace System.Data.Entity.Migrations
+
+namespace System.Data.Entity.Migrations.Edm
 {
-    using System.Data.Entity;
-    using System.Data.Entity.Utilities;
     using System.Data.Entity.Infrastructure;
-    using System.Data.Entity.Migrations.Edm;
+    using System.Data.Entity.Utilities;
     using System.IO;
     using System.Text;
     using System.Xml;
@@ -22,7 +21,11 @@ namespace System.Data.Entity.Migrations
             var model = modelBuilder.Build(new DbProviderInfo(DbProviders.Sql, "2008"));
 
             var edmxString = new StringBuilder();
-            using (var xmlWriter = XmlWriter.Create(edmxString, new XmlWriterSettings { Indent = true }))
+            using (var xmlWriter = XmlWriter.Create(
+                edmxString, new XmlWriterSettings
+                                {
+                                    Indent = true
+                                }))
             {
                 EdmxWriter.WriteEdmx(model, xmlWriter);
             }

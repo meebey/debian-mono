@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration
 {
     using System.Data.Entity.ModelConfiguration.Configuration.Properties;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
+    using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
     using System.Data.Entity.ModelConfiguration.Conventions;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Reflection;
 
     public partial class ConventionsConfiguration
@@ -22,10 +24,10 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                 PropertyInfo propertyInfo,
                 Func<PropertyConfiguration> propertyConfiguration)
             {
-                Contract.Requires(convention != null);
-                Contract.Requires(propertyConfigurationType != null);
-                Contract.Requires(propertyInfo != null);
-                Contract.Requires(propertyConfiguration != null);
+                Check.NotNull(convention, "convention");
+                Check.NotNull(propertyConfigurationType, "propertyConfigurationType");
+                Check.NotNull(propertyInfo, "propertyInfo");
+                Check.NotNull(propertyConfiguration, "propertyConfiguration");
 
                 _convention = convention;
                 _propertyConfigurationType = propertyConfigurationType;
@@ -36,8 +38,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             public void Dispatch()
             {
                 Dispatch<PropertyConfiguration>();
-                Dispatch<Properties.Primitive.PrimitivePropertyConfiguration>();
-                Dispatch<Properties.Primitive.LengthPropertyConfiguration>();
+                Dispatch<PrimitivePropertyConfiguration>();
+                Dispatch<LengthPropertyConfiguration>();
                 Dispatch<Properties.Primitive.DateTimePropertyConfiguration>();
                 Dispatch<Properties.Primitive.DecimalPropertyConfiguration>();
                 Dispatch<Properties.Primitive.StringPropertyConfiguration>();

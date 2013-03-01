@@ -1,12 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Model
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Spatial;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
 
     /// <summary>
@@ -23,7 +24,7 @@ namespace System.Data.Entity.Migrations.Model
         /// <summary>
         ///     Initializes a new instance of the  class.
         /// </summary>
-        /// <param name = "type">The data type for this column.</param>
+        /// <param name="type"> The data type for this column. </param>
         public ColumnModel(PrimitiveTypeKind type)
             : this(type, null)
         {
@@ -32,11 +33,8 @@ namespace System.Data.Entity.Migrations.Model
         /// <summary>
         ///     Initializes a new instance of the  class.
         /// </summary>
-        /// <param name = "type">The data type for this column.</param>
-        /// <param name = "typeUsage">
-        ///     Additional details about the data type.
-        ///     This includes details such as maximum length, nullability etc.
-        /// </param>
+        /// <param name="type"> The data type for this column. </param>
+        /// <param name="typeUsage"> Additional details about the data type. This includes details such as maximum length, nullability etc. </param>
         public ColumnModel(PrimitiveTypeKind type, TypeUsage typeUsage)
         {
             _type = type;
@@ -170,35 +168,35 @@ namespace System.Data.Entity.Migrations.Model
 
         private static readonly Dictionary<PrimitiveTypeKind, int> _typeSize // in bytes
             = new Dictionary<PrimitiveTypeKind, int>
-                {
-                    { PrimitiveTypeKind.Binary, int.MaxValue },
-                    { PrimitiveTypeKind.Boolean, 1 },
-                    { PrimitiveTypeKind.Byte, 1 },
-                    { PrimitiveTypeKind.DateTime, 8 },
-                    { PrimitiveTypeKind.DateTimeOffset, 10 },
-                    { PrimitiveTypeKind.Decimal, 17 },
-                    { PrimitiveTypeKind.Double, 53 },
-                    { PrimitiveTypeKind.Guid, 16 },
-                    { PrimitiveTypeKind.Int16, 2 },
-                    { PrimitiveTypeKind.Int32, 4 },
-                    { PrimitiveTypeKind.Int64, 8 },
-                    { PrimitiveTypeKind.SByte, 1 },
-                    { PrimitiveTypeKind.Single, 4 },
-                    { PrimitiveTypeKind.String, int.MaxValue },
-                    { PrimitiveTypeKind.Time, 5 },
-                };
+                  {
+                      { PrimitiveTypeKind.Binary, int.MaxValue },
+                      { PrimitiveTypeKind.Boolean, 1 },
+                      { PrimitiveTypeKind.Byte, 1 },
+                      { PrimitiveTypeKind.DateTime, 8 },
+                      { PrimitiveTypeKind.DateTimeOffset, 10 },
+                      { PrimitiveTypeKind.Decimal, 17 },
+                      { PrimitiveTypeKind.Double, 53 },
+                      { PrimitiveTypeKind.Guid, 16 },
+                      { PrimitiveTypeKind.Int16, 2 },
+                      { PrimitiveTypeKind.Int32, 4 },
+                      { PrimitiveTypeKind.Int64, 8 },
+                      { PrimitiveTypeKind.SByte, 1 },
+                      { PrimitiveTypeKind.Single, 4 },
+                      { PrimitiveTypeKind.String, int.MaxValue },
+                      { PrimitiveTypeKind.Time, 5 },
+                  };
 
         /// <summary>
         ///     Determines if this column is a narrower data type than another column.
         ///     Used to determine if altering the supplied column definition to this definition will result in data loss.
         /// </summary>
-        /// <param name = "column">The column to compare to.</param>
-        /// <param name = "providerManifest">Details of the database provider being used.</param>
-        /// <returns>True if this column is of a narrower data type.</returns>
+        /// <param name="column"> The column to compare to. </param>
+        /// <param name="providerManifest"> Details of the database provider being used. </param>
+        /// <returns> True if this column is of a narrower data type. </returns>
         public bool IsNarrowerThan(ColumnModel column, DbProviderManifest providerManifest)
         {
-            Contract.Requires(column != null);
-            Contract.Requires(providerManifest != null);
+            Check.NotNull(column, "column");
+            Check.NotNull(providerManifest, "providerManifest");
 
             var typeUsage = providerManifest.GetStoreType(TypeUsage);
             var otherTypeUsage = providerManifest.GetStoreType(column.TypeUsage);
@@ -211,8 +209,8 @@ namespace System.Data.Entity.Migrations.Model
 
         private static bool IsNarrowerThan(TypeUsage typeUsage, TypeUsage other)
         {
-            Contract.Requires(typeUsage != null);
-            Contract.Requires(other != null);
+            DebugCheck.NotNull(typeUsage);
+            DebugCheck.NotNull(other);
 
             foreach (var facetName in
                 new[]

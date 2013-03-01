@@ -1,8 +1,10 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
     using System.Data.Common;
+    using System.Data.Entity.Config;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Common.CommandTrees;
     using System.Data.Entity.Core.Common.Utils;
@@ -10,51 +12,58 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
     using System.Data.Entity.Core.EntityClient.Internal;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects;
+    using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using IEntityStateEntry = System.Data.Entity.Core.IEntityStateEntry;
 
     /// <summary>
-    /// This class performs to following tasks to persist C-Space changes to the store:
-    /// <list>
-    /// <item>Extract changes from the entity state manager</item>
-    /// <item>Group changes by C-Space extent</item>
-    /// <item>For each affected S-Space table, perform propagation (get changes in S-Space terms)</item>
-    /// <item>Merge S-Space inserts and deletes into updates where appropriate</item>
-    /// <item>Produce S-Space commands implementating the modifications (insert, delete and update SQL statements)</item>
-    /// </list>
+    ///     This class performs to following tasks to persist C-Space changes to the store:
+    ///     <list>
+    ///         <item>Extract changes from the entity state manager</item>
+    ///         <item>Group changes by C-Space extent</item>
+    ///         <item>For each affected S-Space table, perform propagation (get changes in S-Space terms)</item>
+    ///         <item>Merge S-Space inserts and deletes into updates where appropriate</item>
+    ///         <item>Produce S-Space commands implementing the modifications (insert, delete and update SQL statements)</item>
+    ///     </list>
     /// </summary>
     [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
     internal class UpdateTranslator
     {
+        private readonly IDbCommandInterceptor _commandInterceptor;
+
         #region Constructors
 
         /// <summary>
-        /// Constructs a new instance of <see cref="UpdateTranslator"/> based on the contents of the given entity state manager.
+        ///     Constructs a new instance of <see cref="UpdateTranslator" /> based on the contents of the given entity state manager.
         /// </summary>
-        /// <param name="stateManager">Entity state manager containing changes to be processed.</param>
-        /// <param name="adapter">Map adapter requesting the changes.</param>
-        internal UpdateTranslator(IEntityStateManager stateManager, EntityAdapter adapter)
+        /// <param name="stateManager"> Entity state manager containing changes to be processed. </param>
+        /// <param name="adapter"> Map adapter requesting the changes. </param>
+        public UpdateTranslator(IEntityStateManager stateManager, EntityAdapter adapter, IDbCommandInterceptor commandInterceptor = null)
             : this()
         {
-            Contract.Requires(stateManager != null);
-            Contract.Requires(adapter != null);
+            DebugCheck.NotNull(stateManager);
+            DebugCheck.NotNull(adapter);
 
             _stateManager = stateManager;
             _adapter = adapter;
+
+            _commandInterceptor
+                = commandInterceptor
+                  ?? DbConfiguration.GetService<IDbCommandInterceptor>();
 
             // connection state
             _providerServices = adapter.Connection.StoreProviderFactory.GetProviderServices();
         }
 
         /// <summary>
-        /// For testing purposes only
+        ///     For testing purposes only
         /// </summary>
         protected UpdateTranslator()
         {
@@ -114,7 +123,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         #region Properties
 
         /// <summary>
-        /// Gets workspace used in this session.
+        ///     Gets workspace used in this session.
         /// </summary>
         internal MetadataWorkspace MetadataWorkspace
         {
@@ -122,13 +131,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets key manager that handles interpretation of keys (including resolution of 
-        /// referential-integrity/foreign key constraints)
+        ///     Gets key manager that handles interpretation of keys (including resolution of
+        ///     referential-integrity/foreign key constraints)
         /// </summary>
         internal virtual KeyManager KeyManager { get; private set; }
 
         /// <summary>
-        /// Gets the view loader metadata wrapper for the current workspace.
+        ///     Gets the view loader metadata wrapper for the current workspace.
         /// </summary>
         internal ViewLoader ViewLoader
         {
@@ -136,7 +145,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets record converter which translates state entry records into propagator results.
+        ///     Gets record converter which translates state entry records into propagator results.
         /// </summary>
         internal RecordConverter RecordConverter
         {
@@ -144,7 +153,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Get the connection used for update commands.
+        ///     Get the connection used for update commands.
         /// </summary>
         internal virtual EntityConnection Connection
         {
@@ -152,7 +161,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets command timeout for update commands. If null, use default.
+        ///     Gets command timeout for update commands. If null, use default.
         /// </summary>
         internal virtual int? CommandTimeout
         {
@@ -166,11 +175,11 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         #region Methods
 
         /// <summary>
-        /// Registers any referential constraints contained in the state entry (so that
-        /// constrained members have the same identifier values). Only processes relationships
-        /// with referential constraints defined.
+        ///     Registers any referential constraints contained in the state entry (so that
+        ///     constrained members have the same identifier values). Only processes relationships
+        ///     with referential constraints defined.
         /// </summary>
-        /// <param name="stateEntry">State entry</param>
+        /// <param name="stateEntry"> State entry </param>
         internal void RegisterReferentialConstraints(IEntityStateEntry stateEntry)
         {
             if (stateEntry.IsRelationship)
@@ -345,7 +354,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                             }
 
                             // don't allow the user to insert or update an entity that refers to a deleted principal
-                            if (currentValues && null != existingPrincipal &&
+                            if (currentValues
+                                && null != existingPrincipal
+                                &&
                                 existingPrincipal.State == EntityState.Deleted
                                 &&
                                 (stateEntry.State == EntityState.Added || stateEntry.State == EntityState.Modified))
@@ -368,35 +379,31 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         // requires: role must not be null and property must be a key member for the role end
         private static int GetKeyMemberOffset(RelationshipEndMember role, EdmProperty property, out int keyMemberCount)
         {
-            Contract.Requires(null != role);
-            Contract.Requires(null != property);
+            DebugCheck.NotNull(role);
+            DebugCheck.NotNull(property);
 
-            Contract.Assert(
-                BuiltInTypeKind.RefType == role.TypeUsage.EdmType.BuiltInTypeKind,
-                "relationship ends must be of RefType");
+            Debug.Assert(BuiltInTypeKind.RefType == role.TypeUsage.EdmType.BuiltInTypeKind, "relationship ends must be of RefType");
             var endType = (RefType)role.TypeUsage.EdmType;
-            Contract.Assert(
-                BuiltInTypeKind.EntityType == endType.ElementType.BuiltInTypeKind,
-                "relationship ends must reference EntityType");
+            Debug.Assert(BuiltInTypeKind.EntityType == endType.ElementType.BuiltInTypeKind, "relationship ends must reference EntityType");
             var entityType = (EntityType)endType.ElementType;
             keyMemberCount = entityType.KeyMembers.Count;
             return entityType.KeyMembers.IndexOf(property);
         }
 
         /// <summary>
-        /// Yields all relationship state entries with the given key as an end.
+        ///     Yields all relationship state entries with the given key as an end.
         /// </summary>
-        /// <param name="entityKey"></param>
-        /// <returns></returns>
+        /// <param name="entityKey"> </param>
+        /// <returns> </returns>
         internal IEnumerable<IEntityStateEntry> GetRelationships(EntityKey entityKey)
         {
             return _stateManager.FindRelationshipsByKey(entityKey);
         }
 
         /// <summary>
-        /// Persists state manager changes to the store.
+        ///     Persists state manager changes to the store.
         /// </summary>
-        /// <returns>Total number of state entries affected.</returns>
+        /// <returns> Total number of state entries affected. </returns>
         internal virtual int Update()
         {
             // tracks values for identifiers in this session
@@ -414,7 +421,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 {
                     // Remember the data sources so that we can throw meaningful exception
                     source = command;
-                    var rowsAffected = command.Execute(identifierValues, generatedValues);
+                    var rowsAffected = command.Execute(identifierValues, generatedValues, _commandInterceptor);
                     ValidateRowsAffected(rowsAffected, source);
                 }
             }
@@ -437,12 +444,14 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             return totalStateEntries;
         }
 
+#if !NET40
+
         /// <summary>
-        /// An asynchronous version of Update, which 
-        /// persists state manager changes to the store.
+        ///     An asynchronous version of Update, which
+        ///     persists state manager changes to the store.
         /// </summary>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <returns>A Task containing the total number of state entries affected.</returns>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests. </param>
+        /// <returns> A Task containing the total number of state entries affected. </returns>
         internal virtual async Task<int> UpdateAsync(CancellationToken cancellationToken)
         {
             // tracks values for identifiers in this session
@@ -461,7 +470,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 {
                     // Remember the data sources so that we can throw meaningful exception
                     source = command;
-                    var rowsAffected = await command.ExecuteAsync(identifierValues, generatedValues, cancellationToken);
+                    var rowsAffected =
+                        await
+                        command.ExecuteAsync(identifierValues, generatedValues, cancellationToken).ConfigureAwait(
+                            continueOnCapturedContext: false);
                     ValidateRowsAffected(rowsAffected, source);
                 }
             }
@@ -483,6 +495,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
             return totalStateEntries;
         }
+
+#endif
 
         protected virtual IEnumerable<UpdateCommand> ProduceCommands()
         {
@@ -572,9 +586,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Accept changes to entities and relationships processed by this translator instance.
+        ///     Accept changes to entities and relationships processed by this translator instance.
         /// </summary>
-        /// <returns>Number of state entries affected.</returns>
+        /// <returns> Number of state entries affected. </returns>
         private int AcceptChanges()
         {
             var affectedCount = 0;
@@ -595,29 +609,29 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets extents for which this translator has identified changes to be handled
-        /// by the standard update pipeline.
+        ///     Gets extents for which this translator has identified changes to be handled
+        ///     by the standard update pipeline.
         /// </summary>
-        /// <returns>Enumeration of modified C-Space extents.</returns>
+        /// <returns> Enumeration of modified C-Space extents. </returns>
         private IEnumerable<EntitySetBase> GetDynamicModifiedExtents()
         {
             return _changes.Keys;
         }
 
         /// <summary>
-        /// Gets extents for which this translator has identified changes to be handled
-        /// by function mappings.
+        ///     Gets extents for which this translator has identified changes to be handled
+        ///     by function mappings.
         /// </summary>
-        /// <returns>Enumreation of modified C-Space extents.</returns>
+        /// <returns> Enumreation of modified C-Space extents. </returns>
         private IEnumerable<EntitySetBase> GetFunctionModifiedExtents()
         {
             return _functionChanges.Keys;
         }
 
         /// <summary>
-        /// Produce dynamic store commands for this translator's changes.
+        ///     Produce dynamic store commands for this translator's changes.
         /// </summary>
-        /// <returns>Database commands in a safe order</returns>
+        /// <returns> Database commands in a safe order </returns>
         private IEnumerable<UpdateCommand> ProduceDynamicCommands()
         {
             // Initialize DBCommand update compiler
@@ -672,8 +686,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             {
                 // synthesize a RowType for this mapping
                 TypeUsage resultType = null;
-                if (null != functionMapping.ResultBindings
-                    && 0 < functionMapping.ResultBindings.Count)
+                if (functionMapping.ResultBindings != null
+                    && functionMapping.ResultBindings.Count > 0)
                 {
                     var properties = new List<EdmProperty>(functionMapping.ResultBindings.Count);
                     foreach (var resultBinding in functionMapping.ResultBindings)
@@ -686,9 +700,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 }
 
                 // add function parameters
-                var functionParams =
-                    functionMapping.Function.Parameters.Select(
-                        paramInfo => new KeyValuePair<string, TypeUsage>(paramInfo.Name, paramInfo.TypeUsage));
+                var functionParams = functionMapping.Function.Parameters.Select(
+                    paramInfo => new KeyValuePair<string, TypeUsage>(paramInfo.Name, paramInfo.TypeUsage));
 
                 // construct DbFunctionCommandTree including implict return type
                 var tree = new DbFunctionCommandTree(
@@ -724,11 +737,11 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Gets a metadata wrapper for the given type. The wrapper makes
-        /// certain tasks in the update pipeline more efficient.
+        ///     Gets a metadata wrapper for the given type. The wrapper makes
+        ///     certain tasks in the update pipeline more efficient.
         /// </summary>
-        /// <param name="type">Structural type</param>
-        /// <returns>Metadata wrapper</returns>
+        /// <param name="type"> Structural type </param>
+        /// <returns> Metadata wrapper </returns>
         internal ExtractorMetadata GetExtractorMetadata(EntitySetBase entitySetBase, StructuralType type)
         {
             ExtractorMetadata metadata;
@@ -742,12 +755,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Returns error when it is not possible to order update commands. Argument is the 'remainder', or commands
-        /// that could not be ordered due to a cycle.
+        ///     Returns error when it is not possible to order update commands. Argument is the 'remainder', or commands
+        ///     that could not be ordered due to a cycle.
         /// </summary>
         private UpdateException DependencyOrderingError(IEnumerable<UpdateCommand> remainder)
         {
-            Debug.Assert(null != remainder && remainder.Count() > 0, "must provide non-empty remainder");
+            DebugCheck.NotNull(remainder);
+            Debug.Assert(remainder.Count() > 0, "must provide non-empty remainder");
 
             var stateEntries = new HashSet<IEntityStateEntry>();
 
@@ -761,10 +775,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Creates a command in the current context.
+        ///     Creates a command in the current context.
         /// </summary>
-        /// <param name="commandTree">DbCommand tree</param>
-        /// <returns>DbCommand produced by the current provider.</returns>
+        /// <param name="commandTree"> DbCommand tree </param>
+        /// <returns> DbCommand produced by the current provider. </returns>
         internal DbCommand CreateCommand(DbModificationCommandTree commandTree)
         {
             DbCommand command;
@@ -792,12 +806,12 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Helper method to allow the setting of parameter values to update stored procedures.
-        /// Allows the DbProvider an opportunity to rewrite the parameter to suit provider specific needs.
+        ///     Helper method to allow the setting of parameter values to update stored procedures.
+        ///     Allows the DbProvider an opportunity to rewrite the parameter to suit provider specific needs.
         /// </summary>
-        /// <param name="parameter">Parameter to set.</param>
-        /// <param name="typeUsage">The type of the parameter.</param>
-        /// <param name="value">The value to which to set the parameter.</param>
+        /// <param name="parameter"> Parameter to set. </param>
+        /// <param name="typeUsage"> The type of the parameter. </param>
+        /// <param name="value"> The value to which to set the parameter. </param>
         internal void SetParameterValue(DbParameter parameter, TypeUsage typeUsage, object value)
         {
             _providerServices.SetParameterValue(parameter, typeUsage, value);
@@ -806,7 +820,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         #region Private initialization methods
 
         /// <summary>
-        /// Retrieve all modified entries from the state manager.
+        ///     Retrieve all modified entries from the state manager.
         /// </summary>
         private void PullModifiedEntriesFromStateManager()
         {
@@ -837,8 +851,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Retrieve all required/optional/value entries into the state manager. These are entries that --
-        /// although unmodified -- affect or are affected by updates.
+        ///     Retrieve all required/optional/value entries into the state manager. These are entries that --
+        ///     although unmodified -- affect or are affected by updates.
         /// </summary>
         private void PullUnchangedEntriesFromStateManager()
         {
@@ -899,12 +913,12 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Validates and tracks a state entry being processed by this translator.
+        ///     Validates and tracks a state entry being processed by this translator.
         /// </summary>
-        /// <param name="stateEntry"></param>
+        /// <param name="stateEntry"> </param>
         private void ValidateAndRegisterStateEntry(IEntityStateEntry stateEntry)
         {
-            Contract.Requires(stateEntry != null);
+            DebugCheck.NotNull(stateEntry);
 
             var extent = stateEntry.EntitySet;
             if (null == extent)
@@ -985,9 +999,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// effects: given an entity key and a set, adds key to the set iff. the corresponding entity
-        /// is:
-        /// 
+        ///     effects: given an entity key and a set, adds key to the set iff. the corresponding entity
+        ///     is:
         ///     not a stub (or 'key') entry, and;
         ///     not a core element in the update pipeline (it's not being directly modified)
         /// </summary>
@@ -995,7 +1008,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         {
             // Note: an entity is ancillary iff. it is unchanged (otherwise it is tracked as a "standard" changed entity)
             IEntityStateEntry endEntry;
-            if (_stateManager.TryGetEntityStateEntry(key, out endEntry) && // make sure the entity is tracked
+            if (_stateManager.TryGetEntityStateEntry(key, out endEntry)
+                && // make sure the entity is tracked
                 !endEntry.IsKeyEntry
                 && // make sure the entity is not a stub
                 endEntry.State == EntityState.Unchanged) // if the entity is being modified, it's already included anyways
@@ -1006,10 +1020,11 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
         private void ValidateRecord(EntitySetBase extent, IExtendedDataRecord record)
         {
-            Debug.Assert(null != extent, "must be verified by caller");
+            DebugCheck.NotNull(extent);
 
             DataRecordInfo recordInfo;
-            if ((null == record) ||
+            if ((null == record)
+                ||
                 (null == (recordInfo = record.DataRecordInfo))
                 ||
                 (null == recordInfo.RecordType))
@@ -1039,7 +1054,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             // determine if the given extent lives in a container from the given workspace
             // (the item collections for each container are reference equivalent when they are declared in the
             // same item collection)
-            if (null == actualContainer || null == referenceContainer
+            if (null == actualContainer
+                || null == referenceContainer
                 ||
                 !ReferenceEquals(actualContainer, referenceContainer))
             {
@@ -1053,7 +1069,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
         private void LoadStateEntry(IEntityStateEntry stateEntry)
         {
-            Debug.Assert(null != stateEntry, "state entry must exist");
+            DebugCheck.NotNull(stateEntry);
 
             // make sure the state entry doesn't contain invalid data and register it with the
             // update pipeline
@@ -1089,13 +1105,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Retrieve a change node for an extent. If none exists, creates and registers a new one.
+        ///     Retrieve a change node for an extent. If none exists, creates and registers a new one.
         /// </summary>
-        /// <param name="extent">Extent for which to return a change node.</param>
-        /// <returns>Change node for requested extent.</returns>
+        /// <param name="extent"> Extent for which to return a change node. </param>
+        /// <returns> Change node for requested extent. </returns>
         internal ChangeNode GetExtentModifications(EntitySetBase extent)
         {
-            Contract.Requires(extent != null);
+            DebugCheck.NotNull(extent);
             Debug.Assert(null != _changes, "(UpdateTranslator/GetChangeNodeForExtent) method called before translator initialized");
 
             ChangeNode changeNode;
@@ -1110,13 +1126,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Retrieve a list of state entries being processed by custom user functions.
+        ///     Retrieve a list of state entries being processed by custom user functions.
         /// </summary>
-        /// <param name="extent">Extent for which to return entries.</param>
-        /// <returns>List storing the entries.</returns>
+        /// <param name="extent"> Extent for which to return entries. </param>
+        /// <returns> List storing the entries. </returns>
         internal List<ExtractedStateEntry> GetExtentFunctionModifications(EntitySetBase extent)
         {
-            Contract.Requires(extent != null);
+            DebugCheck.NotNull(extent);
             Debug.Assert(null != _functionChanges, "method called before translator initialized");
 
             List<ExtractedStateEntry> entries;
@@ -1135,15 +1151,13 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         #endregion
 
         /// <summary>
-        /// Class validating relationship cardinality constraints. Only reasons about constraints that can be inferred
-        /// by examining change requests from the store.
-        /// (no attempt is made to ensure consistency of the store subsequently, since this would require pulling in all
-        /// values from the store).
+        ///     Class validating relationship cardinality constraints. Only reasons about constraints that can be inferred
+        ///     by examining change requests from the store.
+        ///     (no attempt is made to ensure consistency of the store subsequently, since this would require pulling in all
+        ///     values from the store).
         /// </summary>
         private class RelationshipConstraintValidator
         {
-            #region Constructor
-
             internal RelationshipConstraintValidator()
             {
                 m_existingRelationships =
@@ -1153,36 +1167,28 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 m_referencingRelationshipSets = new Dictionary<EntitySet, List<AssociationSet>>(EqualityComparer<EntitySet>.Default);
             }
 
-            #endregion
-
-            #region Fields
-
             /// <summary>
-            /// Relationships registered in the validator.
+            ///     Relationships registered in the validator.
             /// </summary>
             private readonly Dictionary<DirectionalRelationship, DirectionalRelationship> m_existingRelationships;
 
             /// <summary>
-            /// Relationships the validator determines are required based on registered entities.
+            ///     Relationships the validator determines are required based on registered entities.
             /// </summary>
             private readonly Dictionary<DirectionalRelationship, IEntityStateEntry> m_impliedRelationships;
 
             /// <summary>
-            /// Cache used to store relationship sets with ends bound to entity sets.
+            ///     Cache used to store relationship sets with ends bound to entity sets.
             /// </summary>
             private readonly Dictionary<EntitySet, List<AssociationSet>> m_referencingRelationshipSets;
 
-            #endregion
-
-            #region Methods
-
             /// <summary>
-            /// Add an entity to be tracked by the validator. Requires that the input describes an entity.
+            ///     Add an entity to be tracked by the validator. Requires that the input describes an entity.
             /// </summary>
-            /// <param name="stateEntry">State entry for the entity being tracked.</param>
+            /// <param name="stateEntry"> State entry for the entity being tracked. </param>
             internal void RegisterEntity(IEntityStateEntry stateEntry)
             {
-                Contract.Requires(stateEntry != null);
+                DebugCheck.NotNull(stateEntry);
 
                 if (EntityState.Added == stateEntry.State
                     || EntityState.Deleted == stateEntry.State)
@@ -1229,7 +1235,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
                                 // skip ends that don't target the current entity type
                                 if (!MetadataHelper.GetEntityTypeForEnd(toEnd.CorrespondingAssociationEndMember)
-                                         .IsAssignableFrom(entityType))
+                                                   .IsAssignableFrom(entityType))
                                 {
                                     continue;
                                 }
@@ -1257,16 +1263,16 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Add a relationship to be tracked by the validator.
+            ///     Add a relationship to be tracked by the validator.
             /// </summary>
-            /// <param name="associationSet">Relationship set to which the given record belongs.</param>
-            /// <param name="record">Relationship record. Must conform to the type of the relationship set.</param>
-            /// <param name="stateEntry">State entry for the relationship being tracked</param>
+            /// <param name="associationSet"> Relationship set to which the given record belongs. </param>
+            /// <param name="record"> Relationship record. Must conform to the type of the relationship set. </param>
+            /// <param name="stateEntry"> State entry for the relationship being tracked </param>
             internal void RegisterAssociation(AssociationSet associationSet, IExtendedDataRecord record, IEntityStateEntry stateEntry)
             {
-                Contract.Requires(associationSet != null);
-                Contract.Requires(record != null);
-                Contract.Requires(stateEntry != null);
+                DebugCheck.NotNull(associationSet);
+                DebugCheck.NotNull(record);
+                DebugCheck.NotNull(stateEntry);
 
                 Debug.Assert(associationSet.ElementType.Equals(record.DataRecordInfo.RecordType.EdmType));
 
@@ -1302,7 +1308,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Validates cardinality constraints for all added entities/relationships.
+            ///     Validates cardinality constraints for all added entities/relationships.
             /// </summary>
             internal void ValidateConstraints()
             {
@@ -1385,7 +1391,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                     // the relationship and entity map to the same table. If there is a relationship
                     // with 1..1 cardinality to the entity and the relationship is being added or deleted,
                     // it is required that the entity is also added or deleted.
-                    if (1 == absoluteCount && 1 == minimumCount
+                    if (1 == absoluteCount
+                        && 1 == minimumCount
                         && 1 == maximumCount) // 1..1 relationship being added/deleted
                     {
                         var isAdd = addedCount > deletedCount;
@@ -1396,7 +1403,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                         // Identify the following error conditions:
                         // - the entity is not being modified at all
                         // - the entity is being modified, but not in the way we expect (it's not being added or deleted)
-                        if (!m_impliedRelationships.TryGetValue(actualRelationship, out entityEntry) ||
+                        if (!m_impliedRelationships.TryGetValue(actualRelationship, out entityEntry)
+                            ||
                             (isAdd && EntityState.Added != entityEntry.State)
                             ||
                             (!isAdd && EntityState.Deleted != entityEntry.State))
@@ -1410,8 +1418,8 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Determines the net change in relationship count.
-            /// For instance, if the directional relationship is added 2 times and deleted 3, the return value is -1.
+            ///     Determines the net change in relationship count.
+            ///     For instance, if the directional relationship is added 2 times and deleted 3, the return value is -1.
             /// </summary>
             private int GetDirectionalRelationshipCountDelta(DirectionalRelationship expectedRelationship)
             {
@@ -1445,10 +1453,10 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
 
             /// <summary>
-            /// Determine which relationship sets reference the given entity set.
+            ///     Determine which relationship sets reference the given entity set.
             /// </summary>
-            /// <param name="entitySet">Entity set for which to identify relationships</param>
-            /// <returns>Relationship sets referencing the given entity set</returns>
+            /// <param name="entitySet"> Entity set for which to identify relationships </param>
+            /// <returns> Relationship sets referencing the given entity set </returns>
             private IEnumerable<AssociationSet> GetReferencingAssocationSets(EntitySet entitySet)
             {
                 List<AssociationSet> relationshipSets;
@@ -1485,43 +1493,39 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 return relationshipSets;
             }
 
-            #endregion
-
-            #region Nested types
-
             /// <summary>
-            /// An instance of an actual or expected relationship. This class describes one direction
-            /// of the relationship. 
+            ///     An instance of an actual or expected relationship. This class describes one direction
+            ///     of the relationship.
             /// </summary>
             private class DirectionalRelationship : IEquatable<DirectionalRelationship>
             {
                 /// <summary>
-                /// Entity key for the entity being referenced by the relationship.
+                ///     Entity key for the entity being referenced by the relationship.
                 /// </summary>
                 internal readonly EntityKey ToEntityKey;
 
                 /// <summary>
-                /// Name of the end referencing the entity key.
+                ///     Name of the end referencing the entity key.
                 /// </summary>
                 internal readonly AssociationEndMember FromEnd;
 
                 /// <summary>
-                /// Name of the end the entity key references.
+                ///     Name of the end the entity key references.
                 /// </summary>
                 internal readonly AssociationEndMember ToEnd;
 
                 /// <summary>
-                /// State entry containing this relationship.
+                ///     State entry containing this relationship.
                 /// </summary>
                 internal readonly IEntityStateEntry StateEntry;
 
                 /// <summary>
-                /// Reference to the relationship set.
+                ///     Reference to the relationship set.
                 /// </summary>
                 internal readonly AssociationSet AssociationSet;
 
                 /// <summary>
-                /// Reference to next 'equivalent' relationship in circular linked list.
+                ///     Reference to next 'equivalent' relationship in circular linked list.
                 /// </summary>
                 private DirectionalRelationship _equivalenceSetLinkedListNext;
 
@@ -1531,11 +1535,11 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                     EntityKey toEntityKey, AssociationEndMember fromEnd, AssociationEndMember toEnd, AssociationSet associationSet,
                     IEntityStateEntry stateEntry)
                 {
-                    Contract.Requires(toEntityKey != null);
-                    Contract.Requires(fromEnd != null);
-                    Contract.Requires(toEnd != null);
-                    Contract.Requires(associationSet != null);
-                    Contract.Requires(stateEntry != null);
+                    DebugCheck.NotNull(toEntityKey);
+                    DebugCheck.NotNull(fromEnd);
+                    DebugCheck.NotNull(toEnd);
+                    DebugCheck.NotNull(associationSet);
+                    DebugCheck.NotNull(stateEntry);
 
                     ToEntityKey = toEntityKey;
                     FromEnd = fromEnd;
@@ -1551,14 +1555,14 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 }
 
                 /// <summary>
-                /// Requires: 'other' must refer to the same relationship metadata and the same target entity and
-                /// must not already be a part of an equivalent set.
-                /// Adds the given relationship to linked list containing all equivalent relationship instances
-                /// for this relationship (e.g. all orders associated with a specific customer)
+                ///     Requires: 'other' must refer to the same relationship metadata and the same target entity and
+                ///     must not already be a part of an equivalent set.
+                ///     Adds the given relationship to linked list containing all equivalent relationship instances
+                ///     for this relationship (e.g. all orders associated with a specific customer)
                 /// </summary>
                 internal void AddToEquivalenceSet(DirectionalRelationship other)
                 {
-                    Debug.Assert(null != other, "other must not be null");
+                    DebugCheck.NotNull(other);
                     Debug.Assert(Equals(other), "other must be another instance of the same relationship target");
                     Debug.Assert(
                         ReferenceEquals(other._equivalenceSetLinkedListNext, other), "other must not be part of an equivalence set yet");
@@ -1568,7 +1572,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 }
 
                 /// <summary>
-                /// Returns all relationships in equivalence set.
+                ///     Returns all relationships in equivalence set.
                 /// </summary>
                 internal IEnumerable<DirectionalRelationship> GetEquivalenceSet()
                 {
@@ -1583,7 +1587,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                 }
 
                 /// <summary>
-                /// Determines the number of add and delete operations contained in this equivalence set.
+                ///     Determines the number of add and delete operations contained in this equivalence set.
                 /// </summary>
                 internal void GetCountsInEquivalenceSet(out int addedCount, out int deletedCount)
                 {
@@ -1656,8 +1660,6 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                         StringUtil.BuildDelimitedList(ToEntityKey.EntityKeyValues, null, null));
                 }
             }
-
-            #endregion
         }
     }
 }

@@ -1,9 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.Validation
 {
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Data.Entity.Validation;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
 
     /// <summary>
     ///     Validator used to validate an entity of a given EDM EntityType.
@@ -15,10 +17,10 @@ namespace System.Data.Entity.Internal.Validation
     internal class EntityValidator : TypeValidator
     {
         /// <summary>
-        ///     Creates an instance <see cref = "EntityValidator" /> for a given EDM entity type.
+        ///     Creates an instance <see cref="EntityValidator" /> for a given EDM entity type.
         /// </summary>
-        /// <param name = "propertyValidators">Property validators.</param>
-        /// <param name = "typeLevelValidators">Entity type level validators.</param>
+        /// <param name="propertyValidators"> Property validators. </param>
+        /// <param name="typeLevelValidators"> Entity type level validators. </param>
         public EntityValidator(
             IEnumerable<PropertyValidator> propertyValidators, IEnumerable<IValidator> typeLevelValidators)
             :
@@ -29,12 +31,14 @@ namespace System.Data.Entity.Internal.Validation
         /// <summary>
         ///     Validates an entity.
         /// </summary>
-        /// <param name = "entityValidationContext">Entity validation context. Must not be null.</param>
-        /// <returns><see cref = "DbEntityValidationResult" /> instance. Never null.</returns>
+        /// <param name="entityValidationContext"> Entity validation context. Must not be null. </param>
+        /// <returns>
+        ///     <see cref="DbEntityValidationResult" /> instance. Never null.
+        /// </returns>
         public DbEntityValidationResult Validate(EntityValidationContext entityValidationContext)
         {
-            Contract.Requires(entityValidationContext != null);
-            Contract.Assert(entityValidationContext.InternalEntity != null);
+            DebugCheck.NotNull(entityValidationContext);
+            Debug.Assert(entityValidationContext.InternalEntity != null);
 
             var validationErrors = Validate(entityValidationContext, null);
 
@@ -42,18 +46,14 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Validates type properties. Any validation errors will be added to <paramref name = "validationErrors" />
+        ///     Validates type properties. Any validation errors will be added to <paramref name="validationErrors" />
         ///     collection.
         /// </summary>
-        /// <param name = "entityValidationContext">
-        ///     Validation context. Must not be null.
-        /// </param>
-        /// <param name = "validationErrors">
-        ///     Collection of validation errors. Any validation errors will be added to it.
-        /// </param>
-        /// <param name = "parentProperty">The entry for the complex property. Null if validating an entity.</param>
+        /// <param name="entityValidationContext"> Validation context. Must not be null. </param>
+        /// <param name="validationErrors"> Collection of validation errors. Any validation errors will be added to it. </param>
+        /// <param name="parentProperty"> The entry for the complex property. Null if validating an entity. </param>
         /// <remarks>
-        ///     Note that <paramref name = "validationErrors" /> will be modified by this method. Errors should be only added,
+        ///     Note that <paramref name="validationErrors" /> will be modified by this method. Errors should be only added,
         ///     never removed or changed. Taking a collection as a modifiable parameter saves a couple of memory allocations
         ///     and a merge of validation error lists per entity.
         /// </remarks>
@@ -61,6 +61,9 @@ namespace System.Data.Entity.Internal.Validation
             EntityValidationContext entityValidationContext, InternalPropertyEntry parentProperty,
             List<DbValidationError> validationErrors)
         {
+            DebugCheck.NotNull(entityValidationContext);
+            DebugCheck.NotNull(validationErrors);
+
             var entityEntry = entityValidationContext.InternalEntity;
 
             foreach (var validator in PropertyValidators)

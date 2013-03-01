@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.Data.Entity.Migrations.Design;
+    using System.Data.Entity.Migrations.History;
     using System.Data.Entity.Migrations.Infrastructure;
     using System.Data.Entity.Migrations.Sql;
     using System.Data.Entity.Resources;
@@ -17,11 +19,11 @@ namespace System.Data.Entity.Migrations
         public void Can_get_and_set_migration_context_properties()
         {
             var migrationsConfiguration = new TestMigrationsConfiguration
-                {
-                    AutomaticMigrationsEnabled = false,
-                    CodeGenerator = new CSharpMigrationCodeGenerator(),
-                    ContextType = typeof(ShopContext_v1)
-                };
+                                              {
+                                                  AutomaticMigrationsEnabled = false,
+                                                  CodeGenerator = new CSharpMigrationCodeGenerator(),
+                                                  ContextType = typeof(ShopContext_v1)
+                                              };
 
             Assert.False(migrationsConfiguration.AutomaticMigrationsEnabled);
             Assert.NotNull(migrationsConfiguration.CodeGenerator);
@@ -57,6 +59,58 @@ namespace System.Data.Entity.Migrations
             Assert.NotNull(migrationsConfiguration.CodeGenerator);
             Assert.NotNull(migrationsConfiguration.GetSqlGenerator(DbProviders.Sql));
             Assert.NotNull(migrationsConfiguration.GetSqlGenerator(DbProviders.SqlCe));
+        }
+
+        [Fact]
+        public void ContextKey_is_assigned_by_default()
+        {
+            var migrationsConfiguration = new TestMigrationsConfiguration();
+
+            Assert.Equal(migrationsConfiguration.GetType().FullName, migrationsConfiguration.ContextKey);
+        }
+
+        [Fact]
+        public void Can_get_and_set_context_key()
+        {
+            var migrationsConfiguration
+                = new TestMigrationsConfiguration
+                      {
+                          ContextKey = "Foo"
+                      };
+
+            Assert.Equal("Foo", migrationsConfiguration.ContextKey);
+        }
+
+        [Fact]
+        public void ContextKey_restricts_length_to_context_key_max_length()
+        {
+            var migrationsConfiguration
+                = new TestMigrationsConfiguration
+                {
+                    ContextKey = new string('a', 600)
+                };
+
+            Assert.Equal(new string('a', HistoryContext.ContextKeyMaxLength), migrationsConfiguration.ContextKey);
+        }
+
+        [Fact]
+        public void Cannot_set_context_key_to_whitespace()
+        {
+            Assert.Throws<ArgumentException>(
+                () => new TestMigrationsConfiguration
+                          {
+                              ContextKey = " "
+                          });
+            Assert.Throws<ArgumentException>(
+                () => new TestMigrationsConfiguration
+                          {
+                              ContextKey = ""
+                          });
+            Assert.Throws<ArgumentException>(
+                () => new TestMigrationsConfiguration
+                          {
+                              ContextKey = null
+                          });
         }
     }
 }

@@ -1,10 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Mapping;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Core.Metadata.Edm.Provider;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
@@ -15,8 +18,8 @@ namespace System.Data.Entity.Core.Common.Utils
     internal static class MetadataHelper
     {
         /// <summary>
-        /// Returns an element type of the collection returned by the function import.
-        /// Returns false, if element type cannot be determined.
+        ///     Returns an element type of the collection returned by the function import.
+        ///     Returns false, if element type cannot be determined.
         /// </summary>
         internal static bool TryGetFunctionImportReturnType<T>(EdmFunction functionImport, int resultSetIndex, out T returnType)
             where T : EdmType
@@ -52,7 +55,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// effects: determines if the given function import returns collection type, and if so returns the type
+        ///     effects: determines if the given function import returns collection type, and if so returns the type
         /// </summary>
         internal static bool TryGetFunctionImportReturnCollectionType(
             EdmFunction functionImport, int resultSetIndex, out CollectionType collectionType)
@@ -69,7 +72,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Gets the resultSetIndexth return parameter for functionImport, or null if resultSetIndex is out of range
+        ///     Gets the resultSetIndexth return parameter for functionImport, or null if resultSetIndex is out of range
         /// </summary>
         internal static FunctionParameter GetReturnParameter(EdmFunction functionImport, int resultSetIndex)
         {
@@ -91,7 +94,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Gets the resultSetIndexth result edm type, and ensure that it is consistent with EntityType.
+        ///     Gets the resultSetIndexth result edm type, and ensure that it is consistent with EntityType.
         /// </summary>
         internal static EdmType GetAndCheckFunctionImportReturnType<TElement>(
             EdmFunction functionImport, int resultSetIndex, MetadataWorkspace workspace)
@@ -107,7 +110,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// check that the type TElement and function metadata are consistent
+        ///     check that the type TElement and function metadata are consistent
         /// </summary>
         internal static void CheckFunctionImportReturnType<TElement>(EdmType expectedEdmType, MetadataWorkspace workspace)
         {
@@ -123,8 +126,7 @@ namespace System.Data.Entity.Core.Common.Utils
 
             EdmType modelEdmType;
             if (!workspace.TryDetermineCSpaceModelType<TElement>(out modelEdmType)
-                ||
-                !modelEdmType.EdmEquals(spatialNormalizedEdmType))
+                || !modelEdmType.EdmEquals(spatialNormalizedEdmType))
             {
                 throw new InvalidOperationException(
                     Strings.ObjectContext_ExecuteFunctionTypeMismatch(
@@ -170,7 +172,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Returns true iff member's is a simple non-structures scalar such as primitive or enum.
+        ///     Returns true iff member's is a simple non-structures scalar such as primitive or enum.
         /// </summary>
         internal static bool IsNonRefSimpleMember(EdmMember member)
         {
@@ -191,7 +193,7 @@ namespace System.Data.Entity.Core.Common.Utils
         // effects: determine the entity type for an association end member
         internal static EntityType GetEntityTypeForEnd(AssociationEndMember end)
         {
-            Debug.Assert(null != end);
+            DebugCheck.NotNull(end);
             Debug.Assert(
                 end.TypeUsage.EdmType.BuiltInTypeKind == BuiltInTypeKind.RefType,
                 "type of association end member must be ref");
@@ -249,8 +251,8 @@ namespace System.Data.Entity.Core.Common.Utils
         // effects: determines whether the given association end can be referenced by an entity of the given type
         internal static bool IsAssociationValidForEntityType(AssociationSetEnd toEnd, EntityType type)
         {
-            Debug.Assert(null != toEnd);
-            Debug.Assert(null != type);
+            DebugCheck.NotNull(toEnd);
+            DebugCheck.NotNull(type);
 
             // get the opposite end which includes the relevant type information
             var fromEnd = GetOppositeEnd(toEnd);
@@ -262,7 +264,7 @@ namespace System.Data.Entity.Core.Common.Utils
         // effects: returns the opposite end in the association
         internal static AssociationSetEnd GetOppositeEnd(AssociationSetEnd end)
         {
-            Debug.Assert(null != end);
+            DebugCheck.NotNull(end);
             // there must be exactly one ("Single") other end that isn't ("Filter") this end
             var otherEnd = end.ParentAssociationSet.AssociationSetEnds.Where(
                 e => !e.EdmEquals(end)).Single();
@@ -273,7 +275,7 @@ namespace System.Data.Entity.Core.Common.Utils
         // effects: Returns true if the given function is composable.
         internal static bool IsComposable(EdmFunction function)
         {
-            Debug.Assert(function != null);
+            DebugCheck.NotNull(function);
             MetadataProperty isComposableProperty;
             if (function.MetadataProperties.TryGetValue("IsComposableAttribute", false, out isComposableProperty))
             {
@@ -289,7 +291,7 @@ namespace System.Data.Entity.Core.Common.Utils
         // effects: Returns true if member is nullable
         internal static bool IsMemberNullable(EdmMember member)
         {
-            Debug.Assert(member != null);
+            DebugCheck.NotNull(member);
             Debug.Assert(Helper.IsEdmProperty(member) || Helper.IsAssociationEndMember(member));
             if (Helper.IsEdmProperty(member))
             {
@@ -299,7 +301,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Given a table EntitySet this function finds out all C-side EntitySets that are mapped to the table.
+        ///     Given a table EntitySet this function finds out all C-side EntitySets that are mapped to the table.
         /// </summary>
         internal static IEnumerable<EntitySet> GetInfluencingEntitySetsForTable(EntitySet table, MetadataWorkspace workspace)
         {
@@ -312,16 +314,16 @@ namespace System.Data.Entity.Core.Common.Utils
 
             //find EntitySetMappings where one of the mapping fragment maps some type to the given table
             return containerMapping.EntitySetMaps
-                .Where(
-                    map => map.TypeMappings.Any(
-                        typeMap => typeMap.MappingFragments.Any(
-                            mappingFrag => mappingFrag.TableSet.EdmEquals(table)
-                                       )
-                               )
+                                   .Where(
+                                       map => map.TypeMappings.Any(
+                                           typeMap => typeMap.MappingFragments.Any(
+                                               mappingFrag => mappingFrag.TableSet.EdmEquals(table)
+                                                          )
+                                                  )
                 )
-                .Select(m => m.Set)
-                .Cast<EntitySet>()
-                .Distinct();
+                                   .Select(m => m.Set)
+                                   .Cast<EntitySet>()
+                                   .Distinct();
         }
 
         // effects: Returns this type and its sub types - for refs, gets the
@@ -403,11 +405,11 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Builds an undirected graph (represented as a directional graph with reciprocal navigation edges) of the all the types in the workspace.
-        /// This is used to traverse inheritance hierarchy up and down.
-        /// O(n), where n=number of types
+        ///     Builds an undirected graph (represented as a directional graph with reciprocal navigation edges) of the all the types in the workspace.
+        ///     This is used to traverse inheritance hierarchy up and down.
+        ///     O(n), where n=number of types
         /// </summary>
-        /// <returns>A dictionary of type t -> set of types {s}, such that there is an edge between t and elem(s) iff t and s are related DIRECTLY via inheritance (child or parent type) </returns>
+        /// <returns> A dictionary of type t -> set of types {s}, such that there is an edge between t and elem(s) iff t and s are related DIRECTLY via inheritance (child or parent type) </returns>
         internal static Dictionary<EntityType, Set<EntityType>> BuildUndirectedGraphOfTypes(EdmItemCollection edmItemCollection)
         {
             var graph = new Dictionary<EntityType, Set<EntityType>>();
@@ -431,7 +433,7 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// is A parent of b?
+        ///     is A parent of b?
         /// </summary>
         internal static bool IsParentOf(EntityType a, EntityType b)
         {
@@ -452,9 +454,9 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Add and Edge a --> b
-        /// Assumes edge does not exist
-        /// O(1)
+        ///     Add and Edge a --> b
+        ///     Assumes edge does not exist
+        ///     O(1)
         /// </summary>
         private static void AddDirectedEdgeBetweenEntityTypes(Dictionary<EntityType, Set<EntityType>> graph, EntityType a, EntityType b)
         {
@@ -474,9 +476,9 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Checks wither the given AssociationEnd's keys are sufficient for identifying a unique tuple in the AssociationSet.
-        /// This is possible because refconstraints make certain Keys redundant. We subtract such redundant key sof "other" ends
-        /// and see if what is left is contributed only from the given end's keys.
+        ///     Checks wither the given AssociationEnd's keys are sufficient for identifying a unique tuple in the AssociationSet.
+        ///     This is possible because refconstraints make certain Keys redundant. We subtract such redundant key sof "other" ends
+        ///     and see if what is left is contributed only from the given end's keys.
         /// </summary>
         [SuppressMessage("Microsoft.Security", "CA2140:TransparentMethodsMustNotReferenceCriticalCode",
             Justification = "Based on Bug VSTS Pioneer #433188: IsVisibleOutsideAssembly is wrong on generic instantiations.")]
@@ -566,8 +568,8 @@ namespace System.Data.Entity.Core.Common.Utils
         // and entitySet2. If none is found, returns an empty set
         internal static List<AssociationSet> GetAssociationsForEntitySets(EntitySet entitySet1, EntitySet entitySet2)
         {
-            Debug.Assert(entitySet1 != null);
-            Debug.Assert(entitySet2 != null);
+            DebugCheck.NotNull(entitySet1);
+            DebugCheck.NotNull(entitySet2);
             Debug.Assert(
                 entitySet1.EntityContainer == entitySet2.EntityContainer, "EntityContainer must be the same for both the entity sets");
 
@@ -628,7 +630,7 @@ namespace System.Data.Entity.Core.Common.Utils
         // and other entitySets. If none is found, returns an empty set
         internal static List<AssociationSet> GetAssociationsForEntitySet(EntitySetBase entitySet)
         {
-            Debug.Assert(entitySet != null);
+            DebugCheck.NotNull(entitySet);
 
             var result = new List<AssociationSet>();
 
@@ -748,8 +750,7 @@ namespace System.Data.Entity.Core.Common.Utils
         {
             Facet concurrencyFacet;
             if (typeUsage.Facets.TryGetValue(EdmProviderManifest.ConcurrencyModeFacetName, false, out concurrencyFacet)
-                &&
-                concurrencyFacet.Value != null)
+                && concurrencyFacet.Value != null)
             {
                 var concurrencyMode = (ConcurrencyMode)concurrencyFacet.Value;
                 return concurrencyMode;
@@ -762,20 +763,21 @@ namespace System.Data.Entity.Core.Common.Utils
         {
             Facet storeGeneratedFacet;
             if (member.TypeUsage.Facets.TryGetValue(EdmProviderManifest.StoreGeneratedPatternFacetName, false, out storeGeneratedFacet)
-                &&
-                storeGeneratedFacet.Value != null)
+                && storeGeneratedFacet.Value != null)
             {
                 var pattern = (StoreGeneratedPattern)storeGeneratedFacet.Value;
+
                 return pattern;
             }
+
             return StoreGeneratedPattern.None;
         }
 
         /// <summary>
-        /// Check if all the SchemaErrors have the serverity of SchemaErrorSeverity.Warning
+        ///     Check if all the SchemaErrors have the serverity of SchemaErrorSeverity.Warning
         /// </summary>
-        /// <param name="schemaErrors"></param>
-        /// <returns></returns>
+        /// <param name="schemaErrors"> </param>
+        /// <returns> </returns>
         internal static bool CheckIfAllErrorsAreWarnings(IList<EdmSchemaError> schemaErrors)
         {
             var length = schemaErrors.Count;
@@ -792,10 +794,9 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// 
         /// </summary>
-        /// <param name="dictionaryExtentViews"></param>
-        /// <returns></returns>
+        /// <param name="dictionaryExtentViews"> </param>
+        /// <returns> </returns>
         internal static string GenerateHashForAllExtentViewsContent(
             double schemaVersion, IEnumerable<KeyValuePair<string, string>> extentViews)
         {

@@ -1,16 +1,19 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.EntityClient
 {
     using System.Collections.Generic;
     using System.Configuration;
     using System.Data.Common;
+    using System.Data.Entity.Config;
+    using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.EntityClient.Internal;
+    using System.Data.Entity.Core.Mapping;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Linq;
     using System.Runtime.Versioning;
@@ -21,24 +24,18 @@ namespace System.Data.Entity.Core.EntityClient
     using IsolationLevel = System.Data.IsolationLevel;
 
     /// <summary>
-    /// Class representing a connection for the conceptual layer. An entity connection may only
-    /// be initialized once (by opening the connection). It is subsequently not possible to change
-    /// the connection string, attach a new store connection, or change the store connection string.
+    ///     Class representing a connection for the conceptual layer. An entity connection may only
+    ///     be initialized once (by opening the connection). It is subsequently not possible to change
+    ///     the connection string, attach a new store connection, or change the store connection string.
     /// </summary>
     public class EntityConnection : DbConnection
     {
-        private const string s_metadataPathSeparator = "|";
-        private const string s_semicolonSeparator = ";";
-        private const string s_entityClientProviderName = "System.Data.EntityClient";
-        private const string s_providerInvariantName = "provider";
-        private const string s_providerConnectionString = "provider connection string";
-        private const string s_readerPrefix = "reader://";
-
-        private static readonly StateChangeEventArgs _stateChangeClosed = new StateChangeEventArgs(
-            ConnectionState.Open, ConnectionState.Closed);
-
-        private static readonly StateChangeEventArgs _stateChangeOpen = new StateChangeEventArgs(
-            ConnectionState.Closed, ConnectionState.Open);
+        private const string MetadataPathSeparator = "|";
+        private const string SemicolonSeparator = ";";
+        private const string EntityClientProviderName = "System.Data.EntityClient";
+        private const string ProviderInvariantName = "provider";
+        private const string ProviderConnectionString = "provider connection string";
+        private const string ReaderPrefix = "reader://";
 
         private readonly object _connectionStringLock = new object();
         private static readonly DbConnectionOptions _emptyConnectionOptions = new DbConnectionOptions(String.Empty, null);
@@ -47,13 +44,13 @@ namespace System.Data.Entity.Core.EntityClient
         private DbConnectionOptions _userConnectionOptions;
         private DbConnectionOptions _effectiveConnectionOptions;
 
-        // The internal connection state of the entity client, which is distinct from that of the
-        // store connection it aggregates.
+        // The internal connection state of the entity client, which reflects the underlying
+        // store connection's state.
         private ConnectionState _entityClientConnectionState = ConnectionState.Closed;
 
         private DbProviderFactory _providerFactory;
         private DbConnection _storeConnection;
-        private readonly bool _userOwnsStoreConnection;
+        private readonly bool _entityConnectionShouldDisposeStoreConnection = true;
         private MetadataWorkspace _metadataWorkspace;
         // DbTransaction started using BeginDbTransaction() method
         private EntityTransaction _currentTransaction;
@@ -65,7 +62,7 @@ namespace System.Data.Entity.Core.EntityClient
         private MetadataArtifactLoader _artifactLoader;
 
         /// <summary>
-        /// Constructs the EntityConnection object with a connection not yet associated to a particular store
+        ///     Constructs the EntityConnection object with a connection not yet associated to a particular store
         /// </summary>
         [ResourceExposure(ResourceScope.None)] //We are not exposing any resource
         [ResourceConsumption(ResourceScope.Machine, ResourceScope.Machine)]
@@ -79,10 +76,9 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Constructs the EntityConnection object with a connection string
+        ///     Constructs the EntityConnection object with a connection string
         /// </summary>
-        /// <param name="connectionString">The connection string, may contain a list of settings for the connection or
-        /// just the name of the connection to use</param>
+        /// <param name="connectionString"> The connection string, may contain a list of settings for the connection or just the name of the connection to use </param>
         [SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
         [ResourceExposure(ResourceScope.Machine)] //Exposes the file names as part of ConnectionString which are a Machine resource
         [ResourceConsumption(ResourceScope.Machine)]
@@ -95,22 +91,36 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Constructs the EntityConnection from Metadata loaded in memory
+        ///     Constructs the EntityConnection from Metadata loaded in memory
         /// </summary>
-        /// <param name="workspace">Workspace containing metadata information.</param>
+        /// <param name="workspace"> Workspace containing metadata information. </param>
+        /// <param name="connection"> Store connection. </param>
         [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
             Justification = "Object is in fact passed to property of the class and gets Disposed properly in the Dispose() method.")]
         public EntityConnection(MetadataWorkspace workspace, DbConnection connection)
-            : this(workspace, connection, false)
+            : this(Check.NotNull(workspace, "workspace"), Check.NotNull(connection, "connection"), false, false)
         {
-            Contract.Requires(workspace != null);
-            Contract.Requires(connection != null);
         }
 
         /// <summary>
-        /// This constructor allows to skip the initialization code for testing purposes.
+        ///     Constructs the EntityConnection from Metadata loaded in memory
         /// </summary>
-        internal EntityConnection(MetadataWorkspace workspace, DbConnection connection, bool skipInitialization)
+        /// <param name="workspace"> Workspace containing metadata information. </param>
+        /// <param name="connection"> Store connection. </param>
+        /// <param name="entityConnectionOwnsStoreConnection"> If set to true the store connection is disposed when the entity connection is disposed, otherwise the caller must dispose the store connection. </param>
+        [SuppressMessage("Microsoft.Reliability", "CA2000:DisposeObjectsBeforeLosingScope",
+            Justification = "Object is in fact passed to property of the class and gets Disposed properly in the Dispose() method.")]
+        public EntityConnection(MetadataWorkspace workspace, DbConnection connection, bool entityConnectionOwnsStoreConnection)
+            : this(Check.NotNull(workspace, "workspace"), Check.NotNull(connection, "connection"),
+                false, entityConnectionOwnsStoreConnection)
+        {
+        }
+
+        /// <summary>
+        ///     This constructor allows to skip the initialization code for testing purposes.
+        /// </summary>
+        internal EntityConnection(
+            MetadataWorkspace workspace, DbConnection connection, bool skipInitialization, bool entityConnectionOwnsStoreConnection)
         {
             if (!skipInitialization)
             {
@@ -128,14 +138,8 @@ namespace System.Data.Entity.Core.EntityClient
                         Strings.EntityClient_ItemCollectionsNotRegisteredInWorkspace("StorageMappingItemCollection"));
                 }
 
-                if (connection.State
-                    != ConnectionState.Closed)
-                {
-                    throw new ArgumentException(Strings.EntityClient_ConnectionMustBeClosed);
-                }
-
                 // Verify that a factory can be retrieved
-                if (DbProviderFactories.GetFactory(connection) == null)
+                if (connection.GetProviderFactory() == null)
                 {
                     throw new ProviderIncompatibleException(Strings.EntityClient_DbConnectionHasNoProvider(connection));
                 }
@@ -143,16 +147,50 @@ namespace System.Data.Entity.Core.EntityClient
                 var collection = (StoreItemCollection)workspace.GetItemCollection(DataSpace.SSpace);
 
                 _providerFactory = collection.StoreProviderFactory;
-                _userOwnsStoreConnection = true;
                 _initialized = true;
             }
 
             _metadataWorkspace = workspace;
             _storeConnection = connection;
+            _entityConnectionShouldDisposeStoreConnection = entityConnectionOwnsStoreConnection;
+
+            if (_storeConnection != null)
+            {
+                _entityClientConnectionState = _storeConnection.State;
+            }
+
+            SubscribeToStoreConnectionStateChangeEvents();
+        }
+
+        private void SubscribeToStoreConnectionStateChangeEvents()
+        {
+            if (_storeConnection != null)
+            {
+                _storeConnection.StateChange += StoreConnectionStateChangeHandler;
+            }
+        }
+
+        private void UnsubscribeFromStoreConnectionStateChangeEvents()
+        {
+            if (_storeConnection != null)
+            {
+                _storeConnection.StateChange -= StoreConnectionStateChangeHandler;
+            }
+        }
+
+        protected virtual void StoreConnectionStateChangeHandler(Object sender, StateChangeEventArgs stateChange)
+        {
+            var newStoreConnectionState = stateChange.CurrentState;
+            if (_entityClientConnectionState != newStoreConnectionState)
+            {
+                var origEntityConnectionState = _entityClientConnectionState;
+                _entityClientConnectionState = stateChange.CurrentState;
+                OnStateChange(new StateChangeEventArgs(origEntityConnectionState, newStoreConnectionState));
+            }
         }
 
         /// <summary>
-        /// Get or set the entity connection string associated with this connection object
+        ///     Get or set the entity connection string associated with this connection object
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
         public override string ConnectionString
@@ -164,15 +202,15 @@ namespace System.Data.Entity.Core.EntityClient
                 // Therefore it is sufficient to identify whether EC(MW, DbConnection) is used
                 if (_userConnectionOptions == null)
                 {
-                    Contract.Assert(_storeConnection != null);
+                    Debug.Assert(_storeConnection != null);
 
                     return string.Format(
                         CultureInfo.InvariantCulture,
                         "{0}={3}{4};{1}={5};{2}=\"{6}\";",
                         EntityConnectionStringBuilder.MetadataParameterName,
-                        s_providerInvariantName,
-                        s_providerConnectionString,
-                        s_readerPrefix,
+                        ProviderInvariantName,
+                        ProviderConnectionString,
+                        ReaderPrefix,
                         _metadataWorkspace.MetadataWorkspaceId,
                         _storeConnection.GetProviderInvariantName(),
                         FormatProviderString(_storeConnection.ConnectionString));
@@ -228,7 +266,7 @@ namespace System.Data.Entity.Core.EntityClient
             [ResourceExposure(ResourceScope.Machine)] // Exposes the file names as part of ConnectionString which are a Machine resource
             [ResourceConsumption(ResourceScope.Machine)]
             // For ChangeConnectionString method call. But the paths are not created in this method.
-                set
+            set
             {
                 ValidateChangesPermitted();
                 ChangeConnectionString(value);
@@ -236,7 +274,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Formats provider string to replace " with \" so it can be appended within quotation marks "..."
+        ///     Formats provider string to replace " with \" so it can be appended within quotation marks "..."
         /// </summary>
         private static string FormatProviderString(string providerString)
         {
@@ -244,7 +282,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Get the time to wait when attempting to establish a connection before ending the try and generating an error
+        ///     Get the time to wait when attempting to establish a connection before ending the try and generating an error
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
         public override int ConnectionTimeout
@@ -273,7 +311,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Get the name of the current database or the database that will be used after a connection is opened
+        ///     Get the name of the current database or the database that will be used after a connection is opened
         /// </summary>
         public override string Database
         {
@@ -281,41 +319,16 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Gets the ConnectionState property of the EntityConnection
+        ///     Gets the ConnectionState property of the EntityConnection
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
         public override ConnectionState State
         {
-            get
-            {
-                try
-                {
-                    if (_entityClientConnectionState == ConnectionState.Open)
-                    {
-                        Debug.Assert(StoreConnection != null);
-                        if (StoreConnection.State
-                            != ConnectionState.Open)
-                        {
-                            return ConnectionState.Broken;
-                        }
-                    }
-
-                    return _entityClientConnectionState;
-                }
-                catch (Exception e)
-                {
-                    if (e.IsCatchableExceptionType())
-                    {
-                        throw new EntityException(Strings.EntityClient_ProviderSpecificError(@"State"), e);
-                    }
-
-                    throw;
-                }
-            }
+            get { return _entityClientConnectionState; }
         }
 
         /// <summary>
-        /// Gets the name or network address of the data source to connect to
+        ///     Gets the name or network address of the data source to connect to
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
         public override string DataSource
@@ -344,7 +357,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Gets a string that contains the version of the data store to which the client is connected
+        ///     Gets a string that contains the version of the data store to which the client is connected
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
         public override string ServerVersion
@@ -353,12 +366,12 @@ namespace System.Data.Entity.Core.EntityClient
             {
                 if (_storeConnection == null)
                 {
-                    throw new InvalidOperationException(Strings.EntityClient_ConnectionStringNeededBeforeOperation);
+                    throw Error.EntityClient_ConnectionStringNeededBeforeOperation();
                 }
 
                 if (State != ConnectionState.Open)
                 {
-                    throw new InvalidOperationException(Strings.EntityClient_ConnectionNotOpen);
+                    throw Error.EntityClient_ConnectionNotOpen();
                 }
 
                 try
@@ -378,7 +391,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Gets the provider factory associated with EntityConnection
+        ///     Gets the provider factory associated with EntityConnection
         /// </summary>
         protected override DbProviderFactory DbProviderFactory
         {
@@ -386,7 +399,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Gets the DbProviderFactory for the underlying provider
+        ///     Gets the DbProviderFactory for the underlying provider
         /// </summary>
         internal virtual DbProviderFactory StoreProviderFactory
         {
@@ -394,7 +407,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Gets the DbConnection for the underlying provider connection
+        ///     Gets the DbConnection for the underlying provider connection
         /// </summary>
         public virtual DbConnection StoreConnection
         {
@@ -402,91 +415,66 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Gets the metadata workspace used by this connection
+        ///     Gets the metadata workspace used by this connection
         /// </summary>
-        [CLSCompliant(false)]
+        [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate"), CLSCompliant(false)]
         public virtual MetadataWorkspace GetMetadataWorkspace()
         {
-            return GetMetadataWorkspace(initializeAllCollections: true);
-        }
-
-        private static bool ShouldRecalculateMetadataArtifactLoader(List<MetadataArtifactLoader> loaders)
-        {
-            if (loaders.Any(loader => loader.GetType() == typeof(MetadataArtifactLoaderCompositeFile)))
+            if (_metadataWorkspace != null)
             {
-                // the loaders had folders in it
-                return true;
+                return _metadataWorkspace;
             }
 
-            // in the case that loaders only contains resources or file name, we trust the cache
-            return false;
-        }
+            var loaders = new List<MetadataArtifactLoader>();
+            var paths = _effectiveConnectionOptions[EntityConnectionStringBuilder.MetadataParameterName];
 
-        [ResourceExposure(ResourceScope.None)] // The resource( path name) is not exposed to the callers of this method
-        [ResourceConsumption(ResourceScope.Machine, ResourceScope.Machine)]
-        //For SplitPaths call and we pick the file names from class variable.
-        internal virtual MetadataWorkspace GetMetadataWorkspace(bool initializeAllCollections)
-        {
-            Debug.Assert(
-                _metadataWorkspace != null || _effectiveConnectionOptions != null,
-                "The effective connection options is null, which should never be");
-            if (_metadataWorkspace == null
-                ||
-                (initializeAllCollections && !_metadataWorkspace.IsItemCollectionAlreadyRegistered(DataSpace.SSpace)))
+            if (!string.IsNullOrEmpty(paths))
             {
-                // This lock is to ensure that the connection string and the metadata workspace are in a consistent state, that is, you
-                // don't get a metadata workspace not matching what's described by the connection string
-                lock (_connectionStringLock)
+                loaders = MetadataCache.GetOrCreateMetdataArtifactLoader(paths);
+
+                if (ShouldRecalculateMetadataArtifactLoader(loaders))
                 {
-                    EdmItemCollection edmItemCollection = null;
-                    if (_metadataWorkspace == null)
-                    {
-                        var workspace = new MetadataWorkspace();
-                        var loaders = new List<MetadataArtifactLoader>();
-                        var paths = _effectiveConnectionOptions[EntityConnectionStringBuilder.MetadataParameterName];
-
-                        if (!string.IsNullOrEmpty(paths))
-                        {
-                            loaders = MetadataCache.GetOrCreateMetdataArtifactLoader(paths);
-
-                            if (!ShouldRecalculateMetadataArtifactLoader(loaders))
-                            {
-                                _artifactLoader = MetadataArtifactLoader.Create(loaders);
-                            }
-                            else
-                            {
-                                // the loaders contains folders that might get updated during runtime, so we have to recalculate the loaders again
-                                _artifactLoader = MetadataArtifactLoader.Create(MetadataCache.SplitPaths(paths));
-                            }
-                        }
-                        else
-                        {
-                            _artifactLoader = MetadataArtifactLoader.Create(loaders);
-                        }
-
-                        edmItemCollection = LoadEdmItemCollection(workspace, _artifactLoader);
-                        _metadataWorkspace = workspace;
-                    }
-                    else
-                    {
-                        edmItemCollection = (EdmItemCollection)_metadataWorkspace.GetItemCollection(DataSpace.CSpace);
-                    }
-
-                    if (initializeAllCollections && !_metadataWorkspace.IsItemCollectionAlreadyRegistered(DataSpace.SSpace))
-                    {
-                        LoadStoreItemCollections(
-                            _metadataWorkspace, _storeConnection, _effectiveConnectionOptions, edmItemCollection, _artifactLoader);
-                        _artifactLoader = null;
-                        _initialized = true;
-                    }
+                    // the loaders contains folders that might get updated during runtime, so we have to recalculate the loaders again
+                    _artifactLoader = MetadataArtifactLoader.Create(MetadataCache.SplitPaths(paths));
+                }
+                else
+                {
+                    _artifactLoader = MetadataArtifactLoader.Create(loaders);
                 }
             }
+            else
+            {
+                _artifactLoader = MetadataArtifactLoader.Create(loaders);
+            }
+
+            // Build a string as the key and look up the MetadataCache for a match
+            var edmCacheKey = CreateMetadataCacheKey(_artifactLoader.GetOriginalPaths(DataSpace.CSpace), null, null);
+
+            // Check the MetadataCache for an entry with this key
+            object entryToken;
+            var edmItemCollection = MetadataCache.GetOrCreateEdmItemCollection(edmCacheKey, _artifactLoader, out entryToken);
+
+            var mappingLoader = new Lazy<StorageMappingItemCollection>(
+                () => StorageMappingLoader(_storeConnection, _effectiveConnectionOptions, edmItemCollection));
+
+            _metadataWorkspace = new MetadataWorkspace(
+                () => edmItemCollection,
+                () => mappingLoader.Value.StoreItemCollection,
+                () => mappingLoader.Value);
+
+            // TODO: Fix this as part of metadata caching simplification to cache workspaces themselves
+            _metadataWorkspace.AddMetadataEntryToken(entryToken);
 
             return _metadataWorkspace;
         }
 
+        private static bool ShouldRecalculateMetadataArtifactLoader(IEnumerable<MetadataArtifactLoader> loaders)
+        {
+            return loaders.Any(loader => loader.GetType() == typeof(MetadataArtifactLoaderCompositeFile));
+        }
+
         /// <summary>
-        /// Gets the current transaction that this connection is enlisted in
+        ///     Gets the current transaction that this connection is enlisted in
         /// </summary>
         internal virtual EntityTransaction CurrentTransaction
         {
@@ -504,7 +492,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Whether the user has enlisted in transaction using EnlistTransaction method
+        ///     Whether the user has enlisted in transaction using EnlistTransaction method
         /// </summary>
         internal virtual bool EnlistedInUserTransaction
         {
@@ -523,68 +511,95 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Establish a connection to the data store by calling the Open method on the underlying data provider
+        ///     Establish a connection to the data store by calling the Open method on the underlying data provider
         /// </summary>
         public override void Open()
         {
             if (_storeConnection == null)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionStringNeededBeforeOperation);
+                throw Error.EntityClient_ConnectionStringNeededBeforeOperation();
             }
 
-            if (State != ConnectionState.Closed)
+            if (State == ConnectionState.Broken)
             {
-                throw new InvalidOperationException(Strings.EntityClient_CannotReopenConnection);
+                throw Error.EntityClient_CannotOpenBrokenConnection();
+            }
+
+            if (State == ConnectionState.Open)
+            {
+                throw Error.EntityClient_CannotReopenConnection();
             }
 
             var closeStoreConnectionOnFailure = false;
-            OpenStoreConnectionIfStoreConnectionNotOpened(
-                _storeConnection,
-                EntityRes.EntityClient_ProviderSpecificError,
-                @"Open",
-                ref closeStoreConnectionOnFailure);
+            try
+            {
+                if (_storeConnection.State != ConnectionState.Open)
+                {
+                    DbProviderServices.GetExecutionStrategy(_storeConnection).Execute(_storeConnection.Open);
+
+                    closeStoreConnectionOnFailure = true;
+                }
+
+                // With every successful open of the store connection, always null out the current db transaction and enlistedTransaction
+                ClearTransactions();
+            }
+            catch (Exception e)
+            {
+                if (e.IsCatchableExceptionType())
+                {
+                    var exceptionMessage = Strings.EntityClient_ProviderSpecificError("Open");
+                    throw new EntityException(exceptionMessage, e);
+                }
+
+                throw;
+            }
 
             // the following guards against the case when the user closes the underlying store connection
             // in the state change event handler, as a consequence of which we are in the 'Broken' state
             if (_storeConnection == null
                 || _storeConnection.State != ConnectionState.Open)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionNotOpen);
+                throw Error.EntityClient_ConnectionNotOpen();
             }
 
             InitializeMetadata(_storeConnection, _storeConnection, closeStoreConnectionOnFailure);
-            SetEntityClientConnectionStateToOpen();
         }
 
+#if !NET40
+
         /// <summary>
-        /// An asynchronous version of Open, which
-        /// establishes a connection to the data store by calling the Open method on the underlying data provider
+        ///     An asynchronous version of Open, which
+        ///     establishes a connection to the data store by calling the Open method on the underlying data provider
         /// </summary>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
-        /// <returns>A task representing the asynchronous operation.</returns>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests. </param>
+        /// <returns> A task representing the asynchronous operation. </returns>
         public override async Task OpenAsync(CancellationToken cancellationToken)
         {
             if (_storeConnection == null)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionStringNeededBeforeOperation);
+                throw Error.EntityClient_ConnectionStringNeededBeforeOperation();
             }
 
-            if (State != ConnectionState.Closed)
+            if (State == ConnectionState.Broken)
             {
-                throw new InvalidOperationException(Strings.EntityClient_CannotReopenConnection);
+                throw Error.EntityClient_CannotOpenBrokenConnection();
+            }
+
+            if (State == ConnectionState.Open)
+            {
+                throw Error.EntityClient_CannotReopenConnection();
             }
 
             var closeStoreConnectionOnFailure = false;
             try
             {
-                if (_storeConnection.State
-                    != ConnectionState.Open)
+                if (_storeConnection.State != ConnectionState.Open)
                 {
-                    await _storeConnection.OpenAsync(cancellationToken);
+                    var executionStrategy = DbProviderServices.GetExecutionStrategy(_storeConnection);
+                    await executionStrategy.ExecuteAsync(() => _storeConnection.OpenAsync(cancellationToken), cancellationToken)
+                                           .ConfigureAwait(continueOnCapturedContext: false);
                     closeStoreConnectionOnFailure = true;
                 }
-
-                ResetStoreConnection(_storeConnection, originalConnection: null, closeOriginalConnection: false);
 
                 // With every successful open of the store connection, always null out the current db transaction and enlistedTransaction
                 ClearTransactions();
@@ -593,7 +608,7 @@ namespace System.Data.Entity.Core.EntityClient
             {
                 if (e.IsCatchableExceptionType())
                 {
-                    var exceptionMessage = EntityRes.GetString(EntityRes.EntityClient_ProviderSpecificError, @"Open");
+                    var exceptionMessage = Strings.EntityClient_ProviderSpecificError("Open");
                     throw new EntityException(exceptionMessage, e);
                 }
 
@@ -605,56 +620,16 @@ namespace System.Data.Entity.Core.EntityClient
             if (_storeConnection == null
                 || _storeConnection.State != ConnectionState.Open)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionNotOpen);
+                throw Error.EntityClient_ConnectionNotOpen();
             }
 
             InitializeMetadata(_storeConnection, _storeConnection, closeStoreConnectionOnFailure);
-            SetEntityClientConnectionStateToOpen();
         }
 
-        /// <summary>
-        /// Helper method that opens a specified store connection if it's not opened yet.
-        /// </summary>
-        /// <param name="storeConnectionToOpen">The store connection to open</param>
-        /// <param name="closeStoreConnectionOnFailure">A flag that is set on if the connection is opened
-        /// successfully</param>
-        private void OpenStoreConnectionIfStoreConnectionNotOpened(
-            DbConnection storeConnectionToOpen,
-            string exceptionCode,
-            string attemptedOperation,
-            ref bool closeStoreConnectionOnFailure)
-        {
-            try
-            {
-                if (storeConnectionToOpen.State
-                    != ConnectionState.Open)
-                {
-                    storeConnectionToOpen.Open();
-                    closeStoreConnectionOnFailure = true;
-                }
-
-                ResetStoreConnection(storeConnectionToOpen, originalConnection: null, closeOriginalConnection: false);
-
-                // With every successful open of the store connection, always null out the current db transaction and enlistedTransaction
-                ClearTransactions();
-            }
-            catch (Exception e)
-            {
-                if (e.IsCatchableExceptionType())
-                {
-                    var exceptionMessage = string.IsNullOrEmpty(attemptedOperation)
-                                               ? EntityRes.GetString(exceptionCode)
-                                               : EntityRes.GetString(exceptionCode, attemptedOperation);
-
-                    throw new EntityException(exceptionMessage, e);
-                }
-
-                throw;
-            }
-        }
+#endif
 
         /// <summary>
-        /// Create a new command object that uses this connection object.
+        ///     Create a new command object that uses this connection object.
         /// </summary>
         public new virtual EntityCommand CreateCommand()
         {
@@ -662,7 +637,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Create a new command object that uses this connection object
+        ///     Create a new command object that uses this connection object
         /// </summary>
         protected override DbCommand CreateDbCommand()
         {
@@ -670,13 +645,12 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Helper method to initialize the metadata workspace and reset the store connection
-        /// associated with the entity client
+        ///     Helper method to initialize the metadata workspace and reset the store connection
+        ///     associated with the entity client
         /// </summary>
-        /// <param name="newConnection">The new connection to associate with the entity client</param>
-        /// <param name="originalConnection">The original connection associated with the entity client</param>
-        /// <param name="closeOriginalConnectionOnFailure">A flag to indicate whether the original
-        /// store connection needs to be closed on failure</param>
+        /// <param name="newConnection"> The new connection to associate with the entity client </param>
+        /// <param name="originalConnection"> The original connection associated with the entity client </param>
+        /// <param name="closeOriginalConnectionOnFailure"> A flag to indicate whether the original store connection needs to be closed on failure </param>
         private void InitializeMetadata(
             DbConnection newConnection,
             DbConnection originalConnection,
@@ -692,7 +666,22 @@ namespace System.Data.Entity.Core.EntityClient
                 // Undo the open if something failed
                 if (e.IsCatchableExceptionType())
                 {
-                    ResetStoreConnection(newConnection, originalConnection, closeOriginalConnectionOnFailure);
+                    if (newConnection != originalConnection)
+                    {
+                        UnsubscribeFromStoreConnectionStateChangeEvents();
+                    }
+
+                    _storeConnection = newConnection;
+
+                    if (newConnection != originalConnection)
+                    {
+                        SubscribeToStoreConnectionStateChangeEvents();
+                    }
+
+                    if (closeOriginalConnectionOnFailure && originalConnection != null)
+                    {
+                        originalConnection.Close();
+                    }
                 }
 
                 throw;
@@ -700,32 +689,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Set the entity client connection state to Open, and raise an appropriate event
-        /// </summary>
-        private void SetEntityClientConnectionStateToOpen()
-        {
-            _entityClientConnectionState = ConnectionState.Open;
-            OnStateChange(_stateChangeOpen);
-        }
-
-        /// <summary>
-        /// This method sets the store connection and hooks up the event
-        /// </summary>
-        /// <param name="newConnection">The  DbConnection to set</param>
-        /// <param name="originalConnection">The original DbConnection to be closed - this argument could be null</param>
-        /// <param name="closeOriginalConnection">Indicates whether the original store connection should be closed</param>
-        private void ResetStoreConnection(DbConnection newConnection, DbConnection originalConnection, bool closeOriginalConnection)
-        {
-            _storeConnection = newConnection;
-
-            if (closeOriginalConnection && originalConnection != null)
-            {
-                originalConnection.Close();
-            }
-        }
-
-        /// <summary>
-        /// Close the connection to the data store
+        ///     Close the connection to the data store
         /// </summary>
         public override void Close()
         {
@@ -735,42 +699,42 @@ namespace System.Data.Entity.Core.EntityClient
                 return;
             }
 
-            CloseHelper();
+            StoreCloseHelper(); // note: we will update our own state since we are subscribed to event on underlying store connection
         }
 
         /// <summary>
-        /// Changes the current database for this connection
+        ///     Changes the current database for this connection
         /// </summary>
-        /// <param name="databaseName">The name of the database to change to</param>
+        /// <param name="databaseName"> The name of the database to change to </param>
         public override void ChangeDatabase(string databaseName)
         {
             throw new NotSupportedException();
         }
 
         /// <summary>
-        /// Begins a database transaction
+        ///     Begins a database transaction
         /// </summary>
-        /// <returns>An object representing the new transaction</returns>
+        /// <returns> An object representing the new transaction </returns>
         public new virtual EntityTransaction BeginTransaction()
         {
             return base.BeginTransaction() as EntityTransaction;
         }
 
         /// <summary>
-        /// Begins a database transaction
+        ///     Begins a database transaction
         /// </summary>
-        /// <param name="isolationLevel">The isolation level of the transaction</param>
-        /// <returns>An object representing the new transaction</returns>
+        /// <param name="isolationLevel"> The isolation level of the transaction </param>
+        /// <returns> An object representing the new transaction </returns>
         public new virtual EntityTransaction BeginTransaction(IsolationLevel isolationLevel)
         {
             return base.BeginTransaction(isolationLevel) as EntityTransaction;
         }
 
         /// <summary>
-        /// Begins a database transaction
+        ///     Begins a database transaction
         /// </summary>
-        /// <param name="isolationLevel">The isolation level of the transaction</param>
-        /// <returns>An object representing the new transaction</returns>
+        /// <param name="isolationLevel"> The isolation level of the transaction </param>
+        /// <returns> An object representing the new transaction </returns>
         protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
         {
             if (CurrentTransaction != null)
@@ -780,18 +744,33 @@ namespace System.Data.Entity.Core.EntityClient
 
             if (_storeConnection == null)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionStringNeededBeforeOperation);
+                throw Error.EntityClient_ConnectionStringNeededBeforeOperation();
             }
 
             if (State != ConnectionState.Open)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionNotOpen);
+                throw Error.EntityClient_ConnectionNotOpen();
             }
 
             DbTransaction storeTransaction = null;
             try
             {
-                storeTransaction = _storeConnection.BeginTransaction(isolationLevel);
+                var executionStrategy = DbProviderServices.GetExecutionStrategy(_storeConnection);
+                storeTransaction = executionStrategy.Execute(
+                    () =>
+                        {
+                            if (_storeConnection.State == ConnectionState.Broken)
+                            {
+                                _storeConnection.Close();
+                            }
+
+                            if (_storeConnection.State == ConnectionState.Closed)
+                            {
+                                _storeConnection.Open();
+                            }
+
+                            return _storeConnection.BeginTransaction(isolationLevel);
+                        });
             }
             catch (Exception e)
             {
@@ -815,19 +794,19 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Enlist in the given transaction
+        ///     Enlist in the given transaction
         /// </summary>
-        /// <param name="transaction">The transaction object to enlist into</param>
+        /// <param name="transaction"> The transaction object to enlist into </param>
         public override void EnlistTransaction(Transaction transaction)
         {
             if (_storeConnection == null)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionStringNeededBeforeOperation);
+                throw Error.EntityClient_ConnectionStringNeededBeforeOperation();
             }
 
             if (State != ConnectionState.Open)
             {
-                throw new InvalidOperationException(Strings.EntityClient_ConnectionNotOpen);
+                throw Error.EntityClient_ConnectionNotOpen();
             }
 
             try
@@ -866,9 +845,9 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Cleans up this connection object
+        ///     Cleans up this connection object
         /// </summary>
-        /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources</param>
+        /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources </param>
         [SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "_currentTransaction")]
         [ResourceExposure(ResourceScope.None)] //We are not exposing any resource
         [ResourceConsumption(ResourceScope.Machine, ResourceScope.Machine)]
@@ -888,14 +867,14 @@ namespace System.Data.Entity.Core.EntityClient
             if (disposing)
             {
                 ClearTransactions();
-                var raiseStateChangeEvent = EntityCloseHelper(false, State);
 
                 if (_storeConnection != null)
                 {
                     StoreCloseHelper(); // closes store connection
                     if (_storeConnection != null)
                     {
-                        if (!_userOwnsStoreConnection) // only dispose it if we didn't get it from the user...
+                        UnsubscribeFromStoreConnectionStateChangeEvents();
+                        if (_entityConnectionShouldDisposeStoreConnection) // only dispose it if we are responsible for disposing...
                         {
                             _storeConnection.Dispose();
                         }
@@ -903,21 +882,19 @@ namespace System.Data.Entity.Core.EntityClient
                     }
                 }
 
+                // ensure our own state is closed even if _storeConnection was null
+                _entityClientConnectionState = ConnectionState.Closed;
+
                 // Change the connection string to just an empty string, ChangeConnectionString should always succeed here,
                 // it's unnecessary to pass in the connection string parameter name in the second argument, which we don't
                 // have anyway
                 ChangeConnectionString(String.Empty);
-
-                if (raiseStateChangeEvent) // we need to raise the event explicitly
-                {
-                    OnStateChange(_stateChangeClosed);
-                }
             }
             base.Dispose(disposing);
         }
 
         /// <summary>
-        /// Clears the current DbTransaction for this connection
+        ///     Clears the current DbTransaction for this connection
         /// </summary>
         internal virtual void ClearCurrentTransaction()
         {
@@ -925,9 +902,9 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Reinitialize this connection object to use the new connection string
+        ///     Reinitialize this connection object to use the new connection string
         /// </summary>
-        /// <param name="newConnectionString">The new connection string</param>
+        /// <param name="newConnectionString"> The new connection string </param>
         [ResourceExposure(ResourceScope.Machine)] //Exposes the file names which are a Machine resource as part of the connection string
         private void ChangeConnectionString(string newConnectionString)
         {
@@ -956,7 +933,7 @@ namespace System.Data.Entity.Core.EntityClient
                     // Find the named connection from the configuration, then extract the settings
                     var setting = ConfigurationManager.ConnectionStrings[namedConnection];
                     if (setting == null
-                        || setting.ProviderName != s_entityClientProviderName)
+                        || setting.ProviderName != EntityClientProviderName)
                     {
                         throw new ArgumentException(Strings.EntityClient_InvalidNamedConnection);
                     }
@@ -979,7 +956,7 @@ namespace System.Data.Entity.Core.EntityClient
                 var providerName = ValidateValueForTheKeyword(
                     effectiveConnectionOptions, EntityConnectionStringBuilder.ProviderParameterName);
                 // Get the correct provider factory
-                factory = GetFactory(providerName);
+                factory = DbConfiguration.GetService<DbProviderFactory>(providerName);
 
                 // Create the underlying provider specific connection and give it the connection string from the DbConnectionOptions object
                 storeConnection = GetStoreConnection(factory);
@@ -1014,10 +991,12 @@ namespace System.Data.Entity.Core.EntityClient
                 // Now we have sufficient information and verified the configuration string is good, use them for this connection object
                 // Failure should not occur from this point to the end of this method
                 _providerFactory = factory;
+
                 _metadataWorkspace = null;
 
                 ClearTransactions();
-                ResetStoreConnection(storeConnection, null, false);
+                _storeConnection = storeConnection;
+                SubscribeToStoreConnectionStateChangeEvents();
 
                 // Remembers the connection options objects with the connection string set by the user
                 _userConnectionOptions = userConnectionOptions;
@@ -1043,35 +1022,11 @@ namespace System.Data.Entity.Core.EntityClient
             return keywordValue;
         }
 
-        private static EdmItemCollection LoadEdmItemCollection(MetadataWorkspace workspace, MetadataArtifactLoader artifactLoader)
-        {
-            // Build a string as the key and look up the MetadataCache for a match
-            var edmCacheKey = CreateMetadataCacheKey(artifactLoader.GetOriginalPaths(DataSpace.CSpace), null, null);
-
-            // Check the MetadataCache for an entry with this key
-            object entryToken;
-            var edmItemCollection = MetadataCache.GetOrCreateEdmItemCollection(
-                edmCacheKey,
-                artifactLoader,
-                out entryToken);
-            workspace.RegisterItemCollection(edmItemCollection);
-
-            // Adding the edm metadata entry token to the workspace, to make sure that this token remains alive till workspace is alive
-            workspace.AddMetadataEntryToken(entryToken);
-
-            return edmItemCollection;
-        }
-
-        private static void LoadStoreItemCollections(
-            MetadataWorkspace workspace,
+        private StorageMappingItemCollection StorageMappingLoader(
             DbConnection storeConnection,
             DbConnectionOptions connectionOptions,
-            EdmItemCollection edmItemCollection,
-            MetadataArtifactLoader artifactLoader)
+            EdmItemCollection edmItemCollection)
         {
-            Debug.Assert(
-                workspace.IsItemCollectionAlreadyRegistered(DataSpace.CSpace), "C-Space must be loaded before loading S or C-S space");
-
             // The provider connection string is optional; if it has not been specified,
             // we pick up the store's connection string.
             //
@@ -1084,7 +1039,7 @@ namespace System.Data.Entity.Core.EntityClient
 
             // Build a string as the key and look up the MetadataCache for a match
             var storeCacheKey = CreateMetadataCacheKey(
-                artifactLoader.GetOriginalPaths(),
+                _artifactLoader.GetOriginalPaths(),
                 connectionOptions[EntityConnectionStringBuilder.ProviderParameterName],
                 providerConnectionString);
 
@@ -1093,24 +1048,26 @@ namespace System.Data.Entity.Core.EntityClient
             var mappingCollection =
                 MetadataCache.GetOrCreateStoreAndMappingItemCollections(
                     storeCacheKey,
-                    artifactLoader,
+                    _artifactLoader,
                     edmItemCollection,
                     out entryToken);
 
-            workspace.RegisterItemCollection(mappingCollection.StoreItemCollection);
-            workspace.RegisterItemCollection(mappingCollection);
+            _artifactLoader = null;
+            _initialized = true;
 
-            // Adding the store metadata entry token to the workspace
-            workspace.AddMetadataEntryToken(entryToken);
+            // TODO: Fix this as part of metadata caching simplification to cache workspaces themselves
+            _metadataWorkspace.AddMetadataEntryToken(entryToken);
+
+            return mappingCollection;
         }
 
         /// <summary>
-        /// Create a key to be used with the MetadataCache from a connection options object
+        ///     Create a key to be used with the MetadataCache from a connection options object
         /// </summary>
-        /// <param name="paths">A list of metadata file paths</param>
-        /// <param name="providerName">The provider name</param>
-        /// <param name="providerConnectionString">The provider connection string</param>
-        /// <returns>The key</returns>
+        /// <param name="paths"> A list of metadata file paths </param>
+        /// <param name="providerName"> The provider name </param>
+        /// <param name="providerConnectionString"> The provider connection string </param>
+        /// <returns> The key </returns>
         private static string CreateMetadataCacheKey(IList<string> paths, string providerName, string providerConnectionString)
         {
             var resultCount = 0;
@@ -1130,21 +1087,19 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Create a key to be used with the MetadataCache from a connection options 
-        /// object.
+        ///     Create a key to be used with the MetadataCache from a connection options
+        ///     object.
         /// </summary>
-        /// <param name="paths">A list of metadata file paths</param>
-        /// <param name="providerName">The provider name</param>
-        /// <param name="providerConnectionString">The provider connection string</param>
-        /// <param name="buildResult">Whether the result variable should be built.</param>
-        /// <param name="resultCount">
-        /// On entry, the expected size of the result (unused if buildResult is false).
-        /// After execution, the effective result.</param>
-        /// <param name="result">The key.</param>
+        /// <param name="paths"> A list of metadata file paths </param>
+        /// <param name="providerName"> The provider name </param>
+        /// <param name="providerConnectionString"> The provider connection string </param>
+        /// <param name="buildResult"> Whether the result variable should be built. </param>
+        /// <param name="resultCount"> On entry, the expected size of the result (unused if buildResult is false). After execution, the effective result. </param>
+        /// <param name="result"> The key. </param>
         /// <remarks>
-        /// This method should be called once with buildResult=false, to get 
-        /// the size of the resulting key, and once with buildResult=true
-        /// and the size specification.
+        ///     This method should be called once with buildResult=false, to get
+        ///     the size of the resulting key, and once with buildResult=true
+        ///     and the size specification.
         /// </remarks>
         private static void CreateMetadataCacheKeyWithCount(
             IList<string> paths,
@@ -1173,7 +1128,7 @@ namespace System.Data.Entity.Core.EntityClient
                 if (buildResult)
                 {
                     keyString.Append(providerName);
-                    keyString.Append(s_semicolonSeparator);
+                    keyString.Append(SemicolonSeparator);
                 }
             }
 
@@ -1188,7 +1143,7 @@ namespace System.Data.Entity.Core.EntityClient
                             resultCount++;
                             if (buildResult)
                             {
-                                keyString.Append(s_metadataPathSeparator);
+                                keyString.Append(MetadataPathSeparator);
                             }
                         }
 
@@ -1203,7 +1158,7 @@ namespace System.Data.Entity.Core.EntityClient
                 resultCount++;
                 if (buildResult)
                 {
-                    keyString.Append(s_semicolonSeparator);
+                    keyString.Append(SemicolonSeparator);
                 }
             }
 
@@ -1229,8 +1184,8 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Clears the current DbTransaction and the transaction the user enlisted the connection in 
-        /// with EnlistTransaction() method.
+        ///     Clears the current DbTransaction and the transaction the user enlisted the connection in
+        ///     with EnlistTransaction() method.
         /// </summary>
         private void ClearTransactions()
         {
@@ -1239,7 +1194,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Clears the transaction the user elinsted in using EnlistTransaction() method.
+        ///     Clears the transaction the user elinsted in using EnlistTransaction() method.
         /// </summary>
         private void ClearEnlistedTransaction()
         {
@@ -1252,32 +1207,22 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Event handler invoked when the transaction has completed (either by committing or rolling back).
+        ///     Event handler invoked when the transaction has completed (either by committing or rolling back).
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="TransactionEventArgs"/> that contains the event data.</param>
-        /// <remarks>Note that to avoid threading issues we never reset the <see cref=" _enlistedTransaction"/> field here.</remarks>
+        /// <param name="sender"> The source of the event. </param>
+        /// <param name="e">
+        ///     The <see cref="TransactionEventArgs" /> that contains the event data.
+        /// </param>
+        /// <remarks>
+        ///     Note that to avoid threading issues we never reset the <see cref=" _enlistedTransaction" /> field here.
+        /// </remarks>
         private void EnlistedTransactionCompleted(object sender, TransactionEventArgs e)
         {
             e.Transaction.TransactionCompleted -= EnlistedTransactionCompleted;
         }
 
         /// <summary>
-        /// Helper method invoked as part of Close()/Dispose() that releases the underlying
-        /// store connection and raises the appropriate event.
-        /// </summary>
-        private void CloseHelper()
-        {
-            var previousState = State; // the public connection state before cleanup
-            StoreCloseHelper();
-            EntityCloseHelper(
-                true, // raise the state change event
-                previousState
-                );
-        }
-
-        /// <summary>
-        /// Store-specific helper method invoked as part of Close()/Dispose().
+        ///     Store-specific helper method invoked as part of Close()/Dispose().
         /// </summary>
         private void StoreCloseHelper()
         {
@@ -1304,34 +1249,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Entity-specific helper method invoked as part of Close()/Dispose().
-        /// </summary>
-        /// <param name="fireEventOnStateChange">Indicates whether we need to raise the state change event here</param>
-        /// <param name="previousState">The public state of the connection before cleanup began</param>
-        /// <returns>true if the caller needs to raise the state change event</returns>
-        private bool EntityCloseHelper(bool fireEventOnStateChange, ConnectionState previousState)
-        {
-            var result = false;
-
-            _entityClientConnectionState = ConnectionState.Closed;
-
-            if (previousState == ConnectionState.Open)
-            {
-                if (fireEventOnStateChange)
-                {
-                    OnStateChange(_stateChangeClosed);
-                }
-                else
-                {
-                    result = true; // we didn't raise the event here; the caller should do that
-                }
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Call to determine if changes to the entity object are currently permitted.
+        ///     Call to determine if changes to the entity object are currently permitted.
         /// </summary>
         private void ValidateChangesPermitted()
         {
@@ -1342,22 +1260,7 @@ namespace System.Data.Entity.Core.EntityClient
         }
 
         /// <summary>
-        /// Returns the DbProviderFactory associated with specified provider string
-        /// </summary>
-        private static DbProviderFactory GetFactory(string providerString)
-        {
-            try
-            {
-                return DbProviderFactories.GetFactory(providerString);
-            }
-            catch (ArgumentException e)
-            {
-                throw new ArgumentException(Strings.EntityClient_InvalidStoreProvider, e);
-            }
-        }
-
-        /// <summary>
-        /// Uses DbProviderFactory to create a DbConnection
+        ///     Uses DbProviderFactory to create a DbConnection
         /// </summary>
         private static DbConnection GetStoreConnection(DbProviderFactory factory)
         {

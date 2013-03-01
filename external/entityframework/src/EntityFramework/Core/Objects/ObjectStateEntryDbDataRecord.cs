@@ -1,12 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Data.Common;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
 
     internal sealed class ObjectStateEntryDbDataRecord : DbDataRecord, IExtendedDataRecord
@@ -18,10 +19,11 @@ namespace System.Data.Entity.Core.Objects
 
         internal ObjectStateEntryDbDataRecord(EntityEntry cacheEntry, StateManagerTypeMetadata metadata, object userObject)
         {
-            Contract.Requires(cacheEntry != null);
-            Contract.Requires(userObject != null);
-            Contract.Requires(metadata != null);
+            DebugCheck.NotNull(cacheEntry);
+            DebugCheck.NotNull(userObject);
+            DebugCheck.NotNull(metadata);
             Debug.Assert(!cacheEntry.IsKeyEntry, "Cannot create an ObjectStateEntryDbDataRecord for a key entry");
+
             switch (cacheEntry.State)
             {
                 case EntityState.Unchanged:
@@ -39,8 +41,9 @@ namespace System.Data.Entity.Core.Objects
 
         internal ObjectStateEntryDbDataRecord(RelationshipEntry cacheEntry)
         {
-            Contract.Requires(cacheEntry != null);
+            DebugCheck.NotNull(cacheEntry);
             Debug.Assert(!cacheEntry.IsKeyEntry, "Cannot create an ObjectStateEntryDbDataRecord for a key entry");
+
             switch (cacheEntry.State)
             {
                 case EntityState.Unchanged:
@@ -261,10 +264,8 @@ namespace System.Data.Entity.Core.Objects
 
         public override int GetValues(object[] values)
         {
-            if (values == null)
-            {
-                throw new ArgumentNullException("values");
-            }
+            Check.NotNull(values, "values");
+
             var minValue = Math.Min(values.Length, FieldCount);
             for (var i = 0; i < minValue; i++)
             {

@@ -1,20 +1,21 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration
 {
     using System.Collections.Generic;
     using System.ComponentModel;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Utilities;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
+    using System.Reflection;
 
     /// <summary>
     ///     Configures the table and column mapping of a many:many relationship.
-    ///     This configuration functionality is available via the Code First Fluent API, see <see cref = "DbModelBuilder" />.
+    ///     This configuration functionality is available via the Code First Fluent API, see <see cref="DbModelBuilder" />.
     /// </summary>
     public sealed class ManyToManyAssociationMappingConfiguration : AssociationMappingConfiguration
     {
@@ -29,7 +30,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
         private ManyToManyAssociationMappingConfiguration(ManyToManyAssociationMappingConfiguration source)
         {
-            Contract.Requires(source != null);
+            DebugCheck.NotNull(source);
 
             _leftKeyColumnNames.AddRange(source._leftKeyColumnNames);
             _rightKeyColumnNames.AddRange(source._rightKeyColumnNames);
@@ -44,11 +45,11 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
         /// <summary>
         ///     Configures the join table name for the relationship.
         /// </summary>
-        /// <param name = "tableName">Name of the table.</param>
-        /// <returns>The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained.</returns>
+        /// <param name="tableName"> Name of the table. </param>
+        /// <returns> The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained. </returns>
         public ManyToManyAssociationMappingConfiguration ToTable(string tableName)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(tableName));
+            Check.NotEmpty(tableName, "tableName");
 
             return ToTable(tableName, null);
         }
@@ -56,12 +57,12 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
         /// <summary>
         ///     Configures the join table name and schema for the relationship.
         /// </summary>
-        /// <param name = "tableName">Name of the table.</param>
-        /// <param name = "schemaName">Schema of the table.</param>
-        /// <returns>The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained.</returns>
+        /// <param name="tableName"> Name of the table. </param>
+        /// <param name="schemaName"> Schema of the table. </param>
+        /// <returns> The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained. </returns>
         public ManyToManyAssociationMappingConfiguration ToTable(string tableName, string schemaName)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(tableName));
+            Check.NotEmpty(tableName, "tableName");
 
             _tableName = new DatabaseName(tableName, schemaName);
 
@@ -70,17 +71,13 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
         /// <summary>
         ///     Configures the name of the column(s) for the left foreign key.
-        ///     The left foreign key represents the navigation property specified in the HasMany call.
+        ///     The left foreign key points to the parent entity of the navigation property specified in the HasMany call.
         /// </summary>
-        /// <param name = "keyColumnNames">
-        ///     The foreign key column names.
-        ///     When using multiple foreign key properties, the properties must be specified in the same order that the
-        ///     the primary key properties were configured for the target entity type.
-        /// </param>
-        /// <returns>The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained.</returns>
+        /// <param name="keyColumnNames"> The foreign key column names. When using multiple foreign key properties, the properties must be specified in the same order that the the primary key properties were configured for the target entity type. </param>
+        /// <returns> The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained. </returns>
         public ManyToManyAssociationMappingConfiguration MapLeftKey(params string[] keyColumnNames)
         {
-            Contract.Requires(keyColumnNames != null);
+            Check.NotNull(keyColumnNames, "keyColumnNames");
 
             _leftKeyColumnNames.Clear();
             _leftKeyColumnNames.AddRange(keyColumnNames);
@@ -90,17 +87,13 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
 
         /// <summary>
         ///     Configures the name of the column(s) for the right foreign key.
-        ///     The right foreign key represents the navigation property specified in the WithMany call.
+        ///     The right foreign key points to the parent entity of the the navigation property specified in the WithMany call.
         /// </summary>
-        /// <param name = "keyColumnNames">
-        ///     The foreign key column names.
-        ///     When using multiple foreign key properties, the properties must be specified in the same order that the
-        ///     the primary key properties were configured for the target entity type.
-        /// </param>
-        /// <returns>The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained.</returns>
+        /// <param name="keyColumnNames"> The foreign key column names. When using multiple foreign key properties, the properties must be specified in the same order that the the primary key properties were configured for the target entity type. </param>
+        /// <returns> The same ManyToManyAssociationMappingConfiguration instance so that multiple calls can be chained. </returns>
         public ManyToManyAssociationMappingConfiguration MapRightKey(params string[] keyColumnNames)
         {
-            Contract.Requires(keyColumnNames != null);
+            Check.NotNull(keyColumnNames, "keyColumnNames");
 
             _rightKeyColumnNames.Clear();
             _rightKeyColumnNames.AddRange(keyColumnNames);
@@ -108,8 +101,13 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             return this;
         }
 
-        internal override void Configure(DbAssociationSetMapping associationSetMapping, DbDatabaseMetadata database)
+        internal override void Configure(
+            StorageAssociationSetMapping associationSetMapping, EdmModel database, PropertyInfo navigationProperty)
         {
+            DebugCheck.NotNull(associationSetMapping);
+
+            DebugCheck.NotNull(navigationProperty);
+
             var table = associationSetMapping.Table;
 
             if (_tableName != null)
@@ -118,15 +116,24 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                 table.SetConfiguration(this);
             }
 
-            ConfigureColumnNames(_leftKeyColumnNames, associationSetMapping.SourceEndMapping.PropertyMappings);
-            ConfigureColumnNames(_rightKeyColumnNames, associationSetMapping.TargetEndMapping.PropertyMappings);
+            var sourceEndIsPrimaryConfiguration
+                = navigationProperty.IsSameAs(
+                    associationSetMapping.SourceEndMapping.EndMember.GetClrPropertyInfo());
+
+            ConfigureColumnNames(
+                sourceEndIsPrimaryConfiguration ? _leftKeyColumnNames : _rightKeyColumnNames,
+                associationSetMapping.SourceEndMapping.PropertyMappings.ToList());
+
+            ConfigureColumnNames(
+                sourceEndIsPrimaryConfiguration ? _rightKeyColumnNames : _leftKeyColumnNames,
+                associationSetMapping.TargetEndMapping.PropertyMappings.ToList());
         }
 
         private static void ConfigureColumnNames(
-            ICollection<string> keyColumnNames, IList<DbEdmPropertyMapping> propertyMappings)
+            ICollection<string> keyColumnNames, IList<StorageScalarPropertyMapping> propertyMappings)
         {
-            Contract.Requires(keyColumnNames != null);
-            Contract.Requires(propertyMappings != null);
+            DebugCheck.NotNull(keyColumnNames);
+            DebugCheck.NotNull(propertyMappings);
 
             if ((keyColumnNames.Count > 0)
                 && (keyColumnNames.Count != propertyMappings.Count))
@@ -134,7 +141,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
                 throw Error.IncorrectColumnCount(string.Join(", ", keyColumnNames));
             }
 
-            keyColumnNames.Each((n, i) => propertyMappings[i].Column.Name = n);
+            keyColumnNames.Each((n, i) => propertyMappings[i].ColumnProperty.Name = n);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -205,7 +212,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration
             {
                 return ((_tableName != null ? _tableName.GetHashCode() : 0) * 397)
                        ^ _leftKeyColumnNames.Union(_rightKeyColumnNames)
-                             .Aggregate(0, (t, n) => t + n.GetHashCode());
+                                            .Aggregate(0, (t, n) => t + n.GetHashCode());
             }
         }
 

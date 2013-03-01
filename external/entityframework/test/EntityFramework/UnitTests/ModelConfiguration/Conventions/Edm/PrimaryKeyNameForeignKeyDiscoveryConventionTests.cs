@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Edm;
     using System.Linq;
     using Xunit;
@@ -13,22 +14,20 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var associationType = CreateAssociationType();
 
-            var pkProperty = new EdmProperty().AsPrimitive();
-            associationType.SourceEnd.EntityType.DeclaredKeyProperties.Add(pkProperty);
+            var pkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.SourceEnd.GetEntityType().AddKeyMember(pkProperty);
 
-            var fkProperty = new EdmProperty().AsPrimitive();
-            associationType.TargetEnd.EntityType.DeclaredProperties.Add(fkProperty);
+            var fkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.TargetEnd.GetEntityType().AddMember(fkProperty);
 
             // Foo.PId == Bar.PId
-            pkProperty.Name = "PId";
-            fkProperty.Name = "PId";
 
-            ((IEdmConvention<EdmAssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
-                .Apply(associationType, new EdmModel().Initialize());
+            ((IEdmConvention<AssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
+                .Apply(associationType, new EdmModel(DataSpace.CSpace));
 
             Assert.NotNull(associationType.Constraint);
-            Assert.Same(associationType.TargetEnd, associationType.Constraint.DependentEnd);
-            Assert.Equal("PId", associationType.Constraint.DependentProperties.Single().Name);
+            Assert.Same(associationType.TargetEnd, associationType.Constraint.ToRole);
+            Assert.Equal("PId", associationType.Constraint.ToProperties.Single().Name);
         }
 
         [Fact]
@@ -36,22 +35,20 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var associationType = CreateAssociationType();
 
-            var pkProperty = new EdmProperty().AsPrimitive();
-            associationType.SourceEnd.EntityType.DeclaredKeyProperties.Add(pkProperty);
+            var pkProperty = EdmProperty.Primitive("PID", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.SourceEnd.GetEntityType().AddKeyMember(pkProperty);
 
-            var fkProperty = new EdmProperty().AsPrimitive();
-            associationType.TargetEnd.EntityType.DeclaredProperties.Add(fkProperty);
+            var fkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.TargetEnd.GetEntityType().AddMember(fkProperty);
 
             // Foo.PID == Bar.PId
-            pkProperty.Name = "PID";
-            fkProperty.Name = "PId";
 
-            ((IEdmConvention<EdmAssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
-                .Apply(associationType, new EdmModel().Initialize());
+            ((IEdmConvention<AssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
+                .Apply(associationType, new EdmModel(DataSpace.CSpace));
 
             Assert.NotNull(associationType.Constraint);
-            Assert.Same(associationType.TargetEnd, associationType.Constraint.DependentEnd);
-            Assert.Equal("PId", associationType.Constraint.DependentProperties.Single().Name);
+            Assert.Same(associationType.TargetEnd, associationType.Constraint.ToRole);
+            Assert.Equal("PId", associationType.Constraint.ToProperties.Single().Name);
         }
 
         [Fact]
@@ -59,28 +56,24 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var associationType = CreateAssociationType();
 
-            var pkProperty1 = new EdmProperty().AsPrimitive();
-            var pkProperty2 = new EdmProperty().AsPrimitive();
-            associationType.SourceEnd.EntityType.DeclaredKeyProperties.Add(pkProperty1);
-            associationType.SourceEnd.EntityType.DeclaredKeyProperties.Add(pkProperty2);
+            var pkProperty1 = EdmProperty.Primitive("PId1", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            var pkProperty2 = EdmProperty.Primitive("PId2", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.SourceEnd.GetEntityType().AddKeyMember(pkProperty1);
+            associationType.SourceEnd.GetEntityType().AddKeyMember(pkProperty2);
 
-            var fkProperty1 = new EdmProperty().AsPrimitive();
-            var fkProperty2 = new EdmProperty().AsPrimitive();
-            associationType.TargetEnd.EntityType.DeclaredProperties.Add(fkProperty1);
-            associationType.TargetEnd.EntityType.DeclaredProperties.Add(fkProperty2);
+            var fkProperty1 = EdmProperty.Primitive("PId1", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            var fkProperty2 = EdmProperty.Primitive("PId2", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.TargetEnd.GetEntityType().AddMember(fkProperty1);
+            associationType.TargetEnd.GetEntityType().AddMember(fkProperty2);
 
             // Foo.PId1 == Bar.PId1 && Foo.PId2 == Bar.PId2
-            pkProperty1.Name = "PId1";
-            pkProperty2.Name = "PId2";
-            fkProperty1.Name = "PId1";
-            fkProperty2.Name = "PId2";
 
-            ((IEdmConvention<EdmAssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
-                .Apply(associationType, new EdmModel().Initialize());
+            ((IEdmConvention<AssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
+                .Apply(associationType, new EdmModel(DataSpace.CSpace));
 
             Assert.NotNull(associationType.Constraint);
-            Assert.Same(associationType.TargetEnd, associationType.Constraint.DependentEnd);
-            Assert.Equal(2, associationType.Constraint.DependentProperties.Count());
+            Assert.Same(associationType.TargetEnd, associationType.Constraint.ToRole);
+            Assert.Equal(2, associationType.Constraint.ToProperties.Count());
         }
 
         [Fact]
@@ -88,21 +81,19 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var associationType = CreateAssociationType();
 
-            var pkProperty = new EdmProperty().AsPrimitive();
-            associationType.SourceEnd.EntityType.DeclaredKeyProperties.Add(pkProperty);
+            var pkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.SourceEnd.GetEntityType().AddKeyMember(pkProperty);
 
-            var fkProperty = new EdmProperty().AsPrimitive();
-            associationType.TargetEnd.EntityType.DeclaredProperties.Add(fkProperty);
+            var fkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.TargetEnd.GetEntityType().AddMember(fkProperty);
 
             // Foo.PId == Bar.PId
-            pkProperty.Name = "PId";
-            fkProperty.Name = "PId";
 
-            var model = new EdmModel().Initialize();
-            model.Namespaces.Single().AssociationTypes.Add(associationType);
-            model.Namespaces.Single().AssociationTypes.Add(associationType);
+            var model = new EdmModel(DataSpace.CSpace);
+            model.AddItem(associationType);
+            model.AddItem(associationType);
 
-            ((IEdmConvention<EdmAssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
+            ((IEdmConvention<AssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
                 .Apply(associationType, model);
 
             Assert.Null(associationType.Constraint);
@@ -113,33 +104,29 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var associationType = CreateAssociationType();
 
-            var pkProperty = new EdmProperty().AsPrimitive();
-            associationType.SourceEnd.EntityType.DeclaredKeyProperties.Add(pkProperty);
+            var pkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.Binary));
+            associationType.SourceEnd.GetEntityType().AddKeyMember(pkProperty);
 
-            var fkProperty = new EdmProperty().AsPrimitive();
-            associationType.TargetEnd.EntityType.DeclaredProperties.Add(fkProperty);
+            var fkProperty = EdmProperty.Primitive("PId", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+            associationType.TargetEnd.GetEntityType().AddMember(fkProperty);
 
             // Foo.PId == Bar.PId
-            pkProperty.Name = "PId";
-            fkProperty.Name = "PId";
-            pkProperty.PropertyType = new EdmTypeReference() { EdmType = EdmPrimitiveType.Binary };
-            fkProperty.PropertyType = new EdmTypeReference() { EdmType = EdmPrimitiveType.String };
 
-            ((IEdmConvention<EdmAssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
-                .Apply(associationType, new EdmModel().Initialize());
+            ((IEdmConvention<AssociationType>)new PrimaryKeyNameForeignKeyDiscoveryConvention())
+                .Apply(associationType, new EdmModel(DataSpace.CSpace));
 
             Assert.Null(associationType.Constraint);
         }
 
-        private static EdmAssociationType CreateAssociationType()
+        private static AssociationType CreateAssociationType()
         {
-            var associationType = new EdmAssociationType().Initialize();
+            var associationType = new AssociationType();
+            associationType.SourceEnd = new AssociationEndMember("S", new EntityType());
+            associationType.TargetEnd = new AssociationEndMember("T", new EntityType());
 
-            associationType.SourceEnd.EndKind = EdmAssociationEndKind.Optional;
-            associationType.SourceEnd.EntityType = new EdmEntityType();
+            associationType.SourceEnd.RelationshipMultiplicity = RelationshipMultiplicity.ZeroOrOne;
 
-            associationType.TargetEnd.EndKind = EdmAssociationEndKind.Many;
-            associationType.TargetEnd.EntityType = new EdmEntityType();
+            associationType.TargetEnd.RelationshipMultiplicity = RelationshipMultiplicity.Many;
 
             return associationType;
         }

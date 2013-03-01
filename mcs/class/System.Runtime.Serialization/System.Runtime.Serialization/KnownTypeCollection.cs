@@ -74,14 +74,16 @@ namespace System.Runtime.Serialization
 	  exists (and raises InvalidOperationException if required).
 
 */
+
 	internal static class TypeExtensions
 	{
+#if !NET_4_5
 		public static T GetCustomAttribute<T> (this MemberInfo type, bool inherit)
 		{
 			var arr = type.GetCustomAttributes (typeof (T), inherit);
 			return arr != null && arr.Length == 1 ? (T) arr [0] : default (T);
 		}
-
+#endif
 		public static IEnumerable<Type> GetInterfacesOrSelfInterface (this Type type)
 		{
 			if (type.IsInterface)
@@ -684,7 +686,6 @@ namespace System.Runtime.Serialization
 
 		static QName GetSerializableQName (Type type)
 		{
-#if !MOONLIGHT
 			// First, check XmlSchemaProviderAttribute and try GetSchema() to see if it returns a schema in the expected format.
 			var xpa = type.GetCustomAttribute<XmlSchemaProviderAttribute> (true);
 			if (xpa != null) {
@@ -698,7 +699,6 @@ namespace System.Runtime.Serialization
 					}
 				}
 			}
-#endif
 
 			string xmlName = type.Name;
 			if (type.IsGenericType) {
@@ -723,11 +723,9 @@ namespace System.Runtime.Serialization
 				return true;
 			if (type == typeof (Guid) || type == typeof (object) || type == typeof(TimeSpan) || type == typeof(byte[]) || type == typeof(Uri) || type == typeof(DateTimeOffset)) // special primitives
 				return true;
-#if !MOONLIGHT
 			// DOM nodes
 			if (type == typeof (XmlElement) || type == typeof (XmlNode []))
 				return true;
-#endif
 			// nullable
 			if (type.IsGenericType && type.GetGenericTypeDefinition () == typeof (Nullable<>))
 				return IsPrimitiveNotEnum (type.GetGenericArguments () [0]);

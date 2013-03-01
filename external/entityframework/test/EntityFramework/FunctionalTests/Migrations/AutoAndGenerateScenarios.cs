@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.Collections.Generic;
@@ -10,7 +11,9 @@ namespace System.Data.Entity.Migrations
     using Xunit;
 
     #region AutoAndGenerateScenarios
-    public class AutoAndGenerateScenarios_Empty : AutoAndGenerateTestCase<AutoAndGenerateScenarios_Empty.V1, AutoAndGenerateScenarios_Empty.V2>
+
+    public class AutoAndGenerateScenarios_Empty :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_Empty.V1, AutoAndGenerateScenarios_Empty.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -30,10 +33,13 @@ namespace System.Data.Entity.Migrations
             Assert.Equal(0, migrationOperations.Count());
         }
     }
+
     #endregion
 
     #region TableScenarios
-    public class AutoAndGenerateScenarios_AddTable : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddTable.V1, AutoAndGenerateScenarios_AddTable.V2>
+
+    public class AutoAndGenerateScenarios_AddTable :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddTable.V1, AutoAndGenerateScenarios_AddTable.V2>
     {
         public AutoAndGenerateScenarios_AddTable()
         {
@@ -109,7 +115,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_RemoveTable : AutoAndGenerateTestCase<AutoAndGenerateScenarios_RemoveTable.V1, AutoAndGenerateScenarios_RemoveTable.V2>
+    public class AutoAndGenerateScenarios_RemoveTable :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_RemoveTable.V1, AutoAndGenerateScenarios_RemoveTable.V2>
     {
         public AutoAndGenerateScenarios_RemoveTable()
         {
@@ -150,7 +157,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_ChangeTableSchema : AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeTableSchema.V1, AutoAndGenerateScenarios_ChangeTableSchema.V2>
+    public class AutoAndGenerateScenarios_ChangeTableSchema :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeTableSchema.V1, AutoAndGenerateScenarios_ChangeTableSchema.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -194,7 +202,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_ChangeTableName : AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeTableName.V1, AutoAndGenerateScenarios_ChangeTableName.V2>
+    public class AutoAndGenerateScenarios_ChangeTableName :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeTableName.V1, AutoAndGenerateScenarios_ChangeTableName.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -239,7 +248,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_ChangeTablePrimaryKey : AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeTablePrimaryKey.V1, AutoAndGenerateScenarios_ChangeTablePrimaryKey.V2>
+    public class AutoAndGenerateScenarios_ChangeTablePrimaryKey :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeTablePrimaryKey.V1, AutoAndGenerateScenarios_ChangeTablePrimaryKey.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -283,10 +293,13 @@ namespace System.Data.Entity.Migrations
             Assert.True(migrationOperations.Last() is AddPrimaryKeyOperation);
         }
     }
+
     #endregion
 
     #region  ForeignKeyScenarios
-    public class AutoAndGenerateScenarios_AddForeignKey : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddForeignKey.V1, AutoAndGenerateScenarios_AddForeignKey.V2>
+
+    public class AutoAndGenerateScenarios_AddForeignKey :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddForeignKey.V1, AutoAndGenerateScenarios_AddForeignKey.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -343,7 +356,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AddPromotedForeignKey : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddPromotedForeignKey.V1, AutoAndGenerateScenarios_AddPromotedForeignKey.V2>
+    public class AutoAndGenerateScenarios_AddPromotedForeignKey :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddPromotedForeignKey.V1, AutoAndGenerateScenarios_AddPromotedForeignKey.V2>
     {
         public AutoAndGenerateScenarios_AddPromotedForeignKey()
         {
@@ -413,7 +427,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_RemoveForeignKey : AutoAndGenerateTestCase<AutoAndGenerateScenarios_RemoveForeignKey.V1, AutoAndGenerateScenarios_RemoveForeignKey.V2>
+    public class AutoAndGenerateScenarios_RemoveForeignKey :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_RemoveForeignKey.V1, AutoAndGenerateScenarios_RemoveForeignKey.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -470,7 +485,9 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_ChangeForeignKeyOnDeleteAction : AutoAndGenerateTestCase<AutoAndGenerateScenarios_ChangeForeignKeyOnDeleteAction.V1, AutoAndGenerateScenarios_ChangeForeignKeyOnDeleteAction.V2>
+    public class AutoAndGenerateScenarios_ChangeForeignKeyOnDeleteAction :
+        AutoAndGenerateTestCase
+            <AutoAndGenerateScenarios_ChangeForeignKeyOnDeleteAction.V1, AutoAndGenerateScenarios_ChangeForeignKeyOnDeleteAction.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -555,10 +572,13 @@ namespace System.Data.Entity.Migrations
             Assert.True(addForeignKeyOperation.CascadeDelete);
         }
     }
+
     #endregion
 
     #region ColumnScenarios
-    public class AutoAndGenerateScenarios_AddColumn : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddColumn.V1, AutoAndGenerateScenarios_AddColumn.V2>
+
+    public class AutoAndGenerateScenarios_AddColumn :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AddColumn.V1, AutoAndGenerateScenarios_AddColumn.V2>
     {
         public AutoAndGenerateScenarios_AddColumn()
         {
@@ -605,12 +625,14 @@ namespace System.Data.Entity.Migrations
             Assert.Equal(1, migrationOperations.Count());
 
             var dropColumnOperation =
-                migrationOperations.OfType<DropColumnOperation>().SingleOrDefault(o => o.Table == "dbo.MigrationsStores" && o.Name == "Name");
+                migrationOperations.OfType<DropColumnOperation>().SingleOrDefault(
+                    o => o.Table == "dbo.MigrationsStores" && o.Name == "Name");
             Assert.NotNull(dropColumnOperation);
         }
     }
 
-    public class AutoAndGenerateScenarios_RemoveColumn : AutoAndGenerateTestCase<AutoAndGenerateScenarios_RemoveColumn.V1, AutoAndGenerateScenarios_RemoveColumn.V2>
+    public class AutoAndGenerateScenarios_RemoveColumn :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_RemoveColumn.V1, AutoAndGenerateScenarios_RemoveColumn.V2>
     {
         public AutoAndGenerateScenarios_RemoveColumn()
         {
@@ -642,7 +664,8 @@ namespace System.Data.Entity.Migrations
             Assert.Equal(1, migrationOperations.Count());
 
             var dropColumnOperation =
-                migrationOperations.OfType<DropColumnOperation>().SingleOrDefault(o => o.Table == "dbo.MigrationsStores" && o.Name == "Name");
+                migrationOperations.OfType<DropColumnOperation>().SingleOrDefault(
+                    o => o.Table == "dbo.MigrationsStores" && o.Name == "Name");
             Assert.NotNull(dropColumnOperation);
         }
 
@@ -657,7 +680,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AlterColumnName : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnName.V1, AutoAndGenerateScenarios_AlterColumnName.V2>
+    public class AutoAndGenerateScenarios_AlterColumnName :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnName.V1, AutoAndGenerateScenarios_AlterColumnName.V2>
     {
         public class V1 : AutoAndGenerateContext_v1
         {
@@ -704,7 +728,6 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    // TODO: integer-float conversions
     public abstract class AutoAndGenerateScenarios_AlterColumnType<TContextV1, TContextV2>
         : AutoAndGenerateTestCase<TContextV1, TContextV2>
         where TContextV1 : DbContext
@@ -804,7 +827,7 @@ namespace System.Data.Entity.Migrations
 
             if (isDecimal)
             {
-                Assert.Equal((byte?)precision, alterColumnOperation.Column.Precision);
+                Assert.Equal(precision, alterColumnOperation.Column.Precision);
             }
         }
 
@@ -828,7 +851,7 @@ namespace System.Data.Entity.Migrations
 
             if (isDecimal)
             {
-                Assert.Equal((byte?)precision, alterColumnOperation.Column.Precision);
+                Assert.Equal(precision, alterColumnOperation.Column.Precision);
             }
         }
 
@@ -849,7 +872,10 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_Decimal15ToDouble
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_Decimal15ToDouble.V1, AutoAndGenerateScenarios_AlterColumnType_Decimal15ToDouble.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_Decimal15ToDouble.V1,
+                AutoAndGenerateScenarios_AlterColumnType_Decimal15ToDouble.V2>
     {
         private const string ColumnName = "Decimal15ToDouble";
 
@@ -876,7 +902,10 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal16
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal16.V1, AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal16.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal16.V1,
+                AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal16.V2>
     {
         private const string ColumnName = "SingleToDecimal16";
 
@@ -903,7 +932,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_SingleToDouble
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_SingleToDouble.V1, AutoAndGenerateScenarios_AlterColumnType_SingleToDouble.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_SingleToDouble.V1, AutoAndGenerateScenarios_AlterColumnType_SingleToDouble.V2>
     {
         private const string ColumnName = "SingleToDouble";
 
@@ -930,7 +961,10 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal11
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal11.V1, AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal11.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal11.V1,
+                AutoAndGenerateScenarios_AlterColumnType_SingleToDecimal11.V2>
     {
         private const string ColumnName = "SingleToDecimal11";
 
@@ -957,7 +991,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_Decimal6ToDouble
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_Decimal6ToDouble.V1, AutoAndGenerateScenarios_AlterColumnType_Decimal6ToDouble.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_Decimal6ToDouble.V1, AutoAndGenerateScenarios_AlterColumnType_Decimal6ToDouble.V2>
     {
         private const string ColumnName = "Decimal6ToDouble";
 
@@ -984,7 +1020,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_Int32ToInt64
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_Int32ToInt64.V1, AutoAndGenerateScenarios_AlterColumnType_Int32ToInt64.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_Int32ToInt64.V1, AutoAndGenerateScenarios_AlterColumnType_Int32ToInt64.V2>
     {
         private const string ColumnName = "Int32ToInt64";
 
@@ -1011,7 +1049,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_Int16ToInt64
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_Int16ToInt64.V1, AutoAndGenerateScenarios_AlterColumnType_Int16ToInt64.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_Int16ToInt64.V1, AutoAndGenerateScenarios_AlterColumnType_Int16ToInt64.V2>
     {
         private const string ColumnName = "Int16ToInt64";
 
@@ -1038,7 +1078,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_Int16ToInt32
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_Int16ToInt32.V1, AutoAndGenerateScenarios_AlterColumnType_Int16ToInt32.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_Int16ToInt32.V1, AutoAndGenerateScenarios_AlterColumnType_Int16ToInt32.V2>
     {
         private const string ColumnName = "Int16ToInt32";
 
@@ -1065,7 +1107,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_ByteToInt64
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_ByteToInt64.V1, AutoAndGenerateScenarios_AlterColumnType_ByteToInt64.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_ByteToInt64.V1, AutoAndGenerateScenarios_AlterColumnType_ByteToInt64.V2>
     {
         private const string ColumnName = "ByteToInt64";
 
@@ -1092,7 +1136,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_ByteToInt32
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_ByteToInt32.V1, AutoAndGenerateScenarios_AlterColumnType_ByteToInt32.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_ByteToInt32.V1, AutoAndGenerateScenarios_AlterColumnType_ByteToInt32.V2>
     {
         private const string ColumnName = "ByteToInt32";
 
@@ -1119,7 +1165,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnType_ByteToInt16
-        : AutoAndGenerateScenarios_AlterColumnType<AutoAndGenerateScenarios_AlterColumnType_ByteToInt16.V1, AutoAndGenerateScenarios_AlterColumnType_ByteToInt16.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnType
+                <AutoAndGenerateScenarios_AlterColumnType_ByteToInt16.V1, AutoAndGenerateScenarios_AlterColumnType_ByteToInt16.V2>
     {
         private const string ColumnName = "ByteToInt16";
 
@@ -1145,7 +1193,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AlterColumnFixedLength : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnFixedLength.V1, AutoAndGenerateScenarios_AlterColumnFixedLength.V2>
+    public class AutoAndGenerateScenarios_AlterColumnFixedLength :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnFixedLength.V1, AutoAndGenerateScenarios_AlterColumnFixedLength.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnFixedLength()
         {
@@ -1237,7 +1286,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnMaxLength_Max
-        : AutoAndGenerateScenarios_AlterColumnMaxLength<AutoAndGenerateScenarios_AlterColumnMaxLength_Max.V1, AutoAndGenerateScenarios_AlterColumnMaxLength_Max.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnMaxLength
+                <AutoAndGenerateScenarios_AlterColumnMaxLength_Max.V1, AutoAndGenerateScenarios_AlterColumnMaxLength_Max.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnMaxLength_Max()
             : base(null)
@@ -1272,7 +1323,9 @@ namespace System.Data.Entity.Migrations
     }
 
     public class AutoAndGenerateScenarios_AlterColumnMaxLength_512
-        : AutoAndGenerateScenarios_AlterColumnMaxLength<AutoAndGenerateScenarios_AlterColumnMaxLength_512.V1, AutoAndGenerateScenarios_AlterColumnMaxLength_512.V2>
+        :
+            AutoAndGenerateScenarios_AlterColumnMaxLength
+                <AutoAndGenerateScenarios_AlterColumnMaxLength_512.V1, AutoAndGenerateScenarios_AlterColumnMaxLength_512.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnMaxLength_512()
             : base(512)
@@ -1306,7 +1359,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AlterColumnNullable : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnNullable.V1, AutoAndGenerateScenarios_AlterColumnNullable.V2>
+    public class AutoAndGenerateScenarios_AlterColumnNullable :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnNullable.V1, AutoAndGenerateScenarios_AlterColumnNullable.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnNullable()
         {
@@ -1358,7 +1412,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AlterColumnPrecision : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnPrecision.V1, AutoAndGenerateScenarios_AlterColumnPrecision.V2>
+    public class AutoAndGenerateScenarios_AlterColumnPrecision :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnPrecision.V1, AutoAndGenerateScenarios_AlterColumnPrecision.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnPrecision()
         {
@@ -1406,7 +1461,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AlterColumnScale : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnScale.V1, AutoAndGenerateScenarios_AlterColumnScale.V2>
+    public class AutoAndGenerateScenarios_AlterColumnScale :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnScale.V1, AutoAndGenerateScenarios_AlterColumnScale.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnScale()
         {
@@ -1454,7 +1510,8 @@ namespace System.Data.Entity.Migrations
         }
     }
 
-    public class AutoAndGenerateScenarios_AlterColumnUnicode : AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnUnicode.V1, AutoAndGenerateScenarios_AlterColumnUnicode.V2>
+    public class AutoAndGenerateScenarios_AlterColumnUnicode :
+        AutoAndGenerateTestCase<AutoAndGenerateScenarios_AlterColumnUnicode.V1, AutoAndGenerateScenarios_AlterColumnUnicode.V2>
     {
         public AutoAndGenerateScenarios_AlterColumnUnicode()
         {
@@ -1506,5 +1563,6 @@ namespace System.Data.Entity.Migrations
             Assert.Null(alterColumnOperation.Column.IsUnicode);
         }
     }
+
     #endregion
 }

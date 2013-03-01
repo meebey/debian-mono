@@ -1,19 +1,22 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Objects.DataClasses;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
-    /// Base class containing common code for different implementations of the IEntityWrapper
-    /// interface.  Generally speaking, operations involving the ObjectContext, RelationshipManager
-    /// and raw Entity are handled through this class.
+    ///     Base class containing common code for different implementations of the IEntityWrapper
+    ///     interface.  Generally speaking, operations involving the ObjectContext, RelationshipManager
+    ///     and raw Entity are handled through this class.
     /// </summary>
-    /// <typeparam name="TEntity">The type of entity wrapped</typeparam>
+    /// <typeparam name="TEntity"> The type of entity wrapped </typeparam>
     internal abstract class BaseEntityWrapper<TEntity> : IEntityWrapper
+        where TEntity : class
     {
         // This enum allows boolean flags to be added to the wrapper without introducing a new field
         // for each one.  This helps keep the wrapper memory footprint small, which is important
@@ -31,15 +34,15 @@ namespace System.Data.Entity.Core.Objects.Internal
         private WrapperFlags _flags;
 
         /// <summary>
-        /// Constructs a wrapper for the given entity and its associated RelationshipManager.
+        ///     Constructs a wrapper for the given entity and its associated RelationshipManager.
         /// </summary>
-        /// <param name="entity">The entity to be wrapped</param>
-        /// <param name="relationshipManager">the RelationshipManager associated with this entity</param>
+        /// <param name="entity"> The entity to be wrapped </param>
+        /// <param name="relationshipManager"> the RelationshipManager associated with this entity </param>
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "entity")]
         protected BaseEntityWrapper(TEntity entity, RelationshipManager relationshipManager)
         {
             Debug.Assert(!(entity is IEntityWrapper), "Object is an IEntityWrapper instance instead of the raw entity.");
-            Debug.Assert(entity != null, "Factory should ensure wrapped entity here is never null.");
+            DebugCheck.NotNull(entity);
             if (relationshipManager == null)
             {
                 throw new InvalidOperationException(Strings.RelationshipManager_UnexpectedNull);
@@ -48,24 +51,24 @@ namespace System.Data.Entity.Core.Objects.Internal
         }
 
         /// <summary>
-        /// Constructs a wrapper as part of the materialization process.  This constructor is only used
-        /// during materialization where it is known that the entity being wrapped is newly constructed.
-        /// This means that some checks are not performed that might be needed when thw wrapper is
-        /// created at other times, and information such as the identity type is passed in because
-        /// it is readily available in the materializer.
+        ///     Constructs a wrapper as part of the materialization process.  This constructor is only used
+        ///     during materialization where it is known that the entity being wrapped is newly constructed.
+        ///     This means that some checks are not performed that might be needed when thw wrapper is
+        ///     created at other times, and information such as the identity type is passed in because
+        ///     it is readily available in the materializer.
         /// </summary>
-        /// <param name="entity">The entity to wrap</param>
-        /// <param name="relationshipManager">The RelationshipManager associated with this entity</param>
-        /// <param name="entitySet">The entity set, or null if none is known</param>
-        /// <param name="context">The context to which the entity should be attached</param>
-        /// <param name="mergeOption">NoTracking for non-tracked entities, AppendOnly otherwise</param>
-        /// <param name="identityType">The type of the entity ignoring any possible proxy type</param>
+        /// <param name="entity"> The entity to wrap </param>
+        /// <param name="relationshipManager"> The RelationshipManager associated with this entity </param>
+        /// <param name="entitySet"> The entity set, or null if none is known </param>
+        /// <param name="context"> The context to which the entity should be attached </param>
+        /// <param name="mergeOption"> NoTracking for non-tracked entities, AppendOnly otherwise </param>
+        /// <param name="identityType"> The type of the entity ignoring any possible proxy type </param>
         protected BaseEntityWrapper(
             TEntity entity, RelationshipManager relationshipManager, EntitySet entitySet, ObjectContext context, MergeOption mergeOption,
             Type identityType)
         {
             Debug.Assert(!(entity is IEntityWrapper), "Object is an IEntityWrapper instance instead of the raw entity.");
-            Debug.Assert(entity != null, "Factory should ensure wrapped entity here is never null.");
+            DebugCheck.NotNull(entity);
             if (relationshipManager == null)
             {
                 throw new InvalidOperationException(Strings.RelationshipManager_UnexpectedNull);
@@ -130,7 +133,7 @@ namespace System.Data.Entity.Core.Objects.Internal
         // See IEntityWrapper documentation
         public void AttachContext(ObjectContext context, EntitySet entitySet, MergeOption mergeOption)
         {
-            Debug.Assert(null != context, "context");
+            DebugCheck.NotNull(context);
             Context = context;
             MergeOption = mergeOption;
             if (entitySet != null)
@@ -142,8 +145,8 @@ namespace System.Data.Entity.Core.Objects.Internal
         // See IEntityWrapper documentation
         public void ResetContext(ObjectContext context, EntitySet entitySet, MergeOption mergeOption)
         {
-            Debug.Assert(null != entitySet, "entitySet should not be null");
-            Debug.Assert(null != context, "context");
+            DebugCheck.NotNull(entitySet);
+            DebugCheck.NotNull(context);
             Debug.Assert(
                 MergeOption.NoTracking == mergeOption ||
                 MergeOption.AppendOnly == mergeOption,
@@ -160,7 +163,8 @@ namespace System.Data.Entity.Core.Objects.Internal
         // See IEntityWrapper documentation
         public void DetachContext()
         {
-            if (Context != null &&
+            if (Context != null
+                &&
                 Context.ObjectStateManager.TransactionManager.IsAttachTracking
                 &&
                 Context.ObjectStateManager.TransactionManager.OriginalMergeOption == MergeOption.NoTracking)

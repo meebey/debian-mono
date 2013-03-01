@@ -1,47 +1,45 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db.Mapping;
-    using System.Data.Entity.Edm.Internal;
-    using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
-    using System.Data.Entity.ModelConfiguration.Utilities;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
     ///     Convention to ensure an invalid/unsupported mapping is not created when mapping inherited properties
     /// </summary>
-    public sealed class MappingInheritedPropertiesSupportConvention : IDbMappingConvention
+    public class MappingInheritedPropertiesSupportConvention : IDbMappingConvention
     {
-        internal MappingInheritedPropertiesSupportConvention()
+        public void Apply(DbDatabaseMapping databaseMapping)
         {
-        }
+            Check.NotNull(databaseMapping, "databaseMapping");
 
-        void IDbMappingConvention.Apply(DbDatabaseMapping databaseMapping)
-        {
             databaseMapping.EntityContainerMappings
-                .SelectMany(ecm => ecm.EntitySetMappings)
-                .Each(
-                    esm =>
-                        {
-                            foreach (var etm in esm.EntityTypeMappings)
-                            {
-                                if (RemapsInheritedProperties(databaseMapping, etm)
-                                    && HasBaseWithIsTypeOf(esm, etm.EntityType))
-                                {
-                                    throw Error.UnsupportedHybridInheritanceMapping(etm.EntityType.Name);
-                                }
-                            }
-                        });
+                           .SelectMany(ecm => ecm.EntitySetMappings)
+                           .Each(
+                               esm =>
+                                   {
+                                       foreach (var etm in esm.EntityTypeMappings)
+                                       {
+                                           if (RemapsInheritedProperties(databaseMapping, etm)
+                                               && HasBaseWithIsTypeOf(esm, etm.EntityType))
+                                           {
+                                               throw Error.UnsupportedHybridInheritanceMapping(etm.EntityType.Name);
+                                           }
+                                       }
+                                   });
         }
 
         private static bool RemapsInheritedProperties(
-            DbDatabaseMapping databaseMapping, DbEntityTypeMapping entityTypeMapping)
+            DbDatabaseMapping databaseMapping, StorageEntityTypeMapping entityTypeMapping)
         {
             var inheritedProperties = entityTypeMapping.EntityType.Properties
-                .Except(entityTypeMapping.EntityType.DeclaredProperties)
-                .Except(entityTypeMapping.EntityType.GetKeyProperties());
+                                                       .Except(entityTypeMapping.EntityType.DeclaredProperties)
+                                                       .Except(entityTypeMapping.EntityType.GetKeyProperties());
 
             foreach (var property in inheritedProperties)
             {
@@ -50,40 +48,40 @@ namespace System.Data.Entity.ModelConfiguration.Conventions
                 if (fragment != null)
                 {
                     // find if this inherited property is mapped to another table by a base type
-                    var baseType = entityTypeMapping.EntityType.BaseType;
+                    var baseType = (EntityType)entityTypeMapping.EntityType.BaseType;
                     while (baseType != null)
                     {
                         if (databaseMapping.GetEntityTypeMappings(baseType)
-                            .Select(baseTypeMapping => GetFragmentForPropertyMapping(baseTypeMapping, property))
-                            .Any(
-                                baseFragment => baseFragment != null
-                                                && baseFragment.Table != fragment.Table))
+                                           .Select(baseTypeMapping => GetFragmentForPropertyMapping(baseTypeMapping, property))
+                                           .Any(
+                                               baseFragment => baseFragment != null
+                                                               && baseFragment.Table != fragment.Table))
                         {
                             return true;
                         }
-                        baseType = baseType.BaseType;
+                        baseType = (EntityType)baseType.BaseType;
                     }
                 }
             }
             return false;
         }
 
-        private static DbEntityTypeMappingFragment GetFragmentForPropertyMapping(
-            DbEntityTypeMapping entityTypeMapping, EdmProperty property)
+        private static StorageMappingFragment GetFragmentForPropertyMapping(
+            StorageEntityTypeMapping entityTypeMapping, EdmProperty property)
         {
-            return entityTypeMapping.TypeMappingFragments
-                .SingleOrDefault(tmf => tmf.PropertyMappings.Any(pm => pm.PropertyPath.Last() == property));
+            return entityTypeMapping.MappingFragments
+                                    .SingleOrDefault(tmf => tmf.ColumnMappings.Any(pm => pm.PropertyPath.Last() == property));
         }
 
-        private static bool HasBaseWithIsTypeOf(DbEntitySetMapping entitySetMapping, EdmEntityType entityType)
+        private static bool HasBaseWithIsTypeOf(StorageEntitySetMapping entitySetMapping, EntityType entityType)
         {
             var baseType = entityType.BaseType;
 
             while (baseType != null)
             {
                 if (entitySetMapping.EntityTypeMappings
-                    .Where(etm => etm.EntityType == baseType)
-                    .Any(etm => etm.IsHierarchyMapping))
+                                    .Where(etm => etm.EntityType == baseType)
+                                    .Any(etm => etm.IsHierarchyMapping))
                 {
                     return true;
                 }

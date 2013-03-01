@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
 {
     using System.Data.Entity.Core.Common.Utils;
@@ -16,11 +17,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
     // checking methods
     internal abstract class ConstraintBase : InternalBase
     {
-        #region Methods
-
         // effects: Returns an error log record with this constraint's information
         internal abstract ErrorLog.Record GetErrorRecord();
-
-        #endregion
     }
 }

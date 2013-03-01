@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
 
     internal sealed class DynamicEqualityComparer<T> : IEqualityComparer<T>
         where T : class
@@ -11,7 +11,7 @@ namespace System.Data.Entity.Utilities
 
         public DynamicEqualityComparer(Func<T, T, bool> func)
         {
-            Contract.Requires(func != null);
+            DebugCheck.NotNull(func);
 
             _func = func;
         }

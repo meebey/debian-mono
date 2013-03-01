@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
 {
     using System.Collections.Generic;
@@ -10,8 +11,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
     internal class KeyConstraint<TCellRelation, TSlot> : InternalBase
         where TCellRelation : CellRelation
     {
-        #region Constructor
-
         //  Constructs a key constraint for the given relation and keyslots
         //  with comparer being the comparison operator for comparing various
         //  keyslots in Implies, etc
@@ -22,16 +21,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             Debug.Assert(m_keySlots.Count > 0, "Key constraint being created without any keyslots?");
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly TCellRelation m_relation;
         private readonly Set<TSlot> m_keySlots;
-
-        #endregion
-
-        #region Properties
 
         protected TCellRelation CellRelation
         {
@@ -43,10 +34,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             get { return m_keySlots; }
         }
 
-        #endregion
-
-        #region Methods
-
         internal override void ToCompactString(StringBuilder builder)
         {
             StringUtil.FormatStringBuilder(builder, "Key (V{0}) - ", m_relation.CellNumber);
@@ -54,7 +41,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             // The slots contain the name of the relation: So we skip
             // printing the CellRelation
         }
-
-        #endregion
     }
 }

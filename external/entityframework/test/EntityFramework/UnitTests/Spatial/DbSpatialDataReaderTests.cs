@@ -1,7 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
+
+#if !NET40
+
 namespace System.Data.Entity.Spatial
 {
-    using System;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -13,7 +16,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeographyAsync_returns_cancelled_Task_when_requested()
         {
-            var dbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true }.Object;
+            var dbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                          {
+                                              CallBase = true
+                                          }.Object;
             var cancellationTokenSource = new CancellationTokenSource();
             cancellationTokenSource.Cancel();
 
@@ -25,7 +31,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeographyAsync_wraps_exceptions()
         {
-            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true };
+            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                              {
+                                                  CallBase = true
+                                              };
             var exception = new InvalidOperationException();
             mockDbSpatialDataReader.Setup(m => m.GetGeography(0)).Throws(exception);
 
@@ -37,7 +46,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeographyAsync_calls_GetGeography()
         {
-            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true };
+            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                              {
+                                                  CallBase = true
+                                              };
             var dbGeography = new DbGeography();
             mockDbSpatialDataReader.Setup(m => m.GetGeography(0)).Returns((int ordinal) => dbGeography).Verifiable();
 
@@ -50,7 +62,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeographyAsync_calls_CancellationToken_overload()
         {
-            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true };
+            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                              {
+                                                  CallBase = true
+                                              };
             var dbGeography = new DbGeography();
             mockDbSpatialDataReader.Setup(m => m.GetGeographyAsync(0, CancellationToken.None))
                 .Returns(Task.FromResult(dbGeography))
@@ -65,7 +80,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeometryAsync_returns_cancelled_Task_when_requested()
         {
-            var dbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true }.Object;
+            var dbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                          {
+                                              CallBase = true
+                                          }.Object;
             var cancellationTokenSource = new CancellationTokenSource();
             cancellationTokenSource.Cancel();
 
@@ -77,7 +95,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeometryAsync_wraps_exceptions()
         {
-            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true };
+            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                              {
+                                                  CallBase = true
+                                              };
             var exception = new InvalidOperationException();
             mockDbSpatialDataReader.Setup(m => m.GetGeometry(0)).Throws(exception);
 
@@ -89,7 +110,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeometryAsync_calls_GetGeometry()
         {
-            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true };
+            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                              {
+                                                  CallBase = true
+                                              };
             var dbGeometry = new DbGeometry();
             mockDbSpatialDataReader.Setup(m => m.GetGeometry(0)).Returns((int ordinal) => dbGeometry).Verifiable();
 
@@ -102,7 +126,10 @@ namespace System.Data.Entity.Spatial
         [Fact]
         public void GetGeometryAsync_calls_CancellationToken_overload()
         {
-            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader> { CallBase = true };
+            var mockDbSpatialDataReader = new Mock<DbSpatialDataReader>
+                                              {
+                                                  CallBase = true
+                                              };
             var dbGeometry = new DbGeometry();
             mockDbSpatialDataReader.Setup(m => m.GetGeometryAsync(0, CancellationToken.None))
                 .Returns(Task.FromResult(dbGeometry))
@@ -115,3 +142,5 @@ namespace System.Data.Entity.Spatial
         }
     }
 }
+
+#endif

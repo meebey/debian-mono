@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
     using System.ComponentModel.DataAnnotations;
@@ -7,33 +8,21 @@ namespace System.Data.Entity.ModelConfiguration.Conventions
     using System.Reflection;
 
     /// <summary>
-    ///     Convention to process instances of <see cref = "KeyAttribute" /> found on properties in the model.
+    ///     Convention to process instances of <see cref="KeyAttribute" /> found on properties in the model.
     /// </summary>
-    public sealed class KeyAttributeConvention : IConfigurationConvention<PropertyInfo, EntityTypeConfiguration>
+    public class KeyAttributeConvention :
+        AttributeConfigurationConvention<PropertyInfo, EntityTypeConfiguration, KeyAttribute>
     {
-        private readonly IConfigurationConvention<PropertyInfo, EntityTypeConfiguration> _impl
-            = new KeyAttributeConventionImpl();
-
-        internal KeyAttributeConvention()
+        public override void Apply(
+            PropertyInfo memberInfo, EntityTypeConfiguration configuration, KeyAttribute attribute)
         {
-        }
+            Check.NotNull(memberInfo, "memberInfo");
+            Check.NotNull(configuration, "configuration");
+            Check.NotNull(attribute, "attribute");
 
-        void IConfigurationConvention<PropertyInfo, EntityTypeConfiguration>.Apply(
-            PropertyInfo memberInfo, Func<EntityTypeConfiguration> configuration)
-        {
-            _impl.Apply(memberInfo, configuration);
-        }
-
-        internal sealed class KeyAttributeConventionImpl :
-            AttributeConfigurationConvention<PropertyInfo, EntityTypeConfiguration, KeyAttribute>
-        {
-            internal override void Apply(
-                PropertyInfo propertyInfo, EntityTypeConfiguration entityTypeConfiguration, KeyAttribute _)
+            if (memberInfo.IsValidEdmScalarProperty())
             {
-                if (propertyInfo.IsValidEdmScalarProperty())
-                {
-                    entityTypeConfiguration.Key(propertyInfo);
-                }
+                configuration.Key(memberInfo, null, true);
             }
         }
     }

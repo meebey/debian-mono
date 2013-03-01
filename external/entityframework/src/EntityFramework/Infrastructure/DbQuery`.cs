@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Infrastructure
 {
     using System.Collections;
@@ -6,18 +7,21 @@ namespace System.Data.Entity.Infrastructure
     using System.ComponentModel;
     using System.Data.Entity.Internal.Linq;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Linq.Expressions;
 
     /// <summary>
     ///     Represents a LINQ to Entities query against a DbContext.
     /// </summary>
-    /// <typeparam name = "TResult">The type of entity to query for.</typeparam>
+    /// <typeparam name="TResult"> The type of entity to query for. </typeparam>
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix",
         Justification = "Name is intentional")]
-    public class DbQuery<TResult> : IOrderedQueryable<TResult>, IListSource, IInternalQueryAdapter, IDbAsyncEnumerable<TResult>
+    public class DbQuery<TResult> : IOrderedQueryable<TResult>, IListSource, IInternalQueryAdapter
+#if !NET40
+                                    , IDbAsyncEnumerable<TResult>
+#endif
     {
         #region Fields and constructors
 
@@ -28,10 +32,10 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Creates a new query that will be backed by the given internal query object.
         /// </summary>
-        /// <param name = "internalQuery">The backing query.</param>
+        /// <param name="internalQuery"> The backing query. </param>
         internal DbQuery(IInternalQuery<TResult> internalQuery)
         {
-            Contract.Requires(internalQuery != null);
+            DebugCheck.NotNull(internalQuery);
 
             _internalQuery = internalQuery;
         }
@@ -46,15 +50,23 @@ namespace System.Data.Entity.Infrastructure
         /// <remarks>
         ///     Paths are all-inclusive. For example, if an include call indicates Include("Orders.OrderLines"), not only will
         ///     OrderLines be included, but also Orders.  When you call the Include method, the query path is only valid on
-        ///     the returned instance of the DbQuery<T>. Other instances of DbQuery<T> and the object context itself are not affected.
-        ///                                                                            Because the Include method returns the query object, you can call this method multiple times on an DbQuery<T> to
-        ///                                                                                                                                                                                          specify multiple paths for the query.
+        ///     the returned instance of the DbQuery
+        ///     <T>
+        ///         . Other instances of DbQuery
+        ///         <T>
+        ///             and the object context itself are not affected.
+        ///             Because the Include method returns the query object, you can call this method multiple times on an DbQuery
+        ///             <T>
+        ///                 to
+        ///                 specify multiple paths for the query.
         /// </remarks>
-        /// <param name = "path">The dot-separated list of related objects to return in the query results.</param>
-        /// <returns>A new DbQuery<T> with the defined query path.</returns>
+        /// <param name="path"> The dot-separated list of related objects to return in the query results. </param>
+        /// <returns>
+        ///     A new <see cref="DbQuery{T}"/> with the defined query path.
+        /// </returns>
         public DbQuery<TResult> Include(string path)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            Check.NotEmpty(path, "path");
 
             return new DbQuery<TResult>(_internalQuery.Include(path));
         }
@@ -64,12 +76,25 @@ namespace System.Data.Entity.Infrastructure
         #region AsNoTracking
 
         /// <summary>
-        ///     Returns a new query where the entities returned will not be cached in the <see cref = "DbContext" />.
+        ///     Returns a new query where the entities returned will not be cached in the <see cref="DbContext" />.
         /// </summary>
-        /// <returns> A new query with NoTracking applied.</returns>
+        /// <returns> A new query with NoTracking applied. </returns>
         public DbQuery<TResult> AsNoTracking()
         {
             return new DbQuery<TResult>(_internalQuery.AsNoTracking());
+        }
+
+        #endregion
+
+        #region AsStreaming
+
+        /// <summary>
+        ///     Returns a new query that will stream the results instead of buffering.
+        /// </summary>
+        /// <returns> A new query with AsStreaming applied. </returns>
+        public DbQuery<TResult> AsStreaming()
+        {
+            return new DbQuery<TResult>(_internalQuery.AsStreaming());
         }
 
         #endregion
@@ -79,7 +104,9 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Returns <c>false</c>.
         /// </summary>
-        /// <returns><c>false</c>.</returns>
+        /// <returns>
+        ///     <c>false</c> .
+        /// </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         bool IListSource.ContainsListCollection
         {
@@ -92,9 +119,7 @@ namespace System.Data.Entity.Infrastructure
         ///     then bind to local data.  For WPF bind to DbSet.Local.  For Windows Forms bind to
         ///     DbSet.Local.ToBindingList().
         /// </summary>
-        /// <returns>
-        ///     Never returns; always throws.
-        /// </returns>
+        /// <returns> Never returns; always throws. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IList IListSource.GetList()
         {
@@ -106,9 +131,9 @@ namespace System.Data.Entity.Infrastructure
         #region IEnumerable
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator{TElement}"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IEnumerator{TElement}" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IEnumerator<TResult> IEnumerable<TResult>.GetEnumerator()
         {
@@ -116,9 +141,9 @@ namespace System.Data.Entity.Infrastructure
         }
 
         /// <summary>
-        ///     Returns an <see cref="IEnumerator{TElement}"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IEnumerator{TElement}" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IEnumerator IEnumerable.GetEnumerator()
         {
@@ -129,10 +154,12 @@ namespace System.Data.Entity.Infrastructure
 
         #region IDbAsyncEnumerable
 
+#if !NET40
+
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator{TElement}"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IDbAsyncEnumerator" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IDbAsyncEnumerator IDbAsyncEnumerable.GetAsyncEnumerator()
         {
@@ -140,14 +167,16 @@ namespace System.Data.Entity.Infrastructure
         }
 
         /// <summary>
-        ///     Returns an <see cref="IDbAsyncEnumerator"/> which when enumerated will execute the query against the database.
+        ///     Returns an <see cref="IDbAsyncEnumerator{TResult}" /> which when enumerated will execute the query against the database.
         /// </summary>
-        /// <returns>The query results.</returns>
+        /// <returns> The query results. </returns>
         [SuppressMessage("Microsoft.Design", "CA1033:InterfaceMethodsShouldBeCallableByChildTypes")]
         IDbAsyncEnumerator<TResult> IDbAsyncEnumerable<TResult>.GetAsyncEnumerator()
         {
             return _internalQuery.GetAsyncEnumerator();
         }
+
+#endif
 
         #endregion
 
@@ -210,11 +239,9 @@ namespace System.Data.Entity.Infrastructure
         #region ToString
 
         /// <summary>
-        ///     Returns a <see cref = "System.String" /> representation of the underlying query.
+        ///     Returns a <see cref="System.String" /> representation of the underlying query.
         /// </summary>
-        /// <returns>
-        ///     The query string.
-        /// </returns>
+        /// <returns> The query string. </returns>
         public override string ToString()
         {
             return _internalQuery.ToString();
@@ -225,9 +252,9 @@ namespace System.Data.Entity.Infrastructure
         #region Conversion to non-generic
 
         /// <summary>
-        ///     Returns a new instance of the non-generic <see cref = "DbQuery" /> class for this query.
+        ///     Returns a new instance of the non-generic <see cref="DbQuery" /> class for this query.
         /// </summary>
-        /// <returns>A non-generic version.</returns>
+        /// <returns> A non-generic version. </returns>
         [SuppressMessage("Microsoft.Usage", "CA2225:OperatorOverloadsHaveNamedAlternates",
             Justification = "Intentionally just implicit to reduce API clutter.")]
         public static implicit operator DbQuery(DbQuery<TResult> entry)

@@ -1,11 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace ProductivityApiTests
 {
     using System;
     using System.Data.Entity;
-    using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Core.Objects;
-    using System.Data.Entity.Core.Objects.DataClasses;
+    using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Spatial;
     using System.Linq;
 
@@ -61,9 +61,10 @@ namespace ProductivityApiTests
             var objectContext = ((IObjectContextAdapter)this).ObjectContext;
             objectContext.MetadataWorkspace.LoadFromAssembly(typeof(SupplierWithLocation).Assembly);
 
-            return objectContext.CreateQuery<SupplierWithLocation>("[SpatialNorthwindContext].[SuppliersWithinRange](@miles, @location)",
-                                                                   new ObjectParameter("miles", miles),
-                                                                   new ObjectParameter("location", location));
+            return objectContext.CreateQuery<SupplierWithLocation>(
+                "[SpatialNorthwindContext].[SuppliersWithinRange](@miles, @location)",
+                new ObjectParameter("miles", miles),
+                new ObjectParameter("location", location));
         }
 
         [DbFunction("SpatialNorthwindContext", "SuppliersWithinRange")]
@@ -78,9 +79,11 @@ namespace ProductivityApiTests
             var objectContext = ((IObjectContextAdapter)this).ObjectContext;
             objectContext.MetadataWorkspace.LoadFromAssembly(typeof(SupplierWithLocation).Assembly);
 
-            return objectContext.CreateQuery<SupplierWithLocation>("[SpatialNorthwindContext].[SuppliersWithinRangeUsingPoint](@miles, @location)",
-                                                                   new ObjectParameter("miles", miles),
-                                                                   new ObjectParameter("location", location));
+            return
+                objectContext.CreateQuery<SupplierWithLocation>(
+                    "[SpatialNorthwindContext].[SuppliersWithinRangeUsingPoint](@miles, @location)",
+                    new ObjectParameter("miles", miles),
+                    new ObjectParameter("location", location));
         }
 
         [DbFunction("SpatialNorthwindContext", "SupplierLocationsWithinRange")]
@@ -89,10 +92,10 @@ namespace ProductivityApiTests
             var objectContext = ((IObjectContextAdapter)this).ObjectContext;
             objectContext.MetadataWorkspace.LoadFromAssembly(typeof(SupplierWithLocation).Assembly);
 
-            return objectContext.CreateQuery<DbGeography>("[SpatialNorthwindContext].[SupplierLocationsWithinRange](@miles, @location)",
-                                                                   new ObjectParameter("miles", miles),
-                                                                   new ObjectParameter("location", location));
+            return objectContext.CreateQuery<DbGeography>(
+                "[SpatialNorthwindContext].[SupplierLocationsWithinRange](@miles, @location)",
+                new ObjectParameter("miles", miles),
+                new ObjectParameter("location", location));
         }
     }
 }
-

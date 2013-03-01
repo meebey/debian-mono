@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 {
     using System.Collections.Generic;
@@ -8,30 +9,28 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
     using System.Data.Entity.Core.Mapping.ViewGeneration.Validation;
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
     using System.Text;
 
     /// <summary>
-    /// Uses query rewriting to determine the case statements, top-level WHERE clause, and the "used views"
-    /// for a given type to be generated.
-    /// 
-    /// Step 1: Method "EnsureIsFullyMapped" goes through the (C) schema metadata and checks whether the query for each
-    ///         entity shape can be rewritten from the C fragment queries.
-    ///         This step tracks the "used views" which will later be passed to "basic view generation" (i.e., creation of the FOJ/LOJ/IJ/Union relational expressions)
-    /// Step 2: GetCaseStatements constructs the required case statements and the top-level WHERE clause.
-    ///         This may add some extra views to "used views".
-    ///         Now we know what views are used overall.
-    /// Step 3: We remap _from variables to new _from variables that are renumbered for used views.
-    ///         This is done to comply with the numbering scheme in the old algorithm - and to produce more readable views.
-    /// Step 4: From the constructed relational expression (OpCellTree), we can tell whether a top-level WHERE clause is needed or not.
-    ///         (Usually, it's needed only in certain cases for OfType() views.)
+    ///     Uses query rewriting to determine the case statements, top-level WHERE clause, and the "used views"
+    ///     for a given type to be generated.
+    ///     Step 1: Method "EnsureIsFullyMapped" goes through the (C) schema metadata and checks whether the query for each
+    ///     entity shape can be rewritten from the C fragment queries.
+    ///     This step tracks the "used views" which will later be passed to "basic view generation" (i.e., creation of the FOJ/LOJ/IJ/Union relational expressions)
+    ///     Step 2: GetCaseStatements constructs the required case statements and the top-level WHERE clause.
+    ///     This may add some extra views to "used views".
+    ///     Now we know what views are used overall.
+    ///     Step 3: We remap _from variables to new _from variables that are renumbered for used views.
+    ///     This is done to comply with the numbering scheme in the old algorithm - and to produce more readable views.
+    ///     Step 4: From the constructed relational expression (OpCellTree), we can tell whether a top-level WHERE clause is needed or not.
+    ///     (Usually, it's needed only in certain cases for OfType() views.)
     /// </summary>
     internal class QueryRewriter
     {
-        #region Fields
-
         // The following fields are copied from ViewGenContext
         private readonly MemberPath _extentPath;
         private readonly MemberDomainMap _domainMap;
@@ -57,15 +56,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
         private readonly ErrorLog _errorLog = new ErrorLog();
         private readonly ViewGenMode _typesGenerationMode;
 
-        #endregion
-
-        #region Static variables
-
         private static readonly Tile<FragmentQuery> _trueViewSurrogate = CreateTile(FragmentQuery.Create(BoolExpression.True));
-
-        #endregion
-
-        #region Constructor and main entry point
 
         internal QueryRewriter(EdmType generatedType, ViewgenContext context, ViewGenMode typesGenerationMode)
         {
@@ -157,10 +148,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
             }
         }
 
-        #endregion
-
-        #region Properties
-
         internal ViewgenContext ViewgenContext
         {
             get { return _context; }
@@ -194,10 +181,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
         {
             get { return _fragmentQueries; }
         }
-
-        #endregion
-
-        #region Main logic
 
         private IEnumerable<Constant> GetDomain(MemberPath currentPath)
         {
@@ -474,7 +457,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
 
         private static List<String> GetTypeBasedMemberPathList(IEnumerable<MemberPath> nonConditionalScalarAttributes)
         {
-            Debug.Assert(nonConditionalScalarAttributes != null);
+            DebugCheck.NotNull(nonConditionalScalarAttributes);
             var typeBasedMembers = new List<string>();
             foreach (var memberPath in nonConditionalScalarAttributes)
             {
@@ -704,8 +687,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
                     foreach (var memberPath in _context.MemberMaps.ProjectedSlotMap.Members)
                     {
                         Constant defaultConstant;
-                        if (memberPath.IsScalarType() &&
-                            !memberPath.IsPartOfKey &&
+                        if (memberPath.IsScalarType()
+                            &&
+                            !memberPath.IsPartOfKey
+                            &&
                             !_domainMap.IsConditionMember(memberPath)
                             &&
                             !Domain.TryGetDefaultValueForMemberPath(memberPath, out defaultConstant))
@@ -828,10 +813,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
                 }
             }
         }
-
-        #endregion
-
-        #region Computing rewriting
 
         // Find rewriting for query SELECT <attributes> WHERE <whereClause> FROM _extentPath
         // and add view appearing in rewriting to outputUsedViews
@@ -1159,10 +1140,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
             return usedViews;
         }
 
-        #endregion
-
-        #region Helper methods
-
         private BoolExpression CreateMemberCondition(MemberPath path, Constant domainValue)
         {
             return FragmentQuery.CreateMemberCondition(path, domainValue, _domainMap);
@@ -1352,7 +1329,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting
                 Helpers.FormatTraceLine(msg, parameters);
             }
         }
-
-        #endregion
     }
 }

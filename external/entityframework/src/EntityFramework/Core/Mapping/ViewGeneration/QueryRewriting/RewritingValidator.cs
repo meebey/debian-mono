@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
 {
     using System.Collections.Generic;
@@ -15,8 +16,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
     using System.Text;
 
     /// <summary>
-    /// Validates each mapping fragment/cell (Qc = Qs)
-    /// by unfolding update views in Qs and checking query equivalence
+    ///     Validates each mapping fragment/cell (Qc = Qs)
+    ///     by unfolding update views in Qs and checking query equivalence
     /// </summary>
     internal class RewritingValidator
     {
@@ -34,8 +35,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             _keyAttributes = MemberPath.GetKeyMembers(_viewgenContext.Extent, _domainMap);
             _errorLog = new ErrorLog();
         }
-
-        #region Main logic
 
         internal void Validate()
         {
@@ -227,10 +226,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             return memberValueTrees;
         }
 
-        #endregion
-
-        #region Checking constraints on projected condition members
-
         private void CheckConstraintsOnProjectedConditionMembers(
             Dictionary<MemberValueBinding, CellTreeNode> memberValueTrees, LeftCellWrapper wrapper, CellTreeNode sQueryTree,
             BoolExpression inExtentCondition)
@@ -320,11 +315,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             return result;
         }
 
-        #endregion
-
         /// <summary>
-        /// Given a LeftCellWrapper for the S-side fragment and a non-nullable colum m, return a CQuery with nullability condition
-        /// appended to Cquery of c-side member that column m is mapped to
+        ///     Given a LeftCellWrapper for the S-side fragment and a non-nullable colum m, return a CQuery with nullability condition
+        ///     appended to Cquery of c-side member that column m is mapped to
         /// </summary>
         private static FragmentQuery AddNullConditionOnCSideFragment(LeftCellWrapper wrapper, MemberPath member, MemberMaps memberMaps)
         {
@@ -348,8 +341,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         }
 
         /// <summary>
-        /// Checks whether non nullable S-side members are mapped to nullable C-query.
-        /// It is possible that C-side attribute is nullable but the fragment's C-query is not
+        ///     Checks whether non nullable S-side members are mapped to nullable C-query.
+        ///     It is possible that C-side attribute is nullable but the fragment's C-query is not
         /// </summary>
         private void CheckConstraintsOnNonNullableMembers(LeftCellWrapper wrapper)
         {
@@ -375,8 +368,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             }
         }
 
-        #region Methods for turning a boolean condition into user string
-
         internal static void EntityConfigurationToUserString(BoolExpression condition, StringBuilder builder)
         {
             //By default write the Round tripping message
@@ -388,10 +379,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         {
             condition.AsUserString(builder, "PK", writeRoundTrippingMessage);
         }
-
-        #endregion
-
-        #region WhereClauseVisitor: turns WHERE clause into CellTreeNode
 
         private class WhereClauseVisitor : Visitor<DomainConstraint<BoolLiteral, Constant>, CellTreeNode>
         {
@@ -491,10 +478,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             }
         }
 
-        #endregion
-
-        #region DomainConstraintVisitor: checks domain constraints
-
         internal class DomainConstraintVisitor : CellTreeNode.SimpleCellTreeVisitor<bool, bool>
         {
             private readonly LeftCellWrapper m_wrapper;
@@ -575,10 +558,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             }
         }
 
-        #endregion
-
-        #region MemberValueBinding struct: (MemberPath, CellConstant) pair
-
         private struct MemberValueBinding : IEquatable<MemberValueBinding>
         {
             internal readonly MemberPath Member;
@@ -595,17 +574,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
                 return String.Format(CultureInfo.InvariantCulture, "{0}={1}", Member, Value);
             }
 
-            #region IEquatable<MemberValue> Members
-
             public bool Equals(MemberValueBinding other)
             {
                 return MemberPath.EqualityComparer.Equals(Member, other.Member) &&
                        Constant.EqualityComparer.Equals(Value, other.Value);
             }
-
-            #endregion
         }
-
-        #endregion
     }
 }

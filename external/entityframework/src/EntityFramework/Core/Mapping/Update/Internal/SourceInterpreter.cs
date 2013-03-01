@@ -1,15 +1,16 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// This class determines the state entries contributing to an expression
-    /// propagated through an update mapping view (values in propagated expressions
-    /// remember where they come from)
+    ///     This class determines the state entries contributing to an expression
+    ///     propagated through an update mapping view (values in propagated expressions
+    ///     remember where they come from)
     /// </summary>
     internal class SourceInterpreter
     {
@@ -25,19 +26,19 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         private readonly EntitySet m_sourceTable;
 
         /// <summary>
-        /// Finds all markup associated with the given source.
+        ///     Finds all markup associated with the given source.
         /// </summary>
-        /// <param name="source">Source expression. Must not be null.</param>
-        /// <param name="translator">Translator containing session information.</param>
-        /// <param name="sourceTable">Table from which the exception was thrown (must not be null).</param>
-        /// <returns>Markup.</returns>
+        /// <param name="source"> Source expression. Must not be null. </param>
+        /// <param name="translator"> Translator containing session information. </param>
+        /// <param name="sourceTable"> Table from which the exception was thrown (must not be null). </param>
+        /// <returns> Markup. </returns>
         internal static ReadOnlyCollection<IEntityStateEntry> GetAllStateEntries(
             PropagatorResult source, UpdateTranslator translator,
             EntitySet sourceTable)
         {
-            Debug.Assert(null != source);
-            Debug.Assert(null != translator);
-            Debug.Assert(null != sourceTable);
+            DebugCheck.NotNull(source);
+            DebugCheck.NotNull(translator);
+            DebugCheck.NotNull(sourceTable);
 
             var interpreter = new SourceInterpreter(translator, sourceTable);
             interpreter.RetrieveResultMarkup(source);
@@ -47,7 +48,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
         private void RetrieveResultMarkup(PropagatorResult source)
         {
-            Debug.Assert(null != source);
+            DebugCheck.NotNull(source);
 
             if (source.Identifier
                 != PropagatorResult.NullIdentifier)
@@ -65,10 +66,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
                             // if this is an identifier, it may also be registered with an "owner".
                             // Return the owner as well if the owner is also mapped to this table.
                             PropagatorResult owner;
-                            if (m_translator.KeyManager.TryGetIdentifierOwner(source.Identifier, out owner) &&
-                                null != owner.StateEntry
-                                &&
-                                ExtentInScope(owner.StateEntry.EntitySet))
+                            if (m_translator.KeyManager.TryGetIdentifierOwner(source.Identifier, out owner)
+                                && null != owner.StateEntry
+                                && ExtentInScope(owner.StateEntry.EntitySet))
                             {
                                 m_stateEntries.Add(owner.StateEntry);
                             }

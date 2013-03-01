@@ -1,45 +1,39 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
 {
     using System.Data.Entity.Core.Common.CommandTrees;
     using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Mapping.ViewGeneration.Structures;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Text;
 
     /// <summary>
-    /// Encapsulates a slot in a particular cql block.
+    ///     Encapsulates a slot in a particular cql block.
     /// </summary>
     internal sealed class QualifiedSlot : ProjectedSlot
     {
-        #region Constructor
-
         /// <summary>
-        /// Creates a qualified slot "block_alias.slot_alias"
+        ///     Creates a qualified slot "block_alias.slot_alias"
         /// </summary>
         internal QualifiedSlot(CqlBlock block, ProjectedSlot slot)
         {
-            Debug.Assert(block != null && slot != null, "Null input to QualifiedSlot constructor");
+            DebugCheck.NotNull(block);
+            DebugCheck.NotNull(slot);
+
             m_block = block;
             m_slot = slot; // Note: slot can be another qualified slot.
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly CqlBlock m_block;
         private readonly ProjectedSlot m_slot;
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Creates new <see cref="ProjectedSlot"/> that is qualified with <paramref name="block"/>.CqlAlias.
-        /// If current slot is composite (such as <see cref="CaseStatementProjectedSlot"/>, then this method recursively qualifies all parts
-        /// and returns a new deeply qualified slot (as opposed to <see cref="CqlBlock.QualifySlotWithBlockAlias"/>).
+        ///     Creates new <see cref="ProjectedSlot" /> that is qualified with <paramref name="block" />.CqlAlias.
+        ///     If current slot is composite (such as <see cref="CaseStatementProjectedSlot" />, then this method recursively qualifies all parts
+        ///     and returns a new deeply qualified slot (as opposed to <see cref="CqlBlock.QualifySlotWithBlockAlias" />).
         /// </summary>
         internal override ProjectedSlot DeepQualify(CqlBlock block)
         {
@@ -49,7 +43,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
         }
 
         /// <summary>
-        /// Delegates alias generation to the leaf slot in the qualified chain.
+        ///     Delegates alias generation to the leaf slot in the qualified chain.
         /// </summary>
         internal override string GetCqlFieldAlias(MemberPath outputMember)
         {
@@ -59,7 +53,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
         }
 
         /// <summary>
-        /// Walks the chain of <see cref="QualifiedSlot"/>s starting from the current one and returns the original slot.
+        ///     Walks the chain of <see cref="QualifiedSlot" />s starting from the current one and returns the original slot.
         /// </summary>
         internal ProjectedSlot GetOriginalSlot()
         {
@@ -98,7 +92,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration
             StringUtil.FormatStringBuilder(builder, "{0} ", m_block.CqlAlias);
             m_slot.ToCompactString(builder);
         }
-
-        #endregion
     }
 }

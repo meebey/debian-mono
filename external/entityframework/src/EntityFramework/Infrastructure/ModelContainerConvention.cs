@@ -1,14 +1,15 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Infrastructure
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Conventions;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    ///     This <see cref = "DbModelBuilder" /> convention uses the name of the derived
-    ///     <see cref = "DbContext" /> class as the container for the conceptual model built by
+    ///     This <see cref="DbModelBuilder" /> convention uses the name of the derived
+    ///     <see cref="DbContext" /> class as the container for the conceptual model built by
     ///     Code First.
     /// </summary>
     public class ModelContainerConvention : IEdmConvention
@@ -18,12 +19,12 @@ namespace System.Data.Entity.Infrastructure
         private readonly string _containerName;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref = "ModelContainerConvention" /> class.
+        ///     Initializes a new instance of the <see cref="ModelContainerConvention" /> class.
         /// </summary>
-        /// <param name = "containerName">The model container name.</param>
+        /// <param name="containerName"> The model container name. </param>
         internal ModelContainerConvention(string containerName)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(containerName));
+            DebugCheck.NotEmpty(containerName);
 
             _containerName = containerName;
         }
@@ -35,9 +36,11 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Applies the convention to the given model.
         /// </summary>
-        /// <param name = "model">The model.</param>
-        void IEdmConvention.Apply(EdmModel model)
+        /// <param name="model"> The model. </param>
+        public virtual void Apply(EdmModel model)
         {
+            Check.NotNull(model, "model");
+
             model.Containers.Single().Name = _containerName;
         }
 

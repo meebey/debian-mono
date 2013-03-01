@@ -1,10 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     using System.Collections.Generic;
     using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
@@ -13,7 +14,7 @@ namespace System.Data.Entity.Utilities
     {
         public static IEnumerable<PropertyPath> GetPropertyAccessList(this LambdaExpression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
+            DebugCheck.NotNull(propertyAccessExpression);
 
             var propertyPaths
                 = MatchPropertyAccessList(propertyAccessExpression, (p, e) => MatchPropertyAccess(e, p));
@@ -28,8 +29,8 @@ namespace System.Data.Entity.Utilities
 
         public static PropertyPath GetSimplePropertyAccess(this LambdaExpression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
-            Contract.Assert(propertyAccessExpression.Parameters.Count() == 1);
+            DebugCheck.NotNull(propertyAccessExpression);
+            Debug.Assert(propertyAccessExpression.Parameters.Count == 1);
 
             var propertyPath
                 = propertyAccessExpression
@@ -47,8 +48,8 @@ namespace System.Data.Entity.Utilities
 
         public static PropertyPath GetComplexPropertyAccess(this LambdaExpression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
-            Contract.Assert(propertyAccessExpression.Parameters.Count() == 1);
+            DebugCheck.NotNull(propertyAccessExpression);
+            Debug.Assert(propertyAccessExpression.Parameters.Count == 1);
 
             var propertyPath
                 = propertyAccessExpression
@@ -66,8 +67,8 @@ namespace System.Data.Entity.Utilities
 
         public static IEnumerable<PropertyPath> GetSimplePropertyAccessList(this LambdaExpression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
-            Contract.Assert(propertyAccessExpression.Parameters.Count() == 1);
+            DebugCheck.NotNull(propertyAccessExpression);
+            Debug.Assert(propertyAccessExpression.Parameters.Count == 1);
 
             var propertyPaths
                 = MatchPropertyAccessList(propertyAccessExpression, (p, e) => e.MatchSimplePropertyAccess(p));
@@ -82,8 +83,8 @@ namespace System.Data.Entity.Utilities
 
         public static IEnumerable<PropertyPath> GetComplexPropertyAccessList(this LambdaExpression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
-            Contract.Assert(propertyAccessExpression.Parameters.Count() == 1);
+            DebugCheck.NotNull(propertyAccessExpression);
+            Debug.Assert(propertyAccessExpression.Parameters.Count == 1);
 
             var propertyPaths
                 = MatchPropertyAccessList(propertyAccessExpression, (p, e) => e.MatchComplexPropertyAccess(p));
@@ -99,9 +100,9 @@ namespace System.Data.Entity.Utilities
         private static IEnumerable<PropertyPath> MatchPropertyAccessList(
             this LambdaExpression lambdaExpression, Func<Expression, Expression, PropertyPath> propertyMatcher)
         {
-            Contract.Requires(lambdaExpression != null);
-            Contract.Requires(propertyMatcher != null);
-            Contract.Assert(lambdaExpression.Body != null);
+            DebugCheck.NotNull(lambdaExpression);
+            DebugCheck.NotNull(propertyMatcher);
+            Debug.Assert(lambdaExpression.Body != null);
 
             var newExpression
                 = RemoveConvert(lambdaExpression.Body) as NewExpression;
@@ -113,8 +114,8 @@ namespace System.Data.Entity.Utilities
 
                 var propertyPaths
                     = newExpression.Arguments
-                        .Select(a => propertyMatcher(a, parameterExpression))
-                        .Where(p => p != null);
+                                   .Select(a => propertyMatcher(a, parameterExpression))
+                                   .Where(p => p != null);
 
                 if (propertyPaths.Count()
                     == newExpression.Arguments.Count())
@@ -131,30 +132,30 @@ namespace System.Data.Entity.Utilities
         private static bool HasDefaultMembersOnly(
             this NewExpression newExpression, IEnumerable<PropertyPath> propertyPaths)
         {
-            Contract.Requires(newExpression != null);
-            Contract.Requires(propertyPaths != null);
+            DebugCheck.NotNull(newExpression);
+            DebugCheck.NotNull(propertyPaths);
 
             return !newExpression.Members
-                        .Where(
-                            (t, i) =>
-                            !string.Equals(t.Name, propertyPaths.ElementAt(i).Last().Name, StringComparison.Ordinal))
-                        .Any();
+                                 .Where(
+                                     (t, i) =>
+                                     !string.Equals(t.Name, propertyPaths.ElementAt(i).Last().Name, StringComparison.Ordinal))
+                                 .Any();
         }
 
         private static PropertyPath MatchSimplePropertyAccess(
             this Expression parameterExpression, Expression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
+            DebugCheck.NotNull(propertyAccessExpression);
 
             var propertyPath = MatchPropertyAccess(parameterExpression, propertyAccessExpression);
 
-            return propertyPath != null && propertyPath.Count() == 1 ? propertyPath : null;
+            return propertyPath != null && propertyPath.Count == 1 ? propertyPath : null;
         }
 
         private static PropertyPath MatchComplexPropertyAccess(
             this Expression parameterExpression, Expression propertyAccessExpression)
         {
-            Contract.Requires(propertyAccessExpression != null);
+            DebugCheck.NotNull(propertyAccessExpression);
 
             var propertyPath = MatchPropertyAccess(parameterExpression, propertyAccessExpression);
 
@@ -164,8 +165,8 @@ namespace System.Data.Entity.Utilities
         private static PropertyPath MatchPropertyAccess(
             this Expression parameterExpression, Expression propertyAccessExpression)
         {
-            Contract.Requires(parameterExpression != null);
-            Contract.Requires(propertyAccessExpression != null);
+            DebugCheck.NotNull(parameterExpression);
+            DebugCheck.NotNull(propertyAccessExpression);
 
             var propertyInfos = new List<PropertyInfo>();
 
@@ -198,7 +199,7 @@ namespace System.Data.Entity.Utilities
 
         public static Expression RemoveConvert(this Expression expression)
         {
-            Contract.Requires(expression != null);
+            DebugCheck.NotNull(expression);
 
             while ((expression != null)
                    && (expression.NodeType == ExpressionType.Convert

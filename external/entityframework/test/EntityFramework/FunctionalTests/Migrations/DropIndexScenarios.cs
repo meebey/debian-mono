@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
-
     [Variant(DatabaseProvider.SqlClient, ProgrammingLanguage.CSharp)]
     [Variant(DatabaseProvider.SqlServerCe, ProgrammingLanguage.CSharp)]
     [Variant(DatabaseProvider.SqlClient, ProgrammingLanguage.VB)]
@@ -28,8 +28,6 @@ namespace System.Data.Entity.Migrations
             migrator = CreateMigrator<ShopContext_v1, DropSimpleIndexMigration>();
 
             migrator.Update();
-
-            // TODO: Verify
         }
 
         private class DropCompositeIndexMigration : DbMigration
@@ -53,8 +51,6 @@ namespace System.Data.Entity.Migrations
             migrator = CreateMigrator<ShopContext_v1, DropCompositeIndexMigration>();
 
             migrator.Update();
-
-            // TODO: Verify
         }
 
         private class DropIndexWithName : DbMigration
@@ -78,8 +74,6 @@ namespace System.Data.Entity.Migrations
             migrator = CreateMigrator<ShopContext_v1, DropIndexWithName>();
 
             migrator.Update();
-
-            // TODO: Verify
         }
     }
 }

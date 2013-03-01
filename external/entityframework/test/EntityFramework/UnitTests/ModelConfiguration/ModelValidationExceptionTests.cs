@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.UnitTests
 {
     using System.CodeDom.Compiler;
-    using System.Data.Entity.Edm.Common;
+    using System.Data.Entity.Edm.Validation;
     using System.IO;
     using System.Runtime.Serialization;
     using System.Runtime.Serialization.Formatters.Binary;
@@ -14,7 +15,14 @@ namespace System.Data.Entity.ModelConfiguration.UnitTests
         public void Can_create_exception_with_errors()
         {
             var modelValidationException
-                = new ModelValidationException(new[] { (new DataModelErrorEventArgs { ErrorMessage = "Foo" }) });
+                = new ModelValidationException(
+                    new[]
+                        {
+                            (new DataModelErrorEventArgs
+                                 {
+                                     ErrorMessage = "Foo"
+                                 })
+                        });
 
             Assert.True(modelValidationException.Message.Contains("Foo"));
         }

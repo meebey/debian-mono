@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.SqlServer
 {
     using System.Collections.Generic;
@@ -10,20 +11,20 @@ namespace System.Data.Entity.SqlServer
     using System.Data.Entity.SqlServer.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Reflection;
     using System.Text;
     using System.Xml;
 
     /// <summary>
-    /// The Provider Manifest for SQL Server
+    ///     The Provider Manifest for SQL Server
     /// </summary>
     internal class SqlProviderManifest : DbXmlEnabledProviderManifest
     {
         internal const string TokenSql8 = "2000";
         internal const string TokenSql9 = "2005";
         internal const string TokenSql10 = "2008";
+        internal const string TokenSql11 = "2012";
 
         // '~' is the same escape character that L2S uses
         internal const char LikeEscapeChar = '~';
@@ -35,7 +36,7 @@ namespace System.Data.Entity.SqlServer
         private readonly SqlVersion _version = SqlVersion.Sql9;
 
         /// <summary>
-        /// maximum size of sql server unicode 
+        ///     Maximum size of SQL Server unicode
         /// </summary>
         private const int varcharMaxSize = 8000;
 
@@ -50,9 +51,9 @@ namespace System.Data.Entity.SqlServer
         #region Constructors
 
         /// <summary>
-        /// Constructor
+        ///     Initializes a new instance of the <see cref="SqlProviderManifest" /> class.
         /// </summary>
-        /// <param name="manifestToken">A token used to infer the capabilities of the store</param>
+        /// <param name="manifestToken"> A token used to infer the capabilities of the store. </param>
         public SqlProviderManifest(string manifestToken)
             : base(GetProviderManifest())
         {
@@ -103,18 +104,19 @@ namespace System.Data.Entity.SqlServer
         #region Internal Methods
 
         /// <summary>
-        /// Function to detect wildcard characters %, _, [ and ^ and escape them with a preceding ~
-        /// This escaping is used when StartsWith, EndsWith and Contains canonical and CLR functions
-        /// are translated to their equivalent LIKE expression
-        /// NOTE: This code has been copied from LinqToSql
+        ///     Function to detect wildcard characters %, _, [ and ^ and escape them with a preceding ~
+        ///     This escaping is used when StartsWith, EndsWith and Contains canonical and CLR functions
+        ///     are translated to their equivalent LIKE expression
+        ///     NOTE: This code has been copied from LinqToSql
         /// </summary>
-        /// <param name="text">Original input as specified by the user</param>
-        /// <param name="alwaysEscapeEscapeChar">escape the escape character ~ regardless whether wildcard 
-        /// characters were encountered </param>
-        /// <param name="usedEscapeChar">true if the escaping was performed, false if no escaping was required</param>
-        /// <returns>The escaped string that can be used as pattern in a LIKE expression</returns>
+        /// <param name="text"> Original input as specified by the user </param>
+        /// <param name="alwaysEscapeEscapeChar"> escape the escape character ~ regardless whether wildcard characters were encountered </param>
+        /// <param name="usedEscapeChar"> true if the escaping was performed, false if no escaping was required </param>
+        /// <returns> The escaped string that can be used as pattern in a LIKE expression </returns>
         internal static string EscapeLikeText(string text, bool alwaysEscapeEscapeChar, out bool usedEscapeChar)
         {
+            DebugCheck.NotNull(text);
+
             usedEscapeChar = false;
             if (!(text.Contains("%") || text.Contains("_") || text.Contains("[")
                   || text.Contains("^") || alwaysEscapeEscapeChar && text.Contains(LikeEscapeCharToString)))
@@ -124,7 +126,10 @@ namespace System.Data.Entity.SqlServer
             var sb = new StringBuilder(text.Length);
             foreach (var c in text)
             {
-                if (c == '%' || c == '_' || c == '[' || c == '^'
+                if (c == '%'
+                    || c == '_'
+                    || c == '['
+                    || c == '^'
                     || c == LikeEscapeChar)
                 {
                     sb.Append(LikeEscapeChar);
@@ -140,12 +145,11 @@ namespace System.Data.Entity.SqlServer
         #region Overrides
 
         /// <summary>
-        /// Providers should override this to return information specific to their provider.  
-        /// 
-        /// This method should never return null.
+        ///     Providers should override this to return information specific to their provider.
+        ///     This method should never return null.
         /// </summary>
-        /// <param name="informationType">The name of the information to be retrieved.</param>
-        /// <returns>An XmlReader at the begining of the information requested.</returns>
+        /// <param name="informationType"> The name of the information to be retrieved. </param>
+        /// <returns> An XmlReader at the begining of the information requested. </returns>
         protected override XmlReader GetDbInformation(string informationType)
         {
             if (informationType == StoreSchemaDefinitionVersion3
@@ -175,15 +179,19 @@ namespace System.Data.Entity.SqlServer
         {
             if (_primitiveTypes == null)
             {
-                if (_version == SqlVersion.Sql10)
+                if (_version == SqlVersion.Sql10
+                    ||
+                    _version == SqlVersion.Sql11)
                 {
                     _primitiveTypes = base.GetStoreTypes();
                 }
                 else
                 {
                     var primitiveTypes = new List<PrimitiveType>(base.GetStoreTypes());
-                    Debug.Assert((_version == SqlVersion.Sql8) || (_version == SqlVersion.Sql9), "Found verion other than Sql 8, 9 or 10");
-                    //Remove the Katmai types for both Sql8 and Sql9
+                    Debug.Assert(
+                        (_version == SqlVersion.Sql8) || (_version == SqlVersion.Sql9),
+                        "Found version other than SQL 8, 9, 10 or 11.");
+                    //Remove the Katmai types for both SQL 8 and SQL 9
                     primitiveTypes.RemoveAll(
                         delegate(PrimitiveType primitiveType)
                             {
@@ -196,7 +204,7 @@ namespace System.Data.Entity.SqlServer
                                        name.Equals("geometry", StringComparison.Ordinal);
                             }
                         );
-                    //Remove the types that won't work in Sql8
+                    //Remove the types that won't work in SQL 8
                     if (_version == SqlVersion.Sql8)
                     {
                         // SQLBUDT 550667 and 551271: Remove xml and 'max' types for SQL Server 2000
@@ -219,13 +227,15 @@ namespace System.Data.Entity.SqlServer
         {
             if (_functions == null)
             {
-                if (_version == SqlVersion.Sql10)
+                if (_version == SqlVersion.Sql10
+                    ||
+                    _version == SqlVersion.Sql11)
                 {
                     _functions = base.GetStoreFunctions();
                 }
                 else
                 {
-                    //Remove the functions over katmai types from both Sql 9 and Sql 8.
+                    //Remove the functions over katmai types from both SQL 9 and SQL 8.
                     var functions = base.GetStoreFunctions().Where(f => !IsKatmaiOrNewer(f));
                     if (_version == SqlVersion.Sql8)
                     {
@@ -336,16 +346,16 @@ namespace System.Data.Entity.SqlServer
         }
 
         /// <summary>
-        /// This method takes a type and a set of facets and returns the best mapped equivalent type 
-        /// in EDM.
+        ///     This method takes a type and a set of facets and returns the best mapped equivalent type
+        ///     in EDM.
         /// </summary>
-        /// <param name="storeType">A TypeUsage encapsulating a store type and a set of facets</param>
-        /// <returns>A TypeUsage encapsulating an EDM type and a set of facets</returns>
+        /// <param name="storeType"> A TypeUsage encapsulating a store type and a set of facets </param>
+        /// <returns> A TypeUsage encapsulating an EDM type and a set of facets </returns>
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         [SuppressMessage("Microsoft.Globalization", "CA1308:NormalizeStringsToUppercase")]
         public override TypeUsage GetEdmType(TypeUsage storeType)
         {
-            Throw.IfNull(storeType, "storeType");
+            Check.NotNull(storeType, "storeType");
 
             var storeTypeName = storeType.EdmType.Name.ToLowerInvariant();
             if (!base.StoreTypeNameToEdmPrimitiveType.ContainsKey(storeTypeName))
@@ -514,16 +524,15 @@ namespace System.Data.Entity.SqlServer
         }
 
         /// <summary>
-        /// This method takes a type and a set of facets and returns the best mapped equivalent type 
-        /// in SQL Server, taking the store version into consideration.
+        ///     This method takes a type and a set of facets and returns the best mapped equivalent type
+        ///     in SQL Server, taking the store version into consideration.
         /// </summary>
-        /// <param name="storeType">A TypeUsage encapsulating an EDM type and a set of facets</param>
-        /// <returns>A TypeUsage encapsulating a store type and a set of facets</returns>
+        /// <param name="storeType"> A TypeUsage encapsulating an EDM type and a set of facets </param>
+        /// <returns> A TypeUsage encapsulating a store type and a set of facets </returns>
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         public override TypeUsage GetStoreType(TypeUsage edmType)
         {
-            Throw.IfNull(edmType, "edmType");
-
+            Check.NotNull(edmType, "edmType");
             Debug.Assert(edmType.EdmType.BuiltInTypeKind == BuiltInTypeKind.PrimitiveType);
 
             var primitiveType = edmType.EdmType as PrimitiveType;
@@ -742,11 +751,11 @@ namespace System.Data.Entity.SqlServer
         }
 
         /// <summary>
-        /// Returns true, SqlClient supports escaping strings to be used as arguments to like
-        /// The escape character is '~'
+        ///     Returns true, SqlClient supports escaping strings to be used as arguments to like
+        ///     The escape character is '~'
         /// </summary>
-        /// <param name="escapeCharacter">The character '~'</param>
-        /// <returns>True</returns>
+        /// <param name="escapeCharacter"> The character '~' </param>
+        /// <returns> True </returns>
         public override bool SupportsEscapingLikeArgument(out char escapeCharacter)
         {
             escapeCharacter = LikeEscapeChar;
@@ -754,16 +763,27 @@ namespace System.Data.Entity.SqlServer
         }
 
         /// <summary>
-        /// Escapes the wildcard characters and the escape character in the given argument.
+        ///     Escapes the wildcard characters and the escape character in the given argument.
         /// </summary>
-        /// <param name="argument"></param>
-        /// <returns>Equivalent to the argument, with the wildcard characters and the escape character escaped</returns>
+        /// <param name="argument"> </param>
+        /// <returns> Equivalent to the argument, with the wildcard characters and the escape character escaped </returns>
         public override string EscapeLikeArgument(string argument)
         {
-            Throw.IfNull(argument, "argument");
+            Check.NotNull(argument, "argument");
 
             bool usedEscapeCharacter;
             return EscapeLikeText(argument, true, out usedEscapeCharacter);
+        }
+
+        /// <summary>
+        ///     Returns a boolean that specifies whether the corresponding provider can handle expression trees 
+        ///     containing instances of DbInExpression.
+        ///     The Sql provider handles instances of DbInExpression.
+        /// </summary>
+        /// <returns> <c>true</c>. </returns>
+        public override bool SupportsInExpression()
+        {
+            return true;
         }
 
         #endregion

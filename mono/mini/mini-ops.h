@@ -100,7 +100,7 @@ MINI_OP(OP_STOREI8_MEMBASE_REG, "storei8_membase_reg", IREG, LREG, NONE)
 MINI_OP(OP_STORER4_MEMBASE_REG, "storer4_membase_reg", IREG, FREG, NONE)
 MINI_OP(OP_STORER8_MEMBASE_REG, "storer8_membase_reg", IREG, FREG, NONE)
 
-#ifdef MONO_ARCH_SIMD_INTRINSICS
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
 MINI_OP(OP_STOREX_MEMBASE_REG, "storex_membase_reg", IREG, XREG, NONE)
 MINI_OP(OP_STOREX_ALIGNED_MEMBASE_REG,     "storex_aligned_membase_reg", IREG, XREG, NONE)
 MINI_OP(OP_STOREX_NTA_MEMBASE_REG,     "storex_nta_membase_reg", IREG, XREG, NONE)
@@ -128,7 +128,7 @@ MINI_OP(OP_LOADR8_MEMBASE,"loadr8_membase", FREG, IREG, NONE)
 
 MINI_OP(OP_LOADX_MEMBASE, 			"loadx_membase", XREG, IREG, NONE)
 
-#ifdef MONO_ARCH_SIMD_INTRINSICS
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
 MINI_OP(OP_LOADX_ALIGNED_MEMBASE,  "loadx_aligned_membase", XREG, IREG, NONE)
 #endif
 
@@ -609,7 +609,7 @@ MINI_OP(OP_NOT_NULL, "not_null", NONE, IREG, NONE)
 
 /* SIMD opcodes. */
 
-#ifdef MONO_ARCH_SIMD_INTRINSICS
+#if defined(TARGET_X86) || defined(TARGET_AMD64)
 
 MINI_OP(OP_ADDPS, "addps", XREG, XREG, XREG)
 MINI_OP(OP_DIVPS, "divps", XREG, XREG, XREG)
@@ -1239,62 +1239,6 @@ MINI_OP(OP_MIPS_COND_EXC_INO, "mips_cond_exc_ino", NONE, IREG, IREG)
 MINI_OP(OP_MIPS_COND_EXC_IC, "mips_cond_exc_ic", NONE, IREG, IREG)
 MINI_OP(OP_MIPS_COND_EXC_INC, "mips_cond_exc_inc", NONE, IREG, IREG)
 
-#endif
-
-#if defined(__hppa)
-MINI_OP(OP_HPPA_BEQ, "hppa_beq", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BGE, "hppa_bge", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BGT, "hppa_bgt", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BLE, "hppa_ble", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BLT, "hppa_blt", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BNE, "hppa_bne", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BGE_UN, "hppa_bge_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BGT_UN, "hppa_bgt_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BLE_UN, "hppa_ble_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_BLT_UN, "hppa_blt_un", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_CEQ, "hppa_ceq", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CGT, "hppa_cgt", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CGT_UN, "hppa_cgt_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CLT, "hppa_clt", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CLT_UN, "hppa_clt_un", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_CEQ_IMM, "hppa_ceq_imm", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CGT_IMM, "hppa_cgt_imm", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CGT_UN_IMM, "hppa_cgt_un_imm", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CLT_IMM, "hppa_clt_imm", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_CLT_UN_IMM, "hppa_clt_un_imm", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_COND_EXC_EQ, "hppa_cond_exc_eq", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_GE, "hppa_cond_exc_ge", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_GT, "hppa_cond_exc_gt", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_LE, "hppa_cond_exc_le", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_LT, "hppa_cond_exc_lt", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_NE_UN, "hppa_cond_exc_ne_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_GE_UN, "hppa_cond_exc_ge_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_GT_UN, "hppa_cond_exc_gt_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_LE_UN, "hppa_cond_exc_le_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_LT_UN, "hppa_cond_exc_lt_un", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_OV, "hppa_cond_exc_ov", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_NO, "hppa_cond_exc_no", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_C, "hppa_cond_exc_c", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_COND_EXC_NC, "hppa_cond_exc_nc", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_XMPYU, "hppa_xmpyu", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_ADD_OVF, "hppa_add_ovf", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_SUB_OVF, "hppa_sub_ovf", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_ADDC_OVF, "hppa_addc_ovf", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_SUBB_OVF, "hppa_subb_ovf", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_OUTARG_R4CONST, "hppa_outarg_r4const", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_OUTARG_REGOFFSET, "hppa_outarg_regoffset", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_LOADR4_LEFT, "hppa_loadr4_left", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_LOADR4_RIGHT, "hppa_loadr4_right", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_STORER4_LEFT, "hppa_storer4_left", NONE, NONE, NONE)
-MINI_OP(OP_HPPA_STORER4_RIGHT, "hppa_storer4_right", NONE, NONE, NONE)
-
-MINI_OP(OP_HPPA_SETF4REG, "hppa_setf4reg", NONE, NONE, NONE)
 #endif
 
 /* Same as OUTARG_VT, but has a dreg */

@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity
 {
-    using System;
     using System.Collections.Generic;
     using System.Data.Entity.TestHelpers;
     using System.Linq;
@@ -10,15 +10,17 @@ namespace System.Data.Entity
     using Xunit.Sdk;
 
     /// <summary>
-    /// Attribute that is applied to a method to indicate that it is a fact that
-    /// should be run by the test runner in partial trust.
+    ///     Attribute that is applied to a method to indicate that it is a fact that
+    ///     should be run by the test runner in partial trust.
     /// </summary>
     /// <remarks>
-    /// The class containing the method must derive from <see cref="MarshalByRefObject" />.
+    ///     The class containing the method must derive from <see cref="MarshalByRefObject" />.
     /// 
-    /// If the test class is decorated using <see cref="IUseFixture<>" />, the fixture data is
-    /// instantiated in the main <see cref="AppDomain" /> and then serialized to the partial trust
-    /// sandbox.
+    ///     If the test class is decorated using <see cref="IUseFixture<>" />, the fixture data is
+    ///                                              instantiated in the main
+    ///                                              <see cref="AppDomain" />
+    ///                                              and then serialized to the partial trust
+    ///                                              sandbox.
     /// </remarks>
     public class PartialTrustFactAttribute : FactAttribute
     {
@@ -43,7 +45,7 @@ namespace System.Data.Entity
                     {
                         var dataType = @interface.GetGenericArguments()[0];
                         var fixtureData = Activator.CreateInstance(dataType);
-                        var method = @interface.GetMethod("SetFixture", new Type[] { dataType });
+                        var method = @interface.GetMethod("SetFixture", new[] { dataType });
 
                         fixtures[method] = fixtureData;
                     }

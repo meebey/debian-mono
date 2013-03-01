@@ -1,20 +1,26 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Extensions
 {
     using System.Collections.Generic;
     using System.Data.Entity.Migrations.Utilities;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.IO;
     using System.Linq;
     using System.Runtime.InteropServices;
     using EnvDTE;
-    using Microsoft.VisualStudio.OLE.Interop;
-    using Microsoft.VisualStudio.Shell;
     using Microsoft.VisualStudio.Shell.Interop;
 
     internal static class ProjectExtensions
     {
+        private static readonly Type _serviceProviderType =
+            Type.GetType(
+                "Microsoft.VisualStudio.Shell.ServiceProvider, Microsoft.VisualStudio.Shell, Version=11.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a")
+            ??
+            Type.GetType(
+                "Microsoft.VisualStudio.Shell.ServiceProvider, Microsoft.VisualStudio.Shell, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+
         public const int S_OK = 0;
         public const string WebApplicationProjectTypeGuid = "{349C5851-65DF-11DA-9384-00065B846F21}";
         public const string WebSiteProjectTypeGuid = "{E24C65DC-7377-472B-9ABA-BC803B73C61A}";
@@ -22,43 +28,38 @@ namespace System.Data.Entity.Migrations.Extensions
 
         public static string GetTargetName(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetPropertyValue<string>("AssemblyName");
         }
 
         public static string GetProjectDir(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetPropertyValue<string>("FullPath");
         }
 
         public static string GetTargetDir(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             var fullPath = project.GetProjectDir();
-            string outputPath;
 
-            if (project.IsWebSiteProject())
-            {
-                outputPath = "Bin";
-            }
-            else
-            {
-                outputPath = project.GetConfigurationPropertyValue<string>("OutputPath");
-            }
+            var outputPath
+                = project.IsWebSiteProject()
+                      ? "Bin"
+                      : project.GetConfigurationPropertyValue<string>("OutputPath");
 
             return Path.Combine(fullPath, outputPath);
         }
 
         /// <summary>
-        /// Gets the string abbreviation for the language of a VS project.
+        ///     Gets the string abbreviation for the language of a VS project.
         /// </summary>
         public static string GetLanguage(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             switch (project.CodeModel.Language)
             {
@@ -73,19 +74,19 @@ namespace System.Data.Entity.Migrations.Extensions
         }
 
         /// <summary>
-        /// Gets the root namespace configured for a VS project.
+        ///     Gets the root namespace configured for a VS project.
         /// </summary>
         public static string GetRootNamespace(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetPropertyValue<string>("RootNamespace");
         }
 
         public static string GetFileName(this Project project, string projectItemName)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(projectItemName));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(projectItemName);
 
             ProjectItem projectItem;
 
@@ -98,14 +99,14 @@ namespace System.Data.Entity.Migrations.Extensions
                 return Path.Combine(project.GetProjectDir(), projectItemName);
             }
 
-            Contract.Assert(projectItem.FileCount == 1);
+            Debug.Assert(projectItem.FileCount == 1);
 
             return projectItem.FileNames[0];
         }
 
         public static bool IsWebProject(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetProjectTypes().Any(
                 g => g.EqualsIgnoreCase(WebApplicationProjectTypeGuid)
@@ -114,16 +115,16 @@ namespace System.Data.Entity.Migrations.Extensions
 
         public static bool IsWebSiteProject(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetProjectTypes().Any(g => g.EqualsIgnoreCase(WebSiteProjectTypeGuid));
         }
 
         public static void EditFile(this Project project, string path)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(path));
-            Contract.Requires(!Path.IsPathRooted(path));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(path);
+            Debug.Assert(!Path.IsPathRooted(path));
 
             var absolutePath = Path.Combine(project.GetProjectDir(), path);
             var dte = project.DTE;
@@ -138,9 +139,9 @@ namespace System.Data.Entity.Migrations.Extensions
 
         public static void AddFile(this Project project, string path, string contents)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(path));
-            Contract.Requires(!Path.IsPathRooted(path));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(path);
+            Debug.Assert(!Path.IsPathRooted(path));
 
             var absolutePath = Path.Combine(project.GetProjectDir(), path);
 
@@ -153,13 +154,14 @@ namespace System.Data.Entity.Migrations.Extensions
 
         public static void AddFile(this Project project, string path)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(path));
-            Contract.Requires(!Path.IsPathRooted(path));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(path);
+            Debug.Assert(!Path.IsPathRooted(path));
 
             var directory = Path.GetDirectoryName(path);
             var fileName = Path.GetFileName(path);
-            var absolutePath = Path.Combine(project.GetProjectDir(), path);
+            var projectDir = project.GetProjectDir();
+            var absolutePath = Path.Combine(projectDir, path);
 
             var projectItems
                 = directory
@@ -168,22 +170,22 @@ namespace System.Data.Entity.Migrations.Extensions
                         project.ProjectItems,
                         (pi, dir) =>
                             {
-                                Contract.Assert(pi != null);
-                                Contract.Assert(pi.Kind == VsProjectItemKindPhysicalFolder);
+                                Debug.Assert(pi != null);
+                                Debug.Assert(pi.Kind == VsProjectItemKindPhysicalFolder);
+
+                                projectDir = Path.Combine(projectDir, dir);
 
                                 try
                                 {
-                                    var subDir = pi.Item(dir);
-                                    return subDir.ProjectItems;
+                                    var projectItem = pi.Item(dir);
+
+                                    return projectItem.ProjectItems;
                                 }
                                 catch
                                 {
                                 }
 
-                                var projectDir = ((Project)pi.Parent).GetProjectDir();
-                                var absoluteDir = Path.Combine(projectDir, dir);
-
-                                return pi.AddFromDirectory(absoluteDir).ProjectItems;
+                                return pi.AddFromDirectory(projectDir).ProjectItems;
                             });
 
             try
@@ -208,19 +210,18 @@ namespace System.Data.Entity.Migrations.Extensions
 
         public static void OpenFile(this Project project, string path)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(path));
-            Contract.Requires(!Path.IsPathRooted(path));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(path);
+            Debug.Assert(!Path.IsPathRooted(path));
 
             var absolutePath = Path.Combine(project.GetProjectDir(), path);
-            var dte = project.DTE;
 
             GetDispatcher().OpenFile(absolutePath);
         }
 
         public static void NewSqlFile(this Project project, string contents)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             var dispatcher = GetDispatcher();
 
@@ -246,8 +247,8 @@ namespace System.Data.Entity.Migrations.Extensions
 
         private static T GetPropertyValue<T>(this Project project, string propertyName)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(propertyName);
 
             var property = project.Properties.Item(propertyName);
 
@@ -261,8 +262,8 @@ namespace System.Data.Entity.Migrations.Extensions
 
         private static T GetConfigurationPropertyValue<T>(this Project project, string propertyName)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(propertyName);
 
             var property = project.ConfigurationManager.ActiveConfiguration.Properties.Item(propertyName);
 
@@ -274,13 +275,16 @@ namespace System.Data.Entity.Migrations.Extensions
             return (T)property.Value;
         }
 
-        private static IEnumerable<string> GetProjectTypes(this Project project)
+        public static IEnumerable<string> GetProjectTypes(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             IVsHierarchy hierarchy;
 
-            var serviceProvider = new ServiceProvider((IServiceProvider)project.DTE);
+            var serviceProvider = (IServiceProvider)Activator.CreateInstance(
+                _serviceProviderType,
+                (Microsoft.VisualStudio.OLE.Interop.IServiceProvider)project.DTE);
+
             var solution = (IVsSolution)serviceProvider.GetService(typeof(IVsSolution));
             var hr = solution.GetProjectOfUniqueName(project.UniqueName, out hierarchy);
 

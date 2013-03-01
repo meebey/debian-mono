@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Spatial
 {
     using System.Data.Common;
@@ -24,6 +25,8 @@ namespace System.Data.Entity.Spatial
             }
         }
 
+#if !NET40
+
         internal static async Task<object> GetSpatialValueAsync(
             MetadataWorkspace workspace, DbDataReader reader,
             TypeUsage columnType, int columnOrdinal, CancellationToken cancellationToken)
@@ -32,13 +35,17 @@ namespace System.Data.Entity.Spatial
             var spatialReader = CreateSpatialDataReader(workspace, reader);
             if (Helper.IsGeographicType((PrimitiveType)columnType.EdmType))
             {
-                return await spatialReader.GetGeographyAsync(columnOrdinal, cancellationToken);
+                return
+                    await spatialReader.GetGeographyAsync(columnOrdinal, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
             else
             {
-                return await spatialReader.GetGeometryAsync(columnOrdinal, cancellationToken);
+                return
+                    await spatialReader.GetGeometryAsync(columnOrdinal, cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
             }
         }
+
+#endif
 
         internal static DbSpatialDataReader CreateSpatialDataReader(MetadataWorkspace workspace, DbDataReader reader)
         {

@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Collections.Specialized;
@@ -6,11 +7,10 @@ namespace System.Data.Entity.Internal
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Internal.ConfigFile;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
-    using System.Reflection;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// A simple representation of an app.config or web.config file.
+    ///     A simple representation of an app.config or web.config file.
     /// </summary>
     internal class AppConfig
     {
@@ -26,41 +26,35 @@ namespace System.Data.Entity.Internal
         private readonly Lazy<IDbConnectionFactory> _defaultDefaultConnectionFactory =
             new Lazy<IDbConnectionFactory>(() => null, isThreadSafe: true);
 
-        private static bool _initializersApplied;
-        private static readonly object _lock = new object();
-
-        private static readonly MethodInfo Database_SetInitializerInternal =
-            typeof(Database).GetMethod("SetInitializerInternal", BindingFlags.Static | BindingFlags.NonPublic);
-
         /// <summary>
-        /// Initializes a new instance of AppConfig based on supplied configuration
+        ///     Initializes a new instance of AppConfig based on supplied configuration
         /// </summary>
-        /// <param name="configuration">Configuration to load settings from</param>
+        /// <param name="configuration"> Configuration to load settings from </param>
         public AppConfig(Configuration configuration)
             : this(
                 configuration.ConnectionStrings.ConnectionStrings,
                 configuration.AppSettings.Settings,
                 (EntityFrameworkSection)configuration.GetSection(EFSectionName))
         {
-            Contract.Requires(configuration != null);
+            DebugCheck.NotNull(configuration);
         }
 
         /// <summary>
-        /// Initializes a new instance of AppConfig based on supplied connection strings
-        /// The default configuration for database initializers and default connection factory will be used
+        ///     Initializes a new instance of AppConfig based on supplied connection strings
+        ///     The default configuration for database initializers and default connection factory will be used
         /// </summary>
-        /// <param name="connectionStrings">Connection strings to be used</param>
+        /// <param name="connectionStrings"> Connection strings to be used </param>
         public AppConfig(ConnectionStringSettingsCollection connectionStrings)
             : this(connectionStrings, null, null)
         {
-            Contract.Requires(connectionStrings != null);
+            DebugCheck.NotNull(connectionStrings);
         }
 
         /// <summary>
-        /// Initializes a new instance of AppConfig based on the <see cref="ConfigurationManager"/> for the AppDomain
+        ///     Initializes a new instance of AppConfig based on the <see cref="ConfigurationManager" /> for the AppDomain
         /// </summary>
         /// <remarks>
-        /// Use AppConfig.DefaultInstance instead of this constructor
+        ///     Use AppConfig.DefaultInstance instead of this constructor
         /// </remarks>
         private AppConfig()
             : this(
@@ -75,10 +69,10 @@ namespace System.Data.Entity.Internal
             KeyValueConfigurationCollection appSettings,
             EntityFrameworkSection entityFrameworkSettings)
         {
-            Contract.Requires(connectionStrings != null);
+            DebugCheck.NotNull(connectionStrings);
 
             _connectionStrings = connectionStrings;
-            _appSettings = appSettings;
+            _appSettings = appSettings ?? new KeyValueConfigurationCollection();
             _entityFrameworkSettings = entityFrameworkSettings ?? new EntityFrameworkSection();
 
             if (_entityFrameworkSettings.DefaultConnectionFactory.ElementInformation.IsPresent)
@@ -108,7 +102,7 @@ namespace System.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Gets the default connection factory based on the configuration
+        ///     Gets the default connection factory based on the configuration
         /// </summary>
         public virtual IDbConnectionFactory TryGetDefaultConnectionFactory()
         {
@@ -116,92 +110,19 @@ namespace System.Data.Entity.Internal
         }
 
         /// <summary>
-        /// Appies any database intializers specified in the configuration
+        ///     Gets the specified connection string from the configuration
         /// </summary>
-        public void ApplyInitializers()
-        {
-            InternalApplyInitializers(force: false);
-        }
-
-        /// <summary>
-        /// Appies any database intializers specified in the configuration
-        /// </summary>
-        /// <param name="force">
-        /// Value indicating if initializers should be re-applied if they have already been applied in this AppDomain
-        /// </param>
-        internal void InternalApplyInitializers(bool force)
-        {
-            if (!_initializersApplied || force)
-            {
-                lock (_lock)
-                {
-                    if (!_initializersApplied || force)
-                    {
-                        _initializersApplied = true; // Don't repeatedly try if an exception is thrown.
-
-                        if (_appSettings != null)
-                        {
-                            LegacyDatabaseInitializerConfig.ApplyInitializersFromConfig(_appSettings);
-                        }
-
-                        if (_entityFrameworkSettings != null)
-                        {
-                            foreach (ContextElement init in _entityFrameworkSettings.Contexts)
-                            {
-                                if (init.IsDatabaseInitializationDisabled
-                                    || init.DatabaseInitializer.ElementInformation.IsPresent)
-                                {
-                                    try
-                                    {
-                                        var contextType = init.GetContextType();
-                                        object initializer = null;
-
-                                        if (!init.IsDatabaseInitializationDisabled)
-                                        {
-                                            var initializerType = init.DatabaseInitializer.GetInitializerType();
-                                            var args = init.DatabaseInitializer.Parameters.GetTypedParameterValues();
-                                            initializer = Activator.CreateInstance(initializerType, args);
-                                        }
-
-                                        var setInitializerMethod =
-                                            Database_SetInitializerInternal.MakeGenericMethod(contextType);
-                                        setInitializerMethod.Invoke(
-                                            null, BindingFlags.Static | BindingFlags.NonPublic, null,
-                                            new[] { initializer, true }, null);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        var initializerName = init.IsDatabaseInitializationDisabled
-                                                                  ? "Disabled"
-                                                                  : init.DatabaseInitializer.InitializerTypeName;
-
-                                        throw new InvalidOperationException(
-                                            Strings.Database_InitializeFromConfigFailed(
-                                                initializerName, init.ContextTypeName),
-                                            ex);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the specified connection string from the configuration
-        /// </summary>
-        /// <param name="name">Name of the connection string to get</param>
-        /// <returns>The connection string, or null if there is no connection string with the specified name</returns>
+        /// <param name="name"> Name of the connection string to get </param>
+        /// <returns> The connection string, or null if there is no connection string with the specified name </returns>
         public ConnectionStringSettings GetConnectionString(string name)
         {
-            Contract.Requires(!String.IsNullOrWhiteSpace(name));
+            DebugCheck.NotEmpty(name);
 
             return _connectionStrings[name];
         }
 
         /// <summary>
-        /// Gets a singleton instance of configuration based on the <see cref="ConfigurationManager"/> for the AppDomain
+        ///     Gets a singleton instance of configuration based on the <see cref="ConfigurationManager" /> for the AppDomain
         /// </summary>
         public static AppConfig DefaultInstance
         {
@@ -221,6 +142,16 @@ namespace System.Data.Entity.Internal
         public virtual ProviderConfig Providers
         {
             get { return new ProviderConfig(_entityFrameworkSettings); }
+        }
+
+        public virtual InitializerConfig Initializers
+        {
+            get { return new InitializerConfig(_entityFrameworkSettings, _appSettings); }
+        }
+
+        public virtual string ConfigurationTypeName
+        {
+            get { return _entityFrameworkSettings.ConfigurationTypeName; }
         }
     }
 }

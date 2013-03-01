@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -14,23 +15,20 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using AttributeSet = System.Data.Entity.Core.Common.Utils.Set<MemberPath>;
 
     /// <summary>
-    /// This class stores the C or S query. For example, 
-    /// (C) SELECT (p type Person) AS D1, p.pid, p.name FROM p in P WHERE D1 
-    /// (S) SELECT True AS D1, pid, name FROM SPerson WHERE D1
-    /// 
-    /// The cell query is stored in a "factored" manner for ease of
-    /// cell-merging and cell manipulation. It contains:
-    /// * Projection: A sequence of slots and a sequence of boolean slots (one
-    ///   for each cell in the extent)
-    /// * A From part represented as a Join tree
-    /// * A where clause 
+    ///     This class stores the C or S query. For example,
+    ///     (C) SELECT (p type Person) AS D1, p.pid, p.name FROM p in P WHERE D1
+    ///     (S) SELECT True AS D1, pid, name FROM SPerson WHERE D1
+    ///     The cell query is stored in a "factored" manner for ease of
+    ///     cell-merging and cell manipulation. It contains:
+    ///     * Projection: A sequence of slots and a sequence of boolean slots (one
+    ///     for each cell in the extent)
+    ///     * A From part represented as a Join tree
+    ///     * A where clause
     /// </summary>
     internal class CellQuery : InternalBase
     {
-        #region Fields
-
         /// <summary>
-        /// Whether query has a 'SELECT DISTINCT' on top.
+        ///     Whether query has a 'SELECT DISTINCT' on top.
         /// </summary>
         internal enum SelectDistinct
         {
@@ -53,10 +51,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         private readonly MemberPath m_extentMemberPath;
         // The basic cell relation for all slots in this
         private BasicCellRelation m_basicCellRelation;
-
-        #endregion
-
-        #region Constructors
 
         // effects: Creates a cell query with the given projection (slots),
         // from part (joinTreeRoot) and the predicate (whereClause)
@@ -82,7 +76,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Copy Constructor
+        ///     Copy Constructor
         /// </summary>
         internal CellQuery(CellQuery source)
         {
@@ -103,10 +97,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                     existing.m_selectDistinct, existing.m_extentMemberPath)
         {
         }
-
-        #endregion
-
-        #region Properties
 
         internal SelectDistinct SelectDistinctFlag
         {
@@ -169,20 +159,16 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// [WARNING}
-        /// After cell merging boolean expression can (most likely) have disjunctions (OR node)
-        /// to represent the condition that a tuple came from either of the merged cells.
-        /// In this case original where clause IS MERGED CLAUSE with OR!!!
-        /// So don't call this after merging. It'll throw or debug assert from within GetConjunctsFromWC()
+        ///     [WARNING}
+        ///     After cell merging boolean expression can (most likely) have disjunctions (OR node)
+        ///     to represent the condition that a tuple came from either of the merged cells.
+        ///     In this case original where clause IS MERGED CLAUSE with OR.
+        ///     So don't call this after merging. It'll throw or debug assert from within GetConjunctsFromWC()
         /// </summary>
         internal IEnumerable<MemberRestriction> Conditions
         {
             get { return GetConjunctsFromOriginalWhereClause(); }
         }
-
-        #endregion
-
-        #region ProjectedSlots related methods
 
         // effects: Returns the slotnum projected slot
         internal ProjectedSlot ProjectedSlotAt(int slotNum)
@@ -719,10 +705,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region BooleanExprs related Methods
-
         // effects: Returns a boolean expression corresponding to the
         // "varNum" boolean in this.
         internal BoolExpression GetBoolVar(int varNum)
@@ -743,10 +725,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             Debug.Assert(cellNum < numBoolVars, "Trying to set boolean with too high an index");
             m_boolExprs[cellNum] = BoolExpression.True;
         }
-
-        #endregion
-
-        #region WhereClause related methods
 
         // requires: The current whereClause corresponds to "True", "OneOfConst" or "
         // "OneOfConst AND ... AND OneOfConst"
@@ -776,10 +754,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region Full CellQuery methods
-
         // effects: Determines all the identifiers used in this and adds them to identifiers
         internal void GetIdentifiers(CqlIdentifiers identifiers)
         {
@@ -800,10 +774,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             // Create a base cell relation that has all the scalar slots of this
             m_basicCellRelation = new BasicCellRelation(this, viewCellRelation, slots);
         }
-
-        #endregion
-
-        #region String Methods
 
         // effects: Modifies stringBuilder to contain a string representation
         // of the cell query in terms of the original cells that are being used
@@ -875,7 +845,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             return ToFullString();
         }
-
-        #endregion
     }
 }

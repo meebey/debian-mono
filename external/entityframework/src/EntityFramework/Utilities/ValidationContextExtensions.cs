@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     using System.ComponentModel.DataAnnotations;
@@ -9,6 +10,8 @@ namespace System.Data.Entity.Utilities
         public static void SetDisplayName(
             this ValidationContext validationContext, InternalMemberEntry property, DisplayAttribute displayAttribute)
         {
+            DebugCheck.NotNull(validationContext);
+
             var displayName = displayAttribute == null ? null : displayAttribute.Name;
             if (property == null)
             {

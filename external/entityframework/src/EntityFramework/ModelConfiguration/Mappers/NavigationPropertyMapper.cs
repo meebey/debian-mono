@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Reflection;
 
     /// <summary>
@@ -17,24 +17,24 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
         public NavigationPropertyMapper(TypeMapper typeMapper)
         {
-            Contract.Requires(typeMapper != null);
+            DebugCheck.NotNull(typeMapper);
 
             _typeMapper = typeMapper;
         }
 
         public void Map(
-            PropertyInfo propertyInfo, EdmEntityType entityType, Func<EntityTypeConfiguration> entityTypeConfiguration)
+            PropertyInfo propertyInfo, EntityType entityType, Func<EntityTypeConfiguration> entityTypeConfiguration)
         {
-            Contract.Requires(propertyInfo != null);
-            Contract.Requires(entityType != null);
-            Contract.Requires(entityTypeConfiguration != null);
+            DebugCheck.NotNull(propertyInfo);
+            DebugCheck.NotNull(entityType);
+            DebugCheck.NotNull(entityTypeConfiguration);
 
             var targetType = propertyInfo.PropertyType;
-            var targetAssociationEndKind = EdmAssociationEndKind.Optional;
+            var targetAssociationEndKind = RelationshipMultiplicity.ZeroOrOne;
 
             if (targetType.IsCollection(out targetType))
             {
-                targetAssociationEndKind = EdmAssociationEndKind.Many;
+                targetAssociationEndKind = RelationshipMultiplicity.Many;
             }
 
             var targetEntityType = _typeMapper.MapEntityType(targetType);
@@ -43,15 +43,19 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             {
                 var sourceAssociationEndKind
                     = targetAssociationEndKind.IsMany()
-                          ? EdmAssociationEndKind.Optional
-                          : EdmAssociationEndKind.Many;
+                          ? RelationshipMultiplicity.ZeroOrOne
+                          : RelationshipMultiplicity.Many;
 
-                var associationType = _typeMapper.MappingContext.Model.AddAssociationType(
-                    entityType.Name + "_" + propertyInfo.Name,
-                    entityType,
-                    sourceAssociationEndKind,
-                    targetEntityType,
-                    targetAssociationEndKind);
+                var associationType
+                    = _typeMapper.MappingContext.Model.AddAssociationType(
+                        entityType.Name + "_" + propertyInfo.Name,
+                        entityType,
+                        sourceAssociationEndKind,
+                        targetEntityType,
+                        targetAssociationEndKind,
+                        _typeMapper.MappingContext.ModelConfiguration.ModelNamespace);
+
+                associationType.SourceEnd.SetClrPropertyInfo(propertyInfo);
 
                 _typeMapper.MappingContext.Model.AddAssociationSet(associationType.Name, associationType);
 

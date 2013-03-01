@@ -1,14 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     // A class that abstracts the notion of identifying table mapping
     // fragments or cells, e.g., line numbers, etc
     internal class CellLabel
     {
-        #region Constructors
-
         /// <summary>
-        /// Copy Constructor
+        ///     Copy Constructor
         /// </summary>
         internal CellLabel(CellLabel source)
         {
@@ -30,17 +29,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_sourceLocation = sourceLocation;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly int m_startLineNumber;
         private readonly int m_startLinePosition;
         private readonly string m_sourceLocation;
-
-        #endregion
-
-        #region Properties
 
         internal int StartLineNumber
         {
@@ -56,7 +47,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             get { return m_sourceLocation; }
         }
-
-        #endregion
     }
 }

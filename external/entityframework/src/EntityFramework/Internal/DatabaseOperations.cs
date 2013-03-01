@@ -1,10 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Data.Entity.Core;
     using System.Data.Entity.Core.Objects;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     The methods here are called from multiple places with an ObjectContext that may have
@@ -24,7 +25,7 @@ namespace System.Data.Entity.Internal
         /// </summary>
         public virtual bool Create(ObjectContext objectContext)
         {
-            Contract.Requires(objectContext != null);
+            DebugCheck.NotNull(objectContext);
 
             objectContext.CreateDatabase();
             return true;
@@ -38,7 +39,7 @@ namespace System.Data.Entity.Internal
         [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
         public virtual bool Exists(ObjectContext objectContext)
         {
-            Contract.Requires(objectContext != null);
+            DebugCheck.NotNull(objectContext);
 
             try
             {
@@ -84,7 +85,7 @@ namespace System.Data.Entity.Internal
         /// </summary>
         public virtual bool DeleteIfExists(ObjectContext objectContext)
         {
-            Contract.Requires(objectContext != null);
+            DebugCheck.NotNull(objectContext);
 
             if (Exists(objectContext))
             {

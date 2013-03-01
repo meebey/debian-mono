@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations.Schema;
@@ -12,7 +13,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var entityTypeConfiguration = new EntityTypeConfiguration(typeof(object));
 
-            new TableAttributeConvention.TableAttributeConventionImpl()
+            new TableAttributeConvention()
                 .Apply(new MockType(), entityTypeConfiguration, new TableAttribute("Foo"));
 
             Assert.Equal("Foo", entityTypeConfiguration.GetTableName().Name);
@@ -24,7 +25,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
             var entityTypeConfiguration = new EntityTypeConfiguration(typeof(object));
             entityTypeConfiguration.ToTable("Bar");
 
-            new TableAttributeConvention.TableAttributeConventionImpl()
+            new TableAttributeConvention()
                 .Apply(new MockType(), entityTypeConfiguration, new TableAttribute("Foo"));
 
             Assert.Equal("Bar", entityTypeConfiguration.GetTableName().Name);
@@ -35,8 +36,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var entityTypeConfiguration = new EntityTypeConfiguration(typeof(object));
 
-            new TableAttributeConvention.TableAttributeConventionImpl()
-                .Apply(new MockType(), entityTypeConfiguration, new TableAttribute("Foo") { Schema = "Bar" });
+            new TableAttributeConvention()
+                .Apply(
+                    new MockType(), entityTypeConfiguration, new TableAttribute("Foo")
+                                                                 {
+                                                                     Schema = "Bar"
+                                                                 });
 
             Assert.Equal("Bar", entityTypeConfiguration.GetTableName().Schema);
         }

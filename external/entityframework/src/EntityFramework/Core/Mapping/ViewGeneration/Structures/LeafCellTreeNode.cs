@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -6,6 +7,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Data.Entity.Core.Mapping.ViewGeneration.CqlGeneration;
     using System.Data.Entity.Core.Mapping.ViewGeneration.QueryRewriting;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
     using System.Text;
@@ -13,8 +15,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     // This class represents the nodes that reside at the leaves of the tree
     internal class LeafCellTreeNode : CellTreeNode
     {
-        #region Constructor
-
         // effects: Encapsulate the cell wrapper in the node
         internal LeafCellTreeNode(ViewgenContext context, LeftCellWrapper cellWrapper)
             : base(context)
@@ -34,19 +34,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_rightFragmentQuery = rightFragmentQuery;
         }
 
-        #endregion
-
-        #region Fields
-
         internal static readonly IEqualityComparer<LeafCellTreeNode> EqualityComparer = new LeafCellTreeNodeComparer();
 
         // The cell at the leaf level
         private readonly LeftCellWrapper m_cellWrapper;
         private readonly FragmentQuery m_rightFragmentQuery;
-
-        #endregion
-
-        #region Properties
 
         internal LeftCellWrapper LeftCellWrapper
         {
@@ -101,10 +93,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             get { return LeftCellWrapper.RightCellQuery.NumBoolVars; }
         }
 
-        #endregion
-
-        #region Methods
-
         internal override TOutput Accept<TInput, TOutput>(CellTreeVisitor<TInput, TOutput> visitor, TInput param)
         {
             return visitor.VisitLeaf(this, param);
@@ -127,10 +115,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 return cellQuery.ProjectedSlotAt(slot) != null;
             }
         }
-
-        #endregion
-
-        #region Leaf CqlBlock Methods
 
         internal override CqlBlock ToCqlBlock(
             bool[] requiredSlots, CqlIdentifiers identifiers, ref int blockAliasNum, ref List<WithRelationship> withRelationships)
@@ -224,7 +208,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             ref List<SlotInfo> foreignKeySlots,
             out WithRelationship withRelationship)
         {
-            Debug.Assert(foreignKeySlots != null);
+            DebugCheck.NotNull(foreignKeySlots);
             withRelationship = null;
 
             //Get the map for foreign key end
@@ -281,7 +265,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             StorageAssociationSetMapping colocatedAssociationSetMap)
         {
             var mapFragment = colocatedAssociationSetMap.TypeMappings.First().MappingFragments.First();
-            var storeEntitySet = (EntitySet)(colocatedAssociationSetMap.StoreEntitySet);
+            var storeEntitySet = (colocatedAssociationSetMap.StoreEntitySet);
             IEnumerable<EdmMember> keyProperties = storeEntitySet.ElementType.KeyMembers;
             //Find the end that's mapped to primary key
             foreach (StorageEndPropertyMapping endMap in mapFragment.Properties)
@@ -300,19 +284,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             return null;
         }
 
-        #endregion
-
-        #region String Methods
-
         // effects: See CellTreeNode.ToString
         internal override void ToCompactString(StringBuilder stringBuilder)
         {
             m_cellWrapper.ToCompactString(stringBuilder);
         }
-
-        #endregion
-
-        #region IEqualityComparer<LeafCellTreeNode>
 
         // A comparer that equates leaf nodes if the wrapper is the same
         private class LeafCellTreeNodeComparer : IEqualityComparer<LeafCellTreeNode>
@@ -340,7 +316,5 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
                 return node.m_cellWrapper.GetHashCode();
             }
         }
-
-        #endregion
     }
 }

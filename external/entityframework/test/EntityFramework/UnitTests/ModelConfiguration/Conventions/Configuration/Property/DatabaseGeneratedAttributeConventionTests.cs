@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations.Schema;
@@ -12,7 +13,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var propertyConfiguration = new PrimitivePropertyConfiguration();
 
-            new DatabaseGeneratedAttributeConvention.DatabaseGeneratedAttributeConventionImpl()
+            new DatabaseGeneratedAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new DatabaseGeneratedAttribute(DatabaseGeneratedOption.None));
 
             Assert.Equal(DatabaseGeneratedOption.None, propertyConfiguration.DatabaseGeneratedOption);
@@ -21,9 +22,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_ignore_attribute_if_already_set()
         {
-            var propertyConfiguration = new PrimitivePropertyConfiguration { DatabaseGeneratedOption = DatabaseGeneratedOption.Computed };
+            var propertyConfiguration = new PrimitivePropertyConfiguration
+                                            {
+                                                DatabaseGeneratedOption = DatabaseGeneratedOption.Computed
+                                            };
 
-            new DatabaseGeneratedAttributeConvention.DatabaseGeneratedAttributeConventionImpl()
+            new DatabaseGeneratedAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new DatabaseGeneratedAttribute(DatabaseGeneratedOption.None));
 
             Assert.Equal(DatabaseGeneratedOption.Computed, propertyConfiguration.DatabaseGeneratedOption);

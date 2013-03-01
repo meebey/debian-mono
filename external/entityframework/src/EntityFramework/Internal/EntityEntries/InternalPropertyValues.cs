@@ -1,16 +1,17 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal
 {
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq.Expressions;
     using System.Reflection;
 
     /// <summary>
-    ///     The internal class used to implement <see cref = "DbPropertyValues" />.
+    ///     The internal class used to implement <see cref="DbPropertyValues" />.
     ///     This internal class allows for a clean internal factoring without compromising the public API.
     /// </summary>
     internal abstract class InternalPropertyValues
@@ -28,15 +29,17 @@ namespace System.Data.Entity.Internal
         private readonly bool _isEntityValues;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref = "InternalPropertyValues" /> class.
+        ///     Initializes a new instance of the <see cref="InternalPropertyValues" /> class.
         /// </summary>
-        /// <param name = "internalContext">The internal context with which the entity of complex object is associated.</param>
-        /// <param name = "type">The type of the entity or complex object.</param>
-        /// <param name = "isEntityValues">If set to <c>true</c> this is a dictionary for an entity, otherwise it is a dictionary for a complex object.</param>
+        /// <param name="internalContext"> The internal context with which the entity of complex object is associated. </param>
+        /// <param name="type"> The type of the entity or complex object. </param>
+        /// <param name="isEntityValues">
+        ///     If set to <c>true</c> this is a dictionary for an entity, otherwise it is a dictionary for a complex object.
+        /// </param>
         protected InternalPropertyValues(InternalContext internalContext, Type type, bool isEntityValues)
         {
-            Contract.Requires(internalContext != null);
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(internalContext);
+            DebugCheck.NotNull(type);
 
             _internalContext = internalContext;
             _type = type;
@@ -52,14 +55,14 @@ namespace System.Data.Entity.Internal
         ///     Checking that the name is valid should happen before this method is called such
         ///     that subclasses do not need to perform the check.
         /// </summary>
-        /// <param name = "propertyName">Name of the property.</param>
-        /// <returns>An item for the given name.</returns>
+        /// <param name="propertyName"> Name of the property. </param>
+        /// <returns> An item for the given name. </returns>
         protected abstract IPropertyValuesItem GetItemImpl(string propertyName);
 
         /// <summary>
         ///     Gets the set of names of all properties in this dictionary as a read-only set.
         /// </summary>
-        /// <value>The property names.</value>
+        /// <value> The property names. </value>
         public abstract ISet<string> PropertyNames { get; }
 
         #endregion
@@ -70,7 +73,7 @@ namespace System.Data.Entity.Internal
         ///     Creates an object of the underlying type for this dictionary and hydrates it with property
         ///     values from this dictionary.
         /// </summary>
-        /// <returns>The properties of this dictionary copied into a new object.</returns>
+        /// <returns> The properties of this dictionary copied into a new object. </returns>
         public object ToObject()
         {
             // Create an instance of the object either using the CreateObject method for an entity or
@@ -126,10 +129,10 @@ namespace System.Data.Entity.Internal
         ///     Sets the values of this dictionary by reading values out of the given object.
         ///     The given object must be of the type that this dictionary is based on.
         /// </summary>
-        /// <param name = "value">The object to read values from.</param>
+        /// <param name="value"> The object to read values from. </param>
         public void SetValues(object value)
         {
-            Contract.Requires(value != null);
+            DebugCheck.NotNull(value);
 
             var getters = DbHelpers.GetPropertyGetters(value.GetType());
 
@@ -171,7 +174,7 @@ namespace System.Data.Entity.Internal
         ///     Creates a new dictionary containing copies of all the properties in this dictionary.
         ///     Changes made to the new dictionary will not be reflected in this dictionary and vice versa.
         /// </summary>
-        /// <returns>A clone of this dictionary.</returns>
+        /// <returns> A clone of this dictionary. </returns>
         public InternalPropertyValues Clone()
         {
             return new ClonedPropertyValues(this);
@@ -182,10 +185,10 @@ namespace System.Data.Entity.Internal
         ///     The other dictionary must be based on the same type as this dictionary, or a type derived
         ///     from the type for this dictionary.
         /// </summary>
-        /// <param name = "values">The dictionary to read values from.</param>
+        /// <param name="values"> The dictionary to read values from. </param>
         public void SetValues(InternalPropertyValues values)
         {
-            Contract.Requires(values != null);
+            DebugCheck.NotNull(values);
 
             // Setting values from a derived type is allowed, but setting values from a base type is not.
             if (!_type.IsAssignableFrom(values.ObjectType))
@@ -215,19 +218,19 @@ namespace System.Data.Entity.Internal
         ///     Gets or sets the value of the property with the specified property name.
         ///     The value may be a nested instance of this class.
         /// </summary>
-        /// <param name = "propertyName">The property name.</param>
-        /// <value>The value of the property.</value>
+        /// <param name="propertyName"> The property name. </param>
+        /// <value> The value of the property. </value>
         public object this[string propertyName]
         {
             get
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+                DebugCheck.NotEmpty(propertyName);
 
                 return GetItem(propertyName).Value;
             }
             set
             {
-                Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+                DebugCheck.NotEmpty(propertyName);
 
                 var asPropertyValues = value as DbPropertyValues;
                 if (asPropertyValues != null)
@@ -259,8 +262,8 @@ namespace System.Data.Entity.Internal
         ///     Gets the dictionary item for the property with the given name.
         ///     This method checks that the given name is valid.
         /// </summary>
-        /// <param name = "propertyName">The property name.</param>
-        /// <returns>The item.</returns>
+        /// <param name="propertyName"> The property name. </param>
+        /// <returns> The item. </returns>
         public IPropertyValuesItem GetItem(string propertyName)
         {
             if (!PropertyNames.Contains(propertyName))
@@ -279,7 +282,6 @@ namespace System.Data.Entity.Internal
             // Using KeyValuesEqual here to control setting the property to modified since the deep
             // comparison of binary values is more appropriate for all properties when used in an
             // N-Tier or concurrency situation.
-            // TODO: Update this to ensure UDT comparisons are done correctly.
             if (!DbHelpers.KeyValuesEqual(item.Value, newValue))
             {
                 if (item.Value == null
@@ -306,7 +308,7 @@ namespace System.Data.Entity.Internal
         /// <summary>
         ///     Gets the entity type of complex type that this dictionary is based on.
         /// </summary>
-        /// <value>The type of the object underlying this dictionary.</value>
+        /// <value> The type of the object underlying this dictionary. </value>
         public Type ObjectType
         {
             get { return _type; }
@@ -315,7 +317,7 @@ namespace System.Data.Entity.Internal
         /// <summary>
         ///     Gets the internal context with which the underlying entity or complex type is associated.
         /// </summary>
-        /// <value>The internal context.</value>
+        /// <value> The internal context. </value>
         public InternalContext InternalContext
         {
             get { return _internalContext; }
@@ -324,7 +326,9 @@ namespace System.Data.Entity.Internal
         /// <summary>
         ///     Gets a value indicating whether the object for this dictionary is an entity or a complex object.
         /// </summary>
-        /// <value><c>true</c> if this this is a dictionary for an entity; <c>false</c> if it is a dictionary for a complex object.</value>
+        /// <value>
+        ///     <c>true</c> if this this is a dictionary for an entity; <c>false</c> if it is a dictionary for a complex object.
+        /// </value>
         public bool IsEntityValues
         {
             get { return _isEntityValues; }

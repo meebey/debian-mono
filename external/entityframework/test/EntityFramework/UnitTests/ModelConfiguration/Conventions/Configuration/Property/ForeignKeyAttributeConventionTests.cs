@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations.Schema;
@@ -22,12 +23,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
             navigationPropertyConfiguration.Constraint
                 = new ForeignKeyConstraintConfiguration(new[] { mockTypeB.GetProperty("AId1") });
 
-            new ForeignKeyPrimitivePropertyAttributeConvention.ForeignKeyAttributeConventionImpl()
+            new ForeignKeyPrimitivePropertyAttributeConvention()
                 .Apply(mockPropertyInfo, modelConfiguration, new ForeignKeyAttribute("AId2"));
 
             var foreignKeyConstraint = (ForeignKeyConstraintConfiguration)navigationPropertyConfiguration.Constraint;
 
-            Assert.Equal(new[] { mockTypeB.GetProperty("AId1") }, foreignKeyConstraint.DependentProperties);
+            Assert.Equal(new[] { mockTypeB.GetProperty("AId1") }, foreignKeyConstraint.ToProperties);
         }
 
         [Fact]
@@ -52,7 +53,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
             inverseNavigationPropertyConfiguration.Constraint
                 = new ForeignKeyConstraintConfiguration(new[] { mockTypeB.GetProperty("AId1") });
 
-            new ForeignKeyPrimitivePropertyAttributeConvention.ForeignKeyAttributeConventionImpl()
+            new ForeignKeyPrimitivePropertyAttributeConvention()
                 .Apply(mockPropertyInfo, modelConfiguration, new ForeignKeyAttribute("AId2"));
 
             Assert.Null(navigationPropertyConfiguration.Constraint);
@@ -68,7 +69,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 
             var modelConfiguration = new ModelConfiguration();
 
-            new ForeignKeyPrimitivePropertyAttributeConvention.ForeignKeyAttributeConventionImpl()
+            new ForeignKeyPrimitivePropertyAttributeConvention()
                 .Apply(mockPropertyInfo, modelConfiguration, new ForeignKeyAttribute("A"));
 
             var navigationPropertyConfiguration
@@ -78,7 +79,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 
             var foreignKeyConstraint = (ForeignKeyConstraintConfiguration)navigationPropertyConfiguration.Constraint;
 
-            Assert.Equal(new[] { mockTypeB.GetProperty("AId") }, foreignKeyConstraint.DependentProperties);
+            Assert.Equal(new[] { mockTypeB.GetProperty("AId") }, foreignKeyConstraint.ToProperties);
             Assert.Null(navigationPropertyConfiguration.InverseNavigationProperty);
         }
 
@@ -89,8 +90,11 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
             mockTypeA.Property(typeof(int), "BId");
             var mockPropertyInfo = mockTypeA.GetProperty("BId");
 
-            Assert.Equal(Strings.ForeignKeyAttributeConvention_InvalidNavigationProperty("BId", mockTypeA.Object, "Missing"), Assert.Throws<InvalidOperationException>(() => new ForeignKeyPrimitivePropertyAttributeConvention.ForeignKeyAttributeConventionImpl()
-                                                                                                                                                                                       .Apply(mockPropertyInfo, new ModelConfiguration(), new ForeignKeyAttribute("Missing"))).Message);
+            Assert.Equal(
+                Strings.ForeignKeyAttributeConvention_InvalidNavigationProperty("BId", mockTypeA.Object, "Missing"),
+                Assert.Throws<InvalidOperationException>(
+                    () => new ForeignKeyPrimitivePropertyAttributeConvention()
+                              .Apply(mockPropertyInfo, new ModelConfiguration(), new ForeignKeyAttribute("Missing"))).Message);
         }
     }
 }

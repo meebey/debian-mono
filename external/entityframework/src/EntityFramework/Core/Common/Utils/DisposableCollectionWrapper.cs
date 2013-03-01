@@ -1,9 +1,10 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils
 {
     using System.Collections;
     using System.Collections.Generic;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     internal class DisposableCollectionWrapper<T> : IDisposable, IEnumerable<T>
         where T : IDisposable
@@ -12,7 +13,7 @@ namespace System.Data.Entity.Core.Common.Utils
 
         internal DisposableCollectionWrapper(IEnumerable<T> enumerable)
         {
-            Debug.Assert(enumerable != null, "don't pass in a null enumerable");
+            DebugCheck.NotNull(enumerable);
             _enumerable = enumerable;
         }
 

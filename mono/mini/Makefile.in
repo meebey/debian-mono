@@ -108,8 +108,7 @@ am__libmini_static_la_SOURCES_DIST = mini.c ir-emit.h method-to-ir.c \
 	mini-alpha.h exceptions-alpha.c tramp-alpha.c mini-amd64.c \
 	mini-amd64.h exceptions-amd64.c tramp-amd64.c \
 	mdb-debug-info64.s mini-arm.c mini-arm.h exceptions-arm.c \
-	tramp-arm.c mini-hppa.c mini-hppa.h exceptions-hppa.c \
-	tramp-hppa.c mini-ia64.c mini-ia64.h exceptions-ia64.c \
+	tramp-arm.c mini-ia64.c mini-ia64.h exceptions-ia64.c \
 	tramp-ia64.c mini-mips.c mini-mips.h exceptions-mips.c \
 	tramp-mips.c mini-ppc.c mini-ppc.h exceptions-ppc.c \
 	tramp-ppc.c mini-s390.c mini-s390.h exceptions-s390.c \
@@ -155,59 +154,55 @@ am__objects_4 = libmini_static_la-mini-amd64.lo \
 am__objects_5 = libmini_static_la-mini-arm.lo \
 	libmini_static_la-exceptions-arm.lo \
 	libmini_static_la-tramp-arm.lo
-am__objects_6 = libmini_static_la-mini-hppa.lo \
-	libmini_static_la-exceptions-hppa.lo \
-	libmini_static_la-tramp-hppa.lo
-am__objects_7 = libmini_static_la-mini-ia64.lo \
+am__objects_6 = libmini_static_la-mini-ia64.lo \
 	libmini_static_la-exceptions-ia64.lo \
 	libmini_static_la-tramp-ia64.lo
-am__objects_8 = libmini_static_la-mini-mips.lo \
+am__objects_7 = libmini_static_la-mini-mips.lo \
 	libmini_static_la-exceptions-mips.lo \
 	libmini_static_la-tramp-mips.lo
-am__objects_9 = libmini_static_la-mini-ppc.lo \
+am__objects_8 = libmini_static_la-mini-ppc.lo \
 	libmini_static_la-exceptions-ppc.lo \
 	libmini_static_la-tramp-ppc.lo
-am__objects_10 = libmini_static_la-mini-s390.lo \
+am__objects_9 = libmini_static_la-mini-s390.lo \
 	libmini_static_la-exceptions-s390.lo \
 	libmini_static_la-tramp-s390.lo
-am__objects_11 = libmini_static_la-mini-s390x.lo \
+am__objects_10 = libmini_static_la-mini-s390x.lo \
 	libmini_static_la-exceptions-s390x.lo \
 	libmini_static_la-tramp-s390x.lo
-am__objects_12 = libmini_static_la-mini-sparc.lo \
+am__objects_11 = libmini_static_la-mini-sparc.lo \
 	libmini_static_la-exceptions-sparc.lo \
 	libmini_static_la-tramp-sparc.lo
-am__objects_13 = libmini_static_la-mini-x86.lo \
+am__objects_12 = libmini_static_la-mini-x86.lo \
 	libmini_static_la-exceptions-x86.lo \
 	libmini_static_la-tramp-x86.lo
-@MONO_DEBUGGER_SUPPORTED_TRUE@@PLATFORM_DARWIN_FALSE@@X86_TRUE@am__objects_14 = mdb-debug-info32.lo
-@MONO_DEBUGGER_SUPPORTED_TRUE@@PLATFORM_DARWIN_TRUE@@X86_TRUE@am__objects_14 = mdb-debug-info32-darwin.lo
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@am__objects_15 = $(am__objects_13) \
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@	$(am__objects_14)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_TRUE@am__objects_15 = $(am__objects_12)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_TRUE@am__objects_15 = $(am__objects_12)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_TRUE@am__objects_15 = $(am__objects_11)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_TRUE@am__objects_15 = $(am__objects_10)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_TRUE@am__objects_15 = $(am__objects_9)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_TRUE@am__objects_15 = $(am__objects_9)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_TRUE@am__objects_15 = $(am__objects_8)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_TRUE@am__objects_15 = $(am__objects_7)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_TRUE@am__objects_15 = $(am__objects_6)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@am__objects_15 = $(am__objects_5)
-@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@am__objects_15 = $(am__objects_4)
-@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@am__objects_15 = $(am__objects_4) \
+@MONO_DEBUGGER_SUPPORTED_TRUE@@PLATFORM_DARWIN_FALSE@@X86_TRUE@am__objects_13 = mdb-debug-info32.lo
+@MONO_DEBUGGER_SUPPORTED_TRUE@@PLATFORM_DARWIN_TRUE@@X86_TRUE@am__objects_13 = mdb-debug-info32-darwin.lo
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@am__objects_14 = $(am__objects_12) \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@	$(am__objects_13)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_TRUE@am__objects_14 = $(am__objects_11)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_TRUE@am__objects_14 = $(am__objects_11)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_TRUE@am__objects_14 = $(am__objects_10)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_TRUE@am__objects_14 = $(am__objects_9)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_TRUE@am__objects_14 = $(am__objects_8)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_TRUE@am__objects_14 = $(am__objects_8)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_TRUE@am__objects_14 = $(am__objects_7)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_TRUE@am__objects_14 = $(am__objects_6)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@am__objects_14 = $(am__objects_5)
+@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@am__objects_14 = $(am__objects_4)
+@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@am__objects_14 = $(am__objects_4) \
 @ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@	mdb-debug-info64.lo
-@ALPHA_TRUE@am__objects_15 = $(am__objects_3)
-am__objects_16 = libmini_static_la-mini-windows.lo
-am__objects_17 = libmini_static_la-mini-darwin.lo
-am__objects_18 = libmini_static_la-mini-posix.lo
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_FALSE@@PLATFORM_SIGPOSIX_TRUE@am__objects_19 = $(am__objects_18)
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@am__objects_19 =  \
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_17) \
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_18)
-@HOST_WIN32_TRUE@am__objects_19 = $(am__objects_16)
-am__objects_20 = $(am__objects_1) $(am__objects_2) $(am__objects_15) \
-	$(am__objects_19)
-am_libmini_static_la_OBJECTS = $(am__objects_20)
+@ALPHA_TRUE@am__objects_14 = $(am__objects_3)
+am__objects_15 = libmini_static_la-mini-windows.lo
+am__objects_16 = libmini_static_la-mini-darwin.lo
+am__objects_17 = libmini_static_la-mini-posix.lo
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_FALSE@@PLATFORM_SIGPOSIX_TRUE@am__objects_18 = $(am__objects_17)
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@am__objects_18 =  \
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_16) \
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_17)
+@HOST_WIN32_TRUE@am__objects_18 = $(am__objects_15)
+am__objects_19 = $(am__objects_1) $(am__objects_2) $(am__objects_14) \
+	$(am__objects_18)
+am_libmini_static_la_OBJECTS = $(am__objects_19)
 libmini_static_la_OBJECTS = $(am_libmini_static_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -236,8 +231,7 @@ am__libmini_la_SOURCES_DIST = mini.c ir-emit.h method-to-ir.c \
 	mini-alpha.h exceptions-alpha.c tramp-alpha.c mini-amd64.c \
 	mini-amd64.h exceptions-amd64.c tramp-amd64.c \
 	mdb-debug-info64.s mini-arm.c mini-arm.h exceptions-arm.c \
-	tramp-arm.c mini-hppa.c mini-hppa.h exceptions-hppa.c \
-	tramp-hppa.c mini-ia64.c mini-ia64.h exceptions-ia64.c \
+	tramp-arm.c mini-ia64.c mini-ia64.h exceptions-ia64.c \
 	tramp-ia64.c mini-mips.c mini-mips.h exceptions-mips.c \
 	tramp-mips.c mini-ppc.c mini-ppc.h exceptions-ppc.c \
 	tramp-ppc.c mini-s390.c mini-s390.h exceptions-s390.c \
@@ -246,7 +240,7 @@ am__libmini_la_SOURCES_DIST = mini.c ir-emit.h method-to-ir.c \
 	tramp-sparc.c mini-x86.c mini-x86.h exceptions-x86.c \
 	tramp-x86.c mdb-debug-info32.s mdb-debug-info32-darwin.s \
 	mini-windows.c mini-darwin.c mini-posix.c
-am__objects_21 = libmini_la-mini.lo libmini_la-method-to-ir.lo \
+am__objects_20 = libmini_la-mini.lo libmini_la-method-to-ir.lo \
 	libmini_la-decompose.lo libmini_la-jit-icalls.lo \
 	libmini_la-trace.lo libmini_la-dominators.lo \
 	libmini_la-cfold.lo libmini_la-regalloc.lo \
@@ -264,58 +258,55 @@ am__objects_21 = libmini_la-mini.lo libmini_la-method-to-ir.lo \
 	libmini_la-image-writer.lo libmini_la-dwarfwriter.lo \
 	libmini_la-mini-gc.lo libmini_la-debugger-agent.lo \
 	libmini_la-debug-debugger.lo libmini_la-xdebug.lo
-@ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@am__objects_22 =  \
+@ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@am__objects_21 =  \
 @ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@	libmini_la-mini-llvm.lo \
 @ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@	mini-llvm-cpp.lo
-am__objects_23 = libmini_la-mini-alpha.lo \
+am__objects_22 = libmini_la-mini-alpha.lo \
 	libmini_la-exceptions-alpha.lo libmini_la-tramp-alpha.lo
-am__objects_24 = libmini_la-mini-amd64.lo \
+am__objects_23 = libmini_la-mini-amd64.lo \
 	libmini_la-exceptions-amd64.lo libmini_la-tramp-amd64.lo
-am__objects_25 = libmini_la-mini-arm.lo libmini_la-exceptions-arm.lo \
+am__objects_24 = libmini_la-mini-arm.lo libmini_la-exceptions-arm.lo \
 	libmini_la-tramp-arm.lo
-am__objects_26 = libmini_la-mini-hppa.lo libmini_la-exceptions-hppa.lo \
-	libmini_la-tramp-hppa.lo
-am__objects_27 = libmini_la-mini-ia64.lo libmini_la-exceptions-ia64.lo \
+am__objects_25 = libmini_la-mini-ia64.lo libmini_la-exceptions-ia64.lo \
 	libmini_la-tramp-ia64.lo
-am__objects_28 = libmini_la-mini-mips.lo libmini_la-exceptions-mips.lo \
+am__objects_26 = libmini_la-mini-mips.lo libmini_la-exceptions-mips.lo \
 	libmini_la-tramp-mips.lo
-am__objects_29 = libmini_la-mini-ppc.lo libmini_la-exceptions-ppc.lo \
+am__objects_27 = libmini_la-mini-ppc.lo libmini_la-exceptions-ppc.lo \
 	libmini_la-tramp-ppc.lo
-am__objects_30 = libmini_la-mini-s390.lo libmini_la-exceptions-s390.lo \
+am__objects_28 = libmini_la-mini-s390.lo libmini_la-exceptions-s390.lo \
 	libmini_la-tramp-s390.lo
-am__objects_31 = libmini_la-mini-s390x.lo \
+am__objects_29 = libmini_la-mini-s390x.lo \
 	libmini_la-exceptions-s390x.lo libmini_la-tramp-s390x.lo
-am__objects_32 = libmini_la-mini-sparc.lo \
+am__objects_30 = libmini_la-mini-sparc.lo \
 	libmini_la-exceptions-sparc.lo libmini_la-tramp-sparc.lo
-am__objects_33 = libmini_la-mini-x86.lo libmini_la-exceptions-x86.lo \
+am__objects_31 = libmini_la-mini-x86.lo libmini_la-exceptions-x86.lo \
 	libmini_la-tramp-x86.lo
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@am__objects_34 = $(am__objects_33) \
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@	$(am__objects_14)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_TRUE@am__objects_34 = $(am__objects_32)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_TRUE@am__objects_34 = $(am__objects_32)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_TRUE@am__objects_34 = $(am__objects_31)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_TRUE@am__objects_34 = $(am__objects_30)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_TRUE@am__objects_34 = $(am__objects_29)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_TRUE@am__objects_34 = $(am__objects_29)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_TRUE@am__objects_34 = $(am__objects_28)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_TRUE@am__objects_34 = $(am__objects_27)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_TRUE@am__objects_34 = $(am__objects_26)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@am__objects_34 =  \
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@	$(am__objects_25)
-@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@am__objects_34 = $(am__objects_24)
-@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@am__objects_34 = $(am__objects_24) \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@am__objects_32 = $(am__objects_31) \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@	$(am__objects_13)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_TRUE@am__objects_32 = $(am__objects_30)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_TRUE@am__objects_32 = $(am__objects_30)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_TRUE@am__objects_32 = $(am__objects_29)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_TRUE@am__objects_32 = $(am__objects_28)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_TRUE@am__objects_32 = $(am__objects_27)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_TRUE@am__objects_32 = $(am__objects_27)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_TRUE@am__objects_32 = $(am__objects_26)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_TRUE@am__objects_32 = $(am__objects_25)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@am__objects_32 =  \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@	$(am__objects_24)
+@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@am__objects_32 = $(am__objects_23)
+@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@am__objects_32 = $(am__objects_23) \
 @ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@	mdb-debug-info64.lo
-@ALPHA_TRUE@am__objects_34 = $(am__objects_23)
-am__objects_35 = libmini_la-mini-windows.lo
-am__objects_36 = libmini_la-mini-darwin.lo
-am__objects_37 = libmini_la-mini-posix.lo
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_FALSE@@PLATFORM_SIGPOSIX_TRUE@am__objects_38 = $(am__objects_37)
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@am__objects_38 =  \
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_36) \
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_37)
-@HOST_WIN32_TRUE@am__objects_38 = $(am__objects_35)
-am_libmini_la_OBJECTS = $(am__objects_21) $(am__objects_22) \
-	$(am__objects_34) $(am__objects_38)
+@ALPHA_TRUE@am__objects_32 = $(am__objects_22)
+am__objects_33 = libmini_la-mini-windows.lo
+am__objects_34 = libmini_la-mini-darwin.lo
+am__objects_35 = libmini_la-mini-posix.lo
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_FALSE@@PLATFORM_SIGPOSIX_TRUE@am__objects_36 = $(am__objects_35)
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@am__objects_36 =  \
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_34) \
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_35)
+@HOST_WIN32_TRUE@am__objects_36 = $(am__objects_33)
+am_libmini_la_OBJECTS = $(am__objects_20) $(am__objects_21) \
+	$(am__objects_32) $(am__objects_36)
 libmini_la_OBJECTS = $(am_libmini_la_OBJECTS)
 @DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@am_libmini_la_rpath =
 @DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@am_libmini_la_rpath =
@@ -337,8 +328,10 @@ libmono_2_0_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(libmono_2_0_la_CFLAGS) $(CFLAGS) $(libmono_2_0_la_LDFLAGS) \
 	$(LDFLAGS) -o $@
-@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_BOEHM_TRUE@am_libmono_2_0_la_rpath = -rpath \
-@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_BOEHM_TRUE@	$(libdir)
+@DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_BOEHM_TRUE@am_libmono_2_0_la_rpath = -rpath \
+@DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_BOEHM_TRUE@	$(libdir)
+@DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@@SUPPORT_BOEHM_TRUE@am_libmono_2_0_la_rpath = -rpath \
+@DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@@SUPPORT_BOEHM_TRUE@	$(libdir)
 @JIT_SUPPORTED_TRUE@@LOADED_LLVM_TRUE@@PLATFORM_DARWIN_FALSE@am__DEPENDENCIES_6 = $(top_builddir)/mono/mini/libmono-$(API_VER).la \
 @JIT_SUPPORTED_TRUE@@LOADED_LLVM_TRUE@@PLATFORM_DARWIN_FALSE@	$(am__DEPENDENCIES_4)
 @JIT_SUPPORTED_TRUE@@LOADED_LLVM_TRUE@libmono_llvm_la_DEPENDENCIES =  \
@@ -385,8 +378,7 @@ am__libmono_moon_la_SOURCES_DIST = mini.c ir-emit.h method-to-ir.c \
 	mini-alpha.h exceptions-alpha.c tramp-alpha.c mini-amd64.c \
 	mini-amd64.h exceptions-amd64.c tramp-amd64.c \
 	mdb-debug-info64.s mini-arm.c mini-arm.h exceptions-arm.c \
-	tramp-arm.c mini-hppa.c mini-hppa.h exceptions-hppa.c \
-	tramp-hppa.c mini-ia64.c mini-ia64.h exceptions-ia64.c \
+	tramp-arm.c mini-ia64.c mini-ia64.h exceptions-ia64.c \
 	tramp-ia64.c mini-mips.c mini-mips.h exceptions-mips.c \
 	tramp-mips.c mini-ppc.c mini-ppc.h exceptions-ppc.c \
 	tramp-ppc.c mini-s390.c mini-s390.h exceptions-s390.c \
@@ -395,7 +387,7 @@ am__libmono_moon_la_SOURCES_DIST = mini.c ir-emit.h method-to-ir.c \
 	tramp-sparc.c mini-x86.c mini-x86.h exceptions-x86.c \
 	tramp-x86.c mdb-debug-info32.s mdb-debug-info32-darwin.s \
 	mini-windows.c mini-darwin.c mini-posix.c
-am__objects_39 = libmono_moon_la-mini.lo \
+am__objects_37 = libmono_moon_la-mini.lo \
 	libmono_moon_la-method-to-ir.lo libmono_moon_la-decompose.lo \
 	libmono_moon_la-jit-icalls.lo libmono_moon_la-trace.lo \
 	libmono_moon_la-dominators.lo libmono_moon_la-cfold.lo \
@@ -415,66 +407,62 @@ am__objects_39 = libmono_moon_la-mini.lo \
 	libmono_moon_la-image-writer.lo libmono_moon_la-dwarfwriter.lo \
 	libmono_moon_la-mini-gc.lo libmono_moon_la-debugger-agent.lo \
 	libmono_moon_la-debug-debugger.lo libmono_moon_la-xdebug.lo
-@ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@am__objects_40 = libmono_moon_la-mini-llvm.lo \
+@ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@am__objects_38 = libmono_moon_la-mini-llvm.lo \
 @ENABLE_LLVM_TRUE@@LOADED_LLVM_FALSE@	mini-llvm-cpp.lo
-am__objects_41 = libmono_moon_la-mini-alpha.lo \
+am__objects_39 = libmono_moon_la-mini-alpha.lo \
 	libmono_moon_la-exceptions-alpha.lo \
 	libmono_moon_la-tramp-alpha.lo
-am__objects_42 = libmono_moon_la-mini-amd64.lo \
+am__objects_40 = libmono_moon_la-mini-amd64.lo \
 	libmono_moon_la-exceptions-amd64.lo \
 	libmono_moon_la-tramp-amd64.lo
-am__objects_43 = libmono_moon_la-mini-arm.lo \
+am__objects_41 = libmono_moon_la-mini-arm.lo \
 	libmono_moon_la-exceptions-arm.lo libmono_moon_la-tramp-arm.lo
-am__objects_44 = libmono_moon_la-mini-hppa.lo \
-	libmono_moon_la-exceptions-hppa.lo \
-	libmono_moon_la-tramp-hppa.lo
-am__objects_45 = libmono_moon_la-mini-ia64.lo \
+am__objects_42 = libmono_moon_la-mini-ia64.lo \
 	libmono_moon_la-exceptions-ia64.lo \
 	libmono_moon_la-tramp-ia64.lo
-am__objects_46 = libmono_moon_la-mini-mips.lo \
+am__objects_43 = libmono_moon_la-mini-mips.lo \
 	libmono_moon_la-exceptions-mips.lo \
 	libmono_moon_la-tramp-mips.lo
-am__objects_47 = libmono_moon_la-mini-ppc.lo \
+am__objects_44 = libmono_moon_la-mini-ppc.lo \
 	libmono_moon_la-exceptions-ppc.lo libmono_moon_la-tramp-ppc.lo
-am__objects_48 = libmono_moon_la-mini-s390.lo \
+am__objects_45 = libmono_moon_la-mini-s390.lo \
 	libmono_moon_la-exceptions-s390.lo \
 	libmono_moon_la-tramp-s390.lo
-am__objects_49 = libmono_moon_la-mini-s390x.lo \
+am__objects_46 = libmono_moon_la-mini-s390x.lo \
 	libmono_moon_la-exceptions-s390x.lo \
 	libmono_moon_la-tramp-s390x.lo
-am__objects_50 = libmono_moon_la-mini-sparc.lo \
+am__objects_47 = libmono_moon_la-mini-sparc.lo \
 	libmono_moon_la-exceptions-sparc.lo \
 	libmono_moon_la-tramp-sparc.lo
-am__objects_51 = libmono_moon_la-mini-x86.lo \
+am__objects_48 = libmono_moon_la-mini-x86.lo \
 	libmono_moon_la-exceptions-x86.lo libmono_moon_la-tramp-x86.lo
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@am__objects_52 = $(am__objects_51) \
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@	$(am__objects_14)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_TRUE@am__objects_52 = $(am__objects_50)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_TRUE@am__objects_52 = $(am__objects_50)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_TRUE@am__objects_52 = $(am__objects_49)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_TRUE@am__objects_52 = $(am__objects_48)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_TRUE@am__objects_52 = $(am__objects_47)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_TRUE@am__objects_52 = $(am__objects_47)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_FALSE@@MIPS_TRUE@am__objects_52 = $(am__objects_46)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_FALSE@@IA64_TRUE@am__objects_52 = $(am__objects_45)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@HPPA_TRUE@am__objects_52 = $(am__objects_44)
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@am__objects_52 =  \
-@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@	$(am__objects_43)
-@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@am__objects_52 = $(am__objects_42)
-@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@am__objects_52 = $(am__objects_42) \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@am__objects_49 = $(am__objects_48) \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_FALSE@@X86_TRUE@	$(am__objects_13)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_FALSE@@SPARC_TRUE@am__objects_49 = $(am__objects_47)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_FALSE@@SPARC64_TRUE@am__objects_49 = $(am__objects_47)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_FALSE@@S390x_TRUE@am__objects_49 = $(am__objects_46)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_FALSE@@S390_TRUE@am__objects_49 = $(am__objects_45)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_FALSE@@POWERPC_TRUE@am__objects_49 = $(am__objects_44)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_FALSE@@POWERPC64_TRUE@am__objects_49 = $(am__objects_44)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_FALSE@@MIPS_TRUE@am__objects_49 = $(am__objects_43)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_FALSE@@IA64_TRUE@am__objects_49 = $(am__objects_42)
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@am__objects_49 =  \
+@ALPHA_FALSE@@AMD64_FALSE@@ARM_TRUE@	$(am__objects_41)
+@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@am__objects_49 = $(am__objects_40)
+@ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@am__objects_49 = $(am__objects_40) \
 @ALPHA_FALSE@@AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@	mdb-debug-info64.lo
-@ALPHA_TRUE@am__objects_52 = $(am__objects_41)
-am__objects_53 = libmono_moon_la-mini-windows.lo
-am__objects_54 = libmono_moon_la-mini-darwin.lo
-am__objects_55 = libmono_moon_la-mini-posix.lo
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_FALSE@@PLATFORM_SIGPOSIX_TRUE@am__objects_56 = $(am__objects_55)
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@am__objects_56 =  \
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_54) \
-@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_55)
-@HOST_WIN32_TRUE@am__objects_56 = $(am__objects_53)
-am__objects_57 = $(am__objects_39) $(am__objects_40) $(am__objects_52) \
-	$(am__objects_56)
-@MOONLIGHT_TRUE@am_libmono_moon_la_OBJECTS = $(am__objects_57)
+@ALPHA_TRUE@am__objects_49 = $(am__objects_39)
+am__objects_50 = libmono_moon_la-mini-windows.lo
+am__objects_51 = libmono_moon_la-mini-darwin.lo
+am__objects_52 = libmono_moon_la-mini-posix.lo
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_FALSE@@PLATFORM_SIGPOSIX_TRUE@am__objects_53 = $(am__objects_52)
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@am__objects_53 =  \
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_51) \
+@HOST_WIN32_FALSE@@PLATFORM_DARWIN_TRUE@	$(am__objects_52)
+@HOST_WIN32_TRUE@am__objects_53 = $(am__objects_50)
+am__objects_54 = $(am__objects_37) $(am__objects_38) $(am__objects_49) \
+	$(am__objects_53)
+@MOONLIGHT_TRUE@am_libmono_moon_la_OBJECTS = $(am__objects_54)
 libmono_moon_la_OBJECTS = $(am_libmono_moon_la_OBJECTS)
 @DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@MOONLIGHT_TRUE@am_libmono_moon_la_rpath =
 @DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@@MOONLIGHT_TRUE@am_libmono_moon_la_rpath =
@@ -488,10 +476,12 @@ am_libmonosgen_2_0_la_OBJECTS =
 libmonosgen_2_0_la_OBJECTS = $(am_libmonosgen_2_0_la_OBJECTS)
 libmonosgen_2_0_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
-	$(libmonosgen_2_0_la_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_SGEN_TRUE@am_libmonosgen_2_0_la_rpath = -rpath \
-@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_SGEN_TRUE@	$(libdir)
+	$(libmonosgen_2_0_la_CFLAGS) $(CFLAGS) \
+	$(libmonosgen_2_0_la_LDFLAGS) $(LDFLAGS) -o $@
+@DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_SGEN_TRUE@am_libmonosgen_2_0_la_rpath = -rpath \
+@DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@@SUPPORT_SGEN_TRUE@	$(libdir)
+@DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@@SUPPORT_SGEN_TRUE@am_libmonosgen_2_0_la_rpath = -rpath \
+@DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@@SUPPORT_SGEN_TRUE@	$(libdir)
 @JIT_SUPPORTED_TRUE@@SUPPORT_BOEHM_TRUE@am__EXEEXT_1 = mono$(EXEEXT)
 @JIT_SUPPORTED_TRUE@@SUPPORT_SGEN_TRUE@am__EXEEXT_2 =  \
 @JIT_SUPPORTED_TRUE@@SUPPORT_SGEN_TRUE@	mono-sgen$(EXEEXT)
@@ -527,8 +517,8 @@ mono_DEPENDENCIES = $(am__DEPENDENCIES_12) $(am__DEPENDENCIES_2) \
 mono_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mono_CFLAGS) $(CFLAGS) \
 	$(mono_LDFLAGS) $(LDFLAGS) -o $@
-am__objects_58 = mono_sgen-main.$(OBJEXT)
-am_mono_sgen_OBJECTS = $(am__objects_58)
+am__objects_55 = mono_sgen-main.$(OBJEXT)
+am_mono_sgen_OBJECTS = $(am__objects_55)
 mono_sgen_OBJECTS = $(am_mono_sgen_OBJECTS)
 am__DEPENDENCIES_14 =  \
 	$(monodir)/mono/metadata/libmonoruntimesgen-static.la \
@@ -547,8 +537,8 @@ mono_sgen_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mono_sgen_CFLAGS) \
 	$(CFLAGS) $(mono_sgen_LDFLAGS) $(LDFLAGS) -o $@
 am__monow_SOURCES_DIST = main.c
-am__objects_59 = main.$(OBJEXT)
-@HOST_WIN32_TRUE@am_monow_OBJECTS = $(am__objects_59)
+am__objects_56 = main.$(OBJEXT)
+@HOST_WIN32_TRUE@am_monow_OBJECTS = $(am__objects_56)
 monow_OBJECTS = $(am_monow_OBJECTS)
 am__DEPENDENCIES_17 = $(am__DEPENDENCIES_12) $(am__DEPENDENCIES_2) \
 	$(am__DEPENDENCIES_13) $(am__DEPENDENCIES_2) \
@@ -882,7 +872,8 @@ genmdesc_CFLAGS = $(AM_CFLAGS)
 @JIT_SUPPORTED_TRUE@@SUPPORT_BOEHM_TRUE@boehm_libraries = libmono-2.0.la
 @JIT_SUPPORTED_TRUE@@SUPPORT_BOEHM_TRUE@boehm_static_libraries = libmini-static.la $(static_libs)
 @JIT_SUPPORTED_TRUE@@SUPPORT_BOEHM_TRUE@boehm_binaries = mono
-@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@shared_libraries = $(boehm_libraries) $(sgen_libraries)
+@DISABLE_EXECUTABLES_FALSE@@JIT_SUPPORTED_TRUE@@SHARED_MONO_TRUE@shared_libraries = $(boehm_libraries) $(sgen_libraries)
+@DISABLE_EXECUTABLES_TRUE@@JIT_SUPPORTED_TRUE@shared_libraries = $(boehm_libraries) $(sgen_libraries)
 @JIT_SUPPORTED_TRUE@lib_LTLIBRARIES = $(shared_libraries) \
 @JIT_SUPPORTED_TRUE@	$(am__append_2)
 @JIT_SUPPORTED_TRUE@@SHARED_MONO_FALSE@mini_common_lib = 
@@ -1017,12 +1008,6 @@ alpha_sources = \
 	exceptions-alpha.c	\
 	tramp-alpha.c
 
-hppa_sources = \
-	mini-hppa.c		\
-	mini-hppa.h		\
-	exceptions-hppa.c	\
-	tramp-hppa.c
-
 darwin_sources = \
 	mini-darwin.c
 
@@ -1117,7 +1102,8 @@ test_sources = \
 	generics-variant-types.il\
 	basic-simd.cs \
 	aot-tests.cs \
-	gc-test.cs
+	gc-test.cs \
+	gshared.cs
 
 regtests = basic.exe basic-float.exe basic-long.exe basic-calls.exe objects.exe arrays.exe basic-math.exe exceptions.exe iltests.exe devirtualization.exe generics.exe basic-simd.exe
 @MONO_DEBUGGER_SUPPORTED_FALSE@@X86_TRUE@mdb_x86 = 
@@ -1127,9 +1113,6 @@ regtests = basic.exe basic-float.exe basic-long.exe basic-calls.exe objects.exe 
 @AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_FALSE@arch_sources = $(amd64_sources)
 @AMD64_TRUE@@MONO_DEBUGGER_SUPPORTED_TRUE@arch_sources = $(amd64_sources) mdb-debug-info64.s
 @ARM_TRUE@arch_sources = $(arm_sources)
-
-# Only support 32-bit targets for now
-@HPPA_TRUE@arch_sources = $(hppa_sources)
 @IA64_TRUE@arch_sources = $(ia64_sources)
 @MIPS_TRUE@arch_sources = $(mips_sources)
 @POWERPC64_TRUE@arch_sources = $(ppc_sources)
@@ -1142,7 +1125,6 @@ regtests = basic.exe basic-float.exe basic-long.exe basic-calls.exe objects.exe 
 @ALPHA_TRUE@arch_built = cpu-alpha.h
 @AMD64_TRUE@arch_built = cpu-amd64.h
 @ARM_TRUE@arch_built = cpu-arm.h
-@HPPA_TRUE@arch_built = cpu-hppa.h
 @IA64_TRUE@arch_built = cpu-ia64.h
 @MIPS_TRUE@arch_built = cpu-mips.h
 @POWERPC64_TRUE@arch_built = cpu-ppc64.h
@@ -1155,7 +1137,6 @@ regtests = basic.exe basic-float.exe basic-long.exe basic-calls.exe objects.exe 
 @ALPHA_TRUE@arch_define = __alpha__
 @AMD64_TRUE@arch_define = __x86_64__
 @ARM_TRUE@arch_define = __arm__
-@HPPA_TRUE@arch_define = __hppa__
 @IA64_TRUE@arch_define = __ia64__
 @MIPS_TRUE@arch_define = __mips__
 @POWERPC64_TRUE@arch_define = __ppc64__
@@ -1183,6 +1164,7 @@ libmono_2_0_la_LIBADD = libmini.la $(libs) $(LIBMONO_DTRACE_OBJECT)
 libmonosgen_2_0_la_SOURCES = 
 libmonosgen_2_0_la_CFLAGS = $(mono_sgen_CFLAGS)
 libmonosgen_2_0_la_LIBADD = libmini.la $(sgen_libs) $(LIBMONO_DTRACE_OBJECT)
+@PLATFORM_ANDROID_TRUE@libmonosgen_2_0_la_LDFLAGS = -avoid-version
 @MOONLIGHT_TRUE@libmono_moon_la_SOURCES = $(libmini_la_SOURCES)
 @MOONLIGHT_BOEHM_FALSE@@MOONLIGHT_TRUE@libmono_moon_la_CFLAGS = $(mono_sgen_CFLAGS) $(MOONLIGHT_DEFINES)
 @MOONLIGHT_BOEHM_TRUE@@MOONLIGHT_TRUE@libmono_moon_la_CFLAGS = $(mono_CFLAGS) $(MOONLIGHT_DEFINES)
@@ -1210,7 +1192,8 @@ CSFLAGS = -unsafe -nowarn:0219,0169,0414,0649
 # for the specific platform in mini-ops.h
 @CROSS_COMPILING_TRUE@GENMDESC_PRG = perl $(srcdir)/genmdesc.pl $(arch_define) $(srcdir) $(GENMDESC_OPTS)
 LLVM_AOT_RUNTIME_OPTS = $(if $(LLVM),--llvm,)
-fullaot_regtests = $(regtests) aot-tests.exe
+GSHAREDVT_RUNTIME_OPTS = $(if $(GSHAREDVT),-O=gsharedvt,)
+fullaot_regtests = $(regtests) aot-tests.exe $(if $(GSHAREDVT),gshared.exe)
 pkgconfigdir = $(libdir)/pkgconfig
 @JIT_SUPPORTED_FALSE@BUILT_SOURCES = version.h
 @JIT_SUPPORTED_TRUE@BUILT_SOURCES = version.h $(arch_built)
@@ -1228,7 +1211,6 @@ EXTRA_DIST = TestDriver.cs ldscript ldscript.mono \
 	$(s390x_sources) cpu-s390x.md 		\
 	$(ia64_sources) cpu-ia64.md 		\
 	$(alpha_sources) cpu-alpha.md 		\
-	$(hppa_sources) cpu-hppa.md 		\
 	$(windows_sources)			\
 	$(darwin_sources) Info.plist		\
 	$(posix_sources)
@@ -1410,7 +1392,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-alpha.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-amd64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-arm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-mips.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-exceptions-ppc.Plo@am__quote@
@@ -1434,7 +1415,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-exceptions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-gc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-generic-sharing.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-llvm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-mini-mips.Plo@am__quote@
@@ -1457,7 +1437,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-alpha.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-amd64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-arm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-mips.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_la-tramp-ppc.Plo@am__quote@
@@ -1484,7 +1463,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-alpha.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-amd64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-arm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-mips.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-exceptions-ppc.Plo@am__quote@
@@ -1508,7 +1486,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-exceptions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-gc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-generic-sharing.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-llvm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-mini-mips.Plo@am__quote@
@@ -1531,7 +1508,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-alpha.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-amd64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-arm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-mips.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmini_static_la-tramp-ppc.Plo@am__quote@
@@ -1558,7 +1534,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-alpha.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-amd64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-arm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-mips.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-exceptions-ppc.Plo@am__quote@
@@ -1582,7 +1557,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-exceptions.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-gc.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-generic-sharing.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-llvm.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-mini-mips.Plo@am__quote@
@@ -1605,7 +1579,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-alpha.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-amd64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-arm.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-hppa.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-ia64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-mips.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libmono_moon_la-tramp-ppc.Plo@am__quote@
@@ -2021,30 +1994,6 @@ libmini_static_la-tramp-arm.lo: tramp-arm.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tramp-arm.c' object='libmini_static_la-tramp-arm.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -c -o libmini_static_la-tramp-arm.lo `test -f 'tramp-arm.c' || echo '$(srcdir)/'`tramp-arm.c
-
-libmini_static_la-mini-hppa.lo: mini-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -MT libmini_static_la-mini-hppa.lo -MD -MP -MF $(DEPDIR)/libmini_static_la-mini-hppa.Tpo -c -o libmini_static_la-mini-hppa.lo `test -f 'mini-hppa.c' || echo '$(srcdir)/'`mini-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_static_la-mini-hppa.Tpo $(DEPDIR)/libmini_static_la-mini-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mini-hppa.c' object='libmini_static_la-mini-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -c -o libmini_static_la-mini-hppa.lo `test -f 'mini-hppa.c' || echo '$(srcdir)/'`mini-hppa.c
-
-libmini_static_la-exceptions-hppa.lo: exceptions-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -MT libmini_static_la-exceptions-hppa.lo -MD -MP -MF $(DEPDIR)/libmini_static_la-exceptions-hppa.Tpo -c -o libmini_static_la-exceptions-hppa.lo `test -f 'exceptions-hppa.c' || echo '$(srcdir)/'`exceptions-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_static_la-exceptions-hppa.Tpo $(DEPDIR)/libmini_static_la-exceptions-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='exceptions-hppa.c' object='libmini_static_la-exceptions-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -c -o libmini_static_la-exceptions-hppa.lo `test -f 'exceptions-hppa.c' || echo '$(srcdir)/'`exceptions-hppa.c
-
-libmini_static_la-tramp-hppa.lo: tramp-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -MT libmini_static_la-tramp-hppa.lo -MD -MP -MF $(DEPDIR)/libmini_static_la-tramp-hppa.Tpo -c -o libmini_static_la-tramp-hppa.lo `test -f 'tramp-hppa.c' || echo '$(srcdir)/'`tramp-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_static_la-tramp-hppa.Tpo $(DEPDIR)/libmini_static_la-tramp-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tramp-hppa.c' object='libmini_static_la-tramp-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -c -o libmini_static_la-tramp-hppa.lo `test -f 'tramp-hppa.c' || echo '$(srcdir)/'`tramp-hppa.c
 
 libmini_static_la-mini-ia64.lo: mini-ia64.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_static_la_CFLAGS) $(CFLAGS) -MT libmini_static_la-mini-ia64.lo -MD -MP -MF $(DEPDIR)/libmini_static_la-mini-ia64.Tpo -c -o libmini_static_la-mini-ia64.lo `test -f 'mini-ia64.c' || echo '$(srcdir)/'`mini-ia64.c
@@ -2614,30 +2563,6 @@ libmini_la-tramp-arm.lo: tramp-arm.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -c -o libmini_la-tramp-arm.lo `test -f 'tramp-arm.c' || echo '$(srcdir)/'`tramp-arm.c
 
-libmini_la-mini-hppa.lo: mini-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -MT libmini_la-mini-hppa.lo -MD -MP -MF $(DEPDIR)/libmini_la-mini-hppa.Tpo -c -o libmini_la-mini-hppa.lo `test -f 'mini-hppa.c' || echo '$(srcdir)/'`mini-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_la-mini-hppa.Tpo $(DEPDIR)/libmini_la-mini-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mini-hppa.c' object='libmini_la-mini-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -c -o libmini_la-mini-hppa.lo `test -f 'mini-hppa.c' || echo '$(srcdir)/'`mini-hppa.c
-
-libmini_la-exceptions-hppa.lo: exceptions-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -MT libmini_la-exceptions-hppa.lo -MD -MP -MF $(DEPDIR)/libmini_la-exceptions-hppa.Tpo -c -o libmini_la-exceptions-hppa.lo `test -f 'exceptions-hppa.c' || echo '$(srcdir)/'`exceptions-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_la-exceptions-hppa.Tpo $(DEPDIR)/libmini_la-exceptions-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='exceptions-hppa.c' object='libmini_la-exceptions-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -c -o libmini_la-exceptions-hppa.lo `test -f 'exceptions-hppa.c' || echo '$(srcdir)/'`exceptions-hppa.c
-
-libmini_la-tramp-hppa.lo: tramp-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -MT libmini_la-tramp-hppa.lo -MD -MP -MF $(DEPDIR)/libmini_la-tramp-hppa.Tpo -c -o libmini_la-tramp-hppa.lo `test -f 'tramp-hppa.c' || echo '$(srcdir)/'`tramp-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_la-tramp-hppa.Tpo $(DEPDIR)/libmini_la-tramp-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tramp-hppa.c' object='libmini_la-tramp-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -c -o libmini_la-tramp-hppa.lo `test -f 'tramp-hppa.c' || echo '$(srcdir)/'`tramp-hppa.c
-
 libmini_la-mini-ia64.lo: mini-ia64.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmini_la_CFLAGS) $(CFLAGS) -MT libmini_la-mini-ia64.lo -MD -MP -MF $(DEPDIR)/libmini_la-mini-ia64.Tpo -c -o libmini_la-mini-ia64.lo `test -f 'mini-ia64.c' || echo '$(srcdir)/'`mini-ia64.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmini_la-mini-ia64.Tpo $(DEPDIR)/libmini_la-mini-ia64.Plo
@@ -3205,30 +3130,6 @@ libmono_moon_la-tramp-arm.lo: tramp-arm.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tramp-arm.c' object='libmono_moon_la-tramp-arm.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -c -o libmono_moon_la-tramp-arm.lo `test -f 'tramp-arm.c' || echo '$(srcdir)/'`tramp-arm.c
-
-libmono_moon_la-mini-hppa.lo: mini-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -MT libmono_moon_la-mini-hppa.lo -MD -MP -MF $(DEPDIR)/libmono_moon_la-mini-hppa.Tpo -c -o libmono_moon_la-mini-hppa.lo `test -f 'mini-hppa.c' || echo '$(srcdir)/'`mini-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmono_moon_la-mini-hppa.Tpo $(DEPDIR)/libmono_moon_la-mini-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mini-hppa.c' object='libmono_moon_la-mini-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -c -o libmono_moon_la-mini-hppa.lo `test -f 'mini-hppa.c' || echo '$(srcdir)/'`mini-hppa.c
-
-libmono_moon_la-exceptions-hppa.lo: exceptions-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -MT libmono_moon_la-exceptions-hppa.lo -MD -MP -MF $(DEPDIR)/libmono_moon_la-exceptions-hppa.Tpo -c -o libmono_moon_la-exceptions-hppa.lo `test -f 'exceptions-hppa.c' || echo '$(srcdir)/'`exceptions-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmono_moon_la-exceptions-hppa.Tpo $(DEPDIR)/libmono_moon_la-exceptions-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='exceptions-hppa.c' object='libmono_moon_la-exceptions-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -c -o libmono_moon_la-exceptions-hppa.lo `test -f 'exceptions-hppa.c' || echo '$(srcdir)/'`exceptions-hppa.c
-
-libmono_moon_la-tramp-hppa.lo: tramp-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -MT libmono_moon_la-tramp-hppa.lo -MD -MP -MF $(DEPDIR)/libmono_moon_la-tramp-hppa.Tpo -c -o libmono_moon_la-tramp-hppa.lo `test -f 'tramp-hppa.c' || echo '$(srcdir)/'`tramp-hppa.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libmono_moon_la-tramp-hppa.Tpo $(DEPDIR)/libmono_moon_la-tramp-hppa.Plo
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tramp-hppa.c' object='libmono_moon_la-tramp-hppa.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -c -o libmono_moon_la-tramp-hppa.lo `test -f 'tramp-hppa.c' || echo '$(srcdir)/'`tramp-hppa.c
 
 libmono_moon_la-mini-ia64.lo: mini-ia64.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libmono_moon_la_CFLAGS) $(CFLAGS) -MT libmono_moon_la-mini-ia64.lo -MD -MP -MF $(DEPDIR)/libmono_moon_la-mini-ia64.Tpo -c -o libmono_moon_la-mini-ia64.lo `test -f 'mini-ia64.c' || echo '$(srcdir)/'`mini-ia64.c
@@ -3857,9 +3758,6 @@ cpu-ia64.h: cpu-ia64.md genmdesc$(EXEEXT)
 cpu-alpha.h: cpu-alpha.md genmdesc$(EXEEXT)
 	$(GENMDESC_PRG) cpu-alpha.h alpha_desc $(srcdir)/cpu-alpha.md
 
-cpu-hppa.h: cpu-hppa.md genmdesc$(EXEEXT)
-	$(GENMDESC_PRG) cpu-hppa.h hppa_desc $(srcdir)/cpu-hppa.md
-
 cpu-mips.h: cpu-mips.md genmdesc$(EXEEXT)
 	$(GENMDESC_PRG) cpu-mips.h mips_desc $(srcdir)/cpu-mips.md
 
@@ -3877,13 +3775,16 @@ gctest: mono gc-test.exe
 	MONO_DEBUG_OPTIONS=clear-nursery-at-gc $(RUNTIME) --regression gc-test.exe
 
 aotcheck: mono $(regtests)
-	rm -f *.exe.so *.exe.dylib *.exe.dylib.dSYM
+	rm -rf *.exe.so *.exe.dylib *.exe.dylib.dSYM
 	$(RUNTIME) $(LLVM_AOT_RUNTIME_OPTS) --aot $(regtests) || exit 1
 	for i in $(regtests); do $(RUNTIME_AOTCHECK) --regression $$i || exit 1; done
-	rm -f *.exe.so *.exe.dylib *.exe.dylib.dSYM
+	rm -rf *.exe.so *.exe.dylib *.exe.dylib.dSYM
 
 llvmaotcheck:
 	$(MAKE) aotcheck LLVM=1
+
+gsharedvtcheck:
+	$(MAKE) fullaotcheck GSHAREDVT=1
 
 # This currently only works on amd64/arm
 fullaotcheck: mono $(fullaot_regtests)
@@ -3891,7 +3792,7 @@ fullaotcheck: mono $(fullaot_regtests)
 	mkdir fullaot-tmp
 	cp $(CLASS)/mscorlib.dll $(CLASS)/System.Core.dll $(CLASS)/System.dll $(CLASS)/Mono.Posix.dll $(CLASS)/System.Configuration.dll $(CLASS)/System.Security.dll $(CLASS)/System.Xml.dll $(CLASS)/Mono.Security.dll $(CLASS)/Mono.Simd.dll $(regtests) generics-variant-types.dll TestDriver.dll fullaot-tmp/
 	cp $(fullaot_regtests) fullaot-tmp/
-	MONO_PATH=fullaot-tmp $(top_builddir)/runtime/mono-wrapper $(LLVM_AOT_RUNTIME_OPTS) --aot=full fullaot-tmp/* || exit 1
+	MONO_PATH=fullaot-tmp $(top_builddir)/runtime/mono-wrapper $(LLVM_AOT_RUNTIME_OPTS) $(GSHAREDVT_RUNTIME_OPTS) --aot=full fullaot-tmp/* || exit 1
 	ln -s $$PWD/mono fullaot-tmp/
 	for i in $(fullaot_regtests); do echo $$i; MONO_PATH=fullaot-tmp $(top_builddir)/runtime/mono-wrapper --full-aot fullaot-tmp/$$i --exclude '!FULLAOT' || exit 1; done
 

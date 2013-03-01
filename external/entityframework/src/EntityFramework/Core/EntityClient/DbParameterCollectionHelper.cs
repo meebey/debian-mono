@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.EntityClient
 {
     using System.Collections;
@@ -6,6 +7,7 @@ namespace System.Data.Entity.Core.EntityClient
     using System.ComponentModel;
     using System.Data.Common;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
@@ -55,12 +57,13 @@ namespace System.Data.Entity.Core.EntityClient
             get { return ((ICollection)InnerList).SyncRoot; }
         }
 
-        [
-            EditorBrowsable(EditorBrowsableState.Never)
-        ]
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public override int Add(object value)
         {
             OnChange();
+
+            Check.NotNull(value, "value");
+
             ValidateType(value);
             Validate(-1, value);
             InnerList.Add((EntityParameter)value);
@@ -70,10 +73,9 @@ namespace System.Data.Entity.Core.EntityClient
         public override void AddRange(Array values)
         {
             OnChange();
-            if (null == values)
-            {
-                throw new ArgumentNullException("values");
-            }
+
+            Check.NotNull(values, "values");
+
             foreach (var value in values)
             {
                 ValidateType(value);
@@ -203,6 +205,9 @@ namespace System.Data.Entity.Core.EntityClient
         public override void Insert(int index, object value)
         {
             OnChange();
+
+            Check.NotNull(value, "value");
+
             ValidateType(value);
             Validate(-1, value);
             InnerList.Insert(index, (EntityParameter)value);
@@ -223,14 +228,16 @@ namespace System.Data.Entity.Core.EntityClient
         public override void Remove(object value)
         {
             OnChange();
+
+            Check.NotNull(value, "value");
+
             ValidateType(value);
             var index = IndexOf(value);
             if (-1 != index)
             {
                 RemoveIndex(index);
             }
-            else if (this
-                     != ((EntityParameter)value).CompareExchangeParent(null, this))
+            else if (this != ((EntityParameter)value).CompareExchangeParent(null, this))
             {
                 throw new ArgumentException(Strings.EntityParameterCollectionRemoveInvalidObject);
             }
@@ -291,10 +298,7 @@ namespace System.Data.Entity.Core.EntityClient
 
         private void Validate(int index, object value)
         {
-            if (null == value)
-            {
-                throw new ArgumentNullException("value", Strings.EntityParameterNull);
-            }
+            Check.NotNull(value, "value");
 
             var entityParameter = (EntityParameter)value;
             var parent = entityParameter.CompareExchangeParent(this, null);
@@ -327,11 +331,9 @@ namespace System.Data.Entity.Core.EntityClient
 
         private static void ValidateType(object value)
         {
-            if (null == value)
-            {
-                throw new ArgumentNullException("value", Strings.EntityParameterNull);
-            }
-            else if (!_itemType.IsInstanceOfType(value))
+            Check.NotNull(value, "value");
+
+            if (!_itemType.IsInstanceOfType(value))
             {
                 throw new InvalidCastException(Strings.InvalidEntityParameterType(value.GetType().Name));
             }

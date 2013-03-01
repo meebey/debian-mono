@@ -1,40 +1,37 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Mapping.ViewGeneration.Validation;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Text;
 
     /// <summary>
-    /// This class contains a pair of cell queries which is essentially a
-    /// constraint that they are equal. A cell is initialized with a C or an
-    /// S Query which it exposes as properties but it also has the notion of
-    /// "Left" and "Right" queries -- left refers to the side for which a
-    /// view is being generated 
-    /// For example, to
-    /// specify a mapping for CPerson to an SPerson table, we have
-    ///
-    /// [(p type Person) in P : SPerson]
-    /// (p.pid, pid)
-    /// (p.name, name)
-    ///
-    /// This really denotes the equality of two queries:
-    /// (C) SELECT (p type Person) AS D1, p.pid, p.name FROM p in P WHERE D1 
-    /// (S) SELECT True AS D1, pid, name FROM SPerson WHERE D1  
-    ///
-    /// For more details, see the design doc
+    ///     This class contains a pair of cell queries which is essentially a
+    ///     constraint that they are equal. A cell is initialized with a C or an
+    ///     S Query which it exposes as properties but it also has the notion of
+    ///     "Left" and "Right" queries -- left refers to the side for which a
+    ///     view is being generated
+    ///     For example, to
+    ///     specify a mapping for CPerson to an SPerson table, we have
+    ///     [(p type Person) in P : SPerson]
+    ///     (p.pid, pid)
+    ///     (p.name, name)
+    ///     This really denotes the equality of two queries:
+    ///     (C) SELECT (p type Person) AS D1, p.pid, p.name FROM p in P WHERE D1
+    ///     (S) SELECT True AS D1, pid, name FROM SPerson WHERE D1
+    ///     For more details, see the design doc
     /// </summary>
     internal class Cell : InternalBase
     {
-        #region Constructor
-
         // effects: Creates a cell with the C and S queries 
         private Cell(CellQuery cQuery, CellQuery sQuery, CellLabel label, int cellNumber)
         {
-            Debug.Assert(label != null, "Cell lacks label");
+            DebugCheck.NotNull(label);
             m_cQuery = cQuery;
             m_sQuery = sQuery;
             m_label = label;
@@ -45,7 +42,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Copy Constructor
+        ///     Copy Constructor
         /// </summary>
         internal Cell(Cell source)
         {
@@ -55,10 +52,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_cellNumber = source.m_cellNumber;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly CellQuery m_cQuery;
         private readonly CellQuery m_sQuery;
         private readonly int m_cellNumber; // cell number that identifies this cell
@@ -66,10 +59,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         // that the Cell was constructed over.
         // The view cell relation for all projected slots in this
         private ViewCellRelation m_viewCellRelation;
-
-        #endregion
-
-        #region Properties
 
         // effects: Returns the C query
         internal CellQuery CQuery
@@ -100,10 +89,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         {
             get { return StringUtil.FormatInvariant("V{0}", CellNumber); }
         }
-
-        #endregion
-
-        #region Methods
 
         // effects: Determines all the identifiers used in this and adds them to identifiers
         internal void GetIdentifiers(CqlIdentifiers identifiers)
@@ -242,15 +227,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region Factory methods
-
         internal static Cell CreateCS(CellQuery cQuery, CellQuery sQuery, CellLabel label, int cellNumber)
         {
             return new Cell(cQuery, sQuery, label, cellNumber);
         }
-
-        #endregion
     }
 }

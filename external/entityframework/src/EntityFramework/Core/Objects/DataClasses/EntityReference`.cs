@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.DataClasses
 {
     using System.Collections;
@@ -8,9 +9,9 @@ namespace System.Data.Entity.Core.Objects.DataClasses
     using System.Data.Entity.Core.Objects.Internal;
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Runtime.Serialization;
     using System.Threading;
@@ -18,7 +19,7 @@ namespace System.Data.Entity.Core.Objects.DataClasses
     using System.Xml.Serialization;
 
     /// <summary>
-    /// Models a relationship end with multiplicity 1.
+    ///     Models a relationship end with multiplicity 1.
     /// </summary>
     [SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
     [DataContract]
@@ -46,9 +47,9 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         // ------------
 
         /// <summary>
-        /// The default constructor is required for some serialization scenarios. It should not be used to 
-        /// create new EntityReferences. Use the GetRelatedReference or GetRelatedEnd methods on the RelationshipManager
-        /// class instead.
+        ///     The default constructor is required for some serialization scenarios. It should not be used to
+        ///     create new EntityReferences. Use the GetRelatedReference or GetRelatedEnd methods on the RelationshipManager
+        ///     class instead.
         /// </summary>
         public EntityReference()
         {
@@ -66,7 +67,7 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         // ----------
 
         /// <summary>
-        /// Stub only please replace with actual implementation
+        ///     Stub only please replace with actual implementation
         /// </summary>
         [SoapIgnore]
         [XmlIgnore]
@@ -160,8 +161,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         // -------
 
         /// <summary>
-        /// Loads the related entity or entities into the local related end using the supplied MergeOption.        
-        /// </summary>        
+        ///     Loads the related entity or entities into the local related end using the supplied MergeOption.
+        /// </summary>
         public override void Load(MergeOption mergeOption)
         {
             CheckOwnerNull();
@@ -192,13 +193,15 @@ namespace System.Data.Entity.Core.Objects.DataClasses
             OnAssociationChanged(CollectionChangeAction.Refresh, null);
         }
 
+#if !NET40
+
         /// <summary>
-        /// An asynchronous version of Load, which
-        /// loads the related entity or entities into the related end using the specified merge option.
+        ///     An asynchronous version of Load, which
+        ///     loads the related entity or entities into the related end using the specified merge option.
         /// </summary>
-        /// <param name="mergeOption">Merge option to use for loaded entity or entities.</param>
-        /// <param name="cancellationToken">The token to monitor for cancellation requests</param>
-        /// <returns>A Task representing the asynchronous operation.</returns>
+        /// <param name="mergeOption"> Merge option to use for loaded entity or entities. </param>
+        /// <param name="cancellationToken"> The token to monitor for cancellation requests </param>
+        /// <returns> A Task representing the asynchronous operation. </returns>
         public override async Task LoadAsync(MergeOption mergeOption, CancellationToken cancellationToken)
         {
             CheckOwnerNull();
@@ -215,8 +218,11 @@ namespace System.Data.Entity.Core.Objects.DataClasses
                 {
                     // Only issue a query if we know it can produce results (in the case of FK, there may not be any 
                     // results).
-                    var objectResult = await sourceQuery.ExecuteAsync(sourceQuery.MergeOption, cancellationToken);
-                    refreshedValue = await objectResult.ToListAsync(cancellationToken);
+                    var objectResult =
+                        await
+                        sourceQuery.ExecuteAsync(sourceQuery.MergeOption, cancellationToken).ConfigureAwait(
+                            continueOnCapturedContext: false);
+                    refreshedValue = await objectResult.ToListAsync(cancellationToken).ConfigureAwait(continueOnCapturedContext: false);
                 }
 
                 HandleRefreshedValue(mergeOption, refreshedValue);
@@ -229,6 +235,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
             OnAssociationChanged(CollectionChangeAction.Refresh, null);
         }
 
+#endif
+
         private void HandleRefreshedValue(MergeOption mergeOption, IList<TEntity> refreshedValue)
         {
             if (null == refreshedValue
@@ -238,7 +246,7 @@ namespace System.Data.Entity.Core.Objects.DataClasses
                     && ToEndMember.RelationshipMultiplicity == RelationshipMultiplicity.One)
                 {
                     //query returned zero related end; one related end was expected.
-                    throw new InvalidOperationException(Strings.EntityReference_LessThanExpectedRelatedEntitiesFound);
+                    throw Error.EntityReference_LessThanExpectedRelatedEntitiesFound();
                 }
                 else if (mergeOption == MergeOption.OverwriteChanges
                          || mergeOption == MergeOption.PreserveChanges)
@@ -265,14 +273,14 @@ namespace System.Data.Entity.Core.Objects.DataClasses
             else
             {
                 // More than 1 result, which is non-recoverable data inconsistency
-                throw new InvalidOperationException(Strings.EntityReference_MoreThanExpectedRelatedEntitiesFound);
+                throw Error.EntityReference_MoreThanExpectedRelatedEntitiesFound();
             }
         }
 
         /// <summary>
-        /// This operation is not allowed if the owner is null
+        ///     This operation is not allowed if the owner is null
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         internal override IEnumerable GetInternalEnumerable()
         {
             // This shouldn't be converted to an iterator method because then the check for a null owner
@@ -291,24 +299,26 @@ namespace System.Data.Entity.Core.Objects.DataClasses
 
         internal override IEnumerable<IEntityWrapper> GetWrappedEntities()
         {
-            // TODO Make this more efficient!
             return _wrappedCachedValue.Entity == null ? new IEntityWrapper[0] : new[] { _wrappedCachedValue };
         }
 
         /// <summary>
-        /// Attaches an entity to the EntityReference. The given
-        /// entity is not assumed to be the complete set of related entities.
-        /// 
-        /// Owner and all entities passed in must be in Unchanged or Modified state. 
-        /// Deleted elements are allowed only when the state manager is already tracking the relationship
-        /// instance.
+        ///     Attaches an entity to the EntityReference. The given
+        ///     entity is not assumed to be the complete set of related entities.
+        ///     Owner and all entities passed in must be in Unchanged or Modified state.
+        ///     Deleted elements are allowed only when the state manager is already tracking the relationship
+        ///     instance.
         /// </summary>
-        /// <param name="entity">The entity to attach to the EntityCollection</param>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="entity"/> is null.</exception>
+        /// <param name="entity"> The entity to attach to the EntityCollection </param>
+        /// <exception cref="ArgumentNullException">
+        ///     Thrown when
+        ///     <paramref name="entity" />
+        ///     is null.
+        /// </exception>
         /// <exception cref="InvalidOperationException">Thrown when the entity cannot be related via the current relationship end.</exception>
         public void Attach(TEntity entity)
         {
-            Contract.Requires(entity != null);
+            Check.NotNull(entity, "entity");
 
             CheckOwnerNull();
             Attach(new[] { EntityWrapperFactory.WrapEntityUsingContext(entity, ObjectContext) }, false);
@@ -554,7 +564,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
             {
                 // this entity reference could be replacing a relationship that points to a key entry
                 // we need to search relationships on the Owner entity to see if this is true, and if so remove the relationship entry
-                if (WrappedOwner.Entity != null && WrappedOwner.Context != null
+                if (WrappedOwner.Entity != null
+                    && WrappedOwner.Context != null
                     && !UsingNoTracking)
                 {
                     var ownerEntry = WrappedOwner.Context.ObjectStateManager.GetEntityEntry(WrappedOwner.Entity);
@@ -580,13 +591,14 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         }
 
         /// <summary>
-        /// 
         /// </summary>
-        /// <param name="entity"></param>
-        /// <param name="relationshipAlreadyExists"></param>
-        /// <returns>True if the verify succeeded, False if the Add should no-op</returns>
+        /// <param name="entity"> </param>
+        /// <param name="relationshipAlreadyExists"> </param>
+        /// <returns> True if the verify succeeded, False if the Add should no-op </returns>
         internal override bool VerifyEntityForAdd(IEntityWrapper wrappedEntity, bool relationshipAlreadyExists)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             if (!relationshipAlreadyExists
                 && ContainsEntity(wrappedEntity))
             {
@@ -600,11 +612,15 @@ namespace System.Data.Entity.Core.Objects.DataClasses
 
         internal override bool CanSetEntityType(IEntityWrapper wrappedEntity)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             return wrappedEntity.Entity is TEntity;
         }
 
         internal override void VerifyType(IEntityWrapper wrappedEntity)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             if (!CanSetEntityType(wrappedEntity))
             {
                 throw new InvalidOperationException(
@@ -613,33 +629,37 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         }
 
         /// <summary>
-        /// Disconnected adds are not supported for an EntityReference so we should report this as an error.
+        ///     Disconnected adds are not supported for an EntityReference so we should report this as an error.
         /// </summary>
-        /// <param name="entity">The entity to add to the related end in a disconnected state.</param>
+        /// <param name="entity"> The entity to add to the related end in a disconnected state. </param>
         internal override void DisconnectedAdd(IEntityWrapper wrappedEntity)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             CheckOwnerNull();
         }
 
         /// <summary>
-        /// Disconnected removes are not supported for an EntityReference so we should report this as an error.
+        ///     Disconnected removes are not supported for an EntityReference so we should report this as an error.
         /// </summary>
-        /// <param name="entity">The entity to remove from the related end in a disconnected state.</param>
+        /// <param name="entity"> The entity to remove from the related end in a disconnected state. </param>
         internal override bool DisconnectedRemove(IEntityWrapper wrappedEntity)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             CheckOwnerNull();
             return false;
         }
 
         /// <summary>
-        /// Remove from the RelatedEnd
+        ///     Remove from the RelatedEnd
         /// </summary>
-        /// <param name="wrappedEntity"></param>
-        /// <param name="resetIsLoaded"></param>
-        /// <returns></returns>
+        /// <param name="wrappedEntity"> </param>
+        /// <param name="resetIsLoaded"> </param>
+        /// <returns> </returns>
         internal override bool RemoveFromLocalCache(IEntityWrapper wrappedEntity, bool resetIsLoaded, bool preserveForeignKey)
         {
-            Debug.Assert(wrappedEntity != null, "IEntityWrapper instance is null.");
+            DebugCheck.NotNull(wrappedEntity);
             Debug.Assert(
                 null == _wrappedCachedValue.Entity || wrappedEntity.Entity == _wrappedCachedValue.Entity,
                 "The specified object is not a part of this relationship.");
@@ -653,7 +673,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
             }
 
             // This code sets nullable FK properties on a dependent end to null when a relationship has been nulled.
-            if (ObjectContext != null && IsForeignKey
+            if (ObjectContext != null
+                && IsForeignKey
                 && !preserveForeignKey)
             {
                 NullAllForeignKeys();
@@ -662,13 +683,13 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         }
 
         /// <summary>
-        /// Remove from the POCO collection
+        ///     Remove from the POCO collection
         /// </summary>
-        /// <param name="wrappedEntity"></param>
-        /// <returns></returns>
+        /// <param name="wrappedEntity"> </param>
+        /// <returns> </returns>
         internal override bool RemoveFromObjectCache(IEntityWrapper wrappedEntity)
         {
-            Debug.Assert(wrappedEntity != null, "IEntityWrapper instance is null.");
+            DebugCheck.NotNull(wrappedEntity);
 
             // For POCO entities - clear the CLR reference
             if (TargetAccessor.HasProperty)
@@ -684,7 +705,7 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         internal override void RetrieveReferentialConstraintProperties(
             Dictionary<string, KeyValuePair<object, IntBox>> properties, HashSet<object> visited)
         {
-            Debug.Assert(properties != null);
+            DebugCheck.NotNull(properties);
 
             if (_wrappedCachedValue.Entity != null)
             {
@@ -758,6 +779,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
 
         internal override bool ContainsEntity(IEntityWrapper wrappedEntity)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             // Using operator 'as' instead of () allows calling ContainsEntity
             // with entity of different type than TEntity.
             return null != _wrappedCachedValue.Entity && _wrappedCachedValue.Entity == wrappedEntity.Entity;
@@ -780,10 +803,10 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         //End identical code
 
         /// <summary>
-        /// Take any values in the incoming RelatedEnd and sets them onto the values 
-        /// that currently exist in this RelatedEnd
+        ///     Take any values in the incoming RelatedEnd and sets them onto the values
+        ///     that currently exist in this RelatedEnd
         /// </summary>
-        /// <param name="rhs"></param>
+        /// <param name="rhs"> </param>
         internal void InitializeWithValue(RelatedEnd relatedEnd)
         {
             Debug.Assert(_wrappedCachedValue.Entity == null, "The EntityReference already has a value.");
@@ -854,13 +877,15 @@ namespace System.Data.Entity.Core.Objects.DataClasses
         #region Add
 
         /// <summary>
-        /// AddToLocalEnd is used by both APIs a) RelatedEnd.Add b) Value property setter.
-        /// ApplyConstraints is true in case of RelatedEnd.Add because one cannot add entity to ref it its already set
-        /// however applyConstraints is false in case of Value property setter because value can be set to a new value
-        /// even if its non null.
+        ///     AddToLocalEnd is used by both APIs a) RelatedEnd.Add b) Value property setter.
+        ///     ApplyConstraints is true in case of RelatedEnd.Add because one cannot add entity to ref it its already set
+        ///     however applyConstraints is false in case of Value property setter because value can be set to a new value
+        ///     even if its non null.
         /// </summary>
         internal override void AddToLocalCache(IEntityWrapper wrappedEntity, bool applyConstraints)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             if (wrappedEntity != _wrappedCachedValue)
             {
                 var tm = ObjectContext != null ? ObjectContext.ObjectStateManager.TransactionManager : null;
@@ -869,7 +894,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
                     // The idea here is that we want to throw for constraint violations in things that we are bringing in,
                     // but not when replacing references of things already in the context.  Therefore, if the the thing that
                     // we're replacing is in ProcessedEntities it means we're bringing it in and we should throw.
-                    if (tm == null || tm.ProcessedEntities == null
+                    if (tm == null
+                        || tm.ProcessedEntities == null
                         || tm.ProcessedEntities.Contains(_wrappedCachedValue))
                     {
                         throw new InvalidOperationException(
@@ -903,6 +929,8 @@ namespace System.Data.Entity.Core.Objects.DataClasses
 
         internal override void AddToObjectCache(IEntityWrapper wrappedEntity)
         {
+            DebugCheck.NotNull(wrappedEntity);
+
             // For POCO entities - set the CLR reference
             if (TargetAccessor.HasProperty)
             {

@@ -28,7 +28,7 @@
 //
 //
 
-#if NET_4_0 || MOBILE
+#if NET_4_0
 
 using System;
 using System.Threading;
@@ -150,10 +150,10 @@ namespace System.Threading.Tasks
 
 			// Process creationOptions
 #if NET_4_5
-			if (HasFlag (creationOptions, TaskCreationOptions.AttachedToParent)
-			    && parent != null && !HasFlag (parent.CreationOptions, TaskCreationOptions.DenyChildAttach))
+			if (parent != null && HasFlag (creationOptions, TaskCreationOptions.AttachedToParent)
+			    && !HasFlag (parent.CreationOptions, TaskCreationOptions.DenyChildAttach))
 #else
-			if (HasFlag (creationOptions, TaskCreationOptions.AttachedToParent) && parent != null)
+			if (parent != null && HasFlag (creationOptions, TaskCreationOptions.AttachedToParent))
 #endif
 				parent.AddChild ();
 
@@ -206,6 +206,14 @@ namespace System.Threading.Tasks
 			if (Status > TaskStatus.WaitingForActivation)
 				throw new InvalidOperationException ("The task is not in a valid state to be started");
 
+			if (IsContinuation)
+				throw new InvalidOperationException ("RunSynchronously may not be called on a continuation task");
+
+			RunSynchronouslyCore (scheduler);
+		}
+
+		internal void RunSynchronouslyCore (TaskScheduler scheduler)
+		{
 			SetupScheduler (scheduler);
 			var saveStatus = status;
 			Status = TaskStatus.WaitingToRun;
@@ -461,6 +469,15 @@ namespace System.Threading.Tasks
 			return true;
 		}
 
+		internal bool TrySetExceptionObserved ()
+		{
+			if (exSlot != null) {
+				exSlot.Observed = true;
+				return true;
+			}
+			return false;
+		}
+
 		internal void Execute ()
 		{
 			ThreadStart ();
@@ -485,7 +502,11 @@ namespace System.Threading.Tasks
 				ProcessChildExceptions ();
 				Status = exSlot == null ? TaskStatus.RanToCompletion : TaskStatus.Faulted;
 				ProcessCompleteDelegates ();
-				if (HasFlag (creationOptions, TaskCreationOptions.AttachedToParent) && parent != null)
+				if (parent != null &&
+#if NET_4_5
+				    !HasFlag (parent.CreationOptions, TaskCreationOptions.DenyChildAttach) &&
+#endif
+					HasFlag (creationOptions, TaskCreationOptions.AttachedToParent))
 					parent.ChildCompleted (this.Exception);
 			}
 		}
@@ -515,6 +536,15 @@ namespace System.Threading.Tasks
 					Status = TaskStatus.WaitingForChildrenToComplete;
 			}
 
+			// Tell parent that we are finished
+			if (parent != null && HasFlag (creationOptions, TaskCreationOptions.AttachedToParent) &&
+#if NET_4_5
+			    !HasFlag (parent.CreationOptions, TaskCreationOptions.DenyChildAttach) &&
+#endif
+				status != TaskStatus.WaitingForChildrenToComplete) {
+				parent.ChildCompleted (this.Exception);
+			}
+
 			// Completions are already processed when task is canceled or faulted
 			if (status == TaskStatus.RanToCompletion)
 				ProcessCompleteDelegates ();
@@ -527,11 +557,6 @@ namespace System.Threading.Tasks
 
 			if (cancellationRegistration.HasValue)
 				cancellationRegistration.Value.Dispose ();
-			
-			// Tell parent that we are finished
-			if (HasFlag (creationOptions, TaskCreationOptions.AttachedToParent) && parent != null && status != TaskStatus.WaitingForChildrenToComplete) {
-				parent.ChildCompleted (this.Exception);
-			}
 		}
 
 		void ProcessCompleteDelegates ()
@@ -643,9 +668,6 @@ namespace System.Threading.Tasks
 			var exception = Exception;
 			if (exception != null)
 				throw exception;
-
-			if (childTasks != null)
-				childTasks.Wait ();
 
 			return result;
 		}
@@ -817,6 +839,29 @@ namespace System.Threading.Tasks
 			}
 		}
 		#endregion
+
+#if NET_4_5
+		public
+#else
+		internal
+#endif
+		Task ContinueWith (Action<Task, object> continuationAction, object state, CancellationToken cancellationToken,
+								  TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
+		{
+			if (continuationAction == null)
+				throw new ArgumentNullException ("continuationAction");
+			if (scheduler == null)
+				throw new ArgumentNullException ("scheduler");
+
+			Task continuation = new Task (TaskActionInvoker.Create (continuationAction),
+										  state, cancellationToken,
+										  GetCreationOptions (continuationOptions),
+			                              parent,
+			                              this);
+			ContinueWithCore (continuation, continuationOptions, scheduler);
+
+			return continuation;
+		}
 		
 #if NET_4_5
 
@@ -843,24 +888,6 @@ namespace System.Threading.Tasks
 		public Task ContinueWith (Action<Task, object> continuationAction, object state, TaskScheduler scheduler)
 		{
 			return ContinueWith (continuationAction, state, CancellationToken.None, TaskContinuationOptions.None, scheduler);
-		}
-
-		public Task ContinueWith (Action<Task, object> continuationAction, object state, CancellationToken cancellationToken,
-								  TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
-		{
-			if (continuationAction == null)
-				throw new ArgumentNullException ("continuationAction");
-			if (scheduler == null)
-				throw new ArgumentNullException ("scheduler");
-
-			Task continuation = new Task (TaskActionInvoker.Create (continuationAction),
-										  state, cancellationToken,
-										  GetCreationOptions (continuationOptions),
-			                              parent,
-			                              this);
-			ContinueWithCore (continuation, continuationOptions, scheduler);
-
-			return continuation;
 		}
 
 		public Task<TResult> ContinueWith<TResult> (Func<Task, object, TResult> continuationFunction, object state)
@@ -967,7 +994,7 @@ namespace System.Threading.Tasks
 			if (cancellationToken.IsCancellationRequested)
 				return TaskConstants.Canceled;
 
-			return TaskExtensions.Unwrap (Task.Factory.StartNew (function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default));
+			return TaskExtensionsImpl.Unwrap (Task.Factory.StartNew (function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default));
 		}
 
 		public static Task<TResult> Run<TResult> (Func<TResult> function)
@@ -993,7 +1020,7 @@ namespace System.Threading.Tasks
 			if (cancellationToken.IsCancellationRequested)
 				return TaskConstants<TResult>.Canceled;
 
-			return TaskExtensions.Unwrap (Task.Factory.StartNew (function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default));
+			return TaskExtensionsImpl.Unwrap (Task.Factory.StartNew (function, cancellationToken, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default));
 		}
 
 		public static Task WhenAll (params Task[] tasks)

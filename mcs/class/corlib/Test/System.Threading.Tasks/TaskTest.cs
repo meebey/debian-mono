@@ -35,6 +35,10 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using NUnit.Framework;
 
+#if !MOBILE
+using NUnit.Framework.SyntaxHelpers;
+#endif
+
 namespace MonoTests.System.Threading.Tasks
 {
 	[TestFixture]
@@ -358,7 +362,7 @@ namespace MonoTests.System.Threading.Tasks
 				Task.WaitAll (tasks);
 				Assert.Fail ("#1");
 			} catch (AggregateException e) {
-				Assert.IsInstanceOfType (typeof (ApplicationException), e.InnerException, "#2");
+				Assert.That (e.InnerException, Is.TypeOf (typeof (ApplicationException)), "#2");
 				var inner = (TaskCanceledException) e.InnerExceptions[1];
 				Assert.AreEqual (tasks[1], inner.Task, "#3");
 			}
@@ -669,6 +673,30 @@ namespace MonoTests.System.Threading.Tasks
 			}, 10);
 		}
 
+		Task parent_wfc;
+
+		[Test]
+		public void WaitingForChildrenToComplete ()
+		{
+			Task nested = null;
+			var mre = new ManualResetEvent (false);
+
+			parent_wfc = Task.Factory.StartNew (() => {
+				nested = Task.Factory.StartNew (() => {
+					Assert.IsTrue (mre.WaitOne (4000), "parent_wfc needs to be set first");
+					Assert.IsFalse (parent_wfc.Wait (10), "#1a");
+					Assert.AreEqual (TaskStatus.WaitingForChildrenToComplete, parent_wfc.Status, "#1b");
+				}, TaskCreationOptions.AttachedToParent).ContinueWith (l => {
+					Assert.IsTrue (parent_wfc.Wait (2000), "#2a");
+					Assert.AreEqual (TaskStatus.RanToCompletion, parent_wfc.Status, "#2b");					
+				}, TaskContinuationOptions.ExecuteSynchronously);
+			});
+
+			mre.Set ();
+			Assert.IsTrue (parent_wfc.Wait (2000), "#3");
+			Assert.IsTrue (nested.Wait (2000), "#4");
+		}
+
 		[Test]
 		public void WaitChildWithContinuationAttachedTest ()
 		{
@@ -799,6 +827,18 @@ namespace MonoTests.System.Threading.Tasks
 			});
 			t.RunSynchronously ();
 			Assert.IsTrue (result);
+		}
+
+		[Test]
+		public void RunSynchronouslyOnContinuation ()
+		{
+			Task t = new Task<int> (() => 1);
+			t = t.ContinueWith (l => { });
+			try {
+				t.RunSynchronously ();
+				Assert.Fail ("#1");
+			} catch (InvalidOperationException) {
+			}
 		}
 
 		[Test]
@@ -1144,7 +1184,7 @@ namespace MonoTests.System.Threading.Tasks
 				Assert.IsTrue (t.Wait (1000), "#2");
 				Assert.Fail ("#2a");
 			} catch (AggregateException e) {
-				Assert.IsInstanceOfType (typeof (TaskCanceledException), e.InnerException, "#3");
+				Assert.That (e.InnerException, Is.TypeOf (typeof (TaskCanceledException)), "#3");
 			}
 		}
 
@@ -1175,8 +1215,8 @@ namespace MonoTests.System.Threading.Tasks
 				Assert.IsTrue (t.Wait (1000), "#2");
 				Assert.Fail ("#2a");
 			} catch (AggregateException e) {
-				Assert.IsInstanceOfType (typeof (ApplicationException), e.InnerException, "#3");
-				Assert.IsInstanceOfType (typeof (InvalidTimeZoneException), e.InnerExceptions[1], "#4");
+				Assert.That (e.InnerException, Is.TypeOf (typeof (ApplicationException)), "#3");
+				Assert.That (e.InnerExceptions[1], Is.TypeOf (typeof (InvalidTimeZoneException)), "#4");
 			}
 		}
 
@@ -1239,7 +1279,7 @@ namespace MonoTests.System.Threading.Tasks
 				Assert.IsTrue (t.Wait (1000), "#2");
 				Assert.Fail ("#2a");
 			} catch (AggregateException e) {
-				Assert.IsInstanceOfType (typeof (TaskCanceledException), e.InnerException, "#3");
+				Assert.That (e.InnerException, Is.TypeOf (typeof (TaskCanceledException)), "#3");
 			}
 
 			try {
@@ -1388,7 +1428,7 @@ namespace MonoTests.System.Threading.Tasks
 			Assert.IsTrue (t.Wait (1000), "#2");
 			Assert.IsNull (t.Exception, "#3");
 
-			Assert.IsInstanceOfType (typeof (ApplicationException), t.Result.Exception.InnerException, "#4");
+			Assert.That (t.Result.Exception.InnerException, Is.TypeOf (typeof (ApplicationException)), "#4");
 		}
 
 		[Test]
@@ -1513,7 +1553,7 @@ namespace MonoTests.System.Threading.Tasks
 			Assert.IsTrue (t.Wait (1000), "#2");
 			Assert.IsNull (t.Exception, "#3");
 
-			Assert.IsInstanceOfType (typeof (ApplicationException), t.Result.Exception.InnerException, "#4");
+			Assert.That (t.Result.Exception.InnerException, Is.TypeOf (typeof (ApplicationException)), "#4");
 		}
 
 		[Test]
@@ -1682,11 +1722,13 @@ namespace MonoTests.System.Threading.Tasks
 		public void DenyChildAttachTest ()
 		{
 			var mre = new ManualResetEventSlim ();
+			Task nested = null;
 			Task parent = Task.Factory.StartNew (() => {
-				Task.Factory.StartNew (() => mre.Wait (2000), TaskCreationOptions.AttachedToParent);
+				nested = Task.Factory.StartNew (() => mre.Wait (2000), TaskCreationOptions.AttachedToParent);
 			}, TaskCreationOptions.DenyChildAttach);
-			Assert.IsTrue (parent.Wait (500), "#1");
+			Assert.IsTrue (parent.Wait (1000), "#1");
 			mre.Set ();
+			Assert.IsTrue (nested.Wait (2000), "#2");
 		}
 
 		class SynchronousScheduler : TaskScheduler
@@ -1739,7 +1781,7 @@ namespace MonoTests.System.Threading.Tasks
 				Assert.IsTrue (cont.Wait (1000), "#2");
 				Assert.Fail ();
 			} catch (AggregateException ex) {
-				Assert.IsInstanceOfType (typeof (TaskCanceledException), ex.InnerException);
+				Assert.That (ex.InnerException, Is.TypeOf (typeof (TaskCanceledException)), "#3");
 			}
 		}
 #endif

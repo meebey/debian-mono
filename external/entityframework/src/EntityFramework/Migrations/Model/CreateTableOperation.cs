@@ -1,9 +1,10 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.Model
 {
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Represents creating a table.
@@ -19,16 +20,13 @@ namespace System.Data.Entity.Migrations.Model
         /// <summary>
         ///     Initializes a new instance of the CreateTableOperation class.
         /// </summary>
-        /// <param name = "name">Name of the table to be created.</param>
-        /// <param name = "anonymousArguments">
-        ///     Additional arguments that may be processed by providers. 
-        ///     Use anonymous type syntax to specify arguments e.g. 'new { SampleArgument = "MyValue" }'.
-        /// </param>
+        /// <param name="name"> Name of the table to be created. </param>
+        /// <param name="anonymousArguments"> Additional arguments that may be processed by providers. Use anonymous type syntax to specify arguments e.g. 'new { SampleArgument = "MyValue" }'. </param>
         [SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed")]
         public CreateTableOperation(string name, object anonymousArguments = null)
             : base(anonymousArguments)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(name));
+            Check.NotEmpty(name, "name");
 
             _name = name;
         }
@@ -57,7 +55,7 @@ namespace System.Data.Entity.Migrations.Model
             get { return _primaryKey; }
             set
             {
-                Contract.Requires(value != null);
+                Check.NotNull(value, "value");
 
                 _primaryKey = value;
                 _primaryKey.Table = Name;
@@ -69,7 +67,13 @@ namespace System.Data.Entity.Migrations.Model
         /// </summary>
         public override MigrationOperation Inverse
         {
-            get { return new DropTableOperation(Name); }
+            get
+            {
+                return new DropTableOperation(Name)
+                           {
+                               IsSystem = IsSystem
+                           };
+            }
         }
 
         /// <inheritdoc />

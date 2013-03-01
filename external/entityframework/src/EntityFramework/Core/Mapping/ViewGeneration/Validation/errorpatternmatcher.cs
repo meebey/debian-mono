@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
 {
     using System.Collections.Generic;
@@ -23,8 +24,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         private readonly ErrorLog m_errorLog;
         private readonly int m_originalErrorCount;
         private const int NUM_PARTITION_ERR_TO_FIND = 5;
-
-        #region Constructor
 
         private ErrorPatternMatcher(ViewgenContext context, MemberDomainMap domainMap, ErrorLog errorLog)
         {
@@ -69,12 +68,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             return false;
         }
 
-        #endregion
-
-        #region Error Matching Routines
-
         /// <summary>
-        /// Finds Types (possibly without any members) that have no mapping specified
+        ///     Finds Types (possibly without any members) that have no mapping specified
         /// </summary>
         private void MatchMissingMappingErrors()
         {
@@ -178,9 +173,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         }
 
         /// <summary>
-        /// Finds errors related to splitting Conditions
-        /// 1. Condition value is repeated across multiple types
-        /// 2. A Column/attribute is mapped but also used as a condition
+        ///     Finds errors related to splitting Conditions
+        ///     1. Condition value is repeated across multiple types
+        ///     2. A Column/attribute is mapped but also used as a condition
         /// </summary>
         private void MatchConditionErrors()
         {
@@ -210,8 +205,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
 
                     var scalarCond = condition as ScalarRestriction;
                     //Check for mapping of Scalar member condition, ignore type conditions
-                    if (scalarCond != null &&
-                        !mappedConditionMembers.Contains(memberPath) && /* prevents duplicate errors */
+                    if (scalarCond != null
+                        &&
+                        !mappedConditionMembers.Contains(memberPath)
+                        && /* prevents duplicate errors */
                         !leftCellWrapper.OnlyInputCell.CQuery.WhereClause.Equals(leftCellWrapper.OnlyInputCell.SQuery.WhereClause)
                         && /* projection allowed when both conditions are equal */
                         !IsMemberPartOfNotNullCondition(leftCellWrappers, memberPath, m_viewgenContext.ViewTarget))
@@ -227,12 +224,14 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
                     if (m_viewgenContext.ViewTarget
                         == ViewTarget.UpdateView)
                     {
-                        if (scalarCond != null &&
+                        if (scalarCond != null
+                            &&
                             memberPath.IsNullable
                             && IsMemberPartOfNotNullCondition(new[] { leftCellWrapper }, memberPath, m_viewgenContext.ViewTarget))
                         {
                             var rightMemberPath = GetRightMemberPath(memberPath, leftCellWrapper);
-                            if (rightMemberPath != null && rightMemberPath.IsNullable
+                            if (rightMemberPath != null
+                                && rightMemberPath.IsNullable
                                 &&
                                 !IsMemberPartOfNotNullCondition(new[] { leftCellWrapper }, rightMemberPath, m_viewgenContext.ViewTarget))
                             {
@@ -306,8 +305,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         }
 
         /// <summary>
-        /// When we are dealing with an update view, this method
-        /// finds out if the given Table is mapped to different EntitySets
+        ///     When we are dealing with an update view, this method
+        ///     finds out if the given Table is mapped to different EntitySets
         /// </summary>
         private void MatchSplitErrors()
         {
@@ -346,10 +345,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         }
 
         /// <summary>
-        /// Finds out whether fragments (partitions) violate constraints that would produce an invalid mapping.
-        /// We compare equality/disjointness/containment for all 2-combinations of fragments.
-        /// Error is reported if given relationship on S side is not maintained on the C side.
-        /// If we know nothing about S-side then any relationship on C side is valid.
+        ///     Finds out whether fragments (partitions) violate constraints that would produce an invalid mapping.
+        ///     We compare equality/disjointness/containment for all 2-combinations of fragments.
+        ///     Error is reported if given relationship on S side is not maintained on the C side.
+        ///     If we know nothing about S-side then any relationship on C side is valid.
         /// </summary>
         [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
         private void MatchPartitionErrors()
@@ -640,8 +639,8 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         }
 
         /// <summary>
-        /// Gets the types on the Edm side mapped in this fragment wrapper.
-        /// It also returns an out parameter indicating whether there were any C side conditions.
+        ///     Gets the types on the Edm side mapped in this fragment wrapper.
+        ///     It also returns an out parameter indicating whether there were any C side conditions.
         /// </summary>
         private static void GetTypesAndConditionForWrapper(LeftCellWrapper wrapper, out bool hasCondition, out List<EdmType> edmTypes)
         {
@@ -670,10 +669,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         }
 
         /// <summary>
-        /// Return true if there were any Store conditions on this cell wrapper.
+        ///     Return true if there were any Store conditions on this cell wrapper.
         /// </summary>
-        /// <param name="wrapper"></param>
-        /// <returns></returns>
+        /// <param name="wrapper"> </param>
+        /// <returns> </returns>
         private static bool CheckForStoreConditions(LeftCellWrapper wrapper)
         {
             return wrapper.Cells.SelectMany(c => c.SQuery.Conditions).Any();
@@ -701,14 +700,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
             }
         }
 
-        #endregion
-
         private bool FoundTooManyErrors()
         {
             return (m_errorLog.Count > m_originalErrorCount + NUM_PARTITION_ERR_TO_FIND);
         }
-
-        #region Private Helpers
 
         private static string BuildCommaSeparatedErrorString<T>(IEnumerable<T> members)
         {
@@ -824,8 +819,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Validation
         {
             return (m_viewgenContext.ViewTarget == ViewTarget.QueryView);
         }
-
-        #endregion
 
         private enum ComparisonOP
         {

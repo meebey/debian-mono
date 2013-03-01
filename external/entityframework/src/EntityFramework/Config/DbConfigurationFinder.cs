@@ -1,50 +1,44 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Config
 {
     using System.Collections.Generic;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Linq;
 
     /// <summary>
-    /// Searches types (usually obtained from an assembly) for different kinds of <see cref="DbConfiguration"/>.
+    ///     Searches types (usually obtained from an assembly) for different kinds of <see cref="DbConfiguration" />.
     /// </summary>
     internal class DbConfigurationFinder
     {
-        public virtual Type TryFindConfigurationType(IEnumerable<Type> typesToSearch)
+        public virtual Type TryFindConfigurationType(Type contextType, IEnumerable<Type> typesToSearch = null)
         {
-            Contract.Requires(typesToSearch != null);
+            DebugCheck.NotNull(contextType);
 
-            var configurations = typesToSearch
+            var typeFromAttribute = contextType.GetCustomAttributes(inherit: true)
+                                               .OfType<DbConfigurationTypeAttribute>()
+                                               .Select(a => a.ConfigurationType)
+                                               .FirstOrDefault();
+
+            if (typeFromAttribute != null)
+            {
+                if (!typeof(DbConfiguration).IsAssignableFrom(typeFromAttribute))
+                {
+                    throw new InvalidOperationException(
+                        Strings.CreateInstance_BadDbConfigurationType(typeFromAttribute.ToString(), typeof(DbConfiguration).ToString()));
+                }
+                return typeFromAttribute;
+            }
+
+            var configurations = (typesToSearch ?? contextType.Assembly.GetAccessibleTypes())
                 .Where(
                     t => typeof(DbConfiguration).IsAssignableFrom(t)
                          && t != typeof(DbConfiguration)
-                         && t != typeof(DbConfigurationProxy)
                          && !t.IsAbstract
                          && !t.IsGenericType)
                 .ToList();
 
-            // If there any null configurations then return one of them.
-            var nullConfig = configurations.FirstOrDefault(c => typeof(DbNullConfiguration).IsAssignableFrom(c));
-            if (nullConfig != null)
-            {
-                return nullConfig;
-            }
-
-            // Else if there is exactly one proxy config then use it.
-            var proxyConfigs = configurations.Where(c => typeof(DbConfigurationProxy).IsAssignableFrom(c));
-            if (proxyConfigs.Count() > 1)
-            {
-                throw new InvalidOperationException(
-                    Strings.MultipleConfigsInAssembly(proxyConfigs.First().Assembly, typeof(DbConfigurationProxy).Name));
-            }
-            if (proxyConfigs.Count() == 1)
-            {
-                return proxyConfigs.First().CreateInstance<DbConfigurationProxy>().ConfigurationToUse();
-            }
-
-            // Else if there is exactly one normal config then use it, otherwise return null.
             if (configurations.Count > 1)
             {
                 throw new InvalidOperationException(
@@ -54,15 +48,15 @@ namespace System.Data.Entity.Config
             return configurations.FirstOrDefault();
         }
 
-        public virtual DbConfiguration TryCreateConfiguration(IEnumerable<Type> typesToSearch)
+        public virtual InternalConfiguration TryCreateConfiguration(Type contextType, IEnumerable<Type> typesToSearch = null)
         {
-            Contract.Requires(typesToSearch != null);
+            DebugCheck.NotNull(contextType);
 
-            var configType = TryFindConfigurationType(typesToSearch);
+            var configType = TryFindConfigurationType(contextType, typesToSearch ?? contextType.Assembly.GetAccessibleTypes());
 
-            return configType == null || typeof(DbNullConfiguration).IsAssignableFrom(configType)
+            return configType == null
                        ? null
-                       : configType.CreateInstance<DbConfiguration>();
+                       : configType.CreateInstance<DbConfiguration>().InternalConfiguration;
         }
     }
 }

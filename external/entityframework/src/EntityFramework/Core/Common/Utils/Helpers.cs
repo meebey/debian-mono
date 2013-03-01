@@ -1,9 +1,10 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils
 {
     using System.Collections.Generic;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
 
     // Miscellaneous helper routines
@@ -56,16 +57,16 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Returns a new array with the first element equal to <paramref name="arg"/> and the remaining
-        /// elements taken from <paramref name="args"/>.
+        ///     Returns a new array with the first element equal to <paramref name="arg" /> and the remaining
+        ///     elements taken from <paramref name="args" />.
         /// </summary>
-        /// <typeparam name="TElement">The element type of the arrays</typeparam>
-        /// <param name="args">An array that provides the successive elements of the new array</param>
-        /// <param name="arg">An instance the provides the first element of the new array</param>
-        /// <returns>A new array containing the specified argument as the first element and the specified successive elements</returns>
+        /// <typeparam name="TElement"> The element type of the arrays </typeparam>
+        /// <param name="args"> An array that provides the successive elements of the new array </param>
+        /// <param name="arg"> An instance the provides the first element of the new array </param>
+        /// <returns> A new array containing the specified argument as the first element and the specified successive elements </returns>
         internal static TElement[] Prepend<TElement>(TElement[] args, TElement arg)
         {
-            Debug.Assert(args != null, "Ensure 'args' is non-null before calling Prepend");
+            DebugCheck.NotNull(args);
 
             var retVal = new TElement[args.Length + 1];
             retVal[0] = arg;
@@ -78,18 +79,18 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Builds a balanced binary tree with the specified nodes as leaves. 
-        /// Note that the current elements of <paramref name="nodes"/> MAY be overwritten
-        /// as the leaves are combined to produce the tree.
+        ///     Builds a balanced binary tree with the specified nodes as leaves.
+        ///     Note that the current elements of <paramref name="nodes" /> MAY be overwritten
+        ///     as the leaves are combined to produce the tree.
         /// </summary>
-        /// <typeparam name="TNode">The type of each node in the tree</typeparam>
-        /// <param name="nodes">The leaf nodes to combine into an balanced binary tree</param>
-        /// <param name="combinator">A function that produces a new node that is the combination of the two specified argument nodes</param>
-        /// <returns>The single node that is the root of the balanced binary tree</returns>
+        /// <typeparam name="TNode"> The type of each node in the tree </typeparam>
+        /// <param name="nodes"> The leaf nodes to combine into an balanced binary tree </param>
+        /// <param name="combinator"> A function that produces a new node that is the combination of the two specified argument nodes </param>
+        /// <returns> The single node that is the root of the balanced binary tree </returns>
         internal static TNode BuildBalancedTreeInPlace<TNode>(IList<TNode> nodes, Func<TNode, TNode, TNode> combinator)
         {
-            Contract.Requires(nodes != null);
-            Contract.Requires(combinator != null);
+            DebugCheck.NotNull(nodes);
+            DebugCheck.NotNull(combinator);
 
             Debug.Assert(nodes.Count > 0, "At least one node is required");
 
@@ -146,18 +147,25 @@ namespace System.Data.Entity.Core.Common.Utils
         }
 
         /// <summary>
-        /// Uses a stack to non-recursively traverse a given tree structure and retrieve the leaf nodes.
+        ///     Uses a stack to non-recursively traverse a given tree structure and retrieve the leaf nodes.
         /// </summary>
-        /// <typeparam name="TNode">The type of each node in the tree structure</typeparam>
-        /// <param name="root">The node that represents the root of the tree</param>
-        /// <param name="isLeaf">A function that determines whether or not a given node should be considered a leaf node</param>
-        /// <param name="getImmediateSubNodes">A function that traverses the tree by retrieving the <b>immediate</b> descendants of a (non-leaf) node.</param>
-        /// <returns>An enumerable containing the leaf nodes (as determined by <paramref name="isLeaf"/>) retrieved by traversing the tree from <paramref name="root"/> using <paramref name="getImmediateSubNodes"/>.</returns>
+        /// <typeparam name="TNode"> The type of each node in the tree structure </typeparam>
+        /// <param name="root"> The node that represents the root of the tree </param>
+        /// <param name="isLeaf"> A function that determines whether or not a given node should be considered a leaf node </param>
+        /// <param name="getImmediateSubNodes">
+        ///     A function that traverses the tree by retrieving the <b>immediate</b> descendants of a (non-leaf) node.
+        /// </param>
+        /// <returns>
+        ///     An enumerable containing the leaf nodes (as determined by <paramref name="isLeaf" /> ) retrieved by traversing the tree from
+        ///     <paramref
+        ///         name="root" />
+        ///     using <paramref name="getImmediateSubNodes" /> .
+        /// </returns>
         internal static IEnumerable<TNode> GetLeafNodes<TNode>(
             TNode root, Func<TNode, bool> isLeaf, Func<TNode, IEnumerable<TNode>> getImmediateSubNodes)
         {
-            Contract.Requires(isLeaf != null);
-            Contract.Requires(getImmediateSubNodes != null);
+            DebugCheck.NotNull(isLeaf);
+            DebugCheck.NotNull(getImmediateSubNodes);
 
             var nodes = new Stack<TNode>();
             nodes.Push(root);

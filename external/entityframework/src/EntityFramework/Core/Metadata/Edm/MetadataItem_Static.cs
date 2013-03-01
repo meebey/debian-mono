@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Common;
+    using System.Data.Entity.Core.Metadata.Edm.Provider;
     using System.Diagnostics.CodeAnalysis;
 
     /// <summary>
-    /// Represents the base item class for all the metadata
+    ///     Represents the base item class for all the metadata
     /// </summary>
     public abstract partial class MetadataItem
     {
-        #region Constructors
-
         /// <summary>
-        /// Static Constructor which initializes all the built in types and primitive types
+        ///     Static Constructor which initializes all the built in types and primitive types
         /// </summary>
         [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
         static MetadataItem()
@@ -535,19 +535,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
             }
         }
 
-        #endregion
-
-        #region Fields
-
         private static readonly EdmType[] _builtInTypes = new EdmType[EdmConstants.NumBuiltInTypes];
         private static readonly ReadOnlyCollection<FacetDescription> _generalFacetDescriptions;
         private static readonly FacetDescription _nullableFacetDescription;
         private static readonly FacetDescription _defaultValueFacetDescription;
         private static readonly FacetDescription _collectionKindFacetDescription;
-
-        #endregion
-
-        #region Properties
 
         internal static FacetDescription DefaultValueFacetDescription
         {
@@ -569,12 +561,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
             get { return EdmProviderManifest.Instance; }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Returns the list of EDM builtin types
+        ///     Returns the list of EDM builtin types
         /// </summary>
         public static EdmType GetBuiltInType(BuiltInTypeKind builtInTypeKind)
         {
@@ -582,7 +570,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Returns the list of facet descriptions for a given type
+        ///     Returns the list of facet descriptions for a given type
         /// </summary>
         [SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public static ReadOnlyCollection<FacetDescription> GetGeneralFacetDescriptions()
@@ -591,13 +579,13 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Initialize all the build in type with the given type attributes and properties
+        ///     Initialize all the build in type with the given type attributes and properties
         /// </summary>
-        /// <param name="builtInType">The built In type which is getting initialized</param>
-        /// <param name="name">name of the built in type</param>
-        /// <param name="isAbstract">whether the type is abstract or not</param>
-        /// <param name="isSealed">whether the type is sealed or not</param>
-        /// <param name="baseType">The base type of the built in type</param>
+        /// <param name="builtInType"> The built In type which is getting initialized </param>
+        /// <param name="name"> name of the built in type </param>
+        /// <param name="isAbstract"> whether the type is abstract or not </param>
+        /// <param name="isSealed"> whether the type is sealed or not </param>
+        /// <param name="baseType"> The base type of the built in type </param>
         private static void InitializeBuiltInTypes(
             ComplexType builtInType,
             string name,
@@ -609,10 +597,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Add properties for all the build in complex type
+        ///     Add properties for all the build in complex type
         /// </summary>
-        /// <param name="builtInTypeKind">The type of the built In type whose properties are being added</param>
-        /// <param name="properties">properties of the built in type</param>
+        /// <param name="builtInTypeKind"> The type of the built In type whose properties are being added </param>
+        /// <param name="properties"> properties of the built in type </param>
         private static void AddBuiltInTypeProperties(BuiltInTypeKind builtInTypeKind, EdmProperty[] properties)
         {
             var complexType = (ComplexType)GetBuiltInType(builtInTypeKind);
@@ -626,11 +614,11 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Initializes the enum type
+        ///     Initializes the enum type
         /// </summary>
-        /// <param name="builtInTypeKind">The built-in type kind enum value of this enum type</param>
-        /// <param name="name">The name of this enum type</param>
-        /// <param name="enumMemberNames">The member names of this enum type</param>
+        /// <param name="builtInTypeKind"> The built-in type kind enum value of this enum type </param>
+        /// <param name="name"> The name of this enum type </param>
+        /// <param name="enumMemberNames"> The member names of this enum type </param>
         private static void InitializeEnumType(
             BuiltInTypeKind builtInTypeKind,
             string name,
@@ -652,7 +640,5 @@ namespace System.Data.Entity.Core.Metadata.Edm
                 enumType.AddMember(new EnumMember(enumMemberNames[i], i));
             }
         }
-
-        #endregion
     }
 }

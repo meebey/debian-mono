@@ -1,20 +1,19 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.Validation
 {
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Edm.Parsing.Xml.Internal.Csdl;
-    using System.Data.Entity.Edm.Parsing.Xml.Internal.Ssdl;
     using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Linq;
     using System.Reflection;
 
     /// <summary>
-    ///     Builds validators based on <see cref = "ValidationAttribute" />s specified on entity CLR types and properties
-    ///     as well as based on presence of <see cref = "IValidatableObject" /> implementation on entity and complex
+    ///     Builds validators based on <see cref="ValidationAttribute" />s specified on entity CLR types and properties
+    ///     as well as based on presence of <see cref="IValidatableObject" /> implementation on entity and complex
     ///     type CLR types. It's not sealed and not static for mocking purposes.
     /// </summary>
     internal class EntityValidatorBuilder
@@ -23,24 +22,22 @@ namespace System.Data.Entity.Internal.Validation
 
         public EntityValidatorBuilder(AttributeProvider attributeProvider)
         {
-            Contract.Requires(attributeProvider != null);
+            DebugCheck.NotNull(attributeProvider);
 
             _attributeProvider = attributeProvider;
         }
 
         /// <summary>
-        ///     Builds an <see cref = "EntityValidator" /> for the given <paramref name = "entityEntry" />.
+        ///     Builds an <see cref="EntityValidator" /> for the given <paramref name="entityEntry" />.
         /// </summary>
-        /// <param name = "entityType">The entity entry to build the validator for.</param>
-        /// <param name = "targetType">Whether the currently processed type is the target type or one of the ancestor types.
-        /// </param>
+        /// <param name="entityType"> The entity entry to build the validator for. </param>
+        /// <param name="targetType"> Whether the currently processed type is the target type or one of the ancestor types. </param>
         /// <returns>
-        ///     <see cref = "EntityValidator" /> for the given <paramref name = "entityEntry" />. Possibly null 
-        ///     if no validation has been specified for this entity type.
+        ///     <see cref="EntityValidator" /> for the given <paramref name="entityEntry" /> . Possibly null if no validation has been specified for this entity type.
         /// </returns>
         public virtual EntityValidator BuildEntityValidator(InternalEntityEntry entityEntry)
         {
-            Contract.Requires(entityEntry != null);
+            DebugCheck.NotNull(entityEntry);
 
             return BuildTypeValidator(
                 entityEntry.EntityType,
@@ -51,17 +48,19 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Builds the validator for a given <paramref name = "complexType" /> and the corresponding
-        ///     <paramref name = "clrType" />.
+        ///     Builds the validator for a given <paramref name="complexType" /> and the corresponding
+        ///     <paramref name="clrType" />.
         /// </summary>
-        /// <param name = "clrType">The CLR type that corresponds to the EDM complex type.</param>
-        /// <param name = "complexType">The EDM complex type that type level validation is built for.</param>
-        /// <returns>A <see cref = "ComplexTypeValidator" /> for the given complex type. May be null if no validation specified.</returns>
+        /// <param name="clrType"> The CLR type that corresponds to the EDM complex type. </param>
+        /// <param name="complexType"> The EDM complex type that type level validation is built for. </param>
+        /// <returns>
+        ///     A <see cref="ComplexTypeValidator" /> for the given complex type. May be null if no validation specified.
+        /// </returns>
         protected virtual ComplexTypeValidator BuildComplexTypeValidator(Type clrType, ComplexType complexType)
         {
-            Contract.Requires(complexType != null);
-            Contract.Requires(clrType != null);
-            Contract.Assert(complexType.Name == clrType.Name);
+            DebugCheck.NotNull(complexType);
+            DebugCheck.NotNull(clrType);
+            Debug.Assert(complexType.Name == clrType.Name);
 
             return BuildTypeValidator(
                 clrType,
@@ -100,21 +99,21 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Build validators for the <paramref name = "clrProperties" /> and the corresponding <paramref name = "edmProperties" />
-        ///     or <paramref name = "navigationProperties" />.
+        ///     Build validators for the <paramref name="clrProperties" /> and the corresponding <paramref name="edmProperties" />
+        ///     or <paramref name="navigationProperties" />.
         /// </summary>
-        /// <param name = "clrProperties">Properties to build validators for.</param>
-        /// <param name = "edmProperties">Non-navigation EDM properties.</param>
-        /// <param name = "navigationProperties">Navigation EDM properties.</param>
-        /// <returns>A list of validators. Possibly empty, never null.</returns>
+        /// <param name="clrProperties"> Properties to build validators for. </param>
+        /// <param name="edmProperties"> Non-navigation EDM properties. </param>
+        /// <param name="navigationProperties"> Navigation EDM properties. </param>
+        /// <returns> A list of validators. Possibly empty, never null. </returns>
         protected virtual IList<PropertyValidator> BuildValidatorsForProperties(
             IEnumerable<PropertyInfo> clrProperties,
             IEnumerable<EdmProperty> edmProperties,
             IEnumerable<NavigationProperty> navigationProperties)
         {
-            Contract.Requires(edmProperties != null);
-            Contract.Requires(navigationProperties != null);
-            Contract.Requires(clrProperties != null);
+            DebugCheck.NotNull(edmProperties);
+            DebugCheck.NotNull(navigationProperties);
+            DebugCheck.NotNull(clrProperties);
 
             var validators = new List<PropertyValidator>();
 
@@ -158,22 +157,21 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Builds a <see cref = "PropertyValidator" /> for the given <paramref name = "edmProperty" /> and the corresponding
-        ///     <paramref name = "clrProperty" />. If the property is a complex type, type level validators will be built here as
+        ///     Builds a <see cref="PropertyValidator" /> for the given <paramref name="edmProperty" /> and the corresponding
+        ///     <paramref name="clrProperty" />. If the property is a complex type, type level validators will be built here as
         ///     well.
         /// </summary>
-        /// <param name = "clrProperty">The CLR property to build the validator for.</param>
-        /// <param name = "edmProperty">The EDM property to build the validator for.</param>
+        /// <param name="clrProperty"> The CLR property to build the validator for. </param>
+        /// <param name="edmProperty"> The EDM property to build the validator for. </param>
         /// <returns>
-        ///     <see cref = "PropertyValidator" /> for the given <paramref name = "edmProperty" />. Possibly null
-        ///     if no validation has been specified for this property.
+        ///     <see cref="PropertyValidator" /> for the given <paramref name="edmProperty" /> . Possibly null if no validation has been specified for this property.
         /// </returns>
         protected virtual PropertyValidator BuildPropertyValidator(
             PropertyInfo clrProperty, EdmProperty edmProperty, bool buildFacetValidators)
         {
-            Contract.Requires(clrProperty != null);
-            Contract.Requires(edmProperty != null);
-            Contract.Assert(clrProperty.Name == edmProperty.Name);
+            DebugCheck.NotNull(clrProperty);
+            DebugCheck.NotNull(edmProperty);
+            Debug.Assert(clrProperty.Name == edmProperty.Name);
 
             var propertyAttributeValidators = new List<IValidator>();
 
@@ -205,16 +203,15 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Builds a <see cref = "PropertyValidator" /> for the given transient <paramref name = "clrProperty" />.
+        ///     Builds a <see cref="PropertyValidator" /> for the given transient <paramref name="clrProperty" />.
         /// </summary>
-        /// <param name = "clrProperty">The CLR property to build the validator for.</param>
+        /// <param name="clrProperty"> The CLR property to build the validator for. </param>
         /// <returns>
-        ///     <see cref = "PropertyValidator" /> for the given <paramref name = "clrProperty" />. Possibly null
-        ///     if no validation has been specified for this property.
+        ///     <see cref="PropertyValidator" /> for the given <paramref name="clrProperty" /> . Possibly null if no validation has been specified for this property.
         /// </returns>
         protected virtual PropertyValidator BuildPropertyValidator(PropertyInfo clrProperty)
         {
-            Contract.Requires(clrProperty != null);
+            DebugCheck.NotNull(clrProperty);
 
             var propertyValidators = BuildValidationAttributeValidators(_attributeProvider.GetAttributes(clrProperty));
 
@@ -224,17 +221,16 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Builds <see cref = "ValidationAttributeValidator" />s for given <paramref name = "attributes" /> that derive from
-        ///     <see cref = "ValidationAttribute" />.
+        ///     Builds <see cref="ValidationAttributeValidator" />s for given <paramref name="attributes" /> that derive from
+        ///     <see cref="ValidationAttribute" />.
         /// </summary>
-        /// <param name = "attributes">Attributes used to build validators.</param>
+        /// <param name="attributes"> Attributes used to build validators. </param>
         /// <returns>
-        ///     A list of <see cref = "ValidationAttributeValidator" />s built from <paramref name = "attributes" />. 
-        ///     Possibly empty, never null. 
+        ///     A list of <see cref="ValidationAttributeValidator" /> s built from <paramref name="attributes" /> . Possibly empty, never null.
         /// </returns>
         protected virtual IList<IValidator> BuildValidationAttributeValidators(IEnumerable<Attribute> attributes)
         {
-            Contract.Requires(attributes != null);
+            DebugCheck.NotNull(attributes);
 
             return (from validationAttribute in attributes
                     where validationAttribute is ValidationAttribute
@@ -245,52 +241,55 @@ namespace System.Data.Entity.Internal.Validation
         }
 
         /// <summary>
-        ///     Returns all non-static non-indexed CLR properties from the <paramref name = "type" />.
+        ///     Returns all non-static non-indexed CLR properties from the <paramref name="type" />.
         /// </summary>
-        /// <param name = "type">The CLR <see cref = "Type" /> to get the properties from.</param>
-        /// <returns>
-        ///     A collection of CLR properties. Possibly empty, never null.
-        /// </returns>
+        /// <param name="type">
+        ///     The CLR <see cref="Type" /> to get the properties from.
+        /// </param>
+        /// <returns> A collection of CLR properties. Possibly empty, never null. </returns>
         protected virtual IEnumerable<PropertyInfo> GetPublicInstanceProperties(Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             return type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                .Where(p => p.GetIndexParameters().Length == 0 && p.GetGetMethod() != null);
+                       .Where(p => p.GetIndexParameters().Length == 0 && p.GetGetMethod() != null);
         }
 
         /// <summary>
-        ///     Builds validators based on the facets of <paramref name = "edmProperty" />:
+        ///     Builds validators based on the facets of <paramref name="edmProperty" />:
         ///     * If .Nullable facet set to false adds a validator equivalent to the RequiredAttribute
         ///     * If the .MaxLength facet is specified adds a validator equivalent to the MaxLengthAttribute.
         ///     However the validator isn't added if .IsMaxLength has been set to true.
         /// </summary>
-        /// <param name = "clrProperty">The CLR property to build the facet validators for.</param>
-        /// <param name = "edmProperty">The property for which facet validators will be created</param>
-        /// <returns>A collection of validators.</returns>
+        /// <param name="clrProperty"> The CLR property to build the facet validators for. </param>
+        /// <param name="edmProperty"> The property for which facet validators will be created </param>
+        /// <returns> A collection of validators. </returns>
         protected virtual IEnumerable<IValidator> BuildFacetValidators(
             PropertyInfo clrProperty, EdmMember edmProperty, IEnumerable<Attribute> existingAttributes)
         {
-            Contract.Requires(clrProperty != null);
-            Contract.Requires(edmProperty != null);
-            Contract.Requires(existingAttributes != null);
+            DebugCheck.NotNull(clrProperty);
+            DebugCheck.NotNull(edmProperty);
+            DebugCheck.NotNull(existingAttributes);
 
             var facetDerivedAttributes = new List<ValidationAttribute>();
 
             MetadataProperty storeGeneratedItem;
-            var metadataProperty = edmProperty.MetadataProperties.TryGetValue(
-                CsdlConstants.AnnotationNamespace + ":" + SsdlConstants.Attribute_StoreGeneratedPattern,
+
+            edmProperty.MetadataProperties.TryGetValue(
+                XmlConstants.AnnotationNamespace + ":" + XmlConstants.StoreGeneratedPattern,
                 false,
                 out storeGeneratedItem);
 
             var propertyIsStoreGenerated = storeGeneratedItem != null && storeGeneratedItem.Value != null;
 
             Facet nullable;
-            edmProperty.TypeUsage.Facets.TryGetValue(SsdlConstants.Attribute_Nullable, false, out nullable);
+            edmProperty.TypeUsage.Facets.TryGetValue(EdmConstants.Nullable, false, out nullable);
 
             var nullableFacetIsFalse = nullable != null && nullable.Value != null && !(bool)nullable.Value;
 
-            if (nullableFacetIsFalse && !propertyIsStoreGenerated && clrProperty.PropertyType.IsNullable()
+            if (nullableFacetIsFalse
+                && !propertyIsStoreGenerated
+                && clrProperty.PropertyType.IsNullable()
                 &&
                 !existingAttributes.Any(a => a is RequiredAttribute))
             {
@@ -302,8 +301,11 @@ namespace System.Data.Entity.Internal.Validation
             }
 
             Facet MaxLength;
-            edmProperty.TypeUsage.Facets.TryGetValue(SsdlConstants.Attribute_MaxLength, false, out MaxLength);
-            if (MaxLength != null && MaxLength.Value != null && MaxLength.Value is int &&
+            edmProperty.TypeUsage.Facets.TryGetValue(XmlConstants.MaxLengthElement, false, out MaxLength);
+            if (MaxLength != null
+                && MaxLength.Value != null
+                && MaxLength.Value is int
+                &&
                 !existingAttributes.Any(a => a is MaxLengthAttribute)
                 &&
                 !existingAttributes.Any(a => a is StringLengthAttribute))

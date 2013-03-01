@@ -1,14 +1,15 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils.Boolean
 {
     using System.Collections.Generic;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// A Visitor class that returns all the leaves in a boolean expression
+    ///     A Visitor class that returns all the leaves in a boolean expression
     /// </summary>
-    /// <typeparam name="T_Identifier">Type of leaf term identifiers in expression.</typeparam>
+    /// <typeparam name="T_Identifier"> Type of leaf term identifiers in expression. </typeparam>
     internal class LeafVisitor<T_Identifier> : Visitor<T_Identifier, bool>
     {
         private readonly List<TermExpr<T_Identifier>> _terms;
@@ -20,7 +21,7 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
 
         internal static List<TermExpr<T_Identifier>> GetTerms(BoolExpr<T_Identifier> expression)
         {
-            Debug.Assert(null != expression, "expression must be given");
+            DebugCheck.NotNull(expression);
             var visitor = new LeafVisitor<T_Identifier>();
             expression.Accept(visitor);
             return visitor._terms;

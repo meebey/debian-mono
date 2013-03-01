@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.Data.Entity.Config;
     using System.Data.Entity.Migrations.Design;
     using System.Data.Entity.Migrations.Sql;
+    using DaFunc;
     using Moq;
     using Xunit;
 
@@ -13,11 +15,11 @@ namespace System.Data.Entity.Migrations
         public void Can_get_and_set_migration_context_properties()
         {
             var migrationsConfiguration = new DbMigrationsConfiguration
-                {
-                    AutomaticMigrationsEnabled = false,
-                    ContextType = typeof(ShopContext_v1),
-                    CodeGenerator = new Mock<MigrationCodeGenerator>().Object
-                };
+                                              {
+                                                  AutomaticMigrationsEnabled = false,
+                                                  ContextType = typeof(ShopContext_v1),
+                                                  CodeGenerator = new Mock<MigrationCodeGenerator>().Object
+                                              };
 
             Assert.False(migrationsConfiguration.AutomaticMigrationsEnabled);
             Assert.NotNull(migrationsConfiguration.CodeGenerator);
@@ -53,10 +55,7 @@ namespace System.Data.Entity.Migrations
             var mockResolver = new Mock<IDbDependencyResolver>();
             mockResolver.Setup(m => m.GetService(typeof(MigrationSqlGenerator), "Gu.Hu.Ha")).Returns(generator);
 
-            var mockConfiguration = new Mock<DbConfiguration>();
-            mockConfiguration.Setup(m => m.DependencyResolver).Returns(mockResolver.Object);
-
-            var migrationsConfiguration = new DbMigrationsConfiguration(new Lazy<DbConfiguration>(() => mockConfiguration.Object));
+            var migrationsConfiguration = new DbMigrationsConfiguration(new Lazy<IDbDependencyResolver>(() => mockResolver.Object));
 
             if (setGenerator)
             {
@@ -73,7 +72,21 @@ namespace System.Data.Entity.Migrations
             new DbMigrationsConfiguration().SetSqlGenerator(DbProviders.SqlCe, new SqlServerMigrationSqlGenerator());
 
             Assert.IsType<SqlCeMigrationSqlGenerator>(
-                DbConfiguration.Instance.DependencyResolver.GetService<MigrationSqlGenerator>(DbProviders.SqlCe));
+                DbConfiguration.GetService<MigrationSqlGenerator>(DbProviders.SqlCe));
+        }
+
+        private class TestMigrationsConfiguration<TContext> : DbMigrationsConfiguration<TContext>
+            where TContext : DbContext
+        {
+        }
+
+        [Fact]
+        public void ContextKey_is_assigned_to_short_full_name_by_default()
+        {
+            var migrationsConfiguration
+                = new TestMigrationsConfiguration<GT<NT, NT>.GenericFuncy<GT<GT<NT, NT>, NT>, NT>>();
+
+            Assert.Equal(migrationsConfiguration.GetType().ToString(), migrationsConfiguration.ContextKey);
         }
     }
 }

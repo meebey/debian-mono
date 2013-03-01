@@ -1,16 +1,16 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Common;
+    using System.ComponentModel.DataAnnotations.Schema;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Common;
     using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Diagnostics;
     using System.Globalization;
     using System.Linq;
     using System.Reflection;
@@ -22,16 +22,16 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
         public TypeMapper(MappingContext mappingContext)
         {
-            Contract.Requires(mappingContext != null);
+            DebugCheck.NotNull(mappingContext);
 
             _mappingContext = mappingContext;
 
             _knownTypes.AddRange(
                 mappingContext.ModelConfiguration
-                    .ConfiguredTypes
-                    .Select(t => t.Assembly)
-                    .Distinct()
-                    .SelectMany(a => a.GetAccessibleTypes().Where(type => type.IsValidStructuralType())));
+                              .ConfiguredTypes
+                              .Select(t => t.Assembly)
+                              .Distinct()
+                              .SelectMany(a => a.GetAccessibleTypes().Where(type => type.IsValidStructuralType())));
         }
 
         public MappingContext MappingContext
@@ -39,35 +39,34 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             get { return _mappingContext; }
         }
 
-        public EdmEnumType MapEnumType(Type type)
+        public EnumType MapEnumType(Type type)
         {
-            Contract.Requires(type != null);
-            Contract.Assert(type.IsEnum);
+            DebugCheck.NotNull(type);
+            Debug.Assert(type.IsEnum);
 
             var enumType = _mappingContext.Model.GetEnumType(type.Name);
 
             if (enumType == null)
             {
-                EdmPrimitiveType primitiveType;
+                PrimitiveType primitiveType;
                 if (!Enum.GetUnderlyingType(type).IsPrimitiveType(out primitiveType))
                 {
                     return null;
                 }
 
-                enumType = _mappingContext.Model.AddEnumType(type.Name);
+                enumType = _mappingContext.Model.AddEnumType(type.Name, _mappingContext.ModelConfiguration.ModelNamespace);
                 enumType.IsFlags = type.GetCustomAttributes(typeof(FlagsAttribute), false).Any();
                 enumType.SetClrType(type);
 
                 enumType.UnderlyingType = primitiveType;
 
-                Enum.GetNames(type)
-                    .Zip(
-                        Enum.GetValues(type).Cast<object>(), (n, v) => new
-                            {
-                                n,
-                                v
-                            })
-                    .Each(m => enumType.AddMember(m.n, Convert.ToInt64(m.v, CultureInfo.InvariantCulture)));
+                foreach (var name in Enum.GetNames(type))
+                {
+                    enumType.AddMember(
+                        new EnumMember(
+                            name,
+                            Convert.ChangeType(Enum.Parse(type, name), type.GetEnumUnderlyingType(), CultureInfo.InvariantCulture)));
+                }
             }
             else if (type != enumType.GetClrType())
             {
@@ -78,9 +77,9 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             return enumType;
         }
 
-        public EdmComplexType MapComplexType(Type type, bool discoverNested = false)
+        public ComplexType MapComplexType(Type type, bool discoverNested = false)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             if (!type.IsValidStructuralType())
             {
@@ -99,7 +98,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
             if (complexType == null)
             {
-                complexType = _mappingContext.Model.AddComplexType(type.Name);
+                complexType = _mappingContext.Model.AddComplexType(type.Name, _mappingContext.ModelConfiguration.ModelNamespace);
 
                 var complexTypeConfiguration
                     = new Func<ComplexTypeConfiguration>(() => _mappingContext.ModelConfiguration.ComplexType(type));
@@ -122,9 +121,9 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             return complexType;
         }
 
-        public EdmEntityType MapEntityType(Type type)
+        public EntityType MapEntityType(Type type)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             if (!type.IsValidStructuralType())
             {
@@ -143,10 +142,10 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
             if (entityType == null)
             {
-                entityType = _mappingContext.Model.AddEntityType(type.Name);
-                entityType.IsAbstract = type.IsAbstract;
+                entityType = _mappingContext.Model.AddEntityType(type.Name, _mappingContext.ModelConfiguration.ModelNamespace);
+                entityType.Abstract = type.IsAbstract;
 
-                Contract.Assert(type.BaseType != null);
+                Debug.Assert(type.BaseType != null);
 
                 var baseType = _mappingContext.Model.GetEntityType(type.BaseType.Name);
 
@@ -174,9 +173,11 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
                     entityType.BaseType != null,
                     entityTypeConfiguration);
 
+                // If the base type was discovered through a navigation property
+                // then the inherited properties mapped afterwards need to be lifted
                 if (entityType.BaseType != null)
                 {
-                    LiftDeclaredProperties(type, entityType);
+                    LiftInheritedProperties(type, entityType);
                 }
 
                 MapDerivedTypes(type, entityType);
@@ -198,10 +199,10 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             Func<TStructuralTypeConfiguration> structuralTypeConfiguration)
             where TStructuralTypeConfiguration : StructuralTypeConfiguration
         {
-            Contract.Requires(type != null);
-            Contract.Requires(annotations != null);
-            Contract.Requires(propertyMappingAction != null);
-            Contract.Requires(structuralTypeConfiguration != null);
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(annotations);
+            DebugCheck.NotNull(propertyMappingAction);
+            DebugCheck.NotNull(structuralTypeConfiguration);
 
             annotations.SetClrType(type);
 
@@ -228,10 +229,10 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             }
         }
 
-        private void MapDerivedTypes(Type type, EdmEntityType entityType)
+        private void MapDerivedTypes(Type type, EntityType entityType)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(entityType != null);
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(entityType);
 
             if (type.IsSealed)
             {
@@ -256,21 +257,21 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             }
         }
 
-        private void LiftDerivedType(Type derivedType, EdmEntityType derivedEntityType, EdmEntityType entityType)
+        private void LiftDerivedType(Type derivedType, EntityType derivedEntityType, EntityType entityType)
         {
-            Contract.Requires(derivedType != null);
-            Contract.Requires(derivedEntityType != null);
-            Contract.Requires(entityType != null);
+            DebugCheck.NotNull(derivedType);
+            DebugCheck.NotNull(derivedEntityType);
+            DebugCheck.NotNull(entityType);
 
             _mappingContext.Model.ReplaceEntitySet(derivedEntityType, _mappingContext.Model.GetEntitySet(entityType));
 
-            LiftDeclaredProperties(derivedType, derivedEntityType);
+            LiftInheritedProperties(derivedType, derivedEntityType);
         }
 
-        private void LiftDeclaredProperties(Type type, EdmEntityType entityType)
+        private void LiftInheritedProperties(Type type, EntityType entityType)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(entityType != null);
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(entityType);
 
             var entityTypeConfiguration
                 = _mappingContext.ModelConfiguration.GetStructuralTypeConfiguration(type) as EntityTypeConfiguration;
@@ -279,12 +280,10 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             {
                 entityTypeConfiguration.ClearKey();
 
-                foreach (
-                    var property in
-                        type.BaseType.GetProperties(
-                            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                foreach (var property in type.BaseType.GetProperties(
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
                 {
-                    if (property.DeclaringType != type
+                    if (!_mappingContext.AttributeProvider.GetAttributes(property).OfType<NotMappedAttribute>().Any()
                         && entityTypeConfiguration.IgnoredProperties.Any(p => p.IsSameAs(property)))
                     {
                         throw Error.CannotIgnoreMappedBaseProperty(property.Name, type, property.DeclaringType);
@@ -292,36 +291,39 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
                 }
             }
 
-            LiftDeclaredProperties(type, entityType.DeclaredKeyProperties, entityTypeConfiguration);
-            LiftDeclaredProperties(type, entityType.DeclaredProperties, entityTypeConfiguration);
-            LiftDeclaredProperties(type, entityType.DeclaredNavigationProperties, entityTypeConfiguration);
+            LiftInheritedProperties(type, entityType, entityTypeConfiguration);
         }
 
-        private void LiftDeclaredProperties<TProperty>(
-            Type type, IList<TProperty> properties, EntityTypeConfiguration entityTypeConfiguration)
-            where TProperty : EdmStructuralMember
+        private void LiftInheritedProperties(
+            Type type, EntityType entityType, EntityTypeConfiguration entityTypeConfiguration)
         {
-            Contract.Requires(type != null);
-            Contract.Requires(properties != null);
+            DebugCheck.NotNull(type);
+            DebugCheck.NotNull(entityType);
 
-            for (var i = properties.Count - 1; i >= 0; i--)
+            var members = entityType.DeclaredMembers.ToList();
+
+            foreach (var member in members)
             {
-                var property = properties[i];
-                var propertyInfo = property.GetClrPropertyInfo();
-                var declaringType = propertyInfo.DeclaringType;
+                var propertyInfo = member.GetClrPropertyInfo();
 
-                if (declaringType != type)
+                var declaredProperties
+                    = new PropertyFilter(_mappingContext.Model.Version)
+                        .GetProperties(
+                            type,
+                            /*declaredOnly:*/ true,
+                            _mappingContext.ModelConfiguration.GetConfiguredProperties(type),
+                            _mappingContext.ModelConfiguration.StructuralTypes);
+
+                if (!declaredProperties.Contains(propertyInfo))
                 {
-                    Contract.Assert(declaringType.IsAssignableFrom(type));
-
-                    var navigationProperty = property as EdmNavigationProperty;
+                    var navigationProperty = member as NavigationProperty;
 
                     if (navigationProperty != null)
                     {
                         _mappingContext.Model.RemoveAssociationType(navigationProperty.Association);
                     }
 
-                    properties.RemoveAt(i);
+                    entityType.RemoveMember(member);
 
                     if (entityTypeConfiguration != null)
                     {

@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.Internal
 {
     using System.Collections.Generic;
@@ -166,12 +167,19 @@ namespace System.Data.Entity.Core.Objects.Internal
             }
         }
 
+        private static DynamicMethod CreateDynamicMethod(string name, Type returnType, Type[] parameterTypes)
+        {
+            // Create a transparent dynamic method (Module not specified) to ensure we do not satisfy any link demands
+            // in method callees.
+            return new DynamicMethod(name, returnType, parameterTypes, true);
+        }
+
         public DynamicMethod CreateInitalizeCollectionMethod(Type proxyType)
         {
             if (_collectionProperties.Count > 0)
             {
                 var initializeEntityCollections =
-                    LightweightCodeGenerator.CreateDynamicMethod(
+                    CreateDynamicMethod(
                         proxyType.Name + "_InitializeEntityCollections", typeof(IEntityWrapper), new[] { typeof(IEntityWrapper) });
                 var generator = initializeEntityCollections.GetILGenerator();
                 generator.DeclareLocal(proxyType);
@@ -266,14 +274,22 @@ namespace System.Data.Entity.Core.Objects.Internal
 
                     var propertyType = baseProperty.PropertyType;
 
-                    if (propertyType == typeof(int) || // signed integer types
-                        propertyType == typeof(short) ||
-                        propertyType == typeof(Int64) ||
-                        propertyType == typeof(bool) || // boolean
-                        propertyType == typeof(byte) ||
-                        propertyType == typeof(UInt32) ||
-                        propertyType == typeof(UInt64) ||
-                        propertyType == typeof(float) ||
+                    if (propertyType == typeof(int)
+                        || // signed integer types
+                        propertyType == typeof(short)
+                        ||
+                        propertyType == typeof(Int64)
+                        ||
+                        propertyType == typeof(bool)
+                        || // boolean
+                        propertyType == typeof(byte)
+                        ||
+                        propertyType == typeof(UInt32)
+                        ||
+                        propertyType == typeof(UInt64)
+                        ||
+                        propertyType == typeof(float)
+                        ||
                         propertyType == typeof(double)
                         ||
                         propertyType.IsEnum)

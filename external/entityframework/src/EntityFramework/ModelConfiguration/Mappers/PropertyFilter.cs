@@ -1,12 +1,12 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm.Common;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Spatial;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Reflection;
 
@@ -26,9 +26,10 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
             Type type,
             bool declaredOnly,
             IEnumerable<PropertyInfo> explicitlyMappedProperties = null,
-            IEnumerable<Type> knownTypes = null)
+            IEnumerable<Type> knownTypes = null,
+            bool includePrivate = false)
         {
-            Contract.Requires(type != null);
+            DebugCheck.NotNull(type);
 
             explicitlyMappedProperties = explicitlyMappedProperties ?? Enumerable.Empty<PropertyInfo>();
             knownTypes = knownTypes ?? Enumerable.Empty<Type>();
@@ -44,9 +45,8 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
                 = from p in type.GetProperties(bindingFlags)
                   where p.IsValidStructuralProperty()
                   let m = p.GetGetMethod(true)
-                  where (m.IsPublic || explicitlyMappedProperties.Contains(p) || knownTypes.Contains(p.PropertyType))
-                        &&
-                        (!declaredOnly || !type.BaseType.GetProperties(DefaultBindingFlags).Any(bp => bp.Name == p.Name))
+                  where (includePrivate || (m.IsPublic || explicitlyMappedProperties.Contains(p) || knownTypes.Contains(p.PropertyType)))
+                        && (!declaredOnly || type.BaseType.GetProperties(DefaultBindingFlags).All(bp => bp.Name != p.Name))
                         && (EdmV3FeaturesSupported || !IsEnumType(p.PropertyType)
                             && (EdmV3FeaturesSupported || !IsSpatialType(p.PropertyType)))
                   select p;
@@ -75,7 +75,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers
 
         public bool EdmV3FeaturesSupported
         {
-            get { return _edmModelVersion == null || _edmModelVersion >= DataModelVersions.Version3; }
+            get { return _edmModelVersion == null || _edmModelVersion >= XmlConstants.EdmVersionForV3; }
         }
 
         private static bool IsEnumType(Type type)

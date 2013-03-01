@@ -780,6 +780,25 @@ fail:
 	return NULL;
 }
 
+/*
+ * mono_inflate_generic_signature:
+ *
+ *   Inflate SIG with CONTEXT, and return a canonical copy. On error, set ERROR, and return NULL.
+ */
+MonoMethodSignature*
+mono_inflate_generic_signature (MonoMethodSignature *sig, MonoGenericContext *context, MonoError *error)
+{
+	MonoMethodSignature *res, *cached;
+
+	res = inflate_generic_signature_checked (NULL, sig, context, error);
+	if (!mono_error_ok (error))
+		return NULL;
+	cached = mono_metadata_get_inflated_signature (res, context);
+	if (cached != res)
+		mono_metadata_free_inflated_signature (res);
+	return cached;
+}
+
 static MonoMethodHeader*
 inflate_generic_header (MonoMethodHeader *header, MonoGenericContext *context)
 {
@@ -835,9 +854,11 @@ mono_method_get_signature_full (MonoMethod *method, MonoImage *image, guint32 to
 	if (method->klass->generic_class)
 		return mono_method_signature (method);
 
+#ifndef DISABLE_REFLECTION_EMIT
 	if (image->dynamic) {
 		sig = mono_reflection_lookup_signature (image, method, token);
 	} else {
+#endif
 		mono_metadata_decode_row (&image->tables [MONO_TABLE_MEMBERREF], idx-1, cols, MONO_MEMBERREF_SIZE);
 		sig_idx = cols [MONO_MEMBERREF_SIGNATURE];
 
@@ -866,7 +887,9 @@ mono_method_get_signature_full (MonoMethod *method, MonoImage *image, guint32 to
 			mono_loader_set_error_bad_image (g_strdup_printf ("Incompatible method signature class token 0x%08x field name %s token 0x%08x on image %s", class, fname, token, image->name));
 			return NULL;
 		}
+#ifndef DISABLE_REFLECTION_EMIT
 	}
+#endif
 
 
 	if (context) {
@@ -2424,9 +2447,8 @@ mono_method_signature_checked (MonoMethod *m, MonoError *error)
 
 		signature = mono_metadata_parse_method_signature_full (img, container, idx, sig_body, NULL);
 		if (!signature) {
-			mono_loader_clear_error ();
+			mono_error_set_from_loader_error (error);
 			mono_loader_unlock ();
-			mono_error_set_method_load (error, m->klass, m->name, "");
 			return NULL;
 		}
 

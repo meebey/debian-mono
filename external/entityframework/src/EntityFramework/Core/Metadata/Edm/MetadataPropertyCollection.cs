@@ -1,22 +1,22 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.Utils;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Reflection;
 
     /// <summary>
-    /// Metadata collection class supporting delay-loading of system item attributes and
-    /// extended attributes.
+    ///     Metadata collection class supporting delay-loading of system item attributes and
+    ///     extended attributes.
     /// </summary>
     internal sealed class MetadataPropertyCollection : MetadataCollection<MetadataProperty>
     {
         /// <summary>
-        /// Constructor taking item.
+        ///     Constructor taking item.
         /// </summary>
-        /// <param name="item">Item with which the collection is associated.</param>
+        /// <param name="item"> Item with which the collection is associated. </param>
         internal MetadataPropertyCollection(MetadataItem item)
             : base(GetSystemMetadataProperties(item))
         {
@@ -28,7 +28,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
         // Given an item, returns all system type attributes for the item.
         private static IEnumerable<MetadataProperty> GetSystemMetadataProperties(MetadataItem item)
         {
-            Contract.Requires(item != null);
+            DebugCheck.NotNull(item);
+
             var type = item.GetType();
             var itemTypeInformation = GetItemTypeInformation(type);
             return itemTypeInformation.GetItemAttributes(item);
@@ -41,18 +42,18 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Encapsulates information about system item attributes for a particular item type.
+        ///     Encapsulates information about system item attributes for a particular item type.
         /// </summary>
         private class ItemTypeInformation
         {
             /// <summary>
-            /// Retrieves system attribute information for the given type.
-            /// Requires: type must derive from MetadataItem
+            ///     Retrieves system attribute information for the given type.
+            ///     Requires: type must derive from MetadataItem
             /// </summary>
-            /// <param name="clrType">Type</param>
+            /// <param name="clrType"> Type </param>
             internal ItemTypeInformation(Type clrType)
             {
-                Debug.Assert(null != clrType);
+                DebugCheck.NotNull(clrType);
 
                 _itemProperties = GetItemProperties(clrType);
             }
@@ -86,20 +87,20 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Encapsulates information about a CLR property of an item class.
+        ///     Encapsulates information about a CLR property of an item class.
         /// </summary>
         private class ItemPropertyInfo
         {
             /// <summary>
-            /// Initialize information.
-            /// Requires: attribute must belong to the given property.
+            ///     Initialize information.
+            ///     Requires: attribute must belong to the given property.
             /// </summary>
-            /// <param name="propertyInfo">Property referenced.</param>
-            /// <param name="attribute">Attribute for the property.</param>
+            /// <param name="propertyInfo"> Property referenced. </param>
+            /// <param name="attribute"> Attribute for the property. </param>
             internal ItemPropertyInfo(PropertyInfo propertyInfo, MetadataPropertyAttribute attribute)
             {
-                Debug.Assert(null != propertyInfo);
-                Debug.Assert(null != attribute);
+                DebugCheck.NotNull(propertyInfo);
+                DebugCheck.NotNull(attribute);
 
                 _propertyInfo = propertyInfo;
                 _attribute = attribute;
@@ -109,10 +110,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
             private readonly PropertyInfo _propertyInfo;
 
             /// <summary>
-            /// Given an item, returns an instance of the item attribute described by this class.
+            ///     Given an item, returns an instance of the item attribute described by this class.
             /// </summary>
-            /// <param name="item">Item from which to retrieve attribute.</param>
-            /// <returns>Item attribute.</returns>
+            /// <param name="item"> Item from which to retrieve attribute. </param>
+            /// <returns> Item attribute. </returns>
             internal MetadataProperty GetMetadataProperty(MetadataItem item)
             {
                 return new MetadataProperty(

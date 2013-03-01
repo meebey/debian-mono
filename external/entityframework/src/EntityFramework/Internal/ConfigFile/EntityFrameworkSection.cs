@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Internal.ConfigFile
 {
     using System.Configuration;
@@ -12,6 +13,8 @@ namespace System.Data.Entity.Internal.ConfigFile
         private const string DefaultConnectionFactoryKey = "defaultConnectionFactory";
         private const string ContextsKey = "contexts";
         private const string ProviderKey = "providers";
+        private const string ConfigurationTypeKey = "codeConfigurationType";
+        private const string SpatialProviderTypeKey = "spatialProviderType";
 
         [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         [ConfigurationProperty(DefaultConnectionFactoryKey)]
@@ -19,6 +22,20 @@ namespace System.Data.Entity.Internal.ConfigFile
         {
             get { return (DefaultConnectionFactoryElement)this[DefaultConnectionFactoryKey]; }
             set { this[DefaultConnectionFactoryKey] = value; }
+        }
+
+        [ConfigurationProperty(ConfigurationTypeKey)]
+        public virtual string ConfigurationTypeName
+        {
+            get { return (string)this[ConfigurationTypeKey]; }
+            set { this[ConfigurationTypeKey] = value; }
+        }
+
+        [ConfigurationProperty(SpatialProviderTypeKey)]
+        public virtual string SpatialProviderTypeName
+        {
+            get { return (string)this[SpatialProviderTypeKey]; }
+            set { this[SpatialProviderTypeKey] = value; }
         }
 
         [ConfigurationProperty(ProviderKey)]

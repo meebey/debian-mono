@@ -1,7 +1,8 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Types.UnitTests
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
     using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.ModelConfiguration.Utilities;
@@ -14,7 +15,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types.UnitTests
         [Fact]
         public void Configure_should_set_configuration()
         {
-            var complexType = new EdmComplexType { Name = "C" };
+            var complexType = new ComplexType("C");
             var complexTypeConfiguration = new ComplexTypeConfiguration(typeof(object));
 
             complexTypeConfiguration.Configure(complexType);
@@ -25,9 +26,12 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types.UnitTests
         [Fact]
         public void Configure_should_configure_properties()
         {
-            var complexType = new EdmComplexType { Name = "C" };
-            var property = complexType.AddPrimitiveProperty("P");
-            property.PropertyType.EdmType = EdmPrimitiveType.Int32;
+            var complexType = new ComplexType("C");
+
+            var property1 = EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
+
+            complexType.AddMember(property1);
+            var property = property1;
             var complexTypeConfiguration = new ComplexTypeConfiguration(typeof(object));
             var mockPropertyConfiguration = new Mock<PrimitivePropertyConfiguration>();
             var mockPropertyInfo = new MockPropertyInfo();
@@ -42,12 +46,14 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types.UnitTests
         [Fact]
         public void Configure_should_throw_when_property_not_found()
         {
-            var complexType = new EdmComplexType { Name = "C" };
+            var complexType = new ComplexType("C");
             var complexTypeConfiguration = new ComplexTypeConfiguration(typeof(object));
             var mockPropertyConfiguration = new Mock<PrimitivePropertyConfiguration>();
             complexTypeConfiguration.Property(new PropertyPath(new MockPropertyInfo()), () => mockPropertyConfiguration.Object);
 
-            Assert.Equal(Strings.PropertyNotFound(("P"), "C"), Assert.Throws<InvalidOperationException>(() => complexTypeConfiguration.Configure(complexType)).Message);
+            Assert.Equal(
+                Strings.PropertyNotFound(("P"), "C"),
+                Assert.Throws<InvalidOperationException>(() => complexTypeConfiguration.Configure(complexType)).Message);
         }
     }
 }

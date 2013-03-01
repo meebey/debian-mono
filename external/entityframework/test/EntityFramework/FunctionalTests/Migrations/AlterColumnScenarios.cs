@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.Linq;
@@ -42,7 +43,7 @@ namespace System.Data.Entity.Migrations
             }
         }
 
-        [MigrationsTheory] // TODO: Can't handle this yet (table rebuild)
+        [MigrationsTheory]
         public void Can_change_column_to_identity_column_when_no_data_present()
         {
             ResetDatabase();
@@ -54,8 +55,6 @@ namespace System.Data.Entity.Migrations
             migrator = CreateMigrator<ShopContext_v1>(new AlterColumnWithIdentityMigration());
 
             migrator.Update();
-
-            // TODO: Assert column is identity
         }
 
         private class AlterColumnMigration : DbMigration

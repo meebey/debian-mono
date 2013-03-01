@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -12,12 +13,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Text;
 
     /// <summary>
-    /// A class to denote a part of the WITH RELATIONSHIP clause.
+    ///     A class to denote a part of the WITH RELATIONSHIP clause.
     /// </summary>
     internal sealed class WithRelationship : InternalBase
     {
-        #region Constructors
-
         internal WithRelationship(
             AssociationSet associationSet,
             AssociationEndMember fromEnd,
@@ -35,10 +34,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_toEndEntityKeyMemberPaths = toEndEntityKeyMemberPaths;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly AssociationSet m_associationSet;
         private readonly RelationshipEndMember m_fromEnd;
         private readonly EntityType m_fromEndEntityType;
@@ -47,18 +42,10 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         private readonly EntitySet m_toEndEntitySet;
         private readonly IEnumerable<MemberPath> m_toEndEntityKeyMemberPaths;
 
-        #endregion
-
-        #region Properties
-
         internal EntityType FromEndEntityType
         {
             get { return m_fromEndEntityType; }
         }
-
-        #endregion
-
-        #region Methods
 
         internal StringBuilder AsEsql(StringBuilder builder, string blockAlias, int indentLevel)
         {
@@ -101,13 +88,11 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Not supported in this class.
+        ///     Not supported in this class.
         /// </summary>
         internal override void ToCompactString(StringBuilder builder)
         {
             Debug.Fail("Should not be called.");
         }
-
-        #endregion
     }
 }

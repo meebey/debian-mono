@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.Utils.Boolean
 {
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// Converts a BoolExpr to a Vertex within a solver.
+    ///     Converts a BoolExpr to a Vertex within a solver.
     /// </summary>
     internal class ToDecisionDiagramConverter<T_Identifier> : Visitor<T_Identifier, Vertex>
     {
@@ -13,13 +14,13 @@ namespace System.Data.Entity.Core.Common.Utils.Boolean
 
         private ToDecisionDiagramConverter(ConversionContext<T_Identifier> context)
         {
-            Debug.Assert(null != context, "must provide a context");
+            DebugCheck.NotNull(context);
             _context = context;
         }
 
         internal static Vertex TranslateToRobdd(BoolExpr<T_Identifier> expr, ConversionContext<T_Identifier> context)
         {
-            Debug.Assert(null != expr, "must provide an expression");
+            DebugCheck.NotNull(expr);
             var converter =
                 new ToDecisionDiagramConverter<T_Identifier>(context);
             return expr.Accept(converter);

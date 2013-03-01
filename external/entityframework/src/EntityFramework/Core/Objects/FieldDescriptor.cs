@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects
 {
     using System.Collections.Generic;
@@ -6,8 +7,8 @@ namespace System.Data.Entity.Core.Objects
     using System.Data.Common;
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Globalization;
 
@@ -19,25 +20,23 @@ namespace System.Data.Entity.Core.Objects
         private readonly bool _isReadOnly;
 
         /// <summary>
-        /// For testing purpuses only.
+        ///     For testing purpuses only.
         /// </summary>
-        /// <param name="propertyName"></param>
+        /// <param name="propertyName"> </param>
         internal FieldDescriptor(string propertyName)
             : base(propertyName, null)
         {
         }
 
         /// <summary>
-        /// Construct a new instance of the FieldDescriptor class that describes a property
-        /// on items of the supplied type.
+        ///     Construct a new instance of the FieldDescriptor class that describes a property
+        ///     on items of the supplied type.
         /// </summary>
-        /// <param name="itemType">Type of object whose property is described by this FieldDescriptor.</param>
+        /// <param name="itemType"> Type of object whose property is described by this FieldDescriptor. </param>
         /// <param name="isReadOnly">
-        /// <b>True</b> if property value on item can be modified; otherwise <b>false</b>.
+        ///     <b>True</b> if property value on item can be modified; otherwise <b>false</b> .
         /// </param>
-        /// <param name="property">
-        /// EdmProperty that describes the property on the item.
-        /// </param>
+        /// <param name="property"> EdmProperty that describes the property on the item. </param>
         internal FieldDescriptor(Type itemType, bool isReadOnly, EdmProperty property)
             : base(property.Name, null)
         {
@@ -49,10 +48,10 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Determine a CLR Type to use a property descriptro form an EDM TypeUsage
+        ///     Determine a CLR Type to use a property descriptro form an EDM TypeUsage
         /// </summary>
-        /// <param name="typeUsage">The EDM TypeUsage containing metadata about the type</param>
-        /// <returns>A CLR type that represents that EDM type</returns>
+        /// <param name="typeUsage"> The EDM TypeUsage containing metadata about the type </param>
+        /// <returns> A CLR type that represents that EDM type </returns>
         private Type DetermineClrType(TypeUsage typeUsage)
         {
             Type result = null;
@@ -79,7 +78,8 @@ namespace System.Data.Entity.Core.Objects
                 case BuiltInTypeKind.EnumType:
                     result = edmType.ClrType;
                     Facet nullable;
-                    if (result.IsValueType &&
+                    if (result.IsValueType
+                        &&
                         typeUsage.Facets.TryGetValue(DbProviderManifest.NullableFacetName, false, out nullable)
                         && ((bool)nullable.Value))
                     {
@@ -104,11 +104,10 @@ namespace System.Data.Entity.Core.Objects
         }
 
         /// <summary>
-        /// Get <see cref="EdmProperty"/> instance associated with this field descriptor.
+        ///     Get <see cref="EdmProperty" /> instance associated with this field descriptor.
         /// </summary>
         /// <value>
-        /// The <see cref="EdmProperty"/> instance associated with this field descriptor,
-        /// or null if there is no EDM property association.
+        ///     The <see cref="EdmProperty" /> instance associated with this field descriptor, or null if there is no EDM property association.
         /// </value>
         internal EdmProperty EdmProperty
         {
@@ -137,7 +136,7 @@ namespace System.Data.Entity.Core.Objects
 
         public override object GetValue(object item)
         {
-            DbHelpers.ThrowIfNull(item, "item");
+            Check.NotNull(item, "item");
 
             if (!_itemType.IsAssignableFrom(item.GetType()))
             {
@@ -153,7 +152,7 @@ namespace System.Data.Entity.Core.Objects
             }
             else
             {
-                propertyValue = LightweightCodeGenerator.GetValue(_property, item);
+                propertyValue = DelegateFactory.GetValue(_property, item);
             }
 
             return propertyValue;
@@ -166,7 +165,7 @@ namespace System.Data.Entity.Core.Objects
 
         public override void SetValue(object item, object value)
         {
-            DbHelpers.ThrowIfNull(item, "item");
+            Check.NotNull(item, "item");
 
             if (!_itemType.IsAssignableFrom(item.GetType()))
             {
@@ -174,7 +173,7 @@ namespace System.Data.Entity.Core.Objects
             }
             if (!_isReadOnly)
             {
-                LightweightCodeGenerator.SetValue(_property, item, value);
+                DelegateFactory.SetValue(_property, item, value);
             } // if not entity it must be readonly
             else
             {

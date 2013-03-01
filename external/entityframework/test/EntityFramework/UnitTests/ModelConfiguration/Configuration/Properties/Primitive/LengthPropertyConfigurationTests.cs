@@ -1,51 +1,51 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
-    using System.Data.Entity.ModelConfiguration.Edm;
+    using System.Data.Entity.Resources;
     using Xunit;
-    using Strings = System.Data.Entity.Resources.Strings;
 
     public abstract class LengthPropertyConfigurationTests : PrimitivePropertyConfigurationTests
     {
         [Fact]
         public void Configure_should_update_MaxLength()
         {
-            var property = new EdmProperty().AsPrimitive();
+            var property = EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
 
             var configuration = CreateConfiguration();
             configuration.MaxLength = 1;
 
             configuration.Configure(property);
 
-            Assert.Equal(1, property.PropertyType.PrimitiveTypeFacets.MaxLength);
+            Assert.Equal(1, property.MaxLength);
         }
 
         [Fact]
         public void Configure_should_update_IsFixedLength()
         {
-            var property = new EdmProperty().AsPrimitive();
+            var property = EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
 
             var configuration = CreateConfiguration();
             configuration.IsFixedLength = true;
 
             configuration.Configure(property);
 
-            Assert.Equal(true, property.PropertyType.PrimitiveTypeFacets.IsFixedLength);
+            Assert.Equal(true, property.IsFixedLength);
         }
 
         [Fact]
         public void Configure_should_update_IsMaxLength()
         {
-            var property = new EdmProperty().AsPrimitive();
+            var property = EdmProperty.Primitive("P", PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String));
 
             var configuration = CreateConfiguration();
             configuration.IsMaxLength = true;
 
             configuration.Configure(property);
 
-            Assert.Equal(true, property.PropertyType.PrimitiveTypeFacets.IsMaxLength);
+            Assert.Equal(true, property.IsMaxLength);
         }
 
         [Fact]
@@ -295,8 +295,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationB.MaxLength = 2;
 
             var expectedMessage = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "MaxLength", 1, "MaxLength", 2);
+                                  Strings.ConflictingConfigurationValue(
+                                      "MaxLength", 1, "MaxLength", 2);
 
             string errorMessage;
             Assert.False(configurationA.IsCompatible(configurationB, false, out errorMessage));
@@ -342,8 +342,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationB.IsFixedLength = true;
 
             var expectedMessage = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsFixedLength", false, "IsFixedLength", true);
+                                  Strings.ConflictingConfigurationValue(
+                                      "IsFixedLength", false, "IsFixedLength", true);
 
             string errorMessage;
             Assert.False(configurationA.IsCompatible(configurationB, false, out errorMessage));
@@ -389,8 +389,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.UnitTests
             configurationB.IsMaxLength = true;
 
             var expectedMessage = Environment.NewLine + "\t" +
-                Strings.ConflictingConfigurationValue(
-                    "IsMaxLength", false, "IsMaxLength", true);
+                                  Strings.ConflictingConfigurationValue(
+                                      "IsMaxLength", false, "IsMaxLength", true);
 
             string errorMessage;
             Assert.False(configurationA.IsCompatible(configurationB, false, out errorMessage));

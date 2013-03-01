@@ -1,31 +1,38 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Edm;
     using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
+    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Reflection;
 
-    internal class ForeignKeyConstraintConfiguration : ConstraintConfiguration
+    /// <summary>
+    ///     Used to configure a foreign key constraint on a navigation property.
+    /// </summary>
+    public class ForeignKeyConstraintConfiguration : ConstraintConfiguration
     {
         private readonly List<PropertyInfo> _dependentProperties = new List<PropertyInfo>();
         private readonly bool _isFullySpecified;
 
-        internal ForeignKeyConstraintConfiguration()
+        /// <summary>
+        ///     Initializes a new instance of the ForeignKeyConstraintConfiguration class.
+        /// </summary>
+        public ForeignKeyConstraintConfiguration()
         {
         }
 
         internal ForeignKeyConstraintConfiguration(IEnumerable<PropertyInfo> dependentProperties)
         {
-            Contract.Requires(dependentProperties != null);
-            Contract.Assert(dependentProperties.Any());
+            DebugCheck.NotNull(dependentProperties);
+            Debug.Assert(dependentProperties.Any());
 
             _dependentProperties.AddRange(dependentProperties);
 
@@ -34,7 +41,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigat
 
         private ForeignKeyConstraintConfiguration(ForeignKeyConstraintConfiguration source)
         {
-            Contract.Requires(source != null);
+            DebugCheck.NotNull(source);
 
             _dependentProperties.AddRange(source._dependentProperties);
             _isFullySpecified = source._isFullySpecified;
@@ -45,19 +52,24 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigat
             return new ForeignKeyConstraintConfiguration(this);
         }
 
-        internal override bool IsFullySpecified
+        /// <inheritdoc />
+        public override bool IsFullySpecified
         {
             get { return _isFullySpecified; }
         }
 
-        internal IEnumerable<PropertyInfo> DependentProperties
+        internal IEnumerable<PropertyInfo> ToProperties
         {
             get { return _dependentProperties; }
         }
 
-        internal void AddColumn(PropertyInfo propertyInfo)
+        /// <summary>
+        ///     Configures the foreign key property(s) for this end of the navigation property.
+        /// </summary>
+        /// <param name="propertyInfo"> The property to be used as the foreign key. If the foreign key is made up of multiple properties, call this method once for each of them. </param>
+        public void AddColumn(PropertyInfo propertyInfo)
         {
-            Contract.Requires(propertyInfo != null);
+            Check.NotNull(propertyInfo, "propertyInfo");
 
             // DevDiv #324763 (DbModelBuilder.Build is not idempotent):  If build is called twice when foreign keys are 
             // configured via attributes, we need to check whether the key has already been included.
@@ -69,43 +81,41 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigat
 
         [SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
         internal override void Configure(
-            EdmAssociationType associationType, EdmAssociationEnd dependentEnd,
+            AssociationType associationType,
+            AssociationEndMember dependentEnd,
             EntityTypeConfiguration entityTypeConfiguration)
         {
+            DebugCheck.NotNull(associationType);
+            DebugCheck.NotNull(dependentEnd);
+            DebugCheck.NotNull(entityTypeConfiguration);
+
             if (!_dependentProperties.Any())
             {
                 return;
             }
 
-            var associationConstraint
-                = new EdmAssociationConstraint
-                    {
-                        DependentEnd = dependentEnd
-                    };
-
-            var dependentProperties = _dependentProperties.AsEnumerable();
+            var dependentPropertInfos = _dependentProperties.AsEnumerable();
 
             if (!IsFullySpecified)
             {
                 var foreignKeys
                     = from p in _dependentProperties
                       select new
-                          {
-                              PropertyInfo = p,
-                              entityTypeConfiguration.Property(new PropertyPath(p)).ColumnOrder
-                          };
+                                 {
+                                     PropertyInfo = p,
+                                     entityTypeConfiguration.Property(new PropertyPath(p)).ColumnOrder
+                                 };
 
                 if ((_dependentProperties.Count > 1)
                     && foreignKeys.Any(p => !p.ColumnOrder.HasValue))
                 {
-                    var dependentKeys = dependentEnd.EntityType.DeclaredKeyProperties;
+                    var dependentKeys = dependentEnd.GetEntityType().DeclaredKeyProperties;
 
                     if ((dependentKeys.Count == _dependentProperties.Count)
-                        &&
-                        foreignKeys.All(fk => dependentKeys.Any(p => p.GetClrPropertyInfo().IsSameAs(fk.PropertyInfo))))
+                        && foreignKeys.All(fk => dependentKeys.Any(p => p.GetClrPropertyInfo().IsSameAs(fk.PropertyInfo))))
                     {
                         // The FK and PK sets are equal, we know the order
-                        dependentProperties = dependentKeys.Select(p => p.GetClrPropertyInfo());
+                        dependentPropertInfos = dependentKeys.Select(p => p.GetClrPropertyInfo());
                     }
                     else
                     {
@@ -114,35 +124,42 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigat
                 }
                 else
                 {
-                    dependentProperties = foreignKeys.OrderBy(p => p.ColumnOrder).Select(p => p.PropertyInfo);
+                    dependentPropertInfos = foreignKeys.OrderBy(p => p.ColumnOrder).Select(p => p.PropertyInfo);
                 }
             }
 
-            foreach (var dependentProperty in dependentProperties)
+            var dependentProperties = new List<EdmProperty>();
+
+            foreach (var dependentProperty in dependentPropertInfos)
             {
                 var property
-                    = associationConstraint
-                        .DependentEnd
-                        .EntityType
-                        .GetDeclaredPrimitiveProperty(dependentProperty);
+                    = dependentEnd.GetEntityType()
+                                  .GetDeclaredPrimitiveProperty(dependentProperty);
 
                 if (property == null)
                 {
                     throw Error.ForeignKeyPropertyNotFound(
-                        dependentProperty.Name, associationConstraint.DependentEnd.EntityType.Name);
+                        dependentProperty.Name, dependentEnd.GetEntityType().Name);
                 }
 
-                associationConstraint.DependentProperties.Add(property);
+                dependentProperties.Add(property);
             }
-
-            associationType.Constraint = associationConstraint;
 
             var principalEnd = associationType.GetOtherEnd(dependentEnd);
 
+            var associationConstraint
+                = new ReferentialConstraint(
+                    principalEnd,
+                    dependentEnd,
+                    principalEnd.GetEntityType().DeclaredKeyProperties,
+                    dependentProperties);
+
             if (principalEnd.IsRequired())
             {
-                associationType.Constraint.DependentProperties.Each(p => p.PropertyType.IsNullable = false);
+                associationConstraint.ToProperties.Each(p => p.Nullable = false);
             }
+
+            associationType.Constraint = associationConstraint;
         }
 
         public bool Equals(ForeignKeyConstraintConfiguration other)
@@ -157,10 +174,10 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigat
                 return true;
             }
 
-            return other.DependentProperties
-                .SequenceEqual(
-                    DependentProperties,
-                    new DynamicEqualityComparer<PropertyInfo>((p1, p2) => p1.IsSameAs(p2)));
+            return other.ToProperties
+                        .SequenceEqual(
+                            ToProperties,
+                            new DynamicEqualityComparer<PropertyInfo>((p1, p2) => p1.IsSameAs(p2)));
         }
 
         public override bool Equals(object obj)
@@ -186,7 +203,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigat
 
         public override int GetHashCode()
         {
-            return DependentProperties.Aggregate(0, (t, p) => t + p.GetHashCode());
+            return ToProperties.Aggregate(0, (t, p) => t + p.GetHashCode());
         }
     }
 }

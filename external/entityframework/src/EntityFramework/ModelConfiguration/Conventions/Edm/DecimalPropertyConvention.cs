@@ -1,32 +1,30 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions
 {
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
     ///     Convention to set precision to 18 and scale to 2 for decimal properties.
     /// </summary>
-    public sealed class DecimalPropertyConvention : IEdmConvention<EdmProperty>
+    public class DecimalPropertyConvention : IEdmConvention<EdmProperty>
     {
-        internal DecimalPropertyConvention()
+        public void Apply(EdmProperty edmDataModelItem, EdmModel model)
         {
-        }
+            Check.NotNull(edmDataModelItem, "edmDataModelItem");
+            Check.NotNull(model, "model");
 
-        void IEdmConvention<EdmProperty>.Apply(EdmProperty property, EdmModel model)
-        {
-            if (property.PropertyType.PrimitiveType
-                == EdmPrimitiveType.Decimal)
+            if (edmDataModelItem.PrimitiveType == PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.Decimal))
             {
-                var facets = property.PropertyType.PrimitiveTypeFacets;
-
-                if (facets.Precision == null)
+                if (edmDataModelItem.Precision == null)
                 {
-                    facets.Precision = 18;
+                    edmDataModelItem.Precision = 18;
                 }
 
-                if (facets.Scale == null)
+                if (edmDataModelItem.Scale == null)
                 {
-                    facets.Scale = 2;
+                    edmDataModelItem.Scale = 2;
                 }
             }
         }

@@ -1,29 +1,29 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Configuration.Types
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Common;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Navigation;
     using System.Data.Entity.ModelConfiguration.Configuration.Properties.Primitive;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Common;
     using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Spatial;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Reflection;
 
-    internal abstract class StructuralTypeConfiguration : ConfigurationBase
+    /// <summary>
+    ///     Allows configuration to be performed for a type in a model.
+    /// </summary>
+    public abstract class StructuralTypeConfiguration : ConfigurationBase
     {
         internal static Type GetPropertyConfigurationType(Type propertyType)
         {
-            Contract.Requires(propertyType != null);
+            DebugCheck.NotNull(propertyType);
 
             propertyType.TryUnwrapNullableType(out propertyType);
 
@@ -70,7 +70,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
 
         internal StructuralTypeConfiguration(Type clrType)
         {
-            Contract.Requires(clrType != null);
+            DebugCheck.NotNull(clrType);
 
             _clrType = clrType;
         }
@@ -105,9 +105,13 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
             get { return _primitivePropertyConfigurations; }
         }
 
+        /// <summary>
+        ///     Excludes a property from the model so that it will not be mapped to the database.
+        /// </summary>
+        /// <param name="propertyInfo"> The property to be configured. </param>
         public void Ignore(PropertyInfo propertyInfo)
         {
-            Contract.Requires(propertyInfo != null);
+            Check.NotNull(propertyInfo, "propertyInfo");
 
             _ignoredProperties.Add(propertyInfo);
         }
@@ -115,7 +119,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
         internal PrimitivePropertyConfiguration Property(
             PropertyPath propertyPath, OverridableConfigurationParts? overridableConfigurationParts = null)
         {
-            Contract.Requires(propertyPath != null);
+            DebugCheck.NotNull(propertyPath);
 
             return Property(
                 propertyPath,
@@ -125,6 +129,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
                                                                                 .CreateInstance(
                                                                                     GetPropertyConfigurationType(
                                                                                         propertyPath.Last().PropertyType));
+                        configuration.TypeConfiguration = this;
+
                         if (overridableConfigurationParts.HasValue)
                         {
                             configuration.OverridableConfigurationParts = overridableConfigurationParts.Value;
@@ -142,7 +148,7 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
             PropertyPath propertyPath, Func<TPrimitivePropertyConfiguration> primitivePropertyConfigurationCreator)
             where TPrimitivePropertyConfiguration : PrimitivePropertyConfiguration
         {
-            Contract.Requires(propertyPath != null);
+            DebugCheck.NotNull(propertyPath);
 
             PrimitivePropertyConfiguration primitivePropertyConfiguration;
             if (!_primitivePropertyConfigurations.TryGetValue(propertyPath, out primitivePropertyConfiguration))
@@ -155,12 +161,12 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
         }
 
         internal void Configure(
-            IEnumerable<Tuple<DbEdmPropertyMapping, DbTableMetadata>> propertyMappings,
+            IEnumerable<Tuple<ColumnMappingBuilder, EntityType>> propertyMappings,
             DbProviderManifest providerManifest,
             bool allowOverride = false)
         {
-            Contract.Requires(propertyMappings != null);
-            Contract.Requires(providerManifest != null);
+            DebugCheck.NotNull(propertyMappings);
+            DebugCheck.NotNull(providerManifest);
 
             foreach (var configuration in PrimitivePropertyConfigurations)
             {
@@ -173,8 +179,8 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
                         propertyPath ==
                         new PropertyPath(
                             pm.Item1.PropertyPath
-                            .Skip(pm.Item1.PropertyPath.Count - propertyPath.Count)
-                            .Select(p => p.GetClrPropertyInfo()))
+                              .Skip(pm.Item1.PropertyPath.Count - propertyPath.Count)
+                              .Select(p => p.GetClrPropertyInfo()))
                         ),
                     providerManifest,
                     allowOverride);
@@ -186,9 +192,9 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
             IEnumerable<EdmProperty> properties,
             ICollection<DataModelAnnotation> dataModelAnnotations)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(structuralTypeName));
-            Contract.Requires(properties != null);
-            Contract.Requires(dataModelAnnotations != null);
+            DebugCheck.NotEmpty(structuralTypeName);
+            DebugCheck.NotNull(properties);
+            DebugCheck.NotNull(dataModelAnnotations);
 
             dataModelAnnotations.SetConfiguration(this);
 
@@ -214,15 +220,15 @@ namespace System.Data.Entity.ModelConfiguration.Configuration.Types
                 throw Error.PropertyNotFound(propertyPath.First().Name, structuralTypeName);
             }
 
-            if (property.PropertyType.IsUnderlyingPrimitiveType)
+            if (property.IsUnderlyingPrimitiveType)
             {
                 propertyConfiguration.Configure(property);
             }
             else
             {
                 Configure(
-                    property.PropertyType.ComplexType.Name,
-                    property.PropertyType.ComplexType.DeclaredProperties,
+                    property.ComplexType.Name,
+                    property.ComplexType.Properties,
                     new PropertyPath(propertyPath.Skip(1)),
                     propertyConfiguration);
             }

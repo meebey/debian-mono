@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     internal sealed class FunctionImportEntityTypeMapping : FunctionImportStructuralTypeMapping
@@ -17,9 +18,9 @@ namespace System.Data.Entity.Core.Mapping
             LineInfo lineInfo)
             : base(columnsRenameList, lineInfo)
         {
-            Contract.Requires(isOfTypeEntityTypes != null);
-            Contract.Requires(entityTypes != null);
-            Contract.Requires(conditions != null);
+            DebugCheck.NotNull(isOfTypeEntityTypes);
+            DebugCheck.NotNull(entityTypes);
+            DebugCheck.NotNull(conditions);
 
             IsOfTypeEntityTypes = new ReadOnlyCollection<EntityType>(isOfTypeEntityTypes.ToList());
             EntityTypes = new ReadOnlyCollection<EntityType>(entityTypes.ToList());
@@ -31,7 +32,7 @@ namespace System.Data.Entity.Core.Mapping
         internal readonly ReadOnlyCollection<EntityType> IsOfTypeEntityTypes;
 
         /// <summary>
-        /// Gets all (concrete) entity types implied by this type mapping.
+        ///     Gets all (concrete) entity types implied by this type mapping.
         /// </summary>
         internal IEnumerable<EntityType> GetMappedEntityTypes(ItemCollection itemCollection)
         {
@@ -40,7 +41,7 @@ namespace System.Data.Entity.Core.Mapping
                 IsOfTypeEntityTypes.SelectMany(
                     entityType =>
                     MetadataHelper.GetTypeAndSubtypesOf(entityType, itemCollection, includeAbstractTypes)
-                        .Cast<EntityType>()));
+                                  .Cast<EntityType>()));
         }
 
         internal IEnumerable<String> GetDiscriminatorColumns()

@@ -1,36 +1,33 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.Update.Internal
 {
     using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Globalization;
     using System.Linq;
     using System.Text;
 
     /// <summary>
-    /// A directed graph class.
+    ///     A directed graph class.
     /// </summary>
     /// <remarks>
-    /// Notes on language (in case you're familiar with one or the other convention):
-    /// 
-    /// node == vertex
-    /// arc == edge
-    /// predecessor == incoming
-    /// successor == outgoing
+    ///     Notes on language (in case you're familiar with one or the other convention):
+    ///     node == vertex
+    ///     arc == edge
+    ///     predecessor == incoming
+    ///     successor == outgoing
     /// </remarks>
-    /// <typeparam name="TVertex">Type of nodes in the graph</typeparam>
+    /// <typeparam name="TVertex"> Type of nodes in the graph </typeparam>
     internal class Graph<TVertex>
     {
-        #region Constructors
-
         /// <summary>
-        /// Initialize a new graph
+        ///     Initialize a new graph
         /// </summary>
-        /// <param name="comparer">Comparer used to determine if two node references are 
-        /// equivalent</param>
+        /// <param name="comparer"> Comparer used to determine if two node references are equivalent </param>
         internal Graph(IEqualityComparer<TVertex> comparer)
         {
-            Contract.Requires(comparer != null);
+            DebugCheck.NotNull(comparer);
 
             m_comparer = comparer;
             m_successorMap = new Dictionary<TVertex, HashSet<TVertex>>(comparer);
@@ -38,33 +35,25 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             m_vertices = new HashSet<TVertex>(comparer);
         }
 
-        #endregion
-
-        #region Fields
-
         /// <summary>
-        /// Gets successors of the node (outgoing edges).
+        ///     Gets successors of the node (outgoing edges).
         /// </summary>
         private readonly Dictionary<TVertex, HashSet<TVertex>> m_successorMap;
 
         /// <summary>
-        /// Gets number of predecessors of the node.
+        ///     Gets number of predecessors of the node.
         /// </summary>
         private readonly Dictionary<TVertex, int> m_predecessorCounts;
 
         /// <summary>
-        /// Gets the vertices that exist in the graph.
+        ///     Gets the vertices that exist in the graph.
         /// </summary>
         private readonly HashSet<TVertex> m_vertices;
 
         private readonly IEqualityComparer<TVertex> m_comparer;
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Returns the vertices of the graph.
+        ///     Returns the vertices of the graph.
         /// </summary>
         internal IEnumerable<TVertex> Vertices
         {
@@ -72,7 +61,7 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// Returns the edges of the graph in the form: [from, to]
+        ///     Returns the edges of the graph in the form: [from, to]
         /// </summary>
         internal IEnumerable<KeyValuePair<TVertex, TVertex>> Edges
         {
@@ -88,24 +77,20 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
             }
         }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Adds a new node to the graph. Does nothing if the vertex already exists.
+        ///     Adds a new node to the graph. Does nothing if the vertex already exists.
         /// </summary>
-        /// <param name="vertex">New node</param>
+        /// <param name="vertex"> New node </param>
         internal void AddVertex(TVertex vertex)
         {
             m_vertices.Add(vertex);
         }
 
         /// <summary>
-        /// Adds a new edge to the graph. NOTE: only adds edges for existing vertices.
+        ///     Adds a new edge to the graph. NOTE: only adds edges for existing vertices.
         /// </summary>
-        /// <param name="from">Source node</param>
-        /// <param name="to">Target node</param>
+        /// <param name="from"> Source node </param>
+        /// <param name="to"> Target node </param>
         internal void AddEdge(TVertex from, TVertex to)
         {
             // Add only edges relevant to the current graph vertices
@@ -136,11 +121,11 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// DESTRUCTIVE OPERATION: performing a sort modifies the graph
-        /// Performs topological sort on graph. Nodes with no remaining incoming edges are removed
-        /// in sort order (assumes elements implement IComparable(Of TVertex))
+        ///     DESTRUCTIVE OPERATION: performing a sort modifies the graph
+        ///     Performs topological sort on graph. Nodes with no remaining incoming edges are removed
+        ///     in sort order (assumes elements implement IComparable(Of TVertex))
         /// </summary>
-        /// <returns>true if the sort succeeds; false if it fails and there is a remainder</returns>
+        /// <returns> true if the sort succeeds; false if it fails and there is a remainder </returns>
         internal bool TryTopologicalSort(out IEnumerable<TVertex> orderedVertices, out IEnumerable<TVertex> remainder)
         {
             // populate all predecessor-less nodes to root queue
@@ -207,9 +192,9 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
         }
 
         /// <summary>
-        /// For debugging purposes.
+        ///     For debugging purposes.
         /// </summary>
-        /// <returns></returns>
+        /// <returns> </returns>
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -238,7 +223,5 @@ namespace System.Data.Entity.Core.Mapping.Update.Internal
 
             return sb.ToString();
         }
-
-        #endregion
     }
 }

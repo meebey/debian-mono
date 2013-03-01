@@ -2538,7 +2538,9 @@ mono_remote_class (MonoDomain *domain, MonoString *class_name, MonoClass *proxy_
 	rc->default_vtable = NULL;
 	rc->xdomain_vtable = NULL;
 	rc->proxy_class_name = name;
+#ifndef DISABLE_PERFCOUNTERS
 	mono_perfcounters->loader_bytes += mono_string_length (class_name) + 1;
+#endif
 
 	g_hash_table_insert (domain->proxy_vtable_hash, key, rc);
 
@@ -2617,9 +2619,11 @@ mono_remote_class_vtable (MonoDomain *domain, MonoRemoteClass *remote_class, Mon
 		MonoClass *klass;
 		type = ((MonoReflectionType *)rp->class_to_proxy)->type;
 		klass = mono_class_from_mono_type (type);
+#ifndef DISABLE_COM
 		if ((klass->is_com_object || (mono_defaults.com_object_class && klass == mono_defaults.com_object_class)) && !mono_class_vtable (mono_domain_get (), klass)->remote)
 			remote_class->default_vtable = mono_class_proxy_vtable (domain, remote_class, MONO_REMOTING_TARGET_COMINTEROP);
 		else
+#endif
 			remote_class->default_vtable = mono_class_proxy_vtable (domain, remote_class, MONO_REMOTING_TARGET_UNKNOWN);
 	}
 	
@@ -6027,8 +6031,11 @@ mono_print_unhandled_exception (MonoObject *exc)
 			message = mono_exception_get_native_backtrace ((MonoException*)exc);
 			free_message = TRUE;
 		} else {
-			str = mono_object_to_string (exc, NULL);
-			if (str) {
+			MonoObject *other_exc = NULL;
+			str = mono_object_to_string (exc, &other_exc);
+			if (other_exc) {
+				message = g_strdup ("Nested exception, bailing out");
+			} else if (str) {
 				message = mono_string_to_utf8_checked (str, &error);
 				if (!mono_error_ok (&error)) {
 					mono_error_cleanup (&error);
@@ -6080,10 +6087,6 @@ mono_delegate_ctor_with_method (MonoObject *this, MonoObject *target, gpointer a
 	if (target && target->vtable->klass == mono_defaults.transparent_proxy_class) {
 		g_assert (method);
 		method = mono_marshal_get_remoting_invoke (method);
-		delegate->method_ptr = mono_compile_method (method);
-		MONO_OBJECT_SETREF (delegate, target, target);
-	} else if (method && mono_method_signature (method)->hasthis && method->klass->valuetype) {
-		method = mono_marshal_get_unbox_wrapper (method);
 		delegate->method_ptr = mono_compile_method (method);
 		MONO_OBJECT_SETREF (delegate, target, target);
 	} else {

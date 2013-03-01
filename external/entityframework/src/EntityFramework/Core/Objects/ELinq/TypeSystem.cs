@@ -1,17 +1,17 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.ELinq
 {
     using System.Collections.Generic;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
-    using System.Runtime.CompilerServices;
 
     /// <summary>
-    /// Static utility class. Replica of query\DLinq\TypeSystem.cs
+    ///     Static utility class. Replica of query\DLinq\TypeSystem.cs
     /// </summary>
     internal static class TypeSystem
     {
@@ -23,7 +23,6 @@ namespace System.Data.Entity.Core.Objects.ELinq
             return default(T);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         internal static object GetDefaultValue(Type type)
         {
             // null is always the default for non value types and Nullable<>
@@ -46,7 +45,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
         internal static Type GetDelegateType(IEnumerable<Type> inputTypes, Type returnType)
         {
-            Contract.Requires(returnType != null);
+            DebugCheck.NotNull(returnType);
 
             // Determine Func<> type (generic args are the input parameter types plus the return type)
             inputTypes = inputTypes ?? Enumerable.Empty<Type>();
@@ -123,8 +122,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
         internal static Expression EnsureType(Expression expression, Type requiredType)
         {
-            Debug.Assert(null != expression, "expression required");
-            Debug.Assert(null != requiredType, "requiredType");
+            DebugCheck.NotNull(expression);
+            DebugCheck.NotNull(requiredType);
             if (expression.Type != requiredType)
             {
                 expression = Expression.Convert(expression, requiredType);
@@ -133,12 +132,12 @@ namespace System.Data.Entity.Core.Objects.ELinq
         }
 
         /// <summary>
-        /// Resolves MemberInfo to a property or field.
+        ///     Resolves MemberInfo to a property or field.
         /// </summary>
-        /// <param name="member">Member to test.</param>
-        /// <param name="name">Name of member.</param>
-        /// <param name="type">Type of member.</param>
-        /// <returns>Given member normalized as a property or field.</returns>
+        /// <param name="member"> Member to test. </param>
+        /// <param name="name"> Name of member. </param>
+        /// <param name="type"> Type of member. </param>
+        /// <returns> Given member normalized as a property or field. </returns>
         internal static MemberInfo PropertyOrField(MemberInfo member, out string name, out Type type)
         {
             name = null;
@@ -190,7 +189,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
         private static Type FindIEnumerable(Type seqType)
         {
             // Ignores "terminal" primitive types in the EDM although they may implement IEnumerable<>
-            if (seqType == null || seqType == typeof(string)
+            if (seqType == null
+                || seqType == typeof(string)
                 || seqType == typeof(byte[]))
             {
                 return null;
@@ -263,14 +263,18 @@ namespace System.Data.Entity.Core.Objects.ELinq
             genericTypeArguments = null;
 
             // check requirements for a match
-            if (null == test || null == match || !match.IsInterface || !match.IsGenericTypeDefinition
+            if (null == test
+                || null == match
+                || !match.IsInterface
+                || !match.IsGenericTypeDefinition
                 || null == test.DeclaringType)
             {
                 return false;
             }
 
             // we might be looking at the interface implementation directly
-            if (test.DeclaringType.IsInterface && test.DeclaringType.IsGenericType
+            if (test.DeclaringType.IsInterface
+                && test.DeclaringType.IsGenericType
                 && test.DeclaringType.GetGenericTypeDefinition() == match)
             {
                 return true;

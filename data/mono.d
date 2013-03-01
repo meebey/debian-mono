@@ -19,6 +19,32 @@ provider mono {
 	probe gc__begin (int generation);
 	probe gc__end (int generation);
 
+	probe gc__requested (int generation, uintptr_t requested_size, int wait_to_finish);
+
+	probe gc__checkpoint__1 (int generation);
+	probe gc__checkpoint__2 (int generation);
+	probe gc__checkpoint__3 (int generation);
+	probe gc__checkpoint__4 (int generation);
+	probe gc__checkpoint__5 (int generation);
+	probe gc__checkpoint__6 (int generation);
+	probe gc__checkpoint__7 (int generation);
+	probe gc__checkpoint__8 (int generation);
+	probe gc__checkpoint__9 (int generation);
+
+	probe gc__concurrent__start__begin (int generation);
+	probe gc__concurrent__start__end (int generation, long long num_major_objects_marked);
+	probe gc__concurrent__update__finish__begin (int generation, long long num_major_objects_marked);
+	probe gc__concurrent__update__end (int generation, long long num_major_objects_marked);
+	probe gc__concurrent__finish__end (int generation, long long num_major_objects_marked);
+
+	probe gc__sweep__begin (int generation, int full_sweep);
+	probe gc__sweep__end (int generation, int full_sweep);
+
+	probe gc__world__stop__begin ();
+	probe gc__world__stop__end ();
+	probe gc__world__restart__begin (int generation);
+	probe gc__world__restart__end (int generation);
+
 	probe gc__heap__alloc (uintptr_t addr, uintptr_t len);
 	probe gc__heap__free (uintptr_t addr, uintptr_t len);
 
@@ -40,6 +66,17 @@ provider mono {
 	probe gc__major__swept (uintptr_t addr, uintptr_t len);
 
 	probe gc__obj__pinned (uintptr_t addr, uintptr_t size, char *ns_name, char *class_name, int generation);
+
+	probe gc__finalize__enqueue (uintptr_t addr, uintptr_t size, char *ns_name, char *class_name, int generation, int is_critical);
+	probe gc__finalize__invoke (uintptr_t addr, uintptr_t size, char *ns_name, char *class_name);
+
+	probe gc__weak__update (uintptr_t ref_addr, uintptr_t old_addr, uintptr_t new_addr, uintptr_t size, char *ns_name, char *class_name, int track);
+
+	probe gc__global__remset__add (uintptr_t ref_addr, uintptr_t obj_addr, uintptr_t size, char *ns_name, char *class_name);
+	probe gc__obj__cemented (uintptr_t addr, uintptr_t size, char *ns_name, char *class_name);
+
+	probe gc__internal__alloc (uintptr_t addr, uintptr_t size, int type);
+	probe gc__internal__dealloc (uintptr_t add, uintptr_t size, int type);
 };
 
 #pragma D attributes Evolving/Evolving/Common provider mono provider

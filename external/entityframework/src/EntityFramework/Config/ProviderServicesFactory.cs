@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Config
 {
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Utilities;
-    using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Reflection;
 
     /// <summary>
-    /// Responsible for obtaining <see cref="DbProviderServices"/> Singleton instances.
+    ///     Responsible for obtaining <see cref="DbProviderServices" /> Singleton instances.
     /// </summary>
     internal class ProviderServicesFactory
     {
@@ -41,7 +41,7 @@ namespace System.Data.Entity.Config
 
         public virtual DbProviderServices GetInstanceByConvention(string providerInvariantName)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(providerInvariantName));
+            DebugCheck.NotEmpty(providerInvariantName);
 
             var providerTemplate =
                 providerInvariantName.Equals("System.Data.SqlClient", StringComparison.OrdinalIgnoreCase)

@@ -1,11 +1,12 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.EntitySql.AST
 {
     using System.Data.Entity.Resources;
-    using System.Diagnostics;
+    using System.Data.Entity.Utilities;
 
     /// <summary>
-    /// AST node for an aliased expression.
+    ///     AST node for an aliased expression.
     /// </summary>
     internal sealed class AliasedExpr : Node
     {
@@ -13,12 +14,12 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         private readonly Identifier _alias;
 
         /// <summary>
-        /// Constructs an aliased expression node.
+        ///     Constructs an aliased expression node.
         /// </summary>
         internal AliasedExpr(Node expr, Identifier alias)
         {
-            Debug.Assert(expr != null, "expr != null");
-            Debug.Assert(alias != null, "alias != null");
+            DebugCheck.NotNull(expr);
+            DebugCheck.NotNull(alias);
 
             if (String.IsNullOrEmpty(alias.Name))
             {
@@ -32,11 +33,11 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Constructs an aliased expression node with null alias.
+        ///     Constructs an aliased expression node with null alias.
         /// </summary>
         internal AliasedExpr(Node expr)
         {
-            Debug.Assert(expr != null, "expr != null");
+            DebugCheck.NotNull(expr);
 
             _expr = expr;
         }
@@ -47,7 +48,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Returns expression alias identifier, or null if not aliased.
+        ///     Returns expression alias identifier, or null if not aliased.
         /// </summary>
         internal Identifier Alias
         {

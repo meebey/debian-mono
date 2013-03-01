@@ -1,14 +1,15 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.EntitySql
 {
     using System.Collections.Generic;
     using System.Data.Entity.Core.Common.EntitySql.AST;
     using System.Data.Entity.Resources;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Globalization;
 
     /// <summary>
-    /// Represents the Cql Parser engine. Also, implements helpers and util routines.
+    ///     Represents the Cql Parser engine. Also, implements helpers and util routines.
     /// </summary>
     internal sealed partial class CqlParser
     {
@@ -19,7 +20,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         private const string _internalYaccSyntaxErrorMessage = "syntax error";
 
         /// <summary>
-        /// Contains inclusive count of method expressions.
+        ///     Contains inclusive count of method expressions.
         /// </summary>
         private uint _methodExprCounter;
 
@@ -30,29 +31,21 @@ namespace System.Data.Entity.Core.Common.EntitySql
             // The common practice is to make the null check at the public surface, 
             // however this method is a convergence zone from multiple public entry points and it makes sense to
             // check for null once, here.
-            Contract.Requires(parserOptions != null);
+            DebugCheck.NotNull(parserOptions);
 
             _parserOptions = parserOptions;
             yydebug = debug;
         }
 
         /// <summary>
-        /// Main entry point for parsing cql.
+        ///     Main entry point for parsing cql.
         /// </summary>
-        /// <param name="query">query text</param>
+        /// <param name="query"> query text </param>
         /// <exception cref="System.Data.Entity.Core.EntityException">Thrown when Syntatic rules are violated and the query cannot be accepted</exception>
-        /// <returns>Abstract Syntax Tree</returns>
+        /// <returns> Abstract Syntax Tree </returns>
         internal Node Parse(string query)
         {
-            // The common practice is to make the null check at the public surface, 
-            // however this method is a convergence zone from multiple public entry points and it makes sense to
-            // check for null once, here.
-            Contract.Requires(query != null);
-            if (String.IsNullOrEmpty(query)
-                || query.Trim().Length == 0)
-            {
-                throw new ArgumentException(Strings.InvalidEmptyQueryTextArgument);
-            }
+            DebugCheck.NotEmpty(query);
 
             _query = query;
             _parsedTree = null;
@@ -63,7 +56,7 @@ namespace System.Data.Entity.Core.Common.EntitySql
         }
 
         /// <summary>
-        /// Returns query string
+        ///     Returns query string
         /// </summary>
         internal string Query
         {
@@ -82,16 +75,18 @@ namespace System.Data.Entity.Core.Common.EntitySql
 #endif
 
         /// <summary>
-        /// Returns ParserOptions used
+        ///     Returns ParserOptions used
         /// </summary>
-        /// <remarks>Once parse has been invoked, ParserOptions are frozen and cannot be changed. otherwise a EntityException exception will be thrown</remarks>
+        /// <remarks>
+        ///     Once parse has been invoked, ParserOptions are frozen and cannot be changed. otherwise a EntityException exception will be thrown
+        /// </remarks>
         internal ParserOptions ParserOptions
         {
             get { return _parserOptions; }
         }
 
         /// <summary>
-        /// Internal entry point
+        ///     Internal entry point
         /// </summary>
         private void internalParseEntryPoint()
         {
@@ -165,14 +160,16 @@ namespace System.Data.Entity.Core.Common.EntitySql
                     syntaxContextInfo = Strings.LocalizedTerm;
                     ErrorContext errCtx = null;
                     var astNode = yylval as Node;
-                    if (null != astNode && (null != astNode.ErrCtx)
+                    if (null != astNode
+                        && (null != astNode.ErrCtx)
                         && (!String.IsNullOrEmpty(astNode.ErrCtx.ErrorContextInfo)))
                     {
                         errCtx = astNode.ErrCtx;
                         errorPosition = Math.Min(errorPosition, errorPosition - term.Length);
                     }
 
-                    if ((yylval is CqlLexer.TerminalToken) && CqlLexer.IsReservedKeyword(term)
+                    if ((yylval is CqlLexer.TerminalToken)
+                        && CqlLexer.IsReservedKeyword(term)
                         && !(astNode is Identifier))
                     {
                         syntaxContextInfo = Strings.LocalizedKeyword;

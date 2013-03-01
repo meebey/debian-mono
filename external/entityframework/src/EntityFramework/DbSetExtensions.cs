@@ -1,7 +1,11 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
+
+#if !NET40
+
 namespace System.Data.Entity
 {
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -20,16 +24,18 @@ namespace System.Data.Entity
         ///     The ordering of composite key values is as defined in the EDM, which is in turn as defined in
         ///     the designer, by the Code First fluent API, or by the DataMember attribute.
         /// </remarks>
-        /// <typeparam name="TEntity">The type that defines the set.</typeparam>
-        /// <param name="set">The source set.</param>
-        /// <param name = "keyValues">The values of the primary key for the entity to be found.</param>
-        /// <returns>A Task containing the entity found, or null.</returns>
+        /// <typeparam name="TEntity"> The type that defines the set. </typeparam>
+        /// <param name="set"> The source set. </param>
+        /// <param name="keyValues"> The values of the primary key for the entity to be found. </param>
+        /// <returns> A Task containing the entity found, or null. </returns>
         public static Task<TEntity> FindAsync<TEntity>(this IDbSet<TEntity> set, params object[] keyValues)
             where TEntity : class
         {
-            Contract.Requires(set != null);
+            Check.NotNull(set, "set");
 
             return set.FindAsync(CancellationToken.None, keyValues);
         }
     }
 }
+
+#endif

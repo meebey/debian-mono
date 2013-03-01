@@ -1,11 +1,12 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
     using System.Data.Entity.Infrastructure;
     using System.Data.Entity.Migrations.Design;
     using System.Data.Entity.Migrations.Extensions;
     using System.Data.Entity.Migrations.Utilities;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.IO;
     using EnvDTE;
 
@@ -37,7 +38,7 @@ namespace System.Data.Entity.Migrations
 
         public void Execute(Action command)
         {
-            Contract.Requires(command != null);
+            DebugCheck.NotNull(command);
 
             Init();
 
@@ -51,28 +52,28 @@ namespace System.Data.Entity.Migrations
             }
         }
 
-        public void WriteLine(string message)
+        public virtual void WriteLine(string message)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(message));
+            DebugCheck.NotEmpty(message);
 
             _dispatcher.WriteLine(message);
         }
 
         public virtual void WriteWarning(string message)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(message));
+            DebugCheck.NotEmpty(message);
 
             _dispatcher.WriteWarning(message);
         }
 
         public void WriteVerbose(string message)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(message));
+            DebugCheck.NotEmpty(message);
 
             _dispatcher.WriteVerbose(message);
         }
 
-        public ToolingFacade GetFacade(string configurationTypeName = null)
+        public virtual ToolingFacade GetFacade(string configurationTypeName = null)
         {
             if (configurationTypeName == null)
             {
@@ -141,7 +142,7 @@ namespace System.Data.Entity.Migrations
 
         private void Throw(Exception ex)
         {
-            Contract.Requires(ex != null);
+            DebugCheck.NotNull(ex);
 
             _domain.SetData("wasError", true);
 

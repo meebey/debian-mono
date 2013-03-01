@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.EntitySql.AST
 {
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Globalization;
 
     /// <summary>
-    /// Represents a literal ast node.
+    ///     Represents a literal ast node.
     /// </summary>
     internal sealed class Literal : Node
     {
@@ -18,12 +20,12 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         private static readonly Byte[] _emptyByteArray = new byte[0];
 
         /// <summary>
-        /// Initializes a literal ast node.
+        ///     Initializes a literal ast node.
         /// </summary>
-        /// <param name="originalValue">literal value in cql string representation</param>
-        /// <param name="kind">literal value class</param>
-        /// <param name="query">query</param>
-        /// <param name="inputPos">input position</param>
+        /// <param name="originalValue"> literal value in cql string representation </param>
+        /// <param name="kind"> literal value class </param>
+        /// <param name="query"> query </param>
+        /// <param name="inputPos"> input position </param>
         internal Literal(string originalValue, LiteralKind kind, string query, int inputPos)
             : base(query, inputPos)
         {
@@ -32,9 +34,9 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Static factory to create boolean literals by value only.
+        ///     Static factory to create boolean literals by value only.
         /// </summary>
-        /// <param name="value"></param>
+        /// <param name="value"> </param>
         internal static Literal NewBooleanLiteral(bool value)
         {
             return new Literal(value);
@@ -50,7 +52,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// True if literal is a number.
+        ///     True if literal is a number.
         /// </summary>
         internal bool IsNumber
         {
@@ -58,7 +60,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// True if literal is a signed number.
+        ///     True if literal is a signed number.
         /// </summary>
         internal bool IsSignedNumber
         {
@@ -66,10 +68,10 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// True if literal is a string.
+        ///     True if literal is a string.
         /// </summary>
         /// <remarks>
-        /// <exception cref="System.Data.Entity.Core.EntityException"></exception>
+        ///     <exception cref="System.Data.Entity.Core.EntityException"></exception>
         /// </remarks>
         internal bool IsString
         {
@@ -77,10 +79,10 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// True if literal is a unicode string.
+        ///     True if literal is a unicode string.
         /// </summary>
         /// <remarks>
-        /// <exception cref="System.Data.Entity.Core.EntityException"></exception>
+        ///     <exception cref="System.Data.Entity.Core.EntityException"></exception>
         /// </remarks>
         internal bool IsUnicodeString
         {
@@ -88,10 +90,10 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// True if literal is the eSQL untyped null.
+        ///     True if literal is the eSQL untyped null.
         /// </summary>
         /// <remarks>
-        /// <exception cref="System.Data.Entity.Core.EntityException"></exception>
+        ///     <exception cref="System.Data.Entity.Core.EntityException"></exception>
         /// </remarks>
         internal bool IsNullLiteral
         {
@@ -99,7 +101,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Returns the original literal value.
+        ///     Returns the original literal value.
         /// </summary>
         internal string OriginalValue
         {
@@ -107,7 +109,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Prefix a numeric literal with a sign.
+        ///     Prefix a numeric literal with a sign.
         /// </summary>
         internal void PrefixSign(string sign)
         {
@@ -121,10 +123,10 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         #region Computed members
 
         /// <summary>
-        /// Returns literal converted value.
+        ///     Returns literal converted value.
         /// </summary>
         /// <remarks>
-        /// <exception cref="System.Data.Entity.Core.EntityException"></exception>
+        ///     <exception cref="System.Data.Entity.Core.EntityException"></exception>
         /// </remarks>
         internal object Value
         {
@@ -137,10 +139,10 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Returns literal value type. If value is eSQL untyped null, returns null.
+        ///     Returns literal value type. If value is eSQL untyped null, returns null.
         /// </summary>
         /// <remarks>
-        /// <exception cref="System.Data.Entity.Core.EntityException"></exception>
+        ///     <exception cref="System.Data.Entity.Core.EntityException"></exception>
         /// </remarks>
         internal Type Type
         {
@@ -309,7 +311,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Performs conversion of numeric strings that have no type suffix hint.
+        ///     Performs conversion of numeric strings that have no type suffix hint.
         /// </summary>
         private static object DefaultNumericConversion(string numericString, ErrorContext errCtx)
         {
@@ -345,7 +347,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Converts boolean literal value.
+        ///     Converts boolean literal value.
         /// </summary>
         private static bool ConvertBooleanLiteralValue(ErrorContext errCtx, string booleanLiteralValue)
         {
@@ -359,7 +361,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Returns the string literal value.
+        ///     Returns the string literal value.
         /// </summary>
         private static string GetStringLiteralValue(string stringLiteralValue, bool isUnicode)
         {
@@ -413,11 +415,11 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Converts hex string to byte array.
+        ///     Converts hex string to byte array.
         /// </summary>
         private static byte[] ConvertBinaryLiteralValue(string binaryLiteralValue)
         {
-            Debug.Assert(null != binaryLiteralValue, "binaryStringLiteral must not be null");
+            DebugCheck.NotNull(binaryLiteralValue);
 
             if (String.IsNullOrEmpty(binaryLiteralValue))
             {
@@ -454,8 +456,8 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Parse single hex char.
-        /// PRECONDITION - hexChar must be a valid hex digit.
+        ///     Parse single hex char.
+        ///     PRECONDITION - hexChar must be a valid hex digit.
         /// </summary>
         private static int HexDigitToBinaryValue(char hexChar)
         {
@@ -481,7 +483,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         private static readonly char[] _datetimeOffsetSeparators = new[] { ' ', ':', '-', '.', '+', '-' };
 
         /// <summary>
-        /// Converts datetime literal value.
+        ///     Converts datetime literal value.
         /// </summary>
         private static DateTime ConvertDateTimeLiteralValue(string datetimeLiteralValue)
         {
@@ -562,7 +564,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Converts time literal value.
+        ///     Converts time literal value.
         /// </summary>
         private static TimeSpan ConvertTimeLiteralValue(string datetimeLiteralValue)
         {
@@ -652,7 +654,7 @@ namespace System.Data.Entity.Core.Common.EntitySql.AST
         }
 
         /// <summary>
-        /// Converts guid literal value.
+        ///     Converts guid literal value.
         /// </summary>
         private static Guid ConvertGuidLiteralValue(string guidLiteralValue)
         {

@@ -1,4 +1,5 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Objects.ELinq
 {
     using System.Collections.Generic;
@@ -8,7 +9,9 @@ namespace System.Data.Entity.Core.Objects.ELinq
     using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Core.Metadata.Edm.Provider;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
     using System.Linq.Expressions;
@@ -19,7 +22,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
     internal sealed partial class ExpressionConverter
     {
         /// <summary>
-        /// Translates System.Linq.Expression.MethodCallExpression to System.Data.Entity.Core.Common.CommandTrees.DbExpression
+        ///     Translates System.Linq.Expression.MethodCallExpression to System.Data.Entity.Core.Common.CommandTrees.DbExpression
         /// </summary>
         private sealed partial class MethodCallTranslator : TypedTranslator<MethodCallExpression>
         {
@@ -58,7 +61,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 // check if this method has the FunctionAttribute (known proxy)
                 var functionAttribute = linq.Method.GetCustomAttributes(typeof(DbFunctionAttribute), false)
-                    .Cast<DbFunctionAttribute>().FirstOrDefault();
+                                            .Cast<DbFunctionAttribute>().FirstOrDefault();
                 if (null != functionAttribute)
                 {
                     return _functionCallTranslator.TranslateFunctionCall(parent, linq, functionAttribute);
@@ -146,13 +149,13 @@ namespace System.Data.Entity.Core.Objects.ELinq
             }
 
             /// <summary>
-            /// Tries to get a translator for the given method info.  
-            /// If the given method info corresponds to a Visual Basic property, 
-            /// it also initializes the Visual Basic translators if they have not been initialized
+            ///     Tries to get a translator for the given method info.
+            ///     If the given method info corresponds to a Visual Basic property,
+            ///     it also initializes the Visual Basic translators if they have not been initialized
             /// </summary>
-            /// <param name="methodInfo"></param>
-            /// <param name="callTranslator"></param>
-            /// <returns></returns>
+            /// <param name="methodInfo"> </param>
+            /// <param name="callTranslator"> </param>
+            /// <returns> </returns>
             private static bool TryGetCallTranslator(MethodInfo methodInfo, out CallTranslator callTranslator)
             {
                 if (_methodTranslators.TryGetValue(methodInfo, out callTranslator))
@@ -200,26 +203,26 @@ namespace System.Data.Entity.Core.Objects.ELinq
             private static IEnumerable<CallTranslator> GetCallTranslators()
             {
                 return new CallTranslator[]
-                    {
-                        new CanonicalFunctionDefaultTranslator(),
-                        new AsUnicodeFunctionTranslator(),
-                        new AsNonUnicodeFunctionTranslator(),
-                        new MathPowerTranslator(),
-                        new GuidNewGuidTranslator(),
-                        new StringContainsTranslator(),
-                        new StartsWithTranslator(),
-                        new EndsWithTranslator(),
-                        new IndexOfTranslator(),
-                        new SubstringTranslator(),
-                        new RemoveTranslator(),
-                        new InsertTranslator(),
-                        new IsNullOrEmptyTranslator(),
-                        new StringConcatTranslator(),
-                        new TrimTranslator(),
-                        new TrimStartTranslator(),
-                        new TrimEndTranslator(),
-                        new SpatialMethodCallTranslator(),
-                    };
+                           {
+                               new CanonicalFunctionDefaultTranslator(),
+                               new AsUnicodeFunctionTranslator(),
+                               new AsNonUnicodeFunctionTranslator(),
+                               new MathPowerTranslator(),
+                               new GuidNewGuidTranslator(),
+                               new StringContainsTranslator(),
+                               new StartsWithTranslator(),
+                               new EndsWithTranslator(),
+                               new IndexOfTranslator(),
+                               new SubstringTranslator(),
+                               new RemoveTranslator(),
+                               new InsertTranslator(),
+                               new IsNullOrEmptyTranslator(),
+                               new StringConcatTranslator(),
+                               new TrimTranslator(),
+                               new TrimStartTranslator(),
+                               new TrimEndTranslator(),
+                               new SpatialMethodCallTranslator(),
+                           };
             }
 
             private static IEnumerable<SequenceMethodTranslator> GetSequenceMethodTranslators()
@@ -296,6 +299,11 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     return false;
                 }
                 var newExpression = (NewExpression)selectorLambda.Body;
+
+                if (newExpression.Arguments.Count != 2)
+                {
+                    return false;
+                }
 
                 if (newExpression.Arguments[0] != selectorLambda.Parameters[0]
                     ||
@@ -468,9 +476,14 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 internal override CqtExpression Translate(ExpressionConverter parent, MethodCallExpression call)
                 {
+                    DebugCheck.NotNull(call);
+                    DebugCheck.NotNull(call.Object);
+                    DebugCheck.NotNull(call.Arguments);
+
                     Debug.Assert(
-                        call.Object != null && call.Arguments.Count == 1 && call.Arguments[0] != null
+                        call.Arguments.Count == 1 && call.Arguments[0] != null
                         && call.Arguments[0].Type.Equals(typeof(string)), "Invalid Include arguments?");
+
                     var queryExpression = parent.TranslateExpression(call.Object);
                     Span span;
                     if (!parent.TryGetSpan(queryExpression, out span))
@@ -509,8 +522,12 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 internal override CqtExpression Translate(ExpressionConverter parent, MethodCallExpression call)
                 {
+                    DebugCheck.NotNull(call);
+                    DebugCheck.NotNull(call.Object);
+                    DebugCheck.NotNull(call.Arguments);
+
                     Debug.Assert(
-                        call.Object != null && call.Arguments.Count == 1 && call.Arguments[0] != null
+                        call.Arguments.Count == 1 && call.Arguments[0] != null
                         && call.Arguments[0].Type.Equals(typeof(MergeOption)), "Invalid MergeAs arguments?");
 
                     // Note that the MergeOption must be inspected and applied BEFORE visiting the argument,
@@ -550,12 +567,17 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 internal override CqtExpression Translate(ExpressionConverter parent, MethodCallExpression call)
                 {
+                    DebugCheck.NotNull(call);
+                    DebugCheck.NotNull(call.Object);
+                    DebugCheck.NotNull(call.Arguments);
+
                     Debug.Assert(
-                        call.Object != null && call.Arguments.Count == 1 && call.Arguments[0] != null
+                        call.Arguments.Count == 1 && call.Arguments[0] != null
                         && call.Arguments[0].Type.Equals(typeof(Span)), "Invalid IncludeSpan arguments?");
                     Debug.Assert(
                         call.Arguments[0].NodeType == ExpressionType.Constant,
                         "Whenever an IncludeSpan MethodCall is inlined, the argument must be a constant");
+
                     var span = (Span)((ConstantExpression)call.Arguments[0]).Value;
                     var inputQuery = RemoveConvertToObjectQuery(call.Object);
                     var queryExpression = parent.TranslateExpression(inputQuery);
@@ -588,11 +610,11 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 private static readonly object _vbInitializerLock = new object();
 
                 /// <summary>
-                /// Tries to check whether there is an alternative method suggested insted of the given unsupported one. 
+                ///     Tries to check whether there is an alternative method suggested insted of the given unsupported one.
                 /// </summary>
-                /// <param name="originalMethodInfo"></param>
-                /// <param name="suggestedMethodInfo"></param>
-                /// <returns></returns>
+                /// <param name="originalMethodInfo"> </param>
+                /// <param name="suggestedMethodInfo"> </param>
+                /// <returns> </returns>
                 private static bool TryGetAlternativeMethod(MethodInfo originalMethodInfo, out MethodInfo suggestedMethodInfo)
                 {
                     if (_alternativeMethods.TryGetValue(originalMethodInfo, out suggestedMethodInfo))
@@ -618,19 +640,19 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 }
 
                 /// <summary>
-                /// Initializes the dictionary of alternative methods.
-                /// Currently, it simply initializes an empty dictionary. 
+                ///     Initializes the dictionary of alternative methods.
+                ///     Currently, it simply initializes an empty dictionary.
                 /// </summary>
-                /// <returns></returns>
+                /// <returns> </returns>
                 private static Dictionary<MethodInfo, MethodInfo> InitializeAlternateMethodInfos()
                 {
                     return new Dictionary<MethodInfo, MethodInfo>(1);
                 }
 
                 /// <summary>
-                /// Populates the dictionary of alternative methods with the VB methods
+                ///     Populates the dictionary of alternative methods with the VB methods
                 /// </summary>
-                /// <param name="vbAssembly"></param>
+                /// <param name="vbAssembly"> </param>
                 private static void InitializeVBMethods(Assembly vbAssembly)
                 {
                     Debug.Assert(!_vbMethodsInitialized);
@@ -678,14 +700,14 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 }
 
                 /// <summary>
-                /// Recursively rewrite the argument expression to unwrap any "structured" set sources 
-                /// using ExpressionCoverter.NormalizeSetSource(). This is currently required for IGrouping 
-                /// and EntityCollection as argument types to functions.
-                /// NOTE: Changes made to this function might have to be applied to ExpressionCoverter.NormalizeSetSource() too.
+                ///     Recursively rewrite the argument expression to unwrap any "structured" set sources
+                ///     using ExpressionCoverter.NormalizeSetSource(). This is currently required for IGrouping
+                ///     and EntityCollection as argument types to functions.
+                ///     NOTE: Changes made to this function might have to be applied to ExpressionCoverter.NormalizeSetSource() too.
                 /// </summary>
-                /// <param name="parent"></param>
-                /// <param name="argumentExpr"></param>
-                /// <returns></returns>
+                /// <param name="parent"> </param>
+                /// <param name="argumentExpr"> </param>
+                /// <returns> </returns>
                 private CqtExpression NormalizeAllSetSources(ExpressionConverter parent, CqtExpression argumentExpr)
                 {
                     DbExpression newExpr = null;
@@ -749,12 +771,12 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 }
 
                 /// <summary>
-                /// Removes casts where possible, for example Cast from a Reference type to Object type
-                /// Handles nested converts recursively. Removing no-op casts is required to prevent the 
-                /// expression converter from complaining. 
+                ///     Removes casts where possible, for example Cast from a Reference type to Object type
+                ///     Handles nested converts recursively. Removing no-op casts is required to prevent the
+                ///     expression converter from complaining.
                 /// </summary>
-                /// <param name="functionArg"></param>
-                /// <returns></returns>
+                /// <param name="functionArg"> </param>
+                /// <returns> </returns>
                 private Expression UnwrapNoOpConverts(Expression expression)
                 {
                     if (expression.NodeType
@@ -774,16 +796,16 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 }
 
                 /// <summary>
-                /// Checks if the return type specified by the call expression matches that expected by the 
-                /// function definition. Performs a recursive check in case of Collection type.
+                ///     Checks if the return type specified by the call expression matches that expected by the
+                ///     function definition. Performs a recursive check in case of Collection type.
                 /// </summary>
-                /// <param name="result">DbFunctionExpression for the function definition</param>
-                /// <param name="actualReturnType">Return type expected by the function definition</param>
-                /// <param name="parent"></param>
-                /// <param name="call">LINQ MethodCallExpression</param>
-                /// <param name="clrReturnType">Return type specified by the call</param>
-                /// <param name="isElementOfCollection">Indicates if current call is for an Element of a Collection type</param>
-                /// <returns>DbFunctionExpression with aligned return types</returns>
+                /// <param name="result"> DbFunctionExpression for the function definition </param>
+                /// <param name="actualReturnType"> Return type expected by the function definition </param>
+                /// <param name="parent"> </param>
+                /// <param name="call"> LINQ MethodCallExpression </param>
+                /// <param name="clrReturnType"> Return type specified by the call </param>
+                /// <param name="isElementOfCollection"> Indicates if current call is for an Element of a Collection type </param>
+                /// <returns> DbFunctionExpression with aligned return types </returns>
                 private CqtExpression ValidateReturnType(
                     CqtExpression result, TypeUsage actualReturnType, ExpressionConverter parent, MethodCallExpression call,
                     Type clrReturnType, bool isElementOfCollection)
@@ -870,11 +892,11 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 }
 
                 /// <summary>
-                /// Validates that the given parameterValue is not null or empty. 
+                ///     Validates that the given parameterValue is not null or empty.
                 /// </summary>
-                /// <param name="call"></param>
-                /// <param name="parameterValue"></param>
-                /// <param name="parameterName"></param>
+                /// <param name="call"> </param>
+                /// <param name="parameterValue"> </param>
+                /// <param name="parameterName"> </param>
                 internal static void ValidateFunctionAttributeParameter(
                     MethodCallExpression call, string parameterValue, string parameterName)
                 {
@@ -896,47 +918,47 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 private static IEnumerable<MethodInfo> GetMethods()
                 {
                     var result = new List<MethodInfo>
-                        {
-                            //Math functions
-                            typeof(Math).GetMethod(
-                                "Ceiling", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
-                            typeof(Math).GetMethod(
-                                "Ceiling", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double) }, null),
-                            typeof(Math).GetMethod(
-                                "Floor", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
-                            typeof(Math).GetMethod(
-                                "Floor", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double) }, null),
-                            typeof(Math).GetMethod(
-                                "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
-                            typeof(Math).GetMethod(
-                                "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double) }, null),
-                            typeof(Math).GetMethod(
-                                "Round", BindingFlags.Public | BindingFlags.Static, null,
-                                new[] { typeof(decimal), typeof(int) }, null),
-                            typeof(Math).GetMethod(
-                                "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double), typeof(int) },
-                                null),
-                            //Decimal functions
-                            typeof(Decimal).GetMethod(
-                                "Floor", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
-                            typeof(Decimal).GetMethod(
-                                "Ceiling", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
-                            typeof(Decimal).GetMethod(
-                                "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
-                            typeof(Decimal).GetMethod(
-                                "Round", BindingFlags.Public | BindingFlags.Static, null,
-                                new[] { typeof(decimal), typeof(int) }, null),
-                            //String functions
-                            typeof(String).GetMethod(
-                                "Replace", BindingFlags.Public | BindingFlags.Instance, null,
-                                new[] { typeof(String), typeof(String) }, null),
-                            typeof(String).GetMethod(
-                                "ToLower", BindingFlags.Public | BindingFlags.Instance, null, new Type[] { }, null),
-                            typeof(String).GetMethod(
-                                "ToUpper", BindingFlags.Public | BindingFlags.Instance, null, new Type[] { }, null),
-                            typeof(String).GetMethod(
-                                "Trim", BindingFlags.Public | BindingFlags.Instance, null, new Type[] { }, null),
-                        };
+                                     {
+                                         //Math functions
+                                         typeof(Math).GetMethod(
+                                             "Ceiling", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Ceiling", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Floor", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Floor", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Round", BindingFlags.Public | BindingFlags.Static, null,
+                                             new[] { typeof(decimal), typeof(int) }, null),
+                                         typeof(Math).GetMethod(
+                                             "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double), typeof(int) },
+                                             null),
+                                         //Decimal functions
+                                         typeof(Decimal).GetMethod(
+                                             "Floor", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
+                                         typeof(Decimal).GetMethod(
+                                             "Ceiling", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
+                                         typeof(Decimal).GetMethod(
+                                             "Round", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(decimal) }, null),
+                                         typeof(Decimal).GetMethod(
+                                             "Round", BindingFlags.Public | BindingFlags.Static, null,
+                                             new[] { typeof(decimal), typeof(int) }, null),
+                                         //String functions
+                                         typeof(String).GetMethod(
+                                             "Replace", BindingFlags.Public | BindingFlags.Instance, null,
+                                             new[] { typeof(String), typeof(String) }, null),
+                                         typeof(String).GetMethod(
+                                             "ToLower", BindingFlags.Public | BindingFlags.Instance, null, new Type[] { }, null),
+                                         typeof(String).GetMethod(
+                                             "ToUpper", BindingFlags.Public | BindingFlags.Instance, null, new Type[] { }, null),
+                                         typeof(String).GetMethod(
+                                             "Trim", BindingFlags.Public | BindingFlags.Instance, null, new Type[] { }, null),
+                                     };
 
                     // Math.Abs
                     foreach (
@@ -1051,11 +1073,11 @@ namespace System.Data.Entity.Core.Objects.ELinq
             {
                 internal MathPowerTranslator()
                     : base(new[]
-                        {
-                            typeof(Math).GetMethod(
-                                "Pow", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double), typeof(double) },
-                                null),
-                        })
+                               {
+                                   typeof(Math).GetMethod(
+                                       "Pow", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(double), typeof(double) },
+                                       null),
+                               })
                 {
                 }
 
@@ -1075,10 +1097,10 @@ namespace System.Data.Entity.Core.Objects.ELinq
             {
                 internal GuidNewGuidTranslator()
                     : base(new[]
-                        {
-                            typeof(Guid).GetMethod("NewGuid", BindingFlags.Public | BindingFlags.Static, null, Type.EmptyTypes, null)
-                            ,
-                        })
+                               {
+                                   typeof(Guid).GetMethod("NewGuid", BindingFlags.Public | BindingFlags.Static, null, Type.EmptyTypes, null)
+                                   ,
+                               })
                 {
                 }
 
@@ -1186,7 +1208,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     ExpressionConverter parent, MethodCallExpression call, CqtExpression patternExpression, CqtExpression inputExpression)
                 {
                     DbExpression indexOfExpression = parent.CreateCanonicalFunction(IndexOf, call, patternExpression, inputExpression)
-                        .Equal(DbExpressionBuilder.Constant(1));
+                                                           .Equal(DbExpressionBuilder.Constant(1));
                     return indexOfExpression;
                 }
             }
@@ -1226,7 +1248,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                     DbExpression indexOfExpression = parent.CreateCanonicalFunction(
                         IndexOf, call, reversePatternExpression, reverseInputExpression)
-                        .Equal(DbExpressionBuilder.Constant(1));
+                                                           .Equal(DbExpressionBuilder.Constant(1));
                     return indexOfExpression;
                 }
             }
@@ -1265,7 +1287,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     if (call.Arguments.Count == 1)
                     {
                         length = parent.CreateCanonicalFunction(Length, call, target)
-                            .Minus(arg1);
+                                       .Minus(arg1);
                     }
                     else
                     {
@@ -1331,7 +1353,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                         // Length(this) - (arg1 + arg2)
                         CqtExpression substringLength =
                             parent.CreateCanonicalFunction(Length, call, thisString)
-                                .Minus(arg1.Plus(arg2));
+                                  .Minus(arg1.Plus(arg2));
 
                         // Substring(this, substringStartIndex, substringLenght)
                         CqtExpression secondSubstring =
@@ -1406,7 +1428,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                             thisString,
                             arg1.Plus(DbExpressionBuilder.Constant(1)),
                             parent.CreateCanonicalFunction(Length, call, thisString)
-                                .Minus(arg1));
+                                  .Minus(arg1));
 
                     // result = Concat( Concat (firstSubstring, value), secondSubstring )
                     var arg2 = parent.TranslateExpression(call.Arguments[1]);
@@ -1448,7 +1470,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     //Length(value) = 0
                     CqtExpression emptyStringExpression =
                         parent.CreateCanonicalFunction(Length, call, value)
-                            .Equal(DbExpressionBuilder.Constant(0));
+                              .Equal(DbExpressionBuilder.Constant(0));
 
                     CqtExpression result = isNullExpression.Or(emptyStringExpression);
                     return result;
@@ -1695,14 +1717,14 @@ namespace System.Data.Entity.Core.Objects.ELinq
                 private const string s_FirstWeekOfYearFullName = "Microsoft.VisualBasic.FirstWeekOfYear";
 
                 private static readonly HashSet<string> _supportedIntervals = new HashSet<string>
-                    {
-                        Year,
-                        Month,
-                        Day,
-                        Hour,
-                        Minute,
-                        Second
-                    };
+                                                                                  {
+                                                                                      Year,
+                                                                                      Month,
+                                                                                      Day,
+                                                                                      Hour,
+                                                                                      Minute,
+                                                                                      Second
+                                                                                  };
 
                 internal VBDatePartTranslator(Assembly vbAssembly)
                     : base(GetMethods(vbAssembly))
@@ -2095,8 +2117,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 protected virtual TypeUsage GetReturnType(ExpressionConverter parent, MethodCallExpression call)
                 {
-                    Debug.Assert(parent != null, "parent != null");
-                    Debug.Assert(call != null, "call != null");
+                    DebugCheck.NotNull(parent);
+                    DebugCheck.NotNull(call);
 
                     return parent.GetValueLayerType(call.Type);
                 }
@@ -2174,8 +2196,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 protected override TypeUsage GetReturnType(ExpressionConverter parent, MethodCallExpression call)
                 {
-                    Debug.Assert(parent != null, "parent != null");
-                    Debug.Assert(call != null, "call != null");
+                    DebugCheck.NotNull(parent);
+                    DebugCheck.NotNull(call);
 
                     var returnType = base.GetReturnType(parent, call);
 
@@ -2218,8 +2240,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
 
                 protected override TypeUsage GetReturnType(ExpressionConverter parent, MethodCallExpression call)
                 {
-                    Debug.Assert(parent != null, "parent != null");
-                    Debug.Assert(call != null, "call != null");
+                    DebugCheck.NotNull(parent);
+                    DebugCheck.NotNull(call);
 
                     var returnType = base.GetReturnType(parent, call);
 
@@ -2652,32 +2674,58 @@ namespace System.Data.Entity.Core.Objects.ELinq
                         var arguments = ((DbNewInstanceExpression)source).Arguments;
                         if (arguments.Count > 0)
                         {
-                            if (!parent._funcletizer.RootContext.ContextOptions.UseCSharpNullComparisonBehavior)
+                            var useCSharpNullComparisonBehavior = parent._funcletizer.RootContext.ContextOptions.UseCSharpNullComparisonBehavior;
+                            var providerSupportsInExpression = parent.ProviderManifest.SupportsInExpression();
+
+                            if (!useCSharpNullComparisonBehavior && !providerSupportsInExpression)
                             {
                                 return TranslateContainsHelper(
                                     parent, value, arguments, EqualsPattern.Store, sourceArgumentType, valueExpression.Type);
                             }
+
                             // Replaces this => (tbl.Col = 1 AND tbl.Col IS NOT NULL) OR (tbl.Col = 2 AND tbl.Col IS NOT NULL) OR ... 
                             // with this => (tbl.Col = 1 OR tbl.Col = 2 OR ...) AND (tbl.Col IS NOT NULL))
                             // which in turn gets simplified to this => (tbl.Col IN (1, 2, ...) AND (tbl.Col IS NOT NULL)) in SqlGenerator
-                            var constantArguments = arguments.Where(argument => argument.ExpressionKind == DbExpressionKind.Constant);
+
+                            var constantArguments = new List<DbExpression>();
+                            var otherArguments = new List<DbExpression>();
+                            foreach (var arg in arguments)
+                            {
+                                var list = (arg.ExpressionKind == DbExpressionKind.Constant) ? constantArguments : otherArguments;
+                                list.Add(arg);
+                            }
+
                             CqtExpression constantCqt = null;
-                            if (constantArguments.Count() > 0)
+                            if (constantArguments.Count > 0)
                             {
-                                constantCqt = TranslateContainsHelper(
-                                    parent, value, constantArguments, EqualsPattern.PositiveNullEqualityNonComposable, sourceArgumentType,
-                                    valueExpression.Type);
-                                constantCqt = constantCqt.And(value.IsNull().Not());
+                                var equalsPattern = useCSharpNullComparisonBehavior
+                                                        ? EqualsPattern.PositiveNullEqualityNonComposable
+                                                        : EqualsPattern.Store;
+
+                                constantCqt = providerSupportsInExpression
+                                                  ? DbExpressionBuilder.CreateInExpression(value, constantArguments)
+                                                  : TranslateContainsHelper(
+                                                      parent, value, constantArguments, equalsPattern, sourceArgumentType,
+                                                      valueExpression.Type);
+
+                                if (useCSharpNullComparisonBehavior)
+                                {
+                                    constantCqt = constantCqt.And(value.IsNull().Not());
+                                }
                             }
+
                             // Does not optimize conversion of variables embedded in the list.
-                            var otherArguments = arguments.Where(argument => argument.ExpressionKind != DbExpressionKind.Constant);
                             CqtExpression otherCqt = null;
-                            if (otherArguments.Count() > 0)
+                            if (otherArguments.Count > 0)
                             {
+                                var equalsPattern = useCSharpNullComparisonBehavior
+                                                        ? EqualsPattern.PositiveNullEqualityComposable
+                                                        : EqualsPattern.Store;
+
                                 otherCqt = TranslateContainsHelper(
-                                    parent, value, otherArguments, EqualsPattern.PositiveNullEqualityComposable, sourceArgumentType,
-                                    valueExpression.Type);
+                                    parent, value, otherArguments, equalsPattern, sourceArgumentType, valueExpression.Type);
                             }
+
                             if (constantCqt == null)
                             {
                                 return otherCqt;
@@ -2700,7 +2748,7 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     return
                         sourceBinding.Filter(
                             parent.CreateEqualsExpression(sourceBinding.Variable, value, pattern, sourceArgumentType, valueExpression.Type))
-                            .Exists();
+                                     .Exists();
                 }
             }
 
@@ -3127,7 +3175,8 @@ namespace System.Data.Entity.Core.Objects.ELinq
                     //    rightProject = (select loj
                     //                    from {1} left outer join x.lojRightInput as loj on true)
                     // loj comes from the right side of the left outer join.
-                    if (rightProjectProjection.Instance != rightProject.Input.Variable ||
+                    if (rightProjectProjection.Instance != rightProject.Input.Variable
+                        ||
                         rightProjectProjection.Property.Name != loj.Right.VariableName
                         ||
                         loj.JoinCondition.ExpressionKind != DbExpressionKind.Constant)

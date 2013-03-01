@@ -1,12 +1,13 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ConnectionFactoryConfig
 {
     using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// Represents a specification for the default connection factory to be set into a config file.
+    ///     Represents a specification for the default connection factory to be set into a config file.
     /// </summary>
     internal class ConnectionFactorySpecification
     {
@@ -20,7 +21,7 @@ namespace System.Data.Entity.ConnectionFactoryConfig
 
         public ConnectionFactorySpecification(string connectionFactoryName, params string[] constructorArguments)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(connectionFactoryName));
+            DebugCheck.NotEmpty(connectionFactoryName);
 
             _connectionFactoryName = connectionFactoryName;
             _constructorArguments = constructorArguments ?? Enumerable.Empty<string>();

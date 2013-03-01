@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 {
     using System.Collections.Generic;
     using System.ComponentModel.DataAnnotations.Schema;
-    using System.Data.Entity.Edm;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Configuration;
     using System.Data.Entity.ModelConfiguration.Configuration.Types;
     using System.Data.Entity.ModelConfiguration.Mappers;
-    using System.Data.Entity.ModelConfiguration.Utilities;
     using System.Data.Entity.Resources;
     using System.Linq;
     using System.Reflection;
@@ -19,7 +19,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_not_map_invalid_structural_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
 
             Assert.Null(typeMapper.MapEntityType(typeof(string)));
@@ -28,7 +28,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapComplexType_should_not_map_invalid_structural_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
 
             Assert.Null(typeMapper.MapComplexType(typeof(string)));
@@ -37,7 +37,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_not_map_ignored_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var mockModelConfiguration = new Mock<ModelConfiguration>();
             var typeMapper = new TypeMapper(new MappingContext(mockModelConfiguration.Object, new ConventionsConfiguration(), model));
             var mockType = new MockType("Foo");
@@ -51,7 +51,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapComplexType_should_not_map_ignored_type()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var mockModelConfiguration = new Mock<ModelConfiguration>();
             var typeMapper = new TypeMapper(new MappingContext(mockModelConfiguration.Object, new ConventionsConfiguration(), model));
             var mockType = new MockType("Foo");
@@ -65,7 +65,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_not_bring_in_base_class_by_default()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
             var mockType = new MockType("Bar").BaseType(new MockType("Foo"));
 
@@ -73,7 +73,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 
             Assert.NotNull(entityType);
             Assert.Null(entityType.BaseType);
-            Assert.Equal(1, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(1, model.EntityTypes.Count());
             Assert.Equal(1, model.Containers.Single().EntitySets.Count);
             Assert.Equal("Bar", model.GetEntitySet(entityType).Name);
         }
@@ -81,7 +81,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_bring_in_derived_types_from_the_same_assembly()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
 
             var mockType1 = new MockType("Foo");
@@ -91,14 +91,14 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 
             typeMapper.MapEntityType(mockType1);
 
-            Assert.Equal(2, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(2, model.EntityTypes.Count());
             Assert.Equal(1, model.Containers.Single().EntitySets.Count);
         }
 
         [Fact]
         public void MapEntityType_should_not_try_and_bring_in_derived_types_from_sealed_class()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
 
             var mockType1 = new MockType("Foo").TypeAttributes(TypeAttributes.Sealed);
@@ -108,14 +108,14 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 
             typeMapper.MapEntityType(mockType1);
 
-            Assert.Equal(1, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(1, model.EntityTypes.Count());
             Assert.Equal(1, model.Containers.Single().EntitySets.Count);
         }
 
         [Fact]
         public void MapEntityType_should_bring_in_derived_types_from_discovered_assemblies()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
 
             var mockType1 = new MockType("Foo");
@@ -127,12 +127,12 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 
             typeMapper.MapEntityType(mockType3);
 
-            Assert.Equal(1, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(1, model.EntityTypes.Count());
             Assert.Equal(1, model.Containers.Single().EntitySets.Count);
 
             typeMapper.MapEntityType(mockType1);
 
-            Assert.Equal(3, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(3, model.EntityTypes.Count());
             Assert.Equal(2, model.Containers.Single().EntitySets.Count);
         }
 
@@ -143,7 +143,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
             mockModelConfiguration
                 .Setup(m => m.GetStructuralTypeConfiguration(It.IsAny<Type>()))
                 .Returns(new Mock<StructuralTypeConfiguration>().Object);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var mockType1 = new MockType("Foo");
             var mockType2 = new MockType("Bar").BaseType(mockType1);
 
@@ -152,16 +152,17 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
 
             mockModelConfiguration.SetupGet(m => m.ConfiguredTypes).Returns(new[] { mockType2.Object });
 
-            new TypeMapper(new MappingContext(mockModelConfiguration.Object, new ConventionsConfiguration(), model)).MapEntityType(mockType1);
+            new TypeMapper(new MappingContext(mockModelConfiguration.Object, new ConventionsConfiguration(), model)).MapEntityType(
+                mockType1);
 
-            Assert.Equal(2, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(2, model.EntityTypes.Count());
             Assert.Equal(1, model.Containers.Single().EntitySets.Count);
         }
 
         [Fact]
         public void MapEntityType_should_ignore_new_type_if_type_name_already_used()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
             var mockType1 = new MockType("Foo");
             var mockType2 = new MockType("Foo");
@@ -175,7 +176,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapComplexType_should_ignore_new_type_if_type_name_already_used()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
             var mockType1 = new MockType("Foo");
             var mockType2 = new MockType("Foo");
@@ -193,7 +194,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEnumType_should_ignore_new_type_if_type_name_already_used()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
 
             var mockType1 = new MockType("Foo");
             var mockType2 = new MockType("Foo");
@@ -214,7 +215,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_correctly_map_properties_in_class_hierachy()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
             var mockObjectType = new MockType("Object");
             var mockBaseType = new MockType("Foo").BaseType(mockObjectType).Property<int>("Id");
@@ -234,20 +235,40 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_create_abstract_entity_when_clr_type_is_abstract()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
             var mockType = new MockType("Foo").TypeAttributes(TypeAttributes.Abstract);
 
             var entityType = typeMapper.MapEntityType(mockType);
 
             Assert.NotNull(entityType);
-            Assert.True(entityType.IsAbstract);
+            Assert.True(entityType.Abstract);
+        }
+
+        [Fact]
+        public void MapEntityType_should_set_namespace_when_provided_via_model_configuration()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+            var typeMapper
+                = new TypeMapper(
+                    new MappingContext(
+                        new ModelConfiguration
+                            {
+                                ModelNamespace = "Bar"
+                            },
+                        new ConventionsConfiguration(), model));
+            var mockType = new MockType("Foo").TypeAttributes(TypeAttributes.Abstract);
+
+            var entityType = typeMapper.MapEntityType(mockType);
+
+            Assert.NotNull(entityType);
+            Assert.Equal("Bar", entityType.NamespaceName);
         }
 
         [Fact]
         public void MapEntityType_should_create_entity_type_with_clr_type_name_and_add_to_model()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
             var mockType = new MockType("Foo");
 
@@ -260,7 +281,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapComplexType_should_create_complex_type_with_clr_type_name_and_add_to_model()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var mockType = new MockType("Foo");
             var modelConfiguration = new ModelConfiguration();
             modelConfiguration.ComplexType(mockType);
@@ -273,9 +294,51 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         }
 
         [Fact]
+        public void MapComplexType_should_set_namespace_when_provided_via_model_configuration()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+            var mockType = new MockType("Foo");
+            var modelConfiguration = new ModelConfiguration
+                                         {
+                                             ModelNamespace = "Bar"
+                                         };
+            modelConfiguration.ComplexType(mockType);
+            var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
+
+            var complexType = typeMapper.MapComplexType(mockType);
+
+            Assert.NotNull(complexType);
+            Assert.Equal("Bar", complexType.NamespaceName);
+        }
+
+        [Fact]
+        public void MapEnumType_should_set_namespace_when_provided_via_model_configuration()
+        {
+            var model = new EdmModel(DataSpace.CSpace);
+            var mockType = new MockType("Foo");
+
+            mockType.SetupGet(t => t.IsEnum).Returns(true);
+            mockType.Setup(t => t.GetEnumUnderlyingType()).Returns(typeof(int));
+            mockType.Setup(t => t.GetEnumNames()).Returns(new string[] { });
+            mockType.Setup(t => t.GetEnumValues()).Returns(new int[] { });
+
+            var modelConfiguration = new ModelConfiguration
+                                         {
+                                             ModelNamespace = "Bar"
+                                         };
+
+            var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
+
+            var enumType = typeMapper.MapEnumType(mockType);
+
+            Assert.NotNull(enumType);
+            Assert.Equal("Bar", enumType.NamespaceName);
+        }
+
+        [Fact]
         public void MapEnumType_should_create_enum_type_with_clr_type_name_and_add_to_model()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var mockType = new MockType("Foo");
 
             mockType.SetupGet(t => t.IsEnum).Returns(true);
@@ -296,7 +359,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_create_entity_set_and_add_to_model()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
             var mockType = new MockType("Foo");
 
@@ -312,21 +375,21 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         [Fact]
         public void MapEntityType_should_not_create_entity_type_if_type_already_exists()
         {
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(new ModelConfiguration(), new ConventionsConfiguration(), model));
             var mockType = new MockType("Foo");
 
             typeMapper.MapEntityType(mockType);
             typeMapper.MapEntityType(mockType);
 
-            Assert.Equal(1, model.Namespaces.Single().EntityTypes.Count);
+            Assert.Equal(1, model.EntityTypes.Count());
         }
 
         [Fact]
         public void MapEntityType_should_only_map_public_instance_read_write_primitive_properties()
         {
             var modelConfiguration = new ModelConfiguration();
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             var entityType = typeMapper.MapEntityType(
@@ -340,87 +403,89 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         public void MapEntityType_should_recognize_StoreIgnore()
         {
             var type = typeof(TypeMapper_EntityWithStoreIgnore);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapEntityType(type);
 
             Assert.True(modelConfiguration.IsIgnoredType(type));
-            Assert.Equal(0, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(0, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(0, model.EntityTypes.Count());
+            Assert.Equal(0, model.ComplexTypes.Count());
         }
 
         [Fact]
         public void MapComplexType_should_recognize_StoreIgnore()
         {
             var type = typeof(TypeMapper_EntityWithStoreIgnore);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapComplexType(type);
 
             Assert.True(modelConfiguration.IsIgnoredType(type));
-            Assert.Equal(0, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(0, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(0, model.EntityTypes.Count());
+            Assert.Equal(0, model.ComplexTypes.Count());
         }
 
         [Fact]
         public void MapEntityType_should_recognize_StoreInline()
         {
             var type = typeof(TypeMapper_EntityWithStoreInline);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapEntityType(type);
 
             Assert.True(modelConfiguration.IsComplexType(type));
-            Assert.Equal(0, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(0, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(0, model.EntityTypes.Count());
+            Assert.Equal(0, model.ComplexTypes.Count());
         }
 
         [Fact]
         public void MapComplexType_should_recognize_StoreInline()
         {
             var type = typeof(TypeMapper_EntityWithStoreInline);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapComplexType(type);
 
             Assert.True(modelConfiguration.IsComplexType(type));
-            Assert.Equal(0, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(1, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(0, model.EntityTypes.Count());
+            Assert.Equal(1, model.ComplexTypes.Count());
         }
 
         [Fact]
         public void MapEntityType_with_configured_Entity_should_throw_with_StoreInline()
         {
             var type = typeof(TypeMapper_EntityWithStoreInline);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             modelConfiguration.Entity(typeof(TypeMapper_EntityWithStoreInline));
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
-            Assert.Equal(Strings.ComplexTypeConfigurationMismatch(type), Assert.Throws<InvalidOperationException>(() => typeMapper.MapEntityType(type)).Message);
+            Assert.Equal(
+                Strings.ComplexTypeConfigurationMismatch(type),
+                Assert.Throws<InvalidOperationException>(() => typeMapper.MapEntityType(type)).Message);
         }
 
         [Fact]
         public void MapEntityType_recognizes_TableName()
         {
             var type = typeof(TypeMapper_EntityWithTableName);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapEntityType(type);
 
             Assert.False(modelConfiguration.IsComplexType(type));
-            Assert.Equal(1, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(0, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(1, model.EntityTypes.Count());
+            Assert.Equal(0, model.ComplexTypes.Count());
             Assert.Equal("Foo", modelConfiguration.Entity(typeof(TypeMapper_EntityWithTableName)).GetTableName().Name);
         }
 
@@ -428,30 +493,30 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         public void MapEntityType_should_recognize_StoreIgnore_over_StoreInline()
         {
             var type = typeof(TypeMapper_EntityWithStoreInlineAndStoreIgnore);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapEntityType(type);
 
             Assert.True(modelConfiguration.IsIgnoredType(type));
-            Assert.Equal(0, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(0, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(0, model.EntityTypes.Count());
+            Assert.Equal(0, model.ComplexTypes.Count());
         }
 
         [Fact]
         public void MapComplexType_should_recognize_StoreIgnore_over_StoreInline()
         {
             var type = typeof(TypeMapper_EntityWithStoreInlineAndStoreIgnore);
-            var model = new EdmModel().Initialize();
+            var model = new EdmModel(DataSpace.CSpace);
             var modelConfiguration = new ModelConfiguration();
             var typeMapper = new TypeMapper(new MappingContext(modelConfiguration, new ConventionsConfiguration(), model));
 
             typeMapper.MapComplexType(type);
 
             Assert.True(modelConfiguration.IsIgnoredType(type));
-            Assert.Equal(0, model.Namespaces.Single().EntityTypes.Count);
-            Assert.Equal(0, model.Namespaces.Single().ComplexTypes.Count);
+            Assert.Equal(0, model.EntityTypes.Count());
+            Assert.Equal(0, model.ComplexTypes.Count());
         }
     }
 
@@ -480,6 +545,7 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         // Positive navigation props
         public MapEntityType_related_entity_fixture ReferenceProp { get; set; }
         public ICollection<MapEntityType_related_entity_fixture> ReadWriteCollectionProp { get; set; }
+
         public ICollection<MapEntityType_related_entity_fixture> ReadOnlyCollectionProp
         {
             get { return new List<MapEntityType_related_entity_fixture>(); }
@@ -490,10 +556,12 @@ namespace System.Data.Entity.ModelConfiguration.Edm.UnitTests
         public static MapEntityType_related_entity_fixture StaticReferenceProp { get; set; }
         private ICollection<MapEntityType_related_entity_fixture> PrivateReadWriteCollectionProp { get; set; }
         public static ICollection<MapEntityType_related_entity_fixture> StaticReadWriteCollectionProp { get; set; }
+
         private ICollection<MapEntityType_related_entity_fixture> PrivateReadOnlyCollectionProp
         {
             get { return new List<MapEntityType_related_entity_fixture>(); }
         }
+
         public static ICollection<MapEntityType_related_entity_fixture> StaticReadOnlyCollectionProp
         {
             get { return new List<MapEntityType_related_entity_fixture>(); }

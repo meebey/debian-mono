@@ -126,7 +126,7 @@
   <data name="GetMigrationsCommand_NoHistory" xml:space="preserve">
     <value>No migrations have been applied to the target database.</value>
   </data>
-  <data name="LoggingGenerate" xml:space="preserve">
+  <data name="ScaffoldingMigration" xml:space="preserve">
     <value>Scaffolding migration '{0}'.</value>
   </data>
   <data name="RescaffoldNoForce" xml:space="preserve">
@@ -134,10 +134,6 @@
   </data>
   <data name="SnapshotBehindWarning" xml:space="preserve">
     <value>The Designer Code for this migration file includes a snapshot of your current Code First model. This snapshot is used to calculate the changes to your model when you scaffold the next migration. If you make additional changes to your model that you want to include in this migration, then you can re-scaffold it by running 'Add-Migration {0}' again.</value>
-  </data>
-  <data name="MigrationsPendingException" xml:space="preserve">
-    <value>Unable to generate an explicit migration because the following explicit migrations are pending: [{0}]. Apply the pending explicit migrations before attempting to generate a new explicit migration.</value>
-    <comment>## ExceptionType=Migrations.MigrationsPendingException</comment>
   </data>
   <data name="AutomaticMigrationDisabledInfo" xml:space="preserve">
     <value>You can use the Add-Migration command to write the pending model changes to a code-based migration.</value>
@@ -165,5 +161,15 @@
   <data name="SaveConnectionFactoryInConfigFailed" xml:space="preserve">
     <value>Failed to add the Entity Framework 'defaultConnectionFactory' entry to the .config file '{0}' in the current project. The default SqlConnectionFactory configured for '.\\SQLEXPRESS' will be used unless you either add the 'defaultConnectionFactory' entry to the .config file manually or specify connection strings in code. See inner exception for details.</value>
     <comment>## ExceptionType=System.IO.IOException</comment>
+  </data>
+  <data name="RescaffoldingMigration" xml:space="preserve">
+    <value>Re-scaffolding migration '{0}'.</value>
+  </data>
+  <data name="DidYouMeanToRescaffold" xml:space="preserve">
+    <value>A previous migration called '{0}' was already applied to the target database. If you meant to re-scaffold '{0}', revert it by running 'Update-Database -TargetMigration {1}', then delete '{2}' and run 'Add-Migration {0}' again.</value>
+  </data>
+  <data name="ArgumentIsNullOrWhitespace" xml:space="preserve">
+    <value>The argument '{0}' cannot be null, empty or contain only white space.</value>
+    <comment>## ExceptionType=ArgumentException</comment>
   </data>
 </root>

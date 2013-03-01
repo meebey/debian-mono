@@ -1,9 +1,10 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.Sets
 {
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     internal static class V2ConventionSet
     {
@@ -17,7 +18,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.Sets
             var columnOrderingConventionIndex
                 = conventions.FindIndex(c => c.GetType() == typeof(ColumnOrderingConvention));
 
-            Contract.Assert(columnOrderingConventionIndex != -1);
+            Debug.Assert(columnOrderingConventionIndex != -1);
 
             conventions[columnOrderingConventionIndex] = new ColumnOrderingConventionStrict();
 

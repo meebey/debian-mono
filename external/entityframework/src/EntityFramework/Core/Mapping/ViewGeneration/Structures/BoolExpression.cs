@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 {
     using System.Collections.Generic;
@@ -6,6 +7,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     using System.Data.Entity.Core.Common.Utils;
     using System.Data.Entity.Core.Common.Utils.Boolean;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Linq;
     using System.Text;
@@ -27,8 +29,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
     // This class represents an arbitrary boolean expression
     internal partial class BoolExpression : InternalBase
     {
-        #region Constructors
-
         // effects: Create a boolean expression from a literal value
         internal static BoolExpression CreateLiteral(BoolLiteral literal, MemberDomainMap memberDomainMap)
         {
@@ -129,10 +129,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             m_memberDomainMap = memberDomainMap;
         }
 
-        #endregion
-
-        #region Fields
-
         private DomainBoolExpr m_tree; // The actual tree that has the expression
         // Domain map for various member paths - can be null
         private readonly MemberDomainMap m_memberDomainMap;
@@ -141,10 +137,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         internal static readonly IEqualityComparer<BoolExpression> EqualityComparer = new BoolComparer();
         internal static readonly BoolExpression True = new BoolExpression(true);
         internal static readonly BoolExpression False = new BoolExpression(false);
-
-        #endregion
-
-        #region Properties
 
         // requires: this is of the form "True", "Literal" or "Literal AND ... AND Literal".
         // effects: Yields the individual atoms in this (for True does not
@@ -253,10 +245,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             }
         }
 
-        #endregion
-
-        #region Methods
-
         // effects: Given a sequence of boolean expressions, yields the
         // corresponding trees in it in the same order
         private IEnumerable<DomainBoolExpr> ToBoolExprList(IEnumerable<BoolExpression> nodes)
@@ -268,7 +256,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Whether the boolean expression contains only OneOFTypeConst variables.
+        ///     Whether the boolean expression contains only OneOFTypeConst variables.
         /// </summary>
         internal bool RepresentsAllTypeConditions
         {
@@ -299,7 +287,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Given the <paramref name="blockAlias"/> for the block in which the expression resides, converts the expression into eSQL.
+        ///     Given the <paramref name="blockAlias" /> for the block in which the expression resides, converts the expression into eSQL.
         /// </summary>
         internal StringBuilder AsEsql(StringBuilder builder, string blockAlias)
         {
@@ -307,7 +295,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
         }
 
         /// <summary>
-        /// Given the <paramref name="row"/> for the input, converts the expression into CQT.
+        ///     Given the <paramref name="row" /> for the input, converts the expression into CQT.
         /// </summary>
         internal DbExpression AsCqt(DbExpression row)
         {
@@ -407,7 +395,7 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
 
         internal void FixDomainMap(MemberDomainMap domainMap)
         {
-            Debug.Assert(domainMap != null, "Member domain map is not set");
+            DebugCheck.NotNull(domainMap);
             m_tree = FixRangeVisitor.FixRange(m_tree, domainMap);
         }
 
@@ -418,15 +406,9 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             return (m_memberDomainMap != null && IsFinalVisitor.IsFinal(m_tree));
         }
 
-        #endregion
-
-        #region Comparer class
-
         // This class compares boolean expressions
         private class BoolComparer : IEqualityComparer<BoolExpression>
         {
-            #region IEqualityComparer<BoolExpression> Members
-
             public bool Equals(BoolExpression left, BoolExpression right)
             {
                 // Quick check with references
@@ -449,10 +431,6 @@ namespace System.Data.Entity.Core.Mapping.ViewGeneration.Structures
             {
                 return expression.m_tree.GetHashCode();
             }
-
-            #endregion
         }
-
-        #endregion
     }
 }

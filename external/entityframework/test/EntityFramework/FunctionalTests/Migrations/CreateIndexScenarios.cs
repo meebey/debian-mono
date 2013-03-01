@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations
 {
-
     [Variant(DatabaseProvider.SqlClient, ProgrammingLanguage.CSharp)]
     [Variant(DatabaseProvider.SqlServerCe, ProgrammingLanguage.CSharp)]
     [Variant(DatabaseProvider.SqlClient, ProgrammingLanguage.VB)]
@@ -27,8 +27,6 @@ namespace System.Data.Entity.Migrations
             migrator = CreateMigrator<ShopContext_v1>(new CreateSimpleIndexMigration());
 
             migrator.Update();
-
-            // TODO: Verify
         }
 
         private class CreateCompositeIndexMigration : DbMigration
@@ -51,8 +49,6 @@ namespace System.Data.Entity.Migrations
             migrator = CreateMigrator<ShopContext_v1, CreateCompositeIndexMigration>();
 
             migrator.Update();
-
-            // TODO: Verify
         }
 
         [MigrationsTheory]
@@ -61,6 +57,28 @@ namespace System.Data.Entity.Migrations
             ResetDatabase();
 
             var migrator = CreateMigrator<ProcessedTransactionContext>();
+
+            migrator.Update();
+        }
+
+        private class CreateClusteredIndexMigration : DbMigration
+        {
+            public override void Up()
+            {
+                CreateIndex("OrderLines", "OrderId", name: "IX_Custom_Name", clustered: true);
+            }
+        }
+
+        [MigrationsTheory]
+        public void Can_create_clustered_index()
+        {
+            ResetDatabase();
+
+            var migrator = CreateMigrator<ShopContext_v1>();
+
+            migrator.Update();
+
+            migrator = CreateMigrator<ShopContext_v1>(new CreateClusteredIndexMigration());
 
             migrator.Update();
         }

@@ -1,17 +1,17 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace CmdLine
 {
     using System;
     using System.Collections.Generic;
     using System.Data.Entity.Migrations.Console.Resources;
-    using System.Diagnostics.Contracts;
     using System.Linq;
     using System.Reflection;
     using System.Text;
     using System.Text.RegularExpressions;
 
     /// <summary>
-    ///   Class for parsing command line arguments
+    ///     Class for parsing command line arguments
     /// </summary>
     public static class CommandLine
     {
@@ -32,10 +32,10 @@ namespace CmdLine
         internal const string ValueSeparatorGroup = "ValueSeparator";
 
         /// <summary>
-        ///   Expression for a switch with a value i.e. /S:Value or /S:Some Value
+        ///     Expression for a switch with a value i.e. /S:Value or /S:Some Value
         /// </summary>
         /// <remarks>
-        /// This expression divides the token into groups
+        ///     This expression divides the token into groups
         /// </remarks>
         private const string TokenizeExpressionFormat =
             @"(?{0}i) # Case Sensitive Option
@@ -170,7 +170,10 @@ namespace CmdLine
 
         public static char PromptKey(string prompt, params char[] allowedKeys)
         {
-            Contract.Requires(allowedKeys != null);
+            if (allowedKeys == null)
+            {
+                throw new ArgumentNullException("allowedKeys");
+            }
 
             char keyChar;
             bool validKey;
@@ -242,9 +245,9 @@ namespace CmdLine
         }
 
         /// <summary>
-        ///   Returns a string with the case sensitive option
+        ///     Returns a string with the case sensitive option
         /// </summary>
-        /// <returns>null when case sensitive is on, "-" when it is off</returns>
+        /// <returns> null when case sensitive is on, "-" when it is off </returns>
         private static string GetCaseSensitiveOption()
         {
             return CaseSensitive ? null : "-";

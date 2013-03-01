@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations;
@@ -12,7 +13,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var propertyConfiguration = new StringPropertyConfiguration();
 
-            new RequiredPrimitivePropertyAttributeConvention.RequiredPrimitivePropertyAttributeConventionImpl()
+            new RequiredPrimitivePropertyAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new RequiredAttribute());
 
             Assert.Equal(false, propertyConfiguration.IsNullable);
@@ -21,9 +22,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_ignore_attribute_if_already_set()
         {
-            var propertyConfiguration = new StringPropertyConfiguration { IsNullable = true };
+            var propertyConfiguration = new StringPropertyConfiguration
+                                            {
+                                                IsNullable = true
+                                            };
 
-            new RequiredPrimitivePropertyAttributeConvention.RequiredPrimitivePropertyAttributeConventionImpl()
+            new RequiredPrimitivePropertyAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new RequiredAttribute());
 
             Assert.Equal(true, propertyConfiguration.IsNullable);

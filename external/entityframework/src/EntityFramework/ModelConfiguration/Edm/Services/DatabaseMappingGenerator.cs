@@ -1,65 +1,68 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Edm.Services
 {
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.ModelConfiguration.Configuration.Types;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     internal class DatabaseMappingGenerator
     {
         private const string DiscriminatorColumnName = "Discriminator";
-        internal const int DiscriminatorLength = 128;
+        public const int DiscriminatorMaxLength = 128;
+
+        public static TypeUsage DiscriminatorTypeUsage
+            = TypeUsage.CreateStringTypeUsage(
+                PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String),
+                isUnicode: true,
+                isFixedLength: false,
+                maxLength: DiscriminatorMaxLength);
 
         private readonly DbProviderManifest _providerManifest;
 
         public DatabaseMappingGenerator(DbProviderManifest providerManifest)
         {
-            Contract.Requires(providerManifest != null);
+            DebugCheck.NotNull(providerManifest);
 
             _providerManifest = providerManifest;
         }
 
         public DbDatabaseMapping Generate(EdmModel model)
         {
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(model);
 
             var databaseMapping = InitializeDatabaseMapping(model);
 
-            GenerateEntityTypes(model, databaseMapping);
+            GenerateEntityTypes(databaseMapping);
             GenerateDiscriminators(databaseMapping);
-            GenerateAssociationTypes(model, databaseMapping);
+            GenerateAssociationTypes(databaseMapping);
+            GenerateModificationFunctions(databaseMapping);
 
             return databaseMapping;
         }
 
         private static DbDatabaseMapping InitializeDatabaseMapping(EdmModel model)
         {
-            Contract.Requires(model != null);
+            DebugCheck.NotNull(model);
 
-            var databaseMapping = new DbDatabaseMapping().Initialize(
-                model, new DbDatabaseMetadata().Initialize(model.Version));
-
-            databaseMapping.EntityContainerMappings.Single().EntityContainer = model.Containers.Single();
+            var databaseMapping
+                = new DbDatabaseMapping()
+                    .Initialize(model, new EdmModel(DataSpace.SSpace, model.Version));
 
             return databaseMapping;
         }
 
-        private void GenerateEntityTypes(EdmModel model, DbDatabaseMapping databaseMapping)
+        private void GenerateEntityTypes(DbDatabaseMapping databaseMapping)
         {
-            Contract.Requires(model != null);
-            Contract.Requires(databaseMapping != null);
+            DebugCheck.NotNull(databaseMapping);
 
-            foreach (var entityType in model.GetEntityTypes())
+            foreach (var entityType in databaseMapping.Model.EntityTypes)
             {
-                if (!entityType.IsAbstract)
+                if (!entityType.Abstract)
                 {
-                    new EntityTypeMappingGenerator(_providerManifest).
+                    new TableMappingGenerator(_providerManifest).
                         Generate(entityType, databaseMapping);
                 }
             }
@@ -67,29 +70,35 @@ namespace System.Data.Entity.ModelConfiguration.Edm.Services
 
         private void GenerateDiscriminators(DbDatabaseMapping databaseMapping)
         {
-            Contract.Requires(databaseMapping != null);
+            DebugCheck.NotNull(databaseMapping);
 
             foreach (var entitySetMapping in databaseMapping.GetEntitySetMappings())
             {
-                if (entitySetMapping.EntityTypeMappings.Count == 1)
+                if (entitySetMapping.EntityTypeMappings.Count() <= 1)
                 {
                     continue;
                 }
 
-                var discriminatorColumn
-                    = entitySetMapping
-                        .EntityTypeMappings
-                        .First()
-                        .TypeMappingFragments
-                        .Single()
-                        .Table
-                        .AddColumn(DiscriminatorColumnName);
+                var typeUsage
+                    = _providerManifest.GetStoreType(DiscriminatorTypeUsage);
 
-                InitializeDefaultDiscriminatorColumn(discriminatorColumn);
+                var discriminatorColumn
+                    = new EdmProperty(DiscriminatorColumnName, typeUsage)
+                          {
+                              Nullable = false
+                          };
+
+                entitySetMapping
+                    .EntityTypeMappings
+                    .First()
+                    .MappingFragments
+                    .Single()
+                    .Table
+                    .AddColumn(discriminatorColumn);
 
                 foreach (var entityTypeMapping in entitySetMapping.EntityTypeMappings)
                 {
-                    var entityTypeMappingFragment = entityTypeMapping.TypeMappingFragments.Single();
+                    var entityTypeMappingFragment = entityTypeMapping.MappingFragments.Single();
 
                     entityTypeMappingFragment.SetDefaultDiscriminator(discriminatorColumn);
 
@@ -99,32 +108,54 @@ namespace System.Data.Entity.ModelConfiguration.Edm.Services
             }
         }
 
-        public void InitializeDefaultDiscriminatorColumn(DbTableColumnMetadata column)
+        private void GenerateAssociationTypes(DbDatabaseMapping databaseMapping)
         {
-            var typeUsage =
-                _providerManifest.GetStoreType(
-                    TypeUsage.CreateStringTypeUsage(
-                        PrimitiveType.GetEdmPrimitiveType(PrimitiveTypeKind.String),
-                        isUnicode: true,
-                        isFixedLength: false,
-                        maxLength: DiscriminatorLength));
+            DebugCheck.NotNull(databaseMapping);
 
-            column.TypeName = typeUsage.EdmType.Name;
-            column.Facets.MaxLength = DiscriminatorLength;
-
-            column.IsNullable = false;
-        }
-
-        private void GenerateAssociationTypes(EdmModel model, DbDatabaseMapping databaseMapping)
-        {
-            Contract.Requires(model != null);
-            Contract.Requires(databaseMapping != null);
-
-            foreach (var associationType in model.GetAssociationTypes())
+            foreach (var associationType in databaseMapping.Model.AssociationTypes)
             {
                 new AssociationTypeMappingGenerator(_providerManifest)
                     .Generate(associationType, databaseMapping);
             }
+        }
+
+        private void GenerateModificationFunctions(DbDatabaseMapping databaseMapping)
+        {
+            DebugCheck.NotNull(databaseMapping);
+
+            var functionMappingGenerator
+                = new ModificationFunctionMappingGenerator(_providerManifest);
+
+            foreach (var entityType in databaseMapping.Model.EntityTypes)
+            {
+                if (!entityType.Abstract)
+                {
+                    if (IsMappedToFunctions(entityType))
+                    {
+                        functionMappingGenerator.Generate(entityType, databaseMapping);
+                    }
+                }
+            }
+
+            foreach (var associationSetMapping in databaseMapping.GetAssociationSetMappings())
+            {
+                if (associationSetMapping.AssociationSet.ElementType.IsManyToMany()
+                    && IsMappedToFunctions(associationSetMapping.AssociationSet.SourceSet.ElementType)
+                    && IsMappedToFunctions(associationSetMapping.AssociationSet.TargetSet.ElementType))
+                {
+                    functionMappingGenerator.Generate(associationSetMapping, databaseMapping);
+                }
+            }
+        }
+
+        private static bool IsMappedToFunctions(EntityType entityType)
+        {
+            DebugCheck.NotNull(entityType);
+
+            var configuration = entityType.GetRootType().GetConfiguration() as EntityTypeConfiguration;
+
+            return ((configuration != null)
+                    && configuration.IsMappedToFunctions);
         }
     }
 }

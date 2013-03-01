@@ -3,11 +3,11 @@ namespace Microsoft.DbContextPackage.Extensions
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
     using System.IO;
     using System.Linq;
     using System.Runtime.InteropServices;
     using EnvDTE;
+    using Microsoft.DbContextPackage.Utilities;
     using Microsoft.VisualStudio.ComponentModelHost;
     using Microsoft.VisualStudio.Shell;
     using Microsoft.VisualStudio.Shell.Interop;
@@ -21,8 +21,8 @@ namespace Microsoft.DbContextPackage.Extensions
 
         public static ProjectItem AddNewFile(this Project project, string path, string contents)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(path));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(path);
 
             if (string.IsNullOrWhiteSpace(contents))
             {
@@ -38,14 +38,14 @@ namespace Microsoft.DbContextPackage.Extensions
 
         public static string GetProjectDir(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetPropertyValue<string>("FullPath");
         }
 
         public static string GetTargetDir(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             var fullPath = project.GetProjectDir();
             string outputPath;
@@ -57,12 +57,11 @@ namespace Microsoft.DbContextPackage.Extensions
 
         public static void InstallPackage(this Project project, string packageId)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(packageId));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(packageId);
 
             var typeNuGetConstants = Type.GetType("NuGet.NuGetConstants, NuGet.VisualStudio", true);
             var typeIVsPackageInstaller = Type.GetType("NuGet.VisualStudio.IVsPackageInstaller, NuGet.VisualStudio", true);
-            var typeSemanticVersion = Type.GetType("NuGet.SemanticVersion, NuGet.Core", true);
 
             var componentModel = (IComponentModel)Package.GetGlobalService(typeof(SComponentModel));
             var packageInstaller = componentModel.GetService(typeIVsPackageInstaller);
@@ -70,13 +69,13 @@ namespace Microsoft.DbContextPackage.Extensions
 
             typeIVsPackageInstaller.GetMethod(
                 "InstallPackage",
-                new[] { typeof(string), typeof(Project), typeof(string), typeSemanticVersion, typeof(bool) })
+                new[] { typeof(string), typeof(Project), typeof(string), typeof(Version), typeof(bool) })
                 .Invoke(packageInstaller, new object[] { source, project, packageId, null, false });
         }
 
         public static bool IsWebProject(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             return project.GetProjectTypes().Any(
                     g => g.EqualsIgnoreCase(WebApplicationProjectTypeGuid)
@@ -85,7 +84,7 @@ namespace Microsoft.DbContextPackage.Extensions
 
         public static bool TryBuild(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             var dte = project.DTE;
             var configuration = dte.Solution.SolutionBuild.ActiveConfiguration.Name;
@@ -97,8 +96,8 @@ namespace Microsoft.DbContextPackage.Extensions
 
         private static T GetPropertyValue<T>(this Project project, string propertyName)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(propertyName);
 
             var property = project.Properties.Item(propertyName);
 
@@ -112,8 +111,8 @@ namespace Microsoft.DbContextPackage.Extensions
 
         private static T GetConfigurationPropertyValue<T>(this Project project, string propertyName)
         {
-            Contract.Requires(project != null);
-            Contract.Requires(!string.IsNullOrWhiteSpace(propertyName));
+            DebugCheck.NotNull(project);
+            DebugCheck.NotEmpty(propertyName);
 
             var property = project.ConfigurationManager.ActiveConfiguration.Properties.Item(propertyName);
 
@@ -127,7 +126,7 @@ namespace Microsoft.DbContextPackage.Extensions
 
         private static IEnumerable<string> GetProjectTypes(this Project project)
         {
-            Contract.Requires(project != null);
+            DebugCheck.NotNull(project);
 
             IVsSolution solution;
             using (var serviceProvider = new ServiceProvider((IServiceProvider)project.DTE))

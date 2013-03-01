@@ -1,18 +1,18 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Metadata.Edm
 {
     using System.Data.Entity.Core.Common;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Threading;
 
     /// <summary>
-    /// Class for representing a FacetDescription object
+    ///     Class for representing a FacetDescription object
     /// </summary>
     public class FacetDescription
     {
-        #region Constructors
-
         internal FacetDescription()
         {
         }
@@ -50,13 +50,13 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// The constructor for constructing a facet description object
+        ///     The constructor for constructing a facet description object
         /// </summary>
-        /// <param name="facetName">The name of this facet</param>
-        /// <param name="facetType">The type of this facet</param>
-        /// <param name="minValue">The min value for this facet</param>
-        /// <param name="maxValue">The max value for this facet</param>
-        /// <param name="defaultValue">The default value for this facet</param>
+        /// <param name="facetName"> The name of this facet </param>
+        /// <param name="facetType"> The type of this facet </param>
+        /// <param name="minValue"> The min value for this facet </param>
+        /// <param name="maxValue"> The max value for this facet </param>
+        /// <param name="defaultValue"> The default value for this facet </param>
         /// <exception cref="System.ArgumentNullException">Thrown if either facetName, facetType or applicableType arguments are null</exception>
         internal FacetDescription(
             string facetName,
@@ -65,8 +65,8 @@ namespace System.Data.Entity.Core.Metadata.Edm
             int? maxValue,
             object defaultValue)
         {
-            EntityUtil.CheckStringArgument(facetName, "facetName");
-            EntityUtil.GenericCheckArgumentNull(facetType, "facetType");
+            Check.NotEmpty(facetName, "facetName");
+            Check.NotNull(facetType, "facetType");
 
             if (minValue.HasValue
                 || maxValue.HasValue)
@@ -87,10 +87,6 @@ namespace System.Data.Entity.Core.Metadata.Edm
             _defaultValue = defaultValue;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly string _facetName;
         private readonly EdmType _facetType;
         private readonly int? _minValue;
@@ -98,24 +94,26 @@ namespace System.Data.Entity.Core.Metadata.Edm
         private readonly object _defaultValue;
         private readonly bool _isConstant;
 
-        /// <summary>A facet with the default value for this description.</summary>
+        /// <summary>
+        ///     A facet with the default value for this description.
+        /// </summary>
         private Facet _defaultValueFacet;
 
-        /// <summary>A facet with a null value for this description.</summary>
+        /// <summary>
+        ///     A facet with a null value for this description.
+        /// </summary>
         private Facet _nullValueFacet;
 
-        /// <summary>Type-dependant cache for additional values (possibly null).</summary>
+        /// <summary>
+        ///     Type-dependant cache for additional values (possibly null).
+        /// </summary>
         private Facet[] _valueCache;
 
         // we need to differentiate when the default value is null vs when the default value is not initialized
         private static readonly object _notInitializedSentinel = new object();
 
-        #endregion
-
-        #region Properties
-
         /// <summary>
-        /// Gets the name of this facet
+        ///     Gets the name of this facet
         /// </summary>
         public virtual string FacetName
         {
@@ -123,7 +121,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the type of this facet
+        ///     Gets the type of this facet
         /// </summary>
         public EdmType FacetType
         {
@@ -131,7 +129,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the lower bound a facet with this facet description can take
+        ///     Gets the lower bound a facet with this facet description can take
         /// </summary>
         public int? MinValue
         {
@@ -139,7 +137,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the upper bound a facet with this facet description can take
+        ///     Gets the upper bound a facet with this facet description can take
         /// </summary>
         public int? MaxValue
         {
@@ -147,7 +145,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets the default value of a facet with this facet description
+        ///     Gets the default value of a facet with this facet description
         /// </summary>
         public object DefaultValue
         {
@@ -162,7 +160,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets whether the value of this facet must be constant
+        ///     Gets whether the value of this facet must be constant
         /// </summary>
         public virtual bool IsConstant
         {
@@ -170,17 +168,15 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets whether this facet is a required facet or not
+        ///     Gets whether this facet is a required facet or not
         /// </summary>
         public bool IsRequired
         {
             get { return _defaultValue == _notInitializedSentinel; }
         }
 
-        #region Internal properties
-
         /// <summary>
-        /// Gets a facet with the default value for this description.
+        ///     Gets a facet with the default value for this description.
         /// </summary>
         internal Facet DefaultValueFacet
         {
@@ -196,7 +192,7 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets a facet with a null value for this description.
+        ///     Gets a facet with a null value for this description.
         /// </summary>
         internal Facet NullValueFacet
         {
@@ -211,15 +207,9 @@ namespace System.Data.Entity.Core.Metadata.Edm
             }
         }
 
-        #endregion Internal properties
-
-        #endregion
-
-        #region Methods
-
         /// <summary>
-        /// Overriding System.Object.ToString to provide better String representation 
-        /// for this type.
+        ///     Overriding System.Object.ToString to provide better String representation
+        ///     for this type.
         /// </summary>
         public override string ToString()
         {
@@ -227,10 +217,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Gets a cached facet instance with the specified boolean value.
+        ///     Gets a cached facet instance with the specified boolean value.
         /// </summary>
-        /// <param name="value">Value for the Facet result.</param>
-        /// <returns>A cached facet instance with the specified boolean value.</returns>
+        /// <param name="value"> Value for the Facet result. </param>
+        /// <returns> A cached facet instance with the specified boolean value. </returns>
         internal Facet GetBooleanFacet(bool value)
         {
             Debug.Assert(FacetType.Identity == "Edm.Boolean");
@@ -250,10 +240,10 @@ namespace System.Data.Entity.Core.Metadata.Edm
         }
 
         /// <summary>
-        /// Returns true if the facet type is of numeric type
+        ///     Returns true if the facet type is of numeric type
         /// </summary>
-        /// <param name="facetType">Type of the facet</param>
-        /// <returns></returns>
+        /// <param name="facetType"> Type of the facet </param>
+        /// <returns> </returns>
         internal static bool IsNumericType(EdmType facetType)
         {
             if (Helper.IsPrimitiveType(facetType))
@@ -332,7 +322,5 @@ namespace System.Data.Entity.Core.Metadata.Edm
                 }
             }
         }
-
-        #endregion
     }
 }

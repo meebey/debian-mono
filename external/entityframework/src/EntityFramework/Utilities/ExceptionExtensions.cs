@@ -1,8 +1,8 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Utilities
 {
     using System.Data.Entity.Core;
-    using System.Diagnostics.Contracts;
     using System.Security;
     using System.Threading;
 
@@ -10,7 +10,7 @@ namespace System.Data.Entity.Utilities
     {
         public static bool IsCatchableExceptionType(this Exception e)
         {
-            Contract.Requires(e != null);
+            DebugCheck.NotNull(e);
 
             // a 'catchable' exception is defined by what it is not.
             var type = e.GetType();
@@ -25,7 +25,7 @@ namespace System.Data.Entity.Utilities
 
         public static bool IsCatchableEntityExceptionType(this Exception e)
         {
-            Contract.Requires(e != null);
+            DebugCheck.NotNull(e);
 
             var type = e.GetType();
 
@@ -36,11 +36,11 @@ namespace System.Data.Entity.Utilities
         }
 
         /// <summary>
-        /// Determines whether the given exception requires additional context from the update pipeline (in other
-        /// words, whether the exception should be wrapped in an UpdateException).
+        ///     Determines whether the given exception requires additional context from the update pipeline (in other
+        ///     words, whether the exception should be wrapped in an UpdateException).
         /// </summary>
-        /// <param name="e">Exception to test.</param>
-        /// <returns>true if exception should be wrapped; false otherwise</returns>
+        /// <param name="e"> Exception to test. </param>
+        /// <returns> true if exception should be wrapped; false otherwise </returns>
         public static bool RequiresContext(this Exception e)
         {
             // if the exception isn't catchable, never wrap

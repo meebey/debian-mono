@@ -1,15 +1,16 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
     using System.Data.Entity.Core.Common.CommandTrees.Internal;
     using System.Data.Entity.Core.Metadata.Edm;
-    using System.Diagnostics.Contracts;
+    using System.Data.Entity.Utilities;
     using System.Linq;
 
     /// <summary>
-    /// Represents a query operation expressed as a canonical command tree.
+    ///     Represents a query operation expressed as a canonical command tree.
     /// </summary>
     public sealed class DbQueryCommandTree : DbCommandTree
     {
@@ -20,19 +21,29 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         private ReadOnlyCollection<DbParameterReferenceExpression> _parameters;
 
         /// <summary>
-        /// Constructs a new DbQueryCommandTree that uses the specified metadata workspace.
+        ///     Constructs a new DbQueryCommandTree that uses the specified metadata workspace.
         /// </summary>
-        /// <param name="metadata">The metadata workspace that the command tree should use.</param>
-        /// <param name="dataSpace">The logical 'space' that metadata in the expressions used in this command tree must belong to.</param>
-        /// <param name="query">A <see cref="DbExpression"/> that defines the logic of the query.</param>
-        /// <param name="validate">When set to false the validation of the tree is turned off.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="metadata"/> or <paramref name="query"/> is null</exception>
-        /// <exception cref="ArgumentException"><paramref name="dataSpace"/> does not represent a valid data space</exception>
+        /// <param name="metadata"> The metadata workspace that the command tree should use. </param>
+        /// <param name="dataSpace"> The logical 'space' that metadata in the expressions used in this command tree must belong to. </param>
+        /// <param name="query">
+        ///     A <see cref="DbExpression" /> that defines the logic of the query.
+        /// </param>
+        /// <param name="validate"> When set to false the validation of the tree is turned off. </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="metadata" />
+        ///     or
+        ///     <paramref name="query" />
+        ///     is null
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        ///     <paramref name="dataSpace" />
+        ///     does not represent a valid data space
+        /// </exception>
         public DbQueryCommandTree(MetadataWorkspace metadata, DataSpace dataSpace, DbExpression query, bool validate)
             : base(metadata, dataSpace)
         {
             // Ensure the query expression is non-null
-            Contract.Requires(query != null);
+            Check.NotNull(query, "query");
 
             if (validate)
             {
@@ -46,20 +57,30 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Constructs a new DbQueryCommandTree that uses the specified metadata workspace.
+        ///     Constructs a new DbQueryCommandTree that uses the specified metadata workspace.
         /// </summary>
-        /// <param name="metadata">The metadata workspace that the command tree should use.</param>
-        /// <param name="dataSpace">The logical 'space' that metadata in the expressions used in this command tree must belong to.</param>
-        /// <param name="query">A <see cref="DbExpression"/> that defines the logic of the query.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="metadata"/> or <paramref name="query"/> is null</exception>
-        /// <exception cref="ArgumentException"><paramref name="dataSpace"/> does not represent a valid data space</exception>
+        /// <param name="metadata"> The metadata workspace that the command tree should use. </param>
+        /// <param name="dataSpace"> The logical 'space' that metadata in the expressions used in this command tree must belong to. </param>
+        /// <param name="query">
+        ///     A <see cref="DbExpression" /> that defines the logic of the query.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="metadata" />
+        ///     or
+        ///     <paramref name="query" />
+        ///     is null
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        ///     <paramref name="dataSpace" />
+        ///     does not represent a valid data space
+        /// </exception>
         public DbQueryCommandTree(MetadataWorkspace metadata, DataSpace dataSpace, DbExpression query)
             : this(metadata, dataSpace, query, true)
         {
         }
 
         /// <summary>
-        /// Gets a <see cref="DbExpression"/> that defines the logic of the query.
+        ///     Gets a <see cref="DbExpression" /> that defines the logic of the query.
         /// </summary>
         public DbExpression Query
         {

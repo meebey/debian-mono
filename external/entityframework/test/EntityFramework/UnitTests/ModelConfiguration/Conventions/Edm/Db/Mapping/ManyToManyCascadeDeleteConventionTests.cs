@@ -1,12 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
-    using System.Data.Entity.Edm;
-    using System.Data.Entity.Edm.Db;
-    using System.Data.Entity.Edm.Db.Mapping;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.ModelConfiguration.Edm;
-    using System.Data.Entity.ModelConfiguration.Edm.Db;
-    using System.Data.Entity.ModelConfiguration.Edm.Db.Mapping;
     using Xunit;
 
     public sealed class ManyToManyCascadeDeleteConventionTests
@@ -16,27 +13,38 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var databaseMapping
                 = new DbDatabaseMapping()
-                    .Initialize(new EdmModel().Initialize(), new DbDatabaseMetadata().Initialize());
+                    .Initialize(new EdmModel(DataSpace.CSpace), new EdmModel(DataSpace.SSpace));
 
-            var foreignKeyConstraint = new DbForeignKeyConstraintMetadata();
+            var foreignKeyConstraint
+                = new ForeignKeyBuilder(databaseMapping.Database, "FK")
+                      {
+                          PrincipalTable = databaseMapping.Database.AddTable("P")
+                      };
 
-            Assert.Equal(DbOperationAction.None, foreignKeyConstraint.DeleteAction);
+            Assert.Equal(OperationAction.None, foreignKeyConstraint.DeleteAction);
 
-            var table = new DbTableMetadata();
-            table.ForeignKeyConstraints.Add(foreignKeyConstraint);
+            var table = databaseMapping.Database.AddTable("T");
 
-            var associationType = new EdmAssociationType().Initialize();
-            associationType.SourceEnd.EndKind = EdmAssociationEndKind.Many;
-            associationType.SourceEnd.EntityType = new EdmEntityType();
-            associationType.TargetEnd.EndKind = EdmAssociationEndKind.Many;
-            associationType.TargetEnd.EntityType = new EdmEntityType();
+            table.AddForeignKey(foreignKeyConstraint);
 
-            var associationSetMapping = databaseMapping.AddAssociationSetMapping(new EdmAssociationSet { ElementType = associationType });
-            associationSetMapping.Table = table;
+            var associationType
+                = new AssociationType
+                      {
+                          SourceEnd = new AssociationEndMember("S", new EntityType()),
+                          TargetEnd = new AssociationEndMember("T", new EntityType())
+                      };
+
+            associationType.SourceEnd.RelationshipMultiplicity = RelationshipMultiplicity.Many;
+            associationType.TargetEnd.RelationshipMultiplicity = RelationshipMultiplicity.Many;
+
+            var associationSetMapping = databaseMapping.AddAssociationSetMapping(
+                new AssociationSet("AS", associationType), new EntitySet());
+
+            associationSetMapping.StoreEntitySet = databaseMapping.Database.GetEntitySet(table);
 
             ((IDbMappingConvention)new ManyToManyCascadeDeleteConvention()).Apply(databaseMapping);
 
-            Assert.Equal(DbOperationAction.Cascade, foreignKeyConstraint.DeleteAction);
+            Assert.Equal(OperationAction.Cascade, foreignKeyConstraint.DeleteAction);
         }
     }
 }

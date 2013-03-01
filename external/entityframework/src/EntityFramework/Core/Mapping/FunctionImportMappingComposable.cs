@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Mapping
 {
     using System.Collections.Generic;
@@ -10,18 +11,16 @@ namespace System.Data.Entity.Core.Mapping
     using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Core.Query.InternalTrees;
     using System.Data.Entity.Core.Query.PlanCompiler;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
     using System.Linq;
 
     /// <summary>
-    /// Represents a mapping from a model function import to a store composable function.
+    ///     Represents a mapping from a model function import to a store composable function.
     /// </summary>
     internal class FunctionImportMappingComposable : FunctionImportMapping
     {
-        #region Constructors
-
         internal FunctionImportMappingComposable(
             EdmFunction functionImport,
             EdmFunction targetFunction,
@@ -30,7 +29,7 @@ namespace System.Data.Entity.Core.Mapping
             StorageMappingItemCollection mappingItemCollection)
             : base(functionImport, targetFunction)
         {
-            Contract.Requires(mappingItemCollection != null);
+            DebugCheck.NotNull(mappingItemCollection);
             Debug.Assert(functionImport.IsComposableAttribute, "functionImport.IsComposableAttribute");
             Debug.Assert(targetFunction.IsComposableAttribute, "targetFunction.IsComposableAttribute");
             Debug.Assert(
@@ -57,44 +56,34 @@ namespace System.Data.Entity.Core.Mapping
             m_targetFunctionKeys = targetFunctionKeys;
         }
 
-        #endregion
-
-        #region Fields
-
         private readonly StorageMappingItemCollection m_mappingItemCollection;
 
         /// <summary>
-        /// Command parameter refs created from m_edmFunction parameters.
-        /// Used as arguments to target (s-space) function calls in the generated command tree.
+        ///     Command parameter refs created from m_edmFunction parameters.
+        ///     Used as arguments to target (s-space) function calls in the generated command tree.
         /// </summary>
         private readonly DbParameterReferenceExpression[] m_commandParameters;
 
         /// <summary>
-        /// Result mapping as entity type hierarchy.
+        ///     Result mapping as entity type hierarchy.
         /// </summary>
         private readonly List<Tuple<StructuralType, List<StorageConditionPropertyMapping>, List<StoragePropertyMapping>>>
             m_structuralTypeMappings;
 
         /// <summary>
-        /// Keys inside the result set of the target function. Inferred based on the mapping (using c-space entity type keys).
+        ///     Keys inside the result set of the target function. Inferred based on the mapping (using c-space entity type keys).
         /// </summary>
         private readonly EdmProperty[] m_targetFunctionKeys;
 
         /// <summary>
-        /// ITree template. Requires function argument substitution during function view expansion.
+        ///     ITree template. Requires function argument substitution during function view expansion.
         /// </summary>
         private Node m_internalTreeNode;
-
-        #endregion
-
-        #region Properties/Methods
 
         internal EdmProperty[] TvfKeys
         {
             get { return m_targetFunctionKeys; }
         }
-
-        #region GetInternalTree(...) implementation
 
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "projectOp")]
         [SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters",
@@ -196,8 +185,6 @@ namespace System.Data.Entity.Core.Mapping
                 return new FunctionViewOpCopier(cmd, viewArguments).CopyNode(viewNode);
             }
 
-            #region Visitor Members
-
             public override Node Visit(VarRefOp op, Node n)
             {
                 // The original function view has store function calls with arguments represented as command parameter refs.
@@ -219,15 +206,7 @@ namespace System.Data.Entity.Core.Mapping
                     return base.Visit(op, n);
                 }
             }
-
-            #endregion
         }
-
-        #endregion
-
-        #region GenerateFunctionView(...) implementation
-
-        #region GenerateFunctionView
 
         internal DbQueryCommandTree GenerateFunctionView(out DiscriminatorMap discriminatorMap)
         {
@@ -285,10 +264,6 @@ namespace System.Data.Entity.Core.Mapping
                 yield return m_commandParameters[FunctionImport.Parameters.IndexOf(functionImportParameter)];
             }
         }
-
-        #endregion
-
-        #region GenerateStructuralTypeResultMappingView
 
         private DbExpression GenerateStructuralTypeResultMappingView(
             DbExpression storeFunctionInvoke, out DiscriminatorMap discriminatorMap)
@@ -461,10 +436,6 @@ namespace System.Data.Entity.Core.Mapping
             return row.Property(column.Name);
         }
 
-        #endregion
-
-        #region GenerateScalarResultMappingView
-
         private DbExpression GenerateScalarResultMappingView(DbExpression storeFunctionInvoke)
         {
             var queryExpression = storeFunctionInvoke;
@@ -482,27 +453,21 @@ namespace System.Data.Entity.Core.Mapping
             var column = rowType.Properties[0];
 
             Func<DbExpression, DbExpression> scalarView = (DbExpression row) =>
-                {
-                    var propertyAccess = row.Property(column);
-                    if (TypeSemantics.IsEqual(
-                        functionImportReturnType.TypeUsage, column.TypeUsage))
-                    {
-                        return propertyAccess;
-                    }
-                    else
-                    {
-                        return propertyAccess.CastTo(functionImportReturnType.TypeUsage);
-                    }
-                };
+                                                              {
+                                                                  var propertyAccess = row.Property(column);
+                                                                  if (TypeSemantics.IsEqual(
+                                                                      functionImportReturnType.TypeUsage, column.TypeUsage))
+                                                                  {
+                                                                      return propertyAccess;
+                                                                  }
+                                                                  else
+                                                                  {
+                                                                      return propertyAccess.CastTo(functionImportReturnType.TypeUsage);
+                                                                  }
+                                                              };
 
             queryExpression = queryExpression.Select(row => scalarView(row));
             return queryExpression;
         }
-
-        #endregion
-
-        #endregion
-
-        #endregion
     }
 }

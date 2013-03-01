@@ -112,8 +112,12 @@ endif
 
 noinst_PROGRAMS = genmdesc
 
+if DISABLE_EXECUTABLES
+shared_libraries = $(boehm_libraries) $(sgen_libraries)
+else
 if SHARED_MONO
 shared_libraries = $(boehm_libraries) $(sgen_libraries)
+endif
 endif
 
 lib_LTLIBRARIES = $(shared_libraries)
@@ -313,12 +317,6 @@ alpha_sources = \
 	exceptions-alpha.c	\
 	tramp-alpha.c
 
-hppa_sources = \
-	mini-hppa.c		\
-	mini-hppa.h		\
-	exceptions-hppa.c	\
-	tramp-hppa.c
-
 darwin_sources = \
 	mini-darwin.c
 
@@ -418,7 +416,8 @@ test_sources = 			\
 	generics-variant-types.il\
 	basic-simd.cs \
 	aot-tests.cs \
-	gc-test.cs
+	gc-test.cs \
+	gshared.cs
 
 regtests=basic.exe basic-float.exe basic-long.exe basic-calls.exe objects.exe arrays.exe basic-math.exe exceptions.exe iltests.exe devirtualization.exe generics.exe basic-simd.exe
 
@@ -509,13 +508,6 @@ arch_built = cpu-alpha.h
 arch_define=__alpha__
 endif
 
-if HPPA
-# Only support 32-bit targets for now
-arch_sources = $(hppa_sources)
-arch_built = cpu-hppa.h
-arch_define=__hppa__
-endif
-
 if HOST_WIN32
 os_sources = $(windows_sources)
 monobin_platform_ldflags=
@@ -542,6 +534,10 @@ libmono_2_0_la_LIBADD = libmini.la $(libs) $(LIBMONO_DTRACE_OBJECT)
 libmonosgen_2_0_la_SOURCES =
 libmonosgen_2_0_la_CFLAGS = $(mono_sgen_CFLAGS)
 libmonosgen_2_0_la_LIBADD = libmini.la $(sgen_libs) $(LIBMONO_DTRACE_OBJECT)
+
+if PLATFORM_ANDROID
+libmonosgen_2_0_la_LDFLAGS = -avoid-version
+endif
 
 if MOONLIGHT
 libmono_moon_la_SOURCES = $(libmini_la_SOURCES)
@@ -640,9 +636,6 @@ cpu-ia64.h: cpu-ia64.md genmdesc$(EXEEXT)
 cpu-alpha.h: cpu-alpha.md genmdesc$(EXEEXT)
 	$(GENMDESC_PRG) cpu-alpha.h alpha_desc $(srcdir)/cpu-alpha.md
 
-cpu-hppa.h: cpu-hppa.md genmdesc$(EXEEXT)
-	$(GENMDESC_PRG) cpu-hppa.h hppa_desc $(srcdir)/cpu-hppa.md
-
 cpu-mips.h: cpu-mips.md genmdesc$(EXEEXT)
 	$(GENMDESC_PRG) cpu-mips.h mips_desc $(srcdir)/cpu-mips.md
 
@@ -660,17 +653,21 @@ gctest: mono gc-test.exe
 	MONO_DEBUG_OPTIONS=clear-nursery-at-gc $(RUNTIME) --regression gc-test.exe
 
 LLVM_AOT_RUNTIME_OPTS=$(if $(LLVM),--llvm,)
+GSHAREDVT_RUNTIME_OPTS=$(if $(GSHAREDVT),-O=gsharedvt,)
 
 aotcheck: mono $(regtests)
-	rm -f *.exe.so *.exe.dylib *.exe.dylib.dSYM
+	rm -rf *.exe.so *.exe.dylib *.exe.dylib.dSYM
 	$(RUNTIME) $(LLVM_AOT_RUNTIME_OPTS) --aot $(regtests) || exit 1
 	for i in $(regtests); do $(RUNTIME_AOTCHECK) --regression $$i || exit 1; done
-	rm -f *.exe.so *.exe.dylib *.exe.dylib.dSYM
+	rm -rf *.exe.so *.exe.dylib *.exe.dylib.dSYM
 
 llvmaotcheck:
 	$(MAKE) aotcheck LLVM=1
 
-fullaot_regtests = $(regtests) aot-tests.exe
+gsharedvtcheck:
+	$(MAKE) fullaotcheck GSHAREDVT=1
+
+fullaot_regtests = $(regtests) aot-tests.exe $(if $(GSHAREDVT),gshared.exe)
 
 # This currently only works on amd64/arm
 fullaotcheck: mono $(fullaot_regtests)
@@ -678,7 +675,7 @@ fullaotcheck: mono $(fullaot_regtests)
 	mkdir fullaot-tmp
 	cp $(CLASS)/mscorlib.dll $(CLASS)/System.Core.dll $(CLASS)/System.dll $(CLASS)/Mono.Posix.dll $(CLASS)/System.Configuration.dll $(CLASS)/System.Security.dll $(CLASS)/System.Xml.dll $(CLASS)/Mono.Security.dll $(CLASS)/Mono.Simd.dll $(regtests) generics-variant-types.dll TestDriver.dll fullaot-tmp/
 	cp $(fullaot_regtests) fullaot-tmp/
-	MONO_PATH=fullaot-tmp $(top_builddir)/runtime/mono-wrapper $(LLVM_AOT_RUNTIME_OPTS) --aot=full fullaot-tmp/* || exit 1
+	MONO_PATH=fullaot-tmp $(top_builddir)/runtime/mono-wrapper $(LLVM_AOT_RUNTIME_OPTS) $(GSHAREDVT_RUNTIME_OPTS) --aot=full fullaot-tmp/* || exit 1
 	ln -s $$PWD/mono fullaot-tmp/
 	for i in $(fullaot_regtests); do echo $$i; MONO_PATH=fullaot-tmp $(top_builddir)/runtime/mono-wrapper --full-aot fullaot-tmp/$$i --exclude '!FULLAOT' || exit 1; done
 
@@ -736,7 +733,6 @@ EXTRA_DIST = TestDriver.cs ldscript ldscript.mono \
 	$(s390x_sources) cpu-s390x.md 		\
 	$(ia64_sources) cpu-ia64.md 		\
 	$(alpha_sources) cpu-alpha.md 		\
-	$(hppa_sources) cpu-hppa.md 		\
 	$(windows_sources)			\
 	$(darwin_sources) Info.plist		\
 	$(posix_sources)

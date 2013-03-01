@@ -1,12 +1,13 @@
 ﻿// Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Infrastructure
 {
     using System.ComponentModel;
     using System.Configuration;
     using System.Data.Entity.Internal;
     using System.Data.Entity.Resources;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
 
     /// <summary>
     ///     Represents information about a database connection.
@@ -21,10 +22,10 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Creates a new instance of DbConnectionInfo representing a connection that is specified in the application configuration file.
         /// </summary>
-        /// <param name = "connectionName">The name of the connection string in the application configuration.</param>
+        /// <param name="connectionName"> The name of the connection string in the application configuration. </param>
         public DbConnectionInfo(string connectionName)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(connectionName));
+            Check.NotEmpty(connectionName, "connectionName");
 
             _connectionName = connectionName;
         }
@@ -32,12 +33,12 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Creates a new instance of DbConnectionInfo based on a connection string.
         /// </summary>
-        /// <param name = "connectionString">The connection string to use for the connection.</param>
-        /// <param name = "providerInvariantName">The name of the provider to use for the connection. Use 'System.Data.SqlClient' for SQL Server.</param>
+        /// <param name="connectionString"> The connection string to use for the connection. </param>
+        /// <param name="providerInvariantName"> The name of the provider to use for the connection. Use 'System.Data.SqlClient' for SQL Server. </param>
         public DbConnectionInfo(string connectionString, string providerInvariantName)
         {
-            Contract.Requires(!string.IsNullOrWhiteSpace(connectionString));
-            Contract.Requires(!string.IsNullOrWhiteSpace(providerInvariantName));
+            Check.NotEmpty(connectionString, "connectionString");
+            Check.NotEmpty(providerInvariantName, "providerInvariantName");
 
             _connectionString = connectionString;
             _providerInvariantName = providerInvariantName;
@@ -46,10 +47,10 @@ namespace System.Data.Entity.Infrastructure
         /// <summary>
         ///     Gets the connection information represented by this instance.
         /// </summary>
-        /// <param name = "config">Configuration to use if connection comes from the configuration file.</param>
+        /// <param name="config"> Configuration to use if connection comes from the configuration file. </param>
         internal ConnectionStringSettings GetConnectionString(AppConfig config)
         {
-            Contract.Requires(config != null);
+            DebugCheck.NotNull(config);
 
             if (_connectionName != null)
             {

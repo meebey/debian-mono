@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
 {
     using System.Collections.Generic;
-    using System.Data.Entity.Edm.Common;
+    using System.Data.Entity.Core.Metadata.Edm;
     using System.Data.Entity.Resources;
     using System.Data.Entity.Spatial;
     using System.Linq;
@@ -16,13 +17,13 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         public void PropertyFilter_finds_all_properties_on_base_type()
         {
             var propertyNames = new[]
-                {
-                    "PublicBase",
-                    "PublicBaseForNew",
-                    "PublicVirtualBase",
-                    "PublicVirtualBase2",
-                    "InterfaceImplicit",
-                };
+                                    {
+                                        "PublicBase",
+                                        "PublicBaseForNew",
+                                        "PublicVirtualBase",
+                                        "PublicVirtualBase2",
+                                        "InterfaceImplicit",
+                                    };
 
             var properties = new PropertyFilter().GetProperties(
                 typeof(PropertyFilterTests_Base), true, null);
@@ -40,14 +41,14 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         public void PropertyFilter_finds_all_properties_on_derived_type()
         {
             var propertyNames = new[]
-                {
-                    "PublicBase",
-                    "PublicBaseForNew",
-                    "PublicVirtualBase",
-                    "PublicVirtualBase2",
-                    "InterfaceImplicit",
-                    "PublicDerived"
-                };
+                                    {
+                                        "PublicBase",
+                                        "PublicBaseForNew",
+                                        "PublicVirtualBase",
+                                        "PublicVirtualBase2",
+                                        "InterfaceImplicit",
+                                        "PublicDerived"
+                                    };
 
             var properties = new PropertyFilter().GetProperties(
                 typeof(PropertyFilterTests_Derived), false, Enumerable.Empty<PropertyInfo>());
@@ -60,9 +61,9 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         public void PropertyFilter_finds_declared_properties_on_derived_type()
         {
             var propertyNames = new[]
-                {
-                    "PublicDerived"
-                };
+                                    {
+                                        "PublicDerived"
+                                    };
 
             var properties = new PropertyFilter().GetProperties(
                 typeof(PropertyFilterTests_Derived), true, Enumerable.Empty<PropertyInfo>());
@@ -80,7 +81,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         [Fact]
         public void PropertyFilter_supports_V3_properties_if_V3_schema_version_is_used()
         {
-            Assert.True(new PropertyFilter(DataModelVersions.Version3).EdmV3FeaturesSupported);
+            Assert.True(new PropertyFilter(XmlConstants.EdmVersionForV3).EdmV3FeaturesSupported);
         }
 
         [Fact]
@@ -92,7 +93,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         [Fact]
         public void PropertyFilter_does_not_support_V3_properties_if_V2_schema_version_is_used()
         {
-            Assert.False(new PropertyFilter(DataModelVersions.Version2).EdmV3FeaturesSupported);
+            Assert.False(new PropertyFilter(XmlConstants.EdmVersionForV2).EdmV3FeaturesSupported);
         }
 
         [Fact]
@@ -100,7 +101,6 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         {
             PropertyFilter_validates_enum_types(new PropertyFilter());
         }
-
 
         [Fact]
         public void PropertyFilter_validates_spatial_properties_if_no_specific_schema_version_is_used()
@@ -111,7 +111,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         [Fact]
         public void PropertyFilter_validates_spatial_properties_if_V3_schema_version_is_used()
         {
-            PropertyFilter_validates_spatial_types(new PropertyFilter(DataModelVersions.Version3));
+            PropertyFilter_validates_spatial_types(new PropertyFilter(XmlConstants.EdmVersionForV3));
         }
 
         [Fact]
@@ -123,7 +123,7 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
         [Fact]
         public void PropertyFilter_validates_enum_properties_if_V3_schema_version_is_used()
         {
-            PropertyFilter_validates_enum_types(new PropertyFilter(DataModelVersions.Version3));
+            PropertyFilter_validates_enum_types(new PropertyFilter(XmlConstants.EdmVersionForV3));
         }
 
         [Fact]
@@ -137,19 +137,21 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
             var mockType = new MockType();
             mockType.Setup(m => m.IsEnum).Returns(true);
 
-            var properties = new List<PropertyInfo> { new MockPropertyInfo(mockType, "EnumProp") };
+            var properties = new List<PropertyInfo>
+                                 {
+                                     new MockPropertyInfo(mockType, "EnumProp")
+                                 };
 
             filter.ValidatePropertiesForModelVersion(mockType, properties);
         }
 
-
         private void PropertyFilter_validates_spatial_types(PropertyFilter filter)
         {
             var properties = new List<PropertyInfo>
-            { 
-                new MockPropertyInfo(typeof(DbGeography), "Geography"), 
-                new MockPropertyInfo(typeof(DbGeometry), "Geometry")
-            };
+                                 {
+                                     new MockPropertyInfo(typeof(DbGeography), "Geography"),
+                                     new MockPropertyInfo(typeof(DbGeometry), "Geometry")
+                                 };
 
             filter.ValidatePropertiesForModelVersion(new MockType(), properties);
         }
@@ -160,26 +162,47 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
             var mockType = new MockType("BadType");
             mockType.Setup(m => m.IsEnum).Returns(true);
 
-            var properties = new List<PropertyInfo> { new MockPropertyInfo(mockType, "EnumProp") };
+            var properties = new List<PropertyInfo>
+                                 {
+                                     new MockPropertyInfo(mockType, "EnumProp")
+                                 };
 
-            Assert.Equal(Strings.UnsupportedUseOfV3Type("BadType", "EnumProp"), Assert.Throws<NotSupportedException>(() => new PropertyFilter(DataModelVersions.Version2).ValidatePropertiesForModelVersion(mockType, properties)).Message);
+            Assert.Equal(
+                Strings.UnsupportedUseOfV3Type("BadType", "EnumProp"),
+                Assert.Throws<NotSupportedException>(
+                    () => new PropertyFilter(XmlConstants.EdmVersionForV2).ValidatePropertiesForModelVersion(mockType, properties)).Message);
         }
-
 
         [Fact]
         public void PropertyFilter_rejects_DbGeography_properties_if_V2_schema_version_is_used()
         {
-            var properties = new List<PropertyInfo> { new MockPropertyInfo(typeof(DbGeography), "Geography") };
+            var properties = new List<PropertyInfo>
+                                 {
+                                     new MockPropertyInfo(typeof(DbGeography), "Geography")
+                                 };
 
-            Assert.Equal(Strings.UnsupportedUseOfV3Type("BadType", "Geography"), Assert.Throws<NotSupportedException>(() => new PropertyFilter(DataModelVersions.Version2).ValidatePropertiesForModelVersion(new MockType("BadType"), properties)).Message);
+            Assert.Equal(
+                Strings.UnsupportedUseOfV3Type("BadType", "Geography"),
+                Assert.Throws<NotSupportedException>(
+                    () =>
+                    new PropertyFilter(XmlConstants.EdmVersionForV2).ValidatePropertiesForModelVersion(new MockType("BadType"), properties)).
+                    Message);
         }
 
         [Fact]
         public void PropertyFilter_rejects_DbGeometry_properties_if_V2_schema_version_is_used()
         {
-            var properties = new List<PropertyInfo> { new MockPropertyInfo(typeof(DbGeometry), "Geometry") };
+            var properties = new List<PropertyInfo>
+                                 {
+                                     new MockPropertyInfo(typeof(DbGeometry), "Geometry")
+                                 };
 
-            Assert.Equal(Strings.UnsupportedUseOfV3Type("BadType", "Geometry"), Assert.Throws<NotSupportedException>(() => new PropertyFilter(DataModelVersions.Version2).ValidatePropertiesForModelVersion(new MockType("BadType"), properties)).Message);
+            Assert.Equal(
+                Strings.UnsupportedUseOfV3Type("BadType", "Geometry"),
+                Assert.Throws<NotSupportedException>(
+                    () =>
+                    new PropertyFilter(XmlConstants.EdmVersionForV2).ValidatePropertiesForModelVersion(new MockType("BadType"), properties)).
+                    Message);
         }
 
         [Fact]
@@ -189,11 +212,11 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
             mockType.Setup(m => m.IsEnum).Returns(true);
 
             var properties = new PropertyInfo[]
-            { 
-                new MockPropertyInfo(typeof(DbGeography), "Geography"), 
-                new MockPropertyInfo(typeof(DbGeometry), "Geometry"),
-                new MockPropertyInfo(mockType, "EnumProp") 
-            };
+                                 {
+                                     new MockPropertyInfo(typeof(DbGeography), "Geography"),
+                                     new MockPropertyInfo(typeof(DbGeometry), "Geometry"),
+                                     new MockPropertyInfo(mockType, "EnumProp")
+                                 };
 
             mockType.Setup(m => m.GetProperties(It.IsAny<BindingFlags>())).Returns(properties);
 
@@ -209,15 +232,15 @@ namespace System.Data.Entity.ModelConfiguration.Mappers.UnitTests
             mockType.Setup(m => m.IsEnum).Returns(true);
 
             var properties = new PropertyInfo[]
-            { 
-                new MockPropertyInfo(typeof(DbGeography), "Geography"), 
-                new MockPropertyInfo(typeof(DbGeometry), "Geometry"),
-                new MockPropertyInfo(mockType, "EnumProp") 
-            };
+                                 {
+                                     new MockPropertyInfo(typeof(DbGeography), "Geography"),
+                                     new MockPropertyInfo(typeof(DbGeometry), "Geometry"),
+                                     new MockPropertyInfo(mockType, "EnumProp")
+                                 };
 
             mockType.Setup(m => m.GetProperties(It.IsAny<BindingFlags>())).Returns(properties);
 
-            var filteredProperties = new PropertyFilter(DataModelVersions.Version2).GetProperties(mockType, declaredOnly: false);
+            var filteredProperties = new PropertyFilter(XmlConstants.EdmVersionForV2).GetProperties(mockType, declaredOnly: false);
 
             Assert.Equal(0, filteredProperties.Count());
         }

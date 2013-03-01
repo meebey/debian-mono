@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
 {
     using System.ComponentModel.DataAnnotations;
@@ -12,7 +13,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var propertyConfiguration = new StringPropertyConfiguration();
 
-            new MaxLengthAttributeConvention.MaxLengthAttributeConventionImpl()
+            new MaxLengthAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new MaxLengthAttribute());
 
             Assert.Null(propertyConfiguration.MaxLength);
@@ -22,9 +23,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_not_set_is_max_length_if_value_exists()
         {
-            var propertyConfiguration = new StringPropertyConfiguration { IsMaxLength = false };
+            var propertyConfiguration = new StringPropertyConfiguration
+                                            {
+                                                IsMaxLength = false
+                                            };
 
-            new MaxLengthAttributeConvention.MaxLengthAttributeConventionImpl()
+            new MaxLengthAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new MaxLengthAttribute());
 
             Assert.Null(propertyConfiguration.MaxLength);
@@ -36,7 +40,7 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         {
             var propertyConfiguration = new StringPropertyConfiguration();
 
-            new MaxLengthAttributeConvention.MaxLengthAttributeConventionImpl()
+            new MaxLengthAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new MaxLengthAttribute(100));
 
             Assert.Equal(100, propertyConfiguration.MaxLength);
@@ -46,9 +50,12 @@ namespace System.Data.Entity.ModelConfiguration.Conventions.UnitTests
         [Fact]
         public void Apply_should_not_set_max_length_if_value_exists()
         {
-            var propertyConfiguration = new StringPropertyConfiguration { MaxLength = 200 };
+            var propertyConfiguration = new StringPropertyConfiguration
+                                            {
+                                                MaxLength = 200
+                                            };
 
-            new MaxLengthAttributeConvention.MaxLengthAttributeConventionImpl()
+            new MaxLengthAttributeConvention()
                 .Apply(new MockPropertyInfo(), propertyConfiguration, new MaxLengthAttribute(100));
 
             Assert.Equal(200, propertyConfiguration.MaxLength);

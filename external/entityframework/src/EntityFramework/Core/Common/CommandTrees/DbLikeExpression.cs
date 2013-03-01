@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Core.Common.CommandTrees
 {
     using System.Data.Entity.Core.Metadata.Edm;
+    using System.Data.Entity.Utilities;
     using System.Diagnostics;
 
     /// <summary>
-    /// Represents a string comparison against the specified pattern with an optional escape string
+    ///     Represents a string comparison against the specified pattern with an optional escape string
     /// </summary>
     public sealed class DbLikeExpression : DbExpression
     {
@@ -16,9 +18,9 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         internal DbLikeExpression(TypeUsage booleanResultType, DbExpression input, DbExpression pattern, DbExpression escape)
             : base(DbExpressionKind.Like, booleanResultType)
         {
-            Debug.Assert(input != null, "DbLikeExpression argument cannot be null");
-            Debug.Assert(pattern != null, "DbLikeExpression pattern cannot be null");
-            Debug.Assert(escape != null, "DbLikeExpression escape cannot be null");
+            DebugCheck.NotNull(input);
+            DebugCheck.NotNull(pattern);
+            DebugCheck.NotNull(escape);
             Debug.Assert(
                 TypeSemantics.IsPrimitiveType(input.ResultType, PrimitiveTypeKind.String),
                 "DbLikeExpression argument must have a string result type");
@@ -36,7 +38,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the expression that specifies the string to compare against the given pattern
+        ///     Gets the expression that specifies the string to compare against the given pattern
         /// </summary>
         public DbExpression Argument
         {
@@ -44,7 +46,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the expression that specifies the pattern against which the given string should be compared
+        ///     Gets the expression that specifies the pattern against which the given string should be compared
         /// </summary>
         public DbExpression Pattern
         {
@@ -52,7 +54,7 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// Gets the expression that provides an optional escape string to use for the comparison
+        ///     Gets the expression that provides an optional escape string to use for the comparison
         /// </summary>
         public DbExpression Escape
         {
@@ -60,39 +62,39 @@ namespace System.Data.Entity.Core.Common.CommandTrees
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that do not produce a result value.
+        ///     The visitor pattern method for expression visitors that do not produce a result value.
         /// </summary>
-        /// <param name="visitor">An instance of DbExpressionVisitor.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
+        /// <param name="visitor"> An instance of DbExpressionVisitor. </param>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
         public override void Accept(DbExpressionVisitor visitor)
         {
-            if (visitor != null)
-            {
-                visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            visitor.Visit(this);
         }
 
         /// <summary>
-        /// The visitor pattern method for expression visitors that produce a result value of a specific type.
+        ///     The visitor pattern method for expression visitors that produce a result value of a specific type.
         /// </summary>
-        /// <param name="visitor">An instance of a typed DbExpressionVisitor that produces a result value of type TResultType.</param>
-        /// <typeparam name="TResultType">The type of the result produced by <paramref name="visitor"/></typeparam>
-        /// <exception cref="ArgumentNullException"><paramref name="visitor"/> is null</exception>
-        /// <returns>An instance of <typeparamref name="TResultType"/>.</returns>
+        /// <param name="visitor"> An instance of a typed DbExpressionVisitor that produces a result value of type TResultType. </param>
+        /// <typeparam name="TResultType">
+        ///     The type of the result produced by <paramref name="visitor" />
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException">
+        ///     <paramref name="visitor" />
+        ///     is null
+        /// </exception>
+        /// <returns>
+        ///     An instance of <typeparamref name="TResultType" /> .
+        /// </returns>
         public override TResultType Accept<TResultType>(DbExpressionVisitor<TResultType> visitor)
         {
-            if (visitor != null)
-            {
-                return visitor.Visit(this);
-            }
-            else
-            {
-                throw new ArgumentNullException("visitor");
-            }
+            Check.NotNull(visitor, "visitor");
+
+            return visitor.Visit(this);
         }
     }
 }

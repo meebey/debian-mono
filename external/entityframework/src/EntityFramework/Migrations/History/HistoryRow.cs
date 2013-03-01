@@ -1,4 +1,5 @@
 // Copyright (c) Microsoft Open Technologies, Inc. All rights reserved. See License.txt in the project root for license information.
+
 namespace System.Data.Entity.Migrations.History
 {
     using System.Diagnostics.CodeAnalysis;
@@ -17,10 +18,9 @@ namespace System.Data.Entity.Migrations.History
         public string MigrationId { get; set; }
 
         /// <summary>
-        ///     Gets or sets the date and time that this migrations history entry was created.
+        ///     Gets or sets a key representing to which context the row applies.
         /// </summary>
-        [Obsolete("The MigrationId column is now used for all ordering.")]
-        public DateTime CreatedOn { get; set; }
+        public string ContextKey { get; set; }
 
         /// <summary>
         ///     Gets or sets the state of the model after this migration was applied.
