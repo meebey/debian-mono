@@ -205,6 +205,7 @@ libmono-2.0.so.1 libmono-2.0-1 #MINVER#
  mono_debug_symfile_lookup_location@VER_1 2.10~rc1
  mono_debug_symfile_lookup_method@VER_1 2.10~rc1
  mono_debug_using_mono_debugger@VER_1 2.10~rc1
+ mono_debugger_agent_register_transport@VER_1 3.0.3
  mono_debugger_breakpoint_callback@VER_1 2.10~rc1
  mono_debugger_call_exception_handler@VER_1 2.10~rc1
  mono_debugger_check_breakpoints@VER_1 2.10~rc1
@@ -299,6 +300,7 @@ libmono-2.0.so.1 libmono-2.0-1 #MINVER#
  mono_exception_from_name_two_strings@VER_1 2.10~rc1
  mono_exception_from_token@VER_1 2.10~rc1
  mono_exception_from_token_two_strings@VER_1 2.10~rc1
+ mono_exception_walk_trace@VER_1 3.0.3
  mono_field_from_token@VER_1 2.10~rc1
  mono_field_full_name@VER_1 2.10~rc1
  mono_field_get_data@VER_1 2.10~rc1
