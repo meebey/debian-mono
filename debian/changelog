@@ -1,32 +1,23 @@
-mono (3.0.6+dfsg-1~exp1~pre1) experimental; urgency=low
-
-  [ Mirco Bauer ]
-  * New upstream release
-  * [422ee0e] Imported Upstream version 3.0.6+dfsg
-  * [2a298ae] Updated libmono-2.0-1.symbols for Mono 3.0.2 and 3.0.3
-
-  [ Marek Safar ]
-  * [3531cf8] Build correct version of System.Net for non-mobile profile
-
- -- Mirco Bauer <meebey@meebey.net>  Fri, 01 Mar 2013 06:05:42 +0100
-
-mono (3.0.1+dfsg-1~exp1~pre1) experimental; urgency=low
-
-  * [8bb72a8] Re-synced debian/dh_makeclilibs from cli-common 0.9, needed for .NET 4.5 support
-  * [81be094] Imported Upstream version 3.0.1+dfsg
-
- -- Mirco Bauer <meebey@debian.org>  Mon, 26 Nov 2012 18:49:47 +0100
-
-mono (3.0.0+dfsg-1~exp1~pre1) experimental; urgency=low
+mono (3.0.6+dfsg2-1~exp1~pre1) experimental; urgency=low
 
   * The "From Mirco Bauer with Love" release
 
+  [ Mirco Bauer ]
   * New major upstream release
     + Dropped obsolete downstream patches:
       - master-experimental-patches/CVE-2012-3382-Mono.Web-XSS
       - master-experimental-patches/X.509_fixes
       - master-experimental-patches/fix_mono-api-info
     + TODO: WRITE NEWS HERE
+  * [8f13662] Bumped clilibs where needed to >= 3.0.6
+  * [1a21b1c] Updated debian/copyright for Mono 3.0.6
+  * [8550395] Remove external/Lucene.Net/lib/ from source tarball in get-orig-source
+  * [37f20cb] Updated debian/README.source for Mono 3.0.6
+  * [44b076b] Imported Upstream version 3.0.6+dfsg2
+  * [422ee0e] Imported Upstream version 3.0.6+dfsg
+  * [2a298ae] Updated libmono-2.0-1.symbols for Mono 3.0.2 and 3.0.3
+  * [8bb72a8] Re-synced debian/dh_makeclilibs from cli-common 0.9, needed for .NET 4.5 support
+  * [81be094] Imported Upstream version 3.0.1+dfsg
   * [ca9c963] Imported Upstream version 3.0.0+dfsg
   * [2b6934a] Updated GNU/kFreeBSD port for Mono 3.0
   * [df4ee63] Disable -Werror=format-security on GCC as the input is already
@@ -70,7 +61,10 @@ mono (3.0.0+dfsg-1~exp1~pre1) experimental; urgency=low
   * [bb1a528] Updated library paths for .NET 4.5 development profile
   * [52efd50] Updated application paths for .NET 4.5 development profile
 
- -- Mirco Bauer <meebey@debian.org>  Tue, 30 Oct 2012 19:38:05 +0100
+  [ Marek Safar ]
+  * [3531cf8] Build correct version of System.Net for non-mobile profile
+
+ -- Mirco Bauer <meebey@debian.org>  Wed, 10 Apr 2013 23:13:16 +0200
 
 mono (2.10.8.1-6) unstable; urgency=low
 
